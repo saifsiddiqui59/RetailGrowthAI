@@ -63,7 +63,7 @@ export function bindVoiceStudioReview({
     'Missing active exact-source ASR lease');
   deny(Array.isArray(review.words) && review.words.length>=1 &&
     review.words.length<=2000 && typeof review.text==='string' &&
-    review.text.trim().length>0,'Missing real word timings');
+    review.text.length<=20000 && review.text.trim().length>0,'Missing real word timings');
   // Validate each word's own data descriptors before the normalizer reads it.
   // Accessor-backed timestamps or text must not execute inside a signing path.
   for (let i=0;i<review.words.length;i++) {
