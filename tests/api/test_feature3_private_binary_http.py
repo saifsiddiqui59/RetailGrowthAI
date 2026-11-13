@@ -82,6 +82,46 @@ class BinaryHTTPTests(unittest.TestCase):
             self.assertEqual(body,b"")
             self.assert_private_headers(headers)
         self.assertEqual(self.reader.calls,[])
+    def test_noncanonical_route_scope_denied_before_private_reader(self):
+        # No implicit normalization of a URL's tenant/job identity.
+        from uuid import UUID
+        shop, job = self.shop, self.job
+        malformed = (
+            (shop.upper(), job), (shop.replace("-", ""), job),
+            ("{" + shop + "}", job), (shop, job.upper()),
+            (shop, job.replace("-", "")), (object(), job),
+            (shop, UUID(job)), (str(uuid4()).replace("4", "1", 1), job),
+        )
+        for bad_shop, bad_job in malformed:
+            with self.subTest(shop=repr(bad_shop), job=repr(bad_job)):
+                status, body, headers = self.api.handle(
+                    method="GET", authorization="Bearer signed-retailer-test",
+                    shop_id=bad_shop, job_id=bad_job)
+                self.assertEqual((status, body), (404, b""))
+                self.assert_private_headers(headers)
+        self.assertEqual(self.reader.calls, [])
+
+    def test_ambiguous_bearer_token_denied_before_reader(self):
+        for token in ("signed,other-token", "signed;other-token",
+                      'signed"other-token', "signed\\\\other-token",
+                      "signed\\u0080other-token"):
+            with self.subTest(token=repr(token)):
+                status, body, headers = self.call(auth="Bearer " + token)
+                self.assertEqual((status, body), (401, b""))
+                self.assert_private_headers(headers)
+        self.assertEqual(self.reader.calls, [])
+
+    def test_noncanonical_media_receipt_denies_private_bytes(self):
+        original = self.reader.media
+        for forged in (original.upper(), original.replace("-", ""),
+                       "{" + original + "}"):
+            self.reader.extra = {"media_asset_id": forged}
+            with self.subTest(forged=forged):
+                status, body, headers = self.call()
+                self.assertEqual((status, body), (503, b""))
+                self.assert_private_headers(headers)
+        self.reader.extra = {}
+
     def test_revoked_foreign_job_or_unverified_reader_never_returns_bytes(self):
         for exc in (PrivateGeneratedDownloadDenied("revoked"),
                     ValueError("foreign output"),KeyError("source missing")):
