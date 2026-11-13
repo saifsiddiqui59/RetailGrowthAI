@@ -50,6 +50,25 @@ class PrivatePNGCompositionTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     factory(shop, job)
 
+    def test_factory_rejects_noncanonical_uuid_spellings_before_reader_io(self):
+        from unittest.mock import patch
+
+        factory = self.make(lambda *args: False)
+        # UUID parser accepts alternate spellings, but a route reader must
+        # have a single canonical scope for rights, storage and audit checks.
+        variants = (
+            (self.shop.upper(), self.job),
+            (self.shop, self.job.upper()),
+            (self.shop.replace("-", ""), self.job),
+            (self.shop, "{" + self.job + "}"),
+        )
+        with patch("feature3_private_png_binding.Feature3RevocablePNGReader") as reader:
+            for shop, job in variants:
+                with self.subTest(shop=shop, job=job):
+                    with self.assertRaisesRegex(ValueError, "canonical UUID"):
+                        factory(shop, job)
+            reader.assert_not_called()
+
     def test_factory_rejects_spoofed_scope_before_reader_construction(self):
         from unittest.mock import patch
 
