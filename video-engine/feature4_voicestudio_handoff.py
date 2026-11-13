@@ -241,6 +241,9 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
             # Invisible formatting controls (e.g. bidi overrides) can disguise
             # the worker path in review logs even when its bytes are relative.
             or any(unicodedata.category(ch) == "Cf" for ch in manifest_asset["path"])
+            # Restrict the server-created worker path to unambiguous ASCII.
+            # Unicode lookalikes and nonprinting marks are not needed for IDs.
+            or not re.fullmatch(r"[A-Za-z0-9_./-]+", manifest_asset["path"])
             or manifest_asset.get("rights") != {
                 "license": before_asset["license_name"],
                 "commercial_use": True,
