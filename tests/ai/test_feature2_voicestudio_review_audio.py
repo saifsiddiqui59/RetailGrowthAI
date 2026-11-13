@@ -975,3 +975,29 @@ def test_digest_matching_wav_with_unapproved_riff_chunk_denied(extra_chunk):
     with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
         read_current_voiceover_for_review(**args)
     assert len(sql.calls) == 1 and len(tenant.calls) == 1
+
+
+@pytest.mark.parametrize("field,invalid", [
+    ("private", 1),
+    ("commercial_rights_confirmed", 1),
+    ("publish_approved", 0),
+    ("review_status", ["NEEDS_REVIEW"]),
+    ("original_sha256", "A" * 64),
+    ("render_sha256", "A" * 64),
+    ("plan_sha256", "A" * 64),
+])
+def test_sql_receipt_rejects_type_coercion_and_noncanonical_hashes(field, invalid):
+    """SQL receipt values must be exact types, not truthy or normalized values."""
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+
+    def malformed(*ids):
+        receipt = original(*ids)
+        receipt[field] = invalid
+        return receipt
+
+    sql.read_private_receipt = malformed
+    with pytest.raises(VoiceStudioReviewDenied):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1
+    assert not storage.calls
