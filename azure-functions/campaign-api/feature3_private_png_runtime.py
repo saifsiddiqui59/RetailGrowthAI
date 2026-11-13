@@ -59,15 +59,19 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
             second_origin = store.origin
             second_key = store.key
             last_origin = store.origin
+            last_key = store.key
+            post_key_origin = store.origin
         except Exception:
             return False
         return (type(first_origin) is str and type(first_key) is str and
                 type(second_origin) is str and type(second_key) is str and
-                type(last_origin) is str and
+                type(last_origin) is str and type(last_key) is str and
+                type(post_key_origin) is str and
                 first_origin == supabase_origin.rstrip("/") and
                 first_key == publishable_key and
                 second_origin == first_origin and
-                second_key == first_key and last_origin == first_origin)
+                second_key == first_key and last_origin == first_origin and
+                last_key == first_key and post_key_origin == first_origin)
 
     # Reader constructor checks exact HTTPS Supabase origin, publishable
     # key and RLS read methods. Never silently fall back to a mock reader.
