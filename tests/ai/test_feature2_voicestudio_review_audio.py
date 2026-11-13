@@ -1041,3 +1041,15 @@ def test_nonprimitive_sql_review_status_equality_impostor_denied_before_private_
         read_current_voiceover_for_review(**args)
     assert len(sql.calls) == 1
     assert not storage.calls
+
+
+def test_authorization_string_subclass_denied_before_trusted_calls():
+    class UntrustedHeader(str):
+        pass
+
+    args, tenant, sql, storage, tokens = harness(
+        authorization=UntrustedHeader("Bearer " + TOKEN)
+    )
+    with pytest.raises(VoiceStudioReviewDenied):
+        read_current_voiceover_for_review(**args)
+    assert not tokens and not tenant.calls and not sql.calls and not storage.calls
