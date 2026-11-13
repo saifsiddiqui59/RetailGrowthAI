@@ -195,7 +195,14 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
             or type(output.get("manifest")) is not dict
             or type(output["manifest"].get("assets")) is not dict):
         raise CreativeContractError("Malformed compiled private narration output")
-    if output["request"].get("voiceover_asset_id") != asset_id or output["request"].get("voiceover_source") != "retailer":
+    # The compiler must not silently retarget an approved voice to another
+    # tenant, campaign or timeline after the private source has been verified.
+    request = output["request"]
+    if (request.get("shop_id") != shop
+            or request.get("duration_seconds") != duration
+            or ("campaign_id" in request and request["campaign_id"] != campaign)):
+        raise CreativeContractError("Compiled narration request scope changed")
+    if request.get("voiceover_asset_id") != asset_id or request.get("voiceover_source") != "retailer":
         raise CreativeContractError("Video compiler discarded approved voice source")
     # The worker manifest intentionally replaces private object keys with
     # sandbox-local paths; verify its rights and identity separately from
