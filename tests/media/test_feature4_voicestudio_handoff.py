@@ -125,6 +125,27 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             with self.assertRaisesRegex(CreativeContractError, "aliases another asset"):
                 self.call(draft, snapshot, receipt, data)
 
+    def test_compiler_rejects_casefolded_worker_path_collision(self):
+        # Case-insensitive staging filesystems must not overwrite approved audio.
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original = adapter.compile_approved_storyboard
+        draft, snapshot, receipt, data = self.setup_case()
+        aid = draft["voiceover_asset_id"]
+
+        def aliased(*args):
+            result = original(*args)
+            other_id = next(key for key in result["manifest"]["assets"] if key != aid)
+            narration = result["manifest"]["assets"][aid]["path"]
+            # The other asset can use an otherwise distinct path string that
+            # aliases narration on Windows or case-insensitive mounted media.
+            result["manifest"]["assets"][other_id]["path"] = narration.upper()
+            return result
+
+        with patch.object(adapter, "compile_approved_storyboard", side_effect=aliased):
+            with self.assertRaisesRegex(CreativeContractError, "aliases another asset"):
+                self.call(draft, snapshot, receipt, data)
+
     def test_compiler_cannot_retarget_approved_narration_scope(self):
         from unittest.mock import patch
         import feature4_voicestudio_handoff as adapter
