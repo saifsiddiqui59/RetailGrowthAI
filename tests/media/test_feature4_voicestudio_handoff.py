@@ -76,6 +76,23 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         })
         self.assertNotIn("voiceover_source",draft)
 
+    def test_private_object_alias_rejected_before_wav_reader(self):
+        # A second media ID may not reuse the approved VoiceStudio object,
+        # even when the unrelated media row claims separate rights.
+        draft, snapshot, receipt, data = self.setup_case()
+        narration = snapshot["assets"][draft["voiceover_asset_id"]]
+        other_id = next(key for key in snapshot["assets"]
+                        if key != draft["voiceover_asset_id"])
+        snapshot["assets"][other_id]["storage_bucket"] = narration["storage_bucket"]
+        snapshot["assets"][other_id]["object_path"] = narration["object_path"]
+        reads = []
+        with self.assertRaisesRegex(CreativeContractError, "object aliases another media asset"):
+            compile_voicestudio_narrated_reel(
+                draft=draft, snapshot=snapshot,
+                read_current_receipt=lambda *_: dict(receipt),
+                read_current_private_wav=lambda *_: reads.append(True) or data)
+        self.assertEqual(reads, [], "Aliased private WAV must not be fetched")
+
     def test_modified_pcm_never_reaches_compiler_even_with_valid_wav_header(self):
         from unittest.mock import patch
         import feature4_voicestudio_handoff as adapter
