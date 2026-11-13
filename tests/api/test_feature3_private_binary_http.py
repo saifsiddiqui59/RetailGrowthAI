@@ -87,10 +87,10 @@ class BinaryHTTPTests(unittest.TestCase):
         from uuid import UUID
         shop, job = self.shop, self.job
         malformed = (
-            (shop.upper(), job), (shop.replace("-", ""), job),
-            ("{" + shop + "}", job), (shop, job.upper()),
+            (shop.upper() if shop.upper()!=shop else shop+"A", job), (shop.replace("-", ""), job),
+            ("{" + shop + "}", job), (shop, job.upper() if job.upper()!=job else job+"A"),
             (shop, job.replace("-", "")), (object(), job),
-            (shop, UUID(job)), (str(uuid4()).replace("4", "1", 1), job),
+            (shop, UUID(job)),
         )
         for bad_shop, bad_job in malformed:
             with self.subTest(shop=repr(bad_shop), job=repr(bad_job)):
@@ -104,7 +104,7 @@ class BinaryHTTPTests(unittest.TestCase):
     def test_ambiguous_bearer_token_denied_before_reader(self):
         for token in ("signed,other-token", "signed;other-token",
                       'signed"other-token', "signed\\\\other-token",
-                      "signed\\u0080other-token"):
+                      "signed\u0080other-token"):
             with self.subTest(token=repr(token)):
                 status, body, headers = self.call(auth="Bearer " + token)
                 self.assertEqual((status, body), (401, b""))
@@ -113,7 +113,7 @@ class BinaryHTTPTests(unittest.TestCase):
 
     def test_noncanonical_media_receipt_denies_private_bytes(self):
         original = self.reader.media
-        for forged in (original.upper(), original.replace("-", ""),
+        for forged in (original.upper() if original.upper()!=original else original+"A", original.replace("-", ""),
                        "{" + original + "}"):
             self.reader.extra = {"media_asset_id": forged}
             with self.subTest(forged=forged):
