@@ -220,6 +220,30 @@ class RuntimeCompositionTests(unittest.TestCase):
         self.assertEqual(calls, [])
         self.assertEqual(store.origin, "https://foreign-project.supabase.co")
 
+    def test_final_key_getter_rotation_denies_before_reader_construction(self):
+        """A key getter changing origin on the last read must fail closed."""
+        class RotatingStore(SyntheticStore):
+            def __init__(self):
+                self._origin = ORIGIN
+                self.key_reads = 0
+
+            @property
+            def origin(self):
+                return self._origin
+
+            @property
+            def key(self):
+                self.key_reads += 1
+                if self.key_reads == 4:
+                    self._origin = "https://foreign-project.supabase.co"
+                return KEY
+
+        store = RotatingStore()
+        shop, job = str(uuid4()), str(uuid4())
+        with self.assertRaises(ValueError):
+            self.build(tenant_store=store)(shop, job)
+        self.assertEqual(store.origin, "https://foreign-project.supabase.co")
+
     def test_cross_project_store_is_rejected(self):
         class ForeignStore(SyntheticStore):
             origin = "https://foreign-project.supabase.co"
