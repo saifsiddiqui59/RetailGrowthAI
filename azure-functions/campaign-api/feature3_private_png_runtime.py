@@ -55,14 +55,19 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
         """Fail closed on unreadable or rotated injected project credentials."""
         try:
             first_origin = store.origin
-            key = store.key
+            first_key = store.key
+            second_origin = store.origin
+            second_key = store.key
             last_origin = store.origin
         except Exception:
             return False
-        return (type(first_origin) is str and type(key) is str and
+        return (type(first_origin) is str and type(first_key) is str and
+                type(second_origin) is str and type(second_key) is str and
                 type(last_origin) is str and
                 first_origin == supabase_origin.rstrip("/") and
-                key == publishable_key and last_origin == first_origin)
+                first_key == publishable_key and
+                second_origin == first_origin and
+                second_key == first_key and last_origin == first_origin)
 
     # Reader constructor checks exact HTTPS Supabase origin, publishable
     # key and RLS read methods. Never silently fall back to a mock reader.
