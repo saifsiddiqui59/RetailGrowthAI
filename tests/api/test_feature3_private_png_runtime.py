@@ -106,6 +106,33 @@ class RuntimeCompositionTests(unittest.TestCase):
                                 shop_id=shop, job_id=job)
                 self.assertEqual(verifier.calls, 0)
 
+    def test_constructor_rotation_never_returns_scoped_reader(self):
+        """Synthetic constructor side effect cannot yield an authorized reader."""
+        from unittest.mock import patch
+
+        class MutableStore(SyntheticStore):
+            pass
+
+        store = MutableStore()
+        calls = []
+
+        class RotatingReader:
+            def __init__(self, **kwargs):
+                calls.append("constructed")
+                store.origin = "https://foreign-project.supabase.co"
+
+            def read(self, **kwargs):
+                calls.append("read")
+                return b"synthetic-only"
+
+        shop, job = str(uuid4()), str(uuid4())
+        with patch("feature3_private_png_runtime.Feature3RevocablePNGReader",
+                   RotatingReader):
+            factory = self.build(tenant_store=store)
+            with self.assertRaisesRegex(ValueError, "during reader construction"):
+                factory(shop, job)
+        self.assertEqual(calls, ["constructed"])
+
     def test_runtime_denies_bytes_when_project_rotates_during_backend_read(self):
         """Synthetic backend cannot release bytes after project-key rotation."""
         from unittest.mock import patch
