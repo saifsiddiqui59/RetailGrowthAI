@@ -1105,3 +1105,31 @@ def test_mutable_storage_payload_denied_without_post_read_disclosure():
         read_current_voiceover_for_review(**args)
     assert len(calls) == 1
     assert len(sql.calls) == 1 and len(tenant.calls) == 1
+
+
+@pytest.mark.parametrize("offset,replacement", [
+    (20, b"\\x03\\x00"),  # IEEE float is not PCM16
+    (34, b"\\x08\\x00"),  # 8-bit sample declaration on 16-bit PCM
+    (32, b"\\x01\\x00"),  # invalid mono PCM16 block alignment
+])
+def test_digest_matching_noncanonical_pcm_format_denied_before_second_authorization(
+    offset, replacement,
+):
+    """A matching storage SHA must not turn a noncanonical WAV into reviewer audio."""
+    args, tenant, sql, storage, _ = harness()
+    payload = bytearray(pcm())
+    payload[offset:offset + len(replacement)] = replacement
+    corrupted = bytes(payload)
+    original_reader = sql.read_private_receipt
+
+    def receipt(*ids):
+        result = original_reader(*ids)
+        result["original_sha256"] = sha256(corrupted).hexdigest()
+        return result
+
+    sql.read_private_receipt = receipt
+    storage.read_verified_original = lambda *ids: corrupted
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1
+    assert len(tenant.calls) == 1
