@@ -70,6 +70,30 @@ class BlueprintTests(unittest.TestCase):
                         azure_functions=host,
                         reader_factory=lambda *_: None)
 
+    def test_blueprint_initialization_failures_are_opaque(self):
+        # Framework constructors and dynamic attributes may raise errors
+        # containing environment details; never expose them as route errors.
+        class BrokenConstructor:
+            def __init__(self):
+                raise RuntimeError("synthetic-secret-in-constructor")
+
+        class BrokenRouteProperty:
+            @property
+            def route(self):
+                raise RuntimeError("synthetic-secret-in-route-property")
+
+        for broken in (BrokenConstructor, BrokenRouteProperty):
+            host = SimpleNamespace(
+                Blueprint=broken, HttpResponse=Response,
+                AuthLevel=SimpleNamespace(ANONYMOUS="anonymous"))
+            with self.subTest(blueprint=broken.__name__):
+                with self.assertRaisesRegex(
+                        ValueError, "^Azure Functions Blueprint initialization failed$") as caught:
+                    build_private_png_blueprint(
+                        azure_functions=host,
+                        reader_factory=lambda *_: self.fail("reader invoked"))
+                self.assertNotIn("synthetic-secret", str(caught.exception))
+
     def test_decorator_must_preserve_callable_private_handler(self):
         # An invalid host shim must not silently register a missing handler.
         class DiscardingBlueprint:
