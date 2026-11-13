@@ -70,6 +70,19 @@ class BlueprintTests(unittest.TestCase):
                         azure_functions=host,
                         reader_factory=lambda *_: None)
 
+    def test_decorator_must_preserve_callable_private_handler(self):
+        # An invalid host shim must not silently register a missing handler.
+        class DiscardingBlueprint:
+            def route(self, **options):
+                return lambda handler: None
+
+        host = SimpleNamespace(
+            Blueprint=DiscardingBlueprint, HttpResponse=Response,
+            AuthLevel=SimpleNamespace(ANONYMOUS="anonymous"))
+        with self.assertRaisesRegex(ValueError, "discarded handler"):
+            build_private_png_blueprint(
+                azure_functions=host, reader_factory=lambda *_: None)
+
     def test_opt_in_get_route_and_backend_failure_are_fail_closed(self):
         calls = []
         def factory(*args):
