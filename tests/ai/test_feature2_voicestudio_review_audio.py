@@ -1205,3 +1205,32 @@ def test_matching_digest_non_pcm16_format_denied_before_second_sql_read(field_of
     with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
         read_current_voiceover_for_review(**args)
     assert len(sql.calls) == 1 and len(tenant.calls) == 1
+
+
+def test_private_reader_rejects_oversized_audio_before_postread_authorization():
+    """A matching SQL digest must not bypass the bounded private byte contract."""
+    args, tenant, sql, storage, _ = harness()
+    oversized = b"RIFF" + b"\\x00" * (8 * 1024 * 1024)
+    original = sql.read_private_receipt
+
+    def receipt(*ids):
+        result = original(*ids)
+        result["original_sha256"] = sha256(oversized).hexdigest()
+        return result
+
+    sql.read_private_receipt = receipt
+    storage.read_verified_original = lambda *ids: oversized
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1
+    assert len(tenant.calls) == 1
+
+
+def test_private_reader_rejects_bytearray_even_with_matching_digest():
+    """Mutable storage buffers must not be returned as approved original audio."""
+    args, tenant, sql, storage, _ = harness()
+    storage.read_verified_original = lambda *ids: bytearray(pcm())
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1
+    assert len(tenant.calls) == 1
