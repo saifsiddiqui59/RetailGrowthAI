@@ -74,7 +74,11 @@ def _canonical_pcm_chunks(content):
             # dangling half-frames that wave.open can silently ignore.
             channels = int.from_bytes(content[22:24], "little")
             block_align = int.from_bytes(content[32:34], "little")
+            sample_rate = int.from_bytes(content[24:28], "little")
+            byte_rate = int.from_bytes(content[28:32], "little")
             if (channels not in (1, 2) or block_align != channels * 2
+                    or not 8000 <= sample_rate <= 96000
+                    or byte_rate != sample_rate * block_align
                     or size == 0 or size % block_align):
                 raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
         end = offset + 8 + size
