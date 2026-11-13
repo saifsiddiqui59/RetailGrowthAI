@@ -58,6 +58,12 @@ export function bindVoiceStudioReview({
   deny(Array.isArray(review.words) && review.words.length>=1 &&
     review.words.length<=2000 && typeof review.text==='string' &&
     review.text.trim().length>0,'Missing real word timings');
+  // Validate each word's own data descriptors before the normalizer reads it.
+  // Accessor-backed timestamps or text must not execute inside a signing path.
+  for (let i=0;i<review.words.length;i++) {
+    deny(Object.hasOwn(review.words,i),'Sparse VoiceStudio word list');
+    requireOwnDataFields(review.words[i],['word','start','end']);
+  }
   // Normalize through the existing transcript hash contract; never sign the
   // audio digest in place of the original VIDEO digest.
   const normalized=normalizeWhisperx({
