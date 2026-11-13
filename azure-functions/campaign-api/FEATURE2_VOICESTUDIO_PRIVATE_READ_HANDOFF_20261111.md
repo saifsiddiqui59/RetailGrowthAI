@@ -11,3 +11,9 @@ This Feature2-owned change adds **real, bounded, SHA256-verified private WAV byt
 Integration next: server-only authenticated `NEEDS_REVIEW` audio preview with current editor membership and original-key receipt; Feature4 current `APPROVED_FOR_EDITING` rights check before calling render reader; then true audio/video, reviewed captions and two-shop DEV E2E after an approved commercial model. Root HTTP registration and SQL schema still require independent security review in PRs #920/#923/#925.
 
 Source-only, model OFF, no GPU/paid provider, hosted DEV/PROD or WineShopPOS change. F2-19/F2-20 not fully accepted.
+
+
+## 2026-11-13 F2-19/F2-20 source-only checkpoint
+- PR #937 source/test commit `82d60339222d0d4c050ccc4045f7cf02a73556f6`: added seven parameterized denial cases for SQL receipt truthy integer coercion, list-valued review state, and uppercase SHA digests. No runtime behavior or cloud resources changed.
+- Exact-head PR workflow query returned **zero runs at inspection**; 0/4 verified, not green. Targeted pytest not executed in this run. PR #937 remains draft, stacked on private reader branch, and requires independent protected security review; #920/#923/#925 remain open.
+- **NEXT CODE ACTION:** run `python -m pytest -q tests/ai/test_feature2_voicestudio_review_audio.py tests/ai/test_feature2_voicestudio_riff_envelope.py` at head `82d60339222d0d4c050ccc4045f7cf02a73556f6`; inspect exact-head 4-job Actions, fix any owned failures. Compare latest main and all changed paths before safe reconciliation. Do not merge/deploy protected branches without independent review and 4/4 exact-head, then fresh postmerge main 4/4.
