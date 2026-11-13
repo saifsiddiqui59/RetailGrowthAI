@@ -870,3 +870,28 @@ def test_review_receipt_rights_or_approval_change_during_private_get_denies_byte
     assert len(storage.calls) == 1
     assert len(sql.calls) == 2
     assert len(tenant.calls) == 1
+
+
+@pytest.mark.parametrize("injected", [
+    b"LIST" + (4).to_bytes(4, "little") + b"evil",
+    b"JUNK" + (2).to_bytes(4, "little") + b"xx",
+])
+def test_digest_matching_wav_with_unexpected_private_chunk_denied(injected):
+    """No auxiliary RIFF chunks may smuggle private metadata into review audio."""
+    args, tenant, sql, storage, _ = harness()
+    original = pcm()
+    # Insert before the data chunk, retaining a valid outer RIFF length.
+    data_offset = original.index(b"data", 12)
+    altered = bytearray(original[:data_offset] + injected + original[data_offset:])
+    altered[4:8] = (len(altered) - 8).to_bytes(4, "little")
+    payload = bytes(altered)
+    original_reader = sql.read_private_receipt
+    def matching_receipt(*ids):
+        receipt = original_reader(*ids)
+        receipt["original_sha256"] = sha256(payload).hexdigest()
+        return receipt
+    sql.read_private_receipt = matching_receipt
+    storage.read_verified_original = lambda *ids: payload
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1 and len(tenant.calls) == 1
