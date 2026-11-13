@@ -1485,3 +1485,7 @@ Read all 94 initial open PR metadata and changed-file inventories in ten-at-once
 
 ### 2026-11-14 IST — Deduplication checkpoint after source equivalence proof
 - Historical duplicate runtime-manifest [PR #885](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/885) was closed **unmerged** after verifying its original package source up to `write_zip` is byte-identical to keeper #927, the complete runtime-manifest test file is blob-identical, and the original audit document is fully preserved. #927 adds stricter prewrite checks and has exact-current-main 4/4 CI; [issue #650](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/650) remains OPEN. This closure is a duplicate-backlog cleanup only, **not** a feature DONE, independent review, main merge, deployed ZIP or hosted acceptance. Open PR count rechecked **85**.
+
+
+### 2026-11-14 IST — Final F4 combined-source Gate2 CI proof completed
+- Disposable F4 parent plus current-main backend/agents/poster and #927 packaging proof commit `df6a9fbac2e5cdd506b55d5b3292747962df3fb4` passed **all 4/4** in [Part 1 CI #43499198368](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/43499198368). Python 443 tests/50 subtests, source ZIP 110/120, protected Gate2 poison/rollback suites, frontend, Supabase negative auth and actual CPU FFmpeg rendering passed. This is a temporary validation branch, not merged F4 or approved Azure deployment. #927 latest-main CI #43498488636 also passed 4/4. Shared review and postmerge-main acceptance remain outstanding, #650 OPEN.

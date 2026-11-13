@@ -330,3 +330,7 @@ Do NOT mark F4-07/F4-12/F4-13 DONE: parent #322 main PR has protected #650 Pytho
 
 ### 2026-11-14 IST — Duplicate #885 removed from open queue (NOT accepted integration)
 - **Closed unmerged:** draft #885, verified content superseded by #927. Exact `tests/infra/test_functions_runtime_manifest.py` blob, byte-identical runtime manifest code before `write_zip`, original `COORDINATOR_RUNTIME_MANIFEST.md` retained in full; #927 additionally keeps safe pre-write paths/member counts. Closed with explicit equivalence trace and issue #650 cross-reference, no force merge/review bypass. [PR #927](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/927) remains open/current-main 4/4-green pending independent shared-package/security review and fresh-main acceptance; **85 open PRs** after closure. This is one non-DONE duplicate closure, not an integrated original feature task.
+
+
+### 2026-11-14 IST — Final CI receipts, no false task DONE
+- Exact [#927 latest-main CI #43498488636](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/43498488636) **4/4**; F4 parent plus main production backend/agents/poster plus #927 ZIP source proof [#43499198368](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/43499198368) **4/4**, Gate2 **110/120** and Python **443 tests**. Closed duplicate draft #885 without merge; GitHub verified **85 open PRs**. Main still lacks #927, independent deployment security review, hosted indexing and true F4 feature acceptance, so do not mark issue #650 or original task IDs DONE.

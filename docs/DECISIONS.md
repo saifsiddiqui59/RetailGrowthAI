@@ -1121,3 +1121,7 @@ A requested 90-way PR sprint is interpreted safely as full-queue metadata/path t
 
 ### 2026-11-14 IST — Retire duplicated review proposals without dropping evidence
 - A superseded draft PR can be closed **unmerged** when exact files and source semantics have been verified preserved in the designated active keeper, and an explanatory trace is left on the closed PR. This does not authorize unreviewed shared code integration or feature completion. For issue #650, #885's tests are exactly identical to #927, its import-manifest implementation is byte-equal through `write_zip`, and its original audit text is fully carried; retain #927 review and postmerge gates.
+
+
+### 2026-11-14 IST — Current-main/F4 source-proof 4/4 does not authorize production rollout
+- Keep #927 explicit v1 runtime closure (110/120 ZIP members on combined F4 source) and all original queues, poison, licensing and FFmpeg limits intact. [Four-job combined-source CI #43499198368](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/43499198368) now passed, including CPU render. Do not equate a disposable source composition with reviewed shared production package, hosted Functions index, independent rights review or Feature4 full acceptance. #885 was closed duplicate unmerged; #927 remains the sole candidate.
