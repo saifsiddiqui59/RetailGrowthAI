@@ -34,8 +34,13 @@ def build_private_png_blueprint(*, azure_functions, reader_factory):
 
     # Fail before registration if a malformed host shim cannot provide a
     # genuine decorator. Never silently publish an unguarded HTTP handler.
-    blueprint = blueprint_type()
-    route_decorator = getattr(blueprint, "route", None)
+    try:
+        blueprint = blueprint_type()
+        route_decorator = getattr(blueprint, "route", None)
+    except Exception as exc:
+        # A broken host constructor or dynamic route attribute must never
+        # leak its exception (potentially containing environment secrets).
+        raise ValueError("Azure Functions Blueprint initialization failed") from exc
     if not callable(route_decorator):
         raise ValueError("Azure Functions Blueprint route decorator required")
 
