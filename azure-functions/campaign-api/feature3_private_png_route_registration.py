@@ -45,4 +45,4 @@ def build_private_png_blueprint(*, azure_functions, reader_factory):
             request, reader_factory=reader_factory, response_type=response_type
         )
 
-    return blueprint
+    # A malformed decorator may silently discard the handler or replace it\n    # with a non-callable object. Reject that contract before opt-in mounting.\n    if not callable(feature3_private_png):\n        raise ValueError("Azure Functions route registration discarded handler")\n    return blueprint\n
