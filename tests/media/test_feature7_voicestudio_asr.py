@@ -195,6 +195,18 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
         self.payload["text"] = "नमस्ते दुनिया"
         self.assertEqual(self.call()["text"], "नमस्ते दुनिया")
 
+    def test_bidi_control_spoofing_denied_before_review(self):
+        for control in ("\u202e", "\u202a", "\u2066", "\u2069", "\u200f", "\u061c"):
+            self.payload["words"] = [{"start": 0.1, "end": 0.7, "word": "नम" + control + "स्ते"}]
+            with self.subTest(field="word", control=hex(ord(control))), self.assertRaises(VoiceStudioTranscriptionDenied):
+                self.call()
+            self.payload["words"] = [{"start": 0.1, "end": 0.7, "word": "नमस्ते"}]
+            self.payload["text"] = "नम" + control + "स्ते"
+            with self.subTest(field="text", control=hex(ord(control))), self.assertRaises(VoiceStudioTranscriptionDenied):
+                self.call()
+        self.payload["text"] = "नमस्ते दुनिया"
+        self.assertEqual(self.call()["words"][0]["word"], "नमस्ते")
+
     def test_upstream_status_url_and_mime_are_verified(self):
         for conf in [{"status":202},{"url":"https://evil.test/"},{"mime":"text/html"}]:
             def sender(req,timeout):
