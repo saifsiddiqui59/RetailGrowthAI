@@ -108,6 +108,23 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                 with self.assertRaisesRegex(CreativeContractError, "manifest changed"):
                     self.call(draft, snapshot, receipt, data)
 
+    def test_compiler_cannot_alias_private_voice_worker_path_with_other_media(self):
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original = adapter.compile_approved_storyboard
+        draft, snapshot, receipt, data = self.setup_case()
+        aid = draft["voiceover_asset_id"]
+
+        def aliased(*args):
+            result = original(*args)
+            other_id = next(key for key in result["manifest"]["assets"] if key != aid)
+            result["manifest"]["assets"][aid]["path"] = result["manifest"]["assets"][other_id]["path"]
+            return result
+
+        with patch.object(adapter, "compile_approved_storyboard", side_effect=aliased):
+            with self.assertRaisesRegex(CreativeContractError, "aliases another asset"):
+                self.call(draft, snapshot, receipt, data)
+
     def test_compiler_cannot_retarget_approved_narration_scope(self):
         from unittest.mock import patch
         import feature4_voicestudio_handoff as adapter
