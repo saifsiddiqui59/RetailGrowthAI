@@ -193,6 +193,7 @@ class RuntimeCompositionTests(unittest.TestCase):
         class RotatingStore(SyntheticStore):
             def __init__(self):
                 self._origin = ORIGIN
+                self.rotate = False
                 self.key_reads = 0
 
             @property
@@ -202,7 +203,7 @@ class RuntimeCompositionTests(unittest.TestCase):
             @property
             def key(self):
                 self.key_reads += 1
-                if self.key_reads == 4:
+                if self.rotate:
                     self._origin = "https://foreign-project.supabase.co"
                 return KEY
 
@@ -215,6 +216,7 @@ class RuntimeCompositionTests(unittest.TestCase):
         shop, job = str(uuid4()), str(uuid4())
         factory = self.build(tenant_store=store, jwt_verifier=verifier)
         reader = factory(shop, job)
+        store.rotate = True
         with self.assertRaises(PrivateGeneratedDownloadDenied):
             reader.read(user_token="synthetic-only", shop_id=shop, job_id=job)
         self.assertEqual(calls, [])
