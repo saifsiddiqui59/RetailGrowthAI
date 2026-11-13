@@ -95,7 +95,8 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         for unsafe in ("../private.wav", "/etc/passwd", "assets/../../secret.wav",
                        "C:\\private.wav", "C:private.wav", "-i", "-filter_complex", "https://evil.test/voice.wav",
                        "assets/%2e%2e/voice.wav", "assets//voice.wav", "assets/./voice.wav",
-                       "assets/voice\\n.wav"):
+                       "assets/voice\\n.wav", "assets/voice\u202e.wav",
+                       "assets/voice\u200b.wav"):
             draft, snapshot, receipt, data = self.setup_case()
             def forged_compiler(*args):
                 output = original_compiler(*args)
