@@ -108,13 +108,18 @@ export async function bindVerifiedVoiceStudioMedia({
     const descriptor=Object.getOwnPropertyDescriptor(review,field);
     deny(descriptor && Object.hasOwn(descriptor,'value'));
   }
-  deny(Object.getOwnPropertyDescriptor(review,'schema').value===
-    'retailgrowth.feature7-voicestudio-asr-review.v1' &&
-    Object.getOwnPropertyDescriptor(review,'approved').value===false &&
-    Object.getOwnPropertyDescriptor(review,'renderable').value===false &&
-    Object.getOwnPropertyDescriptor(review,'word_timings_present').value===true &&
-    Object.getOwnPropertyDescriptor(review,'requires_feature7_signed_evidence').value===true &&
-    Object.getOwnPropertyDescriptor(review,'model_revision_verified_by_worker').value===false);
+  // Fail before private I/O for every envelope field already required by the
+  // downstream signer. A malformed ASR review is not permission to read media.
+  const fieldValue=field=>Object.getOwnPropertyDescriptor(review,field).value;
+  deny(fieldValue('schema')==='retailgrowth.feature7-voicestudio-asr-review.v1' &&
+    fieldValue('approved')===false && fieldValue('renderable')===false &&
+    fieldValue('word_timings_present')===true &&
+    fieldValue('requires_feature7_signed_evidence')===true &&
+    fieldValue('model_revision_verified_by_worker')===false &&
+    ['en','hi','mr'].includes(fieldValue('language')) &&
+    fieldValue('audio_sha256')===original_audio_sha256 &&
+    typeof fieldValue('text')==='string' &&
+    fieldValue('text').length<=20000 && fieldValue('text').trim().length>0);
   // Track elapsed time across asynchronous media reads; a lease can expire
   // even if its snapshot is unchanged. An injected clock is for offline tests.
   const started=performance.now();
