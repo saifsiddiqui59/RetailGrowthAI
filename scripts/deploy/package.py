@@ -19,6 +19,153 @@ SERVICE = ROOT / "azure-functions" / "campaign-api"
 RENDER = ROOT / "video-engine"
 POSTER = ROOT / "poster-engine"
 AGENTS = ROOT / "ai-agents" / "src" / "ai_agents"
+# Only modules imported by registered Azure Functions, their safe workers and
+# optional source-controlled Feature2 AI routes belong in the small Functions
+# HTTP/queue package. Offline voice/ASR/reel research modules stay in source
+# control but need a separately approved worker and signed endpoint before use.
+# Adding a runtime import without extending this reviewed manifest fails closed.
+RUNTIME_AGENT_MODULES = frozenset({
+    "__init__", "schemas", "providers", "planner", "reviewer",
+    "observability", "content_intelligence", "trend_intelligence",
+    "trend_runtime", "marketing_guidance", "seasonal_calendar",
+    "subscriptions", "feature2_ai_writer", "feature2_llm",
+    "prompt_improver",
+})
+
+# The current hosted v1 renderer only uses render -> probe/asset_preflight.
+# Feature4's 29+ source-only editor/stock/QA modules are NOT registered Azure
+# Functions. Additions to this production closure require affected review.
+RUNTIME_VIDEO_MODULES = frozenset({"render", "probe", "asset_preflight"})
+
+
+
+def verify_runtime_agent_imports(entries: dict[str, bytes]):
+    """Fail closed for undeclared static ai_agents imports in packaged code.
+
+    Future variable-built imports still need human import-closure review and a
+    deployed-from-ZIP indexing smoke; do not mistake AST for dynamic proof.
+    """
+    available = {p[:-3].split("/")[-1] for p in entries
+                 if p.startswith("ai_agents/") and p.endswith(".py")}
+    # Detect package-form imports of source modules excluded from the ZIP.
+    # Names that are not source modules may be symbols exported by __init__.
+    known_modules = {path.stem for path in AGENTS.glob("*.py")}
+    for name, payload in entries.items():
+        if not name.endswith(".py"):
+            continue
+        # Include all Azure HTTP/queue, poster/video workers and packaged
+        # agents, not just currently enabled Feature2 routes.
+        tree = ast.parse(payload, filename=name)
+        # Imported aliases are the only trusted names for importlib calls.
+        # A similarly named method on an arbitrary object is not importlib.
+        importlib_modules = {
+            alias.asname or alias.name
+            for node in ast.walk(tree) if isinstance(node, ast.Import)
+            for alias in node.names if alias.name == "importlib"
+        }
+        import_module_names = {
+            alias.asname or alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom) and node.level == 0
+            and node.module == "importlib"
+            for alias in node.names if alias.name == "import_module"
+        }
+        for node in ast.walk(tree):
+            required = set()
+            if isinstance(node, ast.Import):
+                required.update(a.name.split(".")[1]
+                                for a in node.names
+                                if a.name.startswith("ai_agents."))
+            elif isinstance(node, ast.ImportFrom):
+                if node.module and node.module.startswith("ai_agents."):
+                    required.add(node.module.split(".")[1])
+                elif node.module == "ai_agents":
+                    required.update(a.name for a in node.names
+                                    if a.name in known_modules)
+                elif name.startswith("ai_agents/") and node.level == 1:
+                    if node.module:
+                        required.add(node.module.split(".")[0])
+                    else:
+                        required.update(a.name for a in node.names
+                                        if a.name in known_modules)
+            elif (isinstance(node, ast.Call) and
+                  ((isinstance(node.func, ast.Attribute) and
+                    node.func.attr == "import_module" and
+                    isinstance(node.func.value, ast.Name) and
+                    node.func.value.id in importlib_modules) or
+                   (isinstance(node.func, ast.Name) and
+                    node.func.id in import_module_names)) and
+                  node.args and isinstance(node.args[0], ast.Constant) and
+                  isinstance(node.args[0].value, str) and
+                  node.args[0].value.startswith("ai_agents.")):
+                required.add(node.args[0].value.split(".")[1])
+            elif (isinstance(node, ast.Call) and
+                  isinstance(node.func, ast.Name) and
+                  node.func.id == "__import__" and node.args and
+                  isinstance(node.args[0], ast.Constant) and
+                  isinstance(node.args[0].value, str) and
+                  node.args[0].value.startswith("ai_agents.")):
+                required.add(node.args[0].value.split(".")[1])
+            missing = required - available
+            if missing:
+                raise ValueError(
+                    "Undeclared ai_agents runtime import in " + name +
+                    ": " + ", ".join(sorted(missing)))
+    return True
+
+
+def verify_runtime_video_imports(entries: dict[str, bytes]):
+    """Reject packaged source referencing unshipped video-engine modules.
+
+    Static and literal-dynamic imports only. Variable imports require separate
+    human review and real extracted-host indexing before deployment.
+    """
+    available = {Path(path).stem for path in entries
+                 if path.startswith("video-engine/") and path.endswith(".py")}
+    known = {path.stem for path in RENDER.glob("*.py")}
+    for filename, payload in entries.items():
+        if not filename.endswith(".py"):
+            continue
+        tree = ast.parse(payload, filename=filename)
+        imported_modules = {
+            alias.asname or alias.name
+            for node in ast.walk(tree) if isinstance(node, ast.Import)
+            for alias in node.names if alias.name == "importlib"
+        }
+        imported_functions = {
+            alias.asname or alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom) and node.level == 0
+            and node.module == "importlib"
+            for alias in node.names if alias.name == "import_module"
+        }
+        for node in ast.walk(tree):
+            targets = set()
+            if isinstance(node, ast.Import):
+                targets.update(alias.name.split(".")[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                targets.add(node.module.split(".")[0])
+            elif isinstance(node, ast.Call) and node.args:
+                literal = node.args[0]
+                supported_call = (
+                    isinstance(node.func, ast.Name) and
+                    (node.func.id == "__import__" or node.func.id in imported_functions)
+                ) or (
+                    isinstance(node.func, ast.Attribute) and
+                    node.func.attr == "import_module" and
+                    isinstance(node.func.value, ast.Name) and
+                    node.func.value.id in imported_modules
+                )
+                if (supported_call and isinstance(literal, ast.Constant)
+                        and isinstance(literal.value, str)):
+                    targets.add(literal.value.split(".")[0])
+            missing = (targets & known) - available
+            if missing:
+                raise ValueError("Undeclared video-engine runtime import in " +
+                                 filename + ": " + ", ".join(sorted(missing)))
+    return True
+
+
 TIMESTAMP = (2026, 1, 1, 0, 0, 0)
 MAX_BINARY_BYTES = 180 * 1024 * 1024
 MAX_ARCHIVE_BYTES = 300 * 1024 * 1024
@@ -85,11 +232,24 @@ def source_files():
         if not path.is_file():
             raise ValueError("Required source missing: " + str(path.relative_to(ROOT)))
     entries = {}
-    for folder in (SERVICE, RENDER, POSTER):
+    for folder in (SERVICE, POSTER):
         for path in sorted(folder.glob("*.py")):
             entries[path.relative_to(ROOT).as_posix()] = path.read_bytes()
-    for path in sorted(AGENTS.glob("*.py")):
+    for module in sorted(RUNTIME_VIDEO_MODULES):
+        path = RENDER / (module + ".py")
+        if not path.is_file():
+            raise ValueError("Approved Functions video dependency missing: " + module)
+        entries["video-engine/" + path.name] = path.read_bytes()
+    # Versioned production import closure, not a broad source-tree sweep.
+    # F2's offline model/ASR research modules must not silently exhaust the
+    # protected 120-member Functions ZIP when feature branches are merged.
+    for module in sorted(RUNTIME_AGENT_MODULES):
+        path = AGENTS / (module + ".py")
+        if not path.is_file():
+            raise ValueError("Approved Functions agent dependency missing: " + module)
         entries["ai_agents/" + path.name] = path.read_bytes()
+    verify_runtime_agent_imports(entries)
+    verify_runtime_video_imports(entries)
     entries["function_app.py"] = ENTRY.encode()
     entries["requirements.txt"] = (SERVICE / "requirements.txt").read_bytes()
     host = json.loads((SERVICE / "host.json").read_text("utf-8"))
@@ -186,6 +346,27 @@ def ffmpeg_files(folder: Path):
 
 
 def write_zip(path: Path, entries: dict[str, bytes]):
+    # Reject unsafe archive paths before writing bytes to disk, not after verify_zip.
+    for name in entries:
+        if (not isinstance(name, str) or not name or name.startswith("/")
+                or ".." in name.split("/") or "\\" in name
+                or name.startswith(".") or name.endswith(".env")
+                or "local.settings.json" in name):
+            raise ValueError("Unsafe or secret-like ZIP member: " + str(name))
+    # Fail before writing a deployable artifact; keep verifier protections.
+    if len(entries) > 120:
+        by_area = {}
+        for name in entries:
+            area = name.split("/", 1)[0] if "/" in name else "(root)"
+            by_area[area] = by_area.get(area, 0) + 1
+        counts = ", ".join(
+            f"{area}={count}" for area, count in sorted(by_area.items())
+        )
+        raise ValueError(
+            f"Functions ZIP manifest exceeds 120 members ({len(entries)}): "
+            f"{counts}; members={', '.join(sorted(entries))}; "
+            "audit runtime dependencies rather than raising limits"
+        )
     path.parent.mkdir(parents=True, exist_ok=True)
     with ZipFile(path, "w", compression=ZIP_DEFLATED, compresslevel=6) as zip_file:
         for name in sorted(entries):
@@ -213,6 +394,23 @@ def main(argv=None):
         assert "video-engine/render.py" in entries
         assert "poster-engine/render.py" in entries
         assert "ai_agents/schemas.py" in entries
+        # The deployable archive also adds three FFmpeg/license members.
+        # Check the complete budget without needing approved binaries.
+        candidate_count = len(entries) + 3
+        print(f"Gate2 ZIP member budget: {candidate_count}/120 "
+              f"({len(entries)} source/wrapper + 3 FFmpeg/license)")
+        if candidate_count > 120:
+            by_area = {}
+            for name in entries:
+                area = name.split("/", 1)[0] if "/" in name else "(root)"
+                by_area[area] = by_area.get(area, 0) + 1
+            print("Gate2 oversized areas: " +
+                  ", ".join(f"{area}={count}" for area, count in sorted(by_area.items())),
+                  file=sys.stderr)
+            raise ValueError(
+                f"Gate2 source layout requires {candidate_count} ZIP members; "
+                "120 maximum; audit bundled modules rather than weakening verifier"
+            )
         print("PASS: source layout, import wrapper, queue settings and lease/timeout checks; no cloud calls")
         return 0
     if args.ffmpeg_dir is None:
