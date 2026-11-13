@@ -8,6 +8,7 @@ import {EditValidationError} from './autobroll_semantics.mjs';
 const deny=(ok)=>{if(!ok)throw new EditValidationError('Unverified original media or lease');};
 const sha=b=>createHash('sha256').update(b).digest('hex');
 const SHA=/^[a-f0-9]{64}$/;
+const SCOPE_ID=/^[A-Za-z0-9_-]{1,120}$/;
 // Lease receipts must contain own, ordinary data properties. Accessors can
 // return different scopes or expiry values during snapshot and final checks.
 const LEASE_FIELDS=['shop_id','asset_id','job_id','source_sha256',
@@ -81,6 +82,11 @@ export async function bindVerifiedVoiceStudioMedia({
 }={}) {
   deny([readOriginalVideo,readExtractedWav,readCurrentLease].every(f=>typeof f==='function') &&
     SHA.test(original_video_sha256??'') && SHA.test(original_audio_sha256??'') &&
+    // Reject invalid tenant/source scope and missing HMAC secret before invoking
+    // private readers. Downstream signing validation alone happens too late.
+    [shop_id,asset_id,job_id,model_id].every(id=>
+      typeof id==='string' && SCOPE_ID.test(id)) &&
+    Buffer.isBuffer(key) && key.length>=32 &&
     // Reject impossible source clocks before invoking private media readers.
     // Otherwise invalid requests can force up to 320 MiB of unnecessary I/O.
     Number.isFinite(source_duration_seconds) && source_duration_seconds>0 &&
