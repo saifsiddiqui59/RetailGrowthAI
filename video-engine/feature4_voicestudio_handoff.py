@@ -298,10 +298,13 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     # the narration share a staged worker filename with music, SFX or footage:
     # the worker could then mix or overwrite unrelated tenant-approved bytes.
     narration_path = manifest_asset["path"]
+    # Preserve dot segments until posixpath.normpath collapses traversal.
+    # rstrip(" .") on ".." would erase it, missing aliases such as
+    # temp/../approved.wav on the worker filesystem.
     if any(
         other_id != asset_id and type(other) is dict
         and type(other.get("path")) is str
-        and posixpath.normpath("/".join(part.rstrip(" .") for part in other["path"].replace("\\", "/").split("/"))).casefold() == narration_path.casefold()
+        and posixpath.normpath("/".join((part if part in (".", "..") else part.rstrip(" .")) for part in other["path"].replace("\\", "/").split("/"))).casefold() == narration_path.casefold()
         for other_id, other in output["manifest"]["assets"].items()
     ):
         raise CreativeContractError("Compiled private narration worker path aliases another asset")
