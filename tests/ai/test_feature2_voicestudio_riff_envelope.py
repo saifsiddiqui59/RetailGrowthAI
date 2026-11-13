@@ -53,10 +53,10 @@ def test_review_rejects_stereo_half_frame_even_with_valid_riff_envelope():
         stream.setnchannels(2)
         stream.setsampwidth(2)
         stream.setframerate(16000)
-        stream.writeframes(b"\\x00" * 8)
+        stream.writeframes(b"\x00" * 8)
     valid = output.getvalue()
     # Append one two-byte half-frame and adjust both declared sizes.
-    malformed = bytearray(valid + b"\\x00\\x00")
+    malformed = bytearray(valid + b"\x00\x00")
     malformed[4:8] = (len(malformed) - 8).to_bytes(4, "little")
     malformed[40:44] = (len(malformed) - 44).to_bytes(4, "little")
     with pytest.raises(VoiceStudioReviewDenied, match="review access denied"):
