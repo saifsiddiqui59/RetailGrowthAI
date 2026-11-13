@@ -76,7 +76,9 @@ def materialize_feature4_inputs(*, expected_manifest, current_readers,
             shop,expected["source_asset_id"],source_role,"editing",
             read_asset=current_readers["read_asset"],
             authorize_asset=current_readers["authorize_asset"],
-            read_private_bytes=current_readers["read_private_bytes"]
+            read_private_bytes=current_readers["read_private_bytes"],
+            expected_model_id=(fresh["model"]["model_id"]
+                               if role == "model" else None)
         )
         if actual!=expected or not isinstance(binary,bytes):
             raise FashionReferenceDenied("Source was revoked or altered at delivery")
@@ -86,6 +88,11 @@ def materialize_feature4_inputs(*, expected_manifest, current_readers,
             "mime_type":expected["mime_type"],
             "image_bytes":binary,
         }
+    # A lease or source approval can expire while private image bytes are
+    # materialized. Re-read authoritative rights and the durable job lease
+    # after the final byte read, before handing anything to Feature4.
+    _verify_inputs(expected_manifest, current_readers,
+                   verify_render_job, "editing")
     return {
         "consumer":"feature4", "shop_id":shop,
         "reference_fingerprint":fresh["reference_fingerprint"],
@@ -110,6 +117,11 @@ def materialize_feature5_input(*, expected_manifest,current_readers,
         current_readers=current_readers,
         verify_worker_job=verify_motion_job,
     )
+    # resolve_first_frame performs its own checks, but the claim or rights
+    # may be revoked during its last private-byte read. Fence final delivery;
+    # this does not authorize paid inference.
+    _verify_inputs(expected_manifest, current_readers,
+                   verify_motion_job, "image_to_video")
     return {
         "consumer":"feature5",
         "shop_id":frame["shop_id"],

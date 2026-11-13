@@ -16,7 +16,7 @@ import tempfile
 
 from fashion_reference_v1 import (
     FashionReferenceDenied, prepare_fashion_references,
-    resolve_first_frame, _read_image,
+    resolve_first_frame, _approved_asset,
 )
 
 _PURPOSES = frozenset(("editing", "image_to_video"))
@@ -79,30 +79,30 @@ def _final_read(fresh, role, readers):
     if ref is None:
         return None
     shop, asset = fresh["shop_id"], ref["source_asset_id"]
-    # Explicit fresh grant, including the exact use, immediately before
-    # reading bytes; don't rely on the earlier source-packet approval.
-    grant = readers["authorize_asset"](shop, asset, fresh["purpose"])
-    if (not isinstance(grant, dict) or grant.get("shop_id") != shop or
-        grant.get("asset_id") != asset or grant.get("authorized") is not True or
-        grant.get("license_verified") is not True or
-        grant.get("approval_state") != "APPROVED" or
-        grant.get("rights_revoked") is not False or
-        grant.get("rights_revision") != ref["approval"]["rights_revision"]):
+    # Reuse the *same* strict registered-source boundary as the initial
+    # manifest: current grant, immutable image bytes and tenant-owned
+    # role-specific private object path must all be checked BEFORE the
+    # final worker read. Checking only bucket, SHA and asset ID allowed a
+    # transient swapped object_path to reach read_private_bytes first.
+    source_role = role
+    if role == "first_frame":
+        source_role = "garment" if ref.get("source") == "UPLOAD" else "try_on"
+    current, raw = _approved_asset(
+        shop, asset, source_role, fresh["purpose"],
+        read_asset=readers["read_asset"],
+        authorize_asset=readers["authorize_asset"],
+        read_private_bytes=readers["read_private_bytes"],
+        expected_model_id=(fresh["model"]["model_id"] if role == "model" else None))
+    # Match the *entire* normalized rights/identity snapshot. A transient
+    # license or attribution substitution can preserve shop, SHA, revision
+    # and dimensions; checking only those fields would accept private bytes
+    # under a different source grant if a later read reverted to the original.
+    # Future approval/rights fields are automatically covered as well.
+    if current != ref:
         _reject()
-    row = readers["read_asset"](shop, asset)
-    if (not isinstance(row, dict) or row.get("shop_id") != shop or
-        row.get("id") != asset or
-        row.get("storage_bucket") != "retailgrowth-media" or
-        row.get("mime_type") != ref["mime_type"] or
-        row.get("image_sha256") != ref["sha256"]):
-        _reject()
-    raw = readers["read_private_bytes"](shop, asset, row.get("object_path"))
-    size, digest = _read_image(raw, ref["mime_type"])
-    if size != ref["dimensions"] or digest != ref["sha256"]:
-        _reject()
-    return {"source_asset_id": asset, "sha256": digest,
-            "mime_type": ref["mime_type"], "dimensions": size,
-            "image_bytes": raw}
+    return {"source_asset_id": asset, "sha256": current["sha256"],
+            "mime_type": current["mime_type"],
+            "dimensions": current["dimensions"], "image_bytes": raw}
 
 
 def resolve_private_worker_inputs(*, expected_manifest, current_readers,
@@ -145,6 +145,17 @@ def resolve_private_worker_inputs(*, expected_manifest, current_readers,
     # changed product metadata after any byte stream has been fetched.
     if prepare_fashion_references(**options) != fresh:
         _reject()
+    # A claim can expire while private images are read. Recheck the current
+    # durable worker lease after the last byte/rights verification, not only
+    # before staging; never return bytes for a revoked or replaced worker.
+    if verify_worker_job(fresh["shop_id"], _ids(fresh),
+                         fresh["reference_fingerprint"]) is not True:
+        _reject()
+    # The final trusted lease read may invoke a callback whose completion
+    # races a product-rights revocation. Require an additional authoritative
+    # private rights/bytes snapshot AFTER that lease check; never hand the
+    # already decoded bytes to a worker if this snapshot changed.
+    _fresh(expected_manifest, current_readers, purpose)
     return {
         "schema": "retailgrowth.feature3-worker-private-inputs.v1",
         "shop_id": fresh["shop_id"], "purpose": purpose,
@@ -196,6 +207,19 @@ def temporary_private_worker_inputs(*, expected_manifest, current_readers,
         path = Path(folder) / "manifest.json"
         path.write_text(json.dumps(metadata, indent=2, sort_keys=True), encoding="utf-8")
         os.chmod(path, 0o600)
+        # Writing private files can outlast a lease; check again immediately
+        # before exposing the temporary paths to the worker. No retries on
+        # uncertain or revoked lease outcomes.
+        staged_ids = tuple(sorted({image["source_asset_id"]
+                                   for image in payload["images"].values()
+                                   if image is not None}))
+        if verify_worker_job(payload["shop_id"], staged_ids,
+                             payload["source_fingerprint"]) is not True:
+            _reject()
+        # File staging may span a rights revocation. Even a still-valid
+        # lease must not expose private paths after an independent grant,
+        # garment revision or immutable byte proof changes during staging.
+        _fresh(expected_manifest, current_readers, payload["purpose"])
         try:
             yield {"temporary_directory": folder, "manifest": metadata}
         finally:

@@ -37,6 +37,26 @@ REQUIRED_CONFIG_FILES = frozenset({
 })
 
 
+
+def _unique_json_pairs(pairs):
+    """A reviewed manifest must have one unambiguous value for every key."""
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("Duplicate FLUX approval JSON key")
+        result[key] = value
+    return result
+
+
+def _reject_json_constant(value):
+    raise ValueError("Non-finite FLUX approval JSON value")
+
+
+def _load_strict_json(source):
+    return json.loads(source, object_pairs_hook=_unique_json_pairs,
+                      parse_constant=_reject_json_constant)
+
+
 def _digest(path):
     h = sha256()
     with path.open("rb") as stream:
@@ -52,7 +72,7 @@ def verify_reviewed_flux_snapshot(directory, approval_manifest):
         or manifest_path.stat().st_size > MAX_MANIFEST):
         raise ProviderBlocked("Private staged FLUX weights and reviewed manifest required")
     try:
-        record = json.loads(manifest_path.read_text(encoding="utf-8"))
+        record = _load_strict_json(manifest_path.read_text(encoding="utf-8"))
         if not isinstance(record, dict) or set(record) != {
             "schema", "repository", "revision_sha", "weights_license",
             "model_index_sha256", "shards_sha256", "configs_sha256", "dependencies_operator_approved",
@@ -92,7 +112,7 @@ def verify_reviewed_flux_snapshot(directory, approval_manifest):
         index = root / "model_index.json"
         if index.is_symlink() or not index.is_file() or _digest(index) != record["model_index_sha256"]:
             raise ProviderBlocked("FLUX model index changed")
-        if json.loads(index.read_text(encoding="utf-8")).get("_class_name") != "Flux2KleinPipeline":
+        if _load_strict_json(index.read_text(encoding="utf-8")).get("_class_name") != "Flux2KleinPipeline":
             raise ProviderBlocked("Unapproved FLUX pipeline")
         return {
             "repository": MODEL, "revision_sha": OFFICIAL_REVISION,

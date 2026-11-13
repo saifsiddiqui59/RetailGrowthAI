@@ -72,6 +72,11 @@ def _read_image(raw, mime_type):
                 raise FashionReferenceDenied("Unsupported first-frame image dimensions")
             size = [im.width, im.height]
             im.verify()
+        # JPEG verify() can accept a missing EOI marker or truncated scan.
+        # Decode the complete image before treating SHA-matching private
+        # bytes as a usable worker input; verify() alone is insufficient.
+        with Image.open(BytesIO(raw)) as decoded:
+            decoded.load()
     except (OSError, UnidentifiedImageError, Image.DecompressionBombError,
             KeyError, ValueError) as exc:
         raise FashionReferenceDenied("Private source image could not be verified") from exc
@@ -79,7 +84,7 @@ def _read_image(raw, mime_type):
 
 
 def _approved_asset(shop, asset_id, role, purpose, *, read_asset, authorize_asset,
-                    read_private_bytes):
+                    read_private_bytes, expected_model_id=None):
     """Always obtain a FRESH persisted rights grant, registered row and blob."""
     asset_id = _id(asset_id)
     row = read_asset(shop, asset_id)
@@ -88,7 +93,7 @@ def _approved_asset(shop, asset_id, role, purpose, *, read_asset, authorize_asse
         raise FashionReferenceDenied("Current private media approval unavailable")
     if (row.get("id") != asset_id or row.get("shop_id") != shop or
         row.get("storage_bucket") != "retailgrowth-media" or
-        row.get("mime_type") not in _EXT or
+        type(row.get("mime_type")) is not str or row["mime_type"] not in _EXT or
         row.get("license_name") not in ("owned", "cc0", "commercial", "royalty_free") or
         not isinstance(row.get("attribution"), str) or len(row["attribution"].strip()) < 10 or
         (row["license_name"] != "owned" and
@@ -102,8 +107,11 @@ def _approved_asset(shop, asset_id, role, purpose, *, read_asset, authorize_asse
         type(grant.get("rights_revision")) is not int or
         not 1 <= grant["rights_revision"] <= 2_147_483_647):
         raise FashionReferenceDenied("Source not tenant-owned and approved for this use")
-    if (row.get("fixture_only") is True or grant.get("fixture_only") is True or
-        row.get("revoked") is True):
+    # Absent flags are permitted for older registered rows, but any present
+    # value must be the actual boolean False. A truthy string, integer 0/1,
+    # mapping or list must never be interpreted as an unrevoked real asset.
+    if any(value is not None and value is not False for value in (
+            row.get("fixture_only"), grant.get("fixture_only"), row.get("revoked"))):
         raise FashionReferenceDenied("Synthetic/revoked test media cannot be production inputs")
     path = row.get("object_path")
     if not isinstance(path, str) or len(path) > 260 or "\\" in path or "//" in path:
@@ -124,10 +132,27 @@ def _approved_asset(shop, asset_id, role, purpose, *, read_asset, authorize_asse
         storage_id = parts[2][:-len(_EXT[row["mime_type"]])]
         _id(storage_id)
     elif role == "model":
+        # Approved model originals are immutable SHA-named private PNGs.
+        # Enforce the exact registered library namespace before ANY Storage
+        # read, not just a tenant prefix or a later matching byte digest.
+        # Platform originals use one additional fixed namespace segment.
+        model_key = (parts[2] if len(parts) == 4 else
+                     parts[3] if len(parts) == 5 and parts[2] == "platform"
+                     else None)
         if (row.get("source") not in ("UPLOAD", "GENERATED") or
-            len(parts) < 4 or parts[1] != "model-library" or
-            row.get("mime_type") != "image/png"):
+            model_key is None or parts[1] != "model-library" or
+            row.get("mime_type") != "image/png" or
+            not parts[-1].endswith(".png") or
+            not _SHA.fullmatch(parts[-1][:-4])):
             raise FashionReferenceDenied("Model portrait must be private registered library media")
+        _id(model_key, require_random=False)
+        # The model-library path must refer to THIS separately reviewed
+        # model, not merely some other canonical model UUID and a valid SHA.
+        # Deny before private GET so a swapped same-shop model reference
+        # cannot be materialized under another model's approval.
+        if (expected_model_id is None or
+                _id(expected_model_id, require_random=False) != model_key):
+            raise FashionReferenceDenied("Private model path does not match reviewed model identity")
     else:
         if (row.get("source") != "GENERATED" or row.get("mime_type") != "image/png" or
             len(parts) != 5 or parts[1:3] != ["feature3", "gpu"] or
@@ -136,6 +161,10 @@ def _approved_asset(shop, asset_id, role, purpose, *, read_asset, authorize_asse
     promised_sha = row.get("image_sha256")
     if not isinstance(promised_sha, str) or not _SHA.fullmatch(promised_sha):
         raise FashionReferenceDenied("Storage hash evidence absent from authoritative media reader")
+    if role == "model" and parts[-1] != promised_sha + ".png":
+        # A forged or stale model-original key must not be fetched even when
+        # its registered digest would happen to match bytes at that path.
+        raise FashionReferenceDenied("Immutable private model path differs from registered SHA")
     image = read_private_bytes(shop, asset_id, path)
     dimensions, actual_sha = _read_image(image, row["mime_type"])
     if promised_sha != actual_sha:
@@ -151,13 +180,20 @@ def _approved_asset(shop, asset_id, role, purpose, *, read_asset, authorize_asse
 
 def _model_approval(shop, model_id, image, read_model):
     model = read_model(shop, _id(model_id, require_random=False))
+    # PostgreSQL text[] must remain an explicit, bounded list. A string or
+    # mapping containing "video_reference" is not an approved use grant.
+    uses = model.get("approved_uses") if isinstance(model, dict) else None
+    allowed_uses = {"poster", "try_on", "video_reference"}
+    if (type(uses) is not list or not 1 <= len(uses) <= 3 or
+        any(type(use) is not str or use not in allowed_uses for use in uses) or
+        len(set(uses)) != len(uses) or "video_reference" not in uses):
+        raise FashionReferenceDenied("Model catalog approval or current rights missing")
     if (not isinstance(model, dict) or model.get("model_id") != model_id or
         model.get("owner_shop_id") != shop or
         model.get("media_asset_id") != image["source_asset_id"] or
         model.get("status") != "APPROVED" or
         model.get("rights_verified") is not True or
         model.get("synthetic_adult") is not True or
-        "video_reference" not in (model.get("approved_uses") or []) or
         model.get("image_sha256") != image["sha256"] or
         type(model.get("rights_revision")) is not int or
         model["rights_revision"] < 1 or
@@ -242,7 +278,8 @@ def prepare_fashion_references(*, shop_id, garment_asset_id, purpose,
         model, _ = _approved_asset(
             shop, model_asset_id, "model", purpose,
             read_asset=read_asset, authorize_asset=authorize_asset,
-            read_private_bytes=read_private_bytes)
+            read_private_bytes=read_private_bytes,
+            expected_model_id=model_id)
         model_ref = _model_approval(shop, model_id, model, read_model)
     frame = garment
     reviewed = None
@@ -322,19 +359,32 @@ def resolve_first_frame(*, expected_manifest, current_readers,
     if verify_worker_job(fresh["shop_id"], source_ids, fresh["reference_fingerprint"]) is not True:
         raise FashionReferenceDenied("No current authorized motion worker claim")
     frame = fresh["sources"]["first_frame"]
-    # The first pass revalidated all sources, while this final read pins the
-    # exact frame bytes immediately before delivery to the private worker.
-    row = current_readers["read_asset"](fresh["shop_id"], frame["source_asset_id"])
-    if not isinstance(row, dict) or row.get("shop_id") != fresh["shop_id"]:
-        raise FashionReferenceDenied("Private first frame no longer exists")
-    raw = current_readers["read_private_bytes"](
-        fresh["shop_id"], frame["source_asset_id"], row.get("object_path"))
-    size, digest = _read_image(raw, frame["mime_type"])
-    if digest != frame["sha256"] or size != frame["dimensions"]:
-        raise FashionReferenceDenied("First frame changed after authorization")
+    # The lease may be current while the media row or its rights change.
+    # Reuse the same private-source authority as the first manifest pass:
+    # verify registered shop/bucket/source/path and the CURRENT typed rights
+    # grant BEFORE handing the path to the byte reader. Merely checking the
+    # shop on the row and comparing the SHA after reading could fetch an
+    # attacker-substituted private object before rejecting its bytes.
+    role = "try_on" if fresh["try_on_review"] is not None else "garment"
+    current, raw = _approved_asset(
+        fresh["shop_id"], frame["source_asset_id"], role,
+        "image_to_video", read_asset=current_readers["read_asset"],
+        authorize_asset=current_readers["authorize_asset"],
+        read_private_bytes=current_readers["read_private_bytes"])
+    if current != frame:
+        raise FashionReferenceDenied("First-frame rights or source changed after authorization")
+    # The durable worker lease can be revoked while private bytes are being
+    # fetched. Never return the frame based only on a pre-read lease check.
+    if verify_worker_job(fresh["shop_id"], source_ids, fresh["reference_fingerprint"]) is not True:
+        raise FashionReferenceDenied("Motion worker claim expired during private read")
+    # A lease callback can race with rights, model or product revocation.
+    # Recheck the full authoritative bundle after the last lease read,
+    # including immutable byte proofs, before releasing the earlier frame.
+    if prepare_fashion_references(**inputs) != fresh:
+        raise FashionReferenceDenied("Media rights or product changed after worker lease")
     return {"shop_id": fresh["shop_id"], "source_asset_id": frame["source_asset_id"],
-            "sha256": digest, "mime_type": frame["mime_type"],
-            "dimensions": size, "image_bytes": raw,
+            "sha256": current["sha256"], "mime_type": current["mime_type"],
+            "dimensions": current["dimensions"], "image_bytes": raw,
             "generation_executed": False, "gpu_authorized": False}
 
 

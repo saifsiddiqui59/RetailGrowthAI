@@ -48,6 +48,12 @@ def _verified_png(raw):
                 any(key.lower() in ("exif", "xmp", "xml:com.adobe.xmp") for key in image.info)):
                 raise ProviderBlocked("Invalid private output PNG")
             image.verify()
+        # PNG chunk/CRC verification does not necessarily decompress IDAT.
+        # A forged CRC-correct but invalid compressed scan can pass verify()
+        # and its declared SHA while remaining unusable. Decode every pixel
+        # before staging a private generated output or committing its CAS.
+        with Image.open(BytesIO(raw)) as decoded:
+            decoded.load()
     except (OSError, UnidentifiedImageError, Image.DecompressionBombError, ValueError) as exc:
         raise ProviderBlocked("Unsafe generated PNG output") from exc
     return sha256(raw).hexdigest()
@@ -126,7 +132,8 @@ class PrivateOutputRegistrar:
             "media_asset_id", "shop_id", "job_id", "claim_token", "attempt",
             "image_sha256", "object_path", "review_status", "source", "private",
         } or receipt.get("shop_id") != shop or receipt.get("job_id") != job or
-            receipt.get("claim_token") != token or receipt.get("attempt") != 1 or
+            receipt.get("claim_token") != token or
+            type(receipt.get("attempt")) is not int or receipt["attempt"] != 1 or
             receipt.get("image_sha256") != digest or receipt.get("object_path") != key or
             receipt.get("review_status") != "UNREVIEWED" or
             receipt.get("source") != "GENERATED" or receipt.get("private") is not True):

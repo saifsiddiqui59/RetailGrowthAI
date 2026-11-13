@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 from io import BytesIO
+from unicodedata import category
 import re
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
@@ -24,6 +25,7 @@ from PIL import Image, UnidentifiedImageError
 _IMAGE_MAX = 25 * 1024 * 1024
 _PIXEL_MAX = 24_000_000
 _HASH = re.compile(r"^[a-f0-9]{64}$")
+_BAD_PERCENT_ESCAPE = re.compile(r"%(?![0-9A-Fa-f]{2})")
 _SEGMENT = re.compile(r"^[a-zA-Z0-9_-]{1,90}$")
 _EXT = {"image/png":(".png", "PNG"),
         "image/jpeg":(".jpg", "JPEG"),
@@ -54,22 +56,81 @@ def _uuid(value):
 
 
 def _origin(value):
-    u=urlsplit(value) if isinstance(value,str) else None
-    if (not u or u.scheme!="https" or not u.hostname or
-            not u.hostname.endswith(".supabase.co") or u.hostname==".supabase.co" or
-            u.username or u.password or u.port not in (None,443) or
-            u.path not in ("","/") or u.query or u.fragment):
+    # urlsplit silently strips leading C0 whitespace and embedded CR/LF/TAB.
+    # A service-key Storage origin must be an exact, printable HTTPS origin,
+    # not a URL that the parser silently normalizes into something else.
+    if (type(value) is not str or not 1 <= len(value) <= 255 or
+            any(not 33 <= ord(ch) <= 126 for ch in value)):
         raise ValueError("Exact Supabase project HTTPS origin required")
+    try:
+        u=urlsplit(value)
+        if (u.scheme!="https" or not u.hostname or
+                not u.hostname.endswith(".supabase.co") or
+                u.hostname==".supabase.co" or u.username or u.password or
+                u.port not in (None,443) or u.path not in ("","/") or
+                u.query or u.fragment or
+                value not in (f"https://{u.netloc}", f"https://{u.netloc}/")):
+            raise ValueError("Noncanonical private Storage origin")
+    except ValueError as exc:
+        raise ValueError("Exact Supabase project HTTPS origin required") from exc
     return value.rstrip("/")
 
 
+def _license_url(value):
+    """Validate a declaration's shape; NEVER infer commercial rights from it."""
+    if (type(value) is not str or not 1 <= len(value) <= 500 or
+            any(not 33 <= ord(ch) <= 126 for ch in value)):
+        return False
+    # urllib.parse treats backslash differently from browser URL parsers;
+    # malformed percent escapes also make displayed provenance ambiguous.
+    # This URL remains only a declaration, never proof of commercial rights.
+    if "\\" in value or _BAD_PERCENT_ESCAPE.search(value):
+        return False
+    try:
+        parsed = urlsplit(value)
+        # urllib retains percent-encoded authority bytes and accepts an empty
+        # or zero-padded port. Browser URL parsers may normalize those into a
+        # different displayed host/port; never trust ambiguous provenance.
+        if ("%" in parsed.netloc or parsed.netloc.endswith(":") or
+                (parsed.port is not None and not parsed.netloc.endswith(":443"))):
+            return False
+        host = parsed.hostname
+        # Reviewer-facing provenance must have a canonical public DNS shape.
+        # Localhost, IP literals, empty labels and trailing dots can display
+        # misleading commercial-rights links; these are never fetched here.
+        if (not host or host.endswith(".") or "." not in host or
+                len(host) > 253 or any(
+                    not label or len(label) > 63 or
+                    label[0] == "-" or label[-1] == "-" or
+                    not re.fullmatch(r"[a-z0-9-]+", label)
+                    for label in host.split(".")) or
+                not re.fullmatch(r"[a-z]{2,63}", host.split(".")[-1])):
+            return False
+        return (parsed.scheme == "https" and
+                parsed.username is None and parsed.password is None and
+                parsed.port in (None, 443))
+    except ValueError:
+        return False
+
+
+def _printable_response_header(value):
+    # Injected HTTP transports can return header strings with folding,
+    # invisible Unicode or unbounded parameters. Never normalize them into
+    # apparently trustworthy private Storage metadata.
+    return (type(value) is str and 1 <= len(value) <= 256 and
+            all(32 <= ord(ch) <= 126 for ch in value))
+
+
 def _credentials(secret):
-    if (isinstance(secret,str) and secret.startswith("sb_secret_") and
-            len(secret)>=20 and not any(ord(c)<33 for c in secret)):
+    # Reject non-ASCII/DEL/control or unbounded credentials before they reach
+    # the HTTP header encoder. Keep both current Supabase secret-key and
+    # legacy service JWT formats; neither may contain ambiguous header bytes.
+    if (type(secret) is not str or not 20 <= len(secret) <= 4096 or
+            any(not 33 <= ord(ch) <= 126 for ch in secret)):
+        raise ValueError("Explicit backend service key required")
+    if secret.startswith("sb_secret_"):
         return {"apikey":secret}
-    if (isinstance(secret,str) and secret.startswith("eyJ") and
-            secret.count(".")==2 and len(secret)>=50 and
-            not any(ord(c)<33 for c in secret)):
+    if secret.startswith("eyJ") and secret.count(".")==2 and len(secret)>=50:
         return {"apikey":secret,"Authorization":"Bearer "+secret}
     raise ValueError("Explicit backend service key required")
 
@@ -98,16 +159,26 @@ class Feature3TrustedPrivateSourceProof:
                 "source","license_name","license_url","attribution"}:
             raise SourceProofDenied("Trusted registered media row required")
         asset=_uuid(media["id"])
+        mime=media["mime_type"]
+        license_name=media["license_name"]
+        license_url=media["license_url"]
+        attribution=media["attribution"]
+        # PostgREST rows and injected adapters can be malformed. Deny before
+        # building a private Storage URL or consulting any approval callback.
+        # The license URL is only provenance metadata, never rights evidence.
         if (media["shop_id"]!=shop or
                 media["storage_bucket"]!="retailgrowth-media" or
                 media["source"] not in ("UPLOAD","GENERATED") or
-                media["license_name"] not in ("owned","cc0","royalty_free","commercial") or
-                not isinstance(media["attribution"],str) or
-                len(media["attribution"].strip())<10 or
-                media["mime_type"] not in _EXT or
-                (media["license_name"]!="owned" and
-                 (not isinstance(media["license_url"],str) or
-                  not media["license_url"].startswith("https://")))):
+                type(mime) is not str or mime not in _EXT or
+                type(license_name) is not str or
+                license_name not in ("owned","cc0","royalty_free","commercial") or
+                type(attribution) is not str or
+                not 10<=len(attribution.strip())<=200 or
+                len(attribution)>200 or
+                any(category(ch) in ("Cc","Cf","Cs","Zl","Zp")
+                    for ch in attribution) or
+                (license_url is not None and not _license_url(license_url)) or
+                (license_name!="owned" and license_url is None)):
             raise SourceProofDenied("Private media ownership and licence metadata invalid")
         key=media["object_path"]
         if not isinstance(key,str) or len(key)>256 or not key.startswith(shop+"/"):
@@ -143,19 +214,46 @@ class Feature3TrustedPrivateSourceProof:
             **self.headers,"Accept":mime,"Cache-Control":"no-store"})
         try:
             with self.transport(req,timeout=15) as response:
+                # An injected transport or gateway may return a malformed
+                # response. Never expose a raw AttributeError/TypeError at the
+                # private service-key boundary or treat it as a valid receipt.
+                if (not callable(getattr(response,"geturl",None)) or
+                        not callable(getattr(response,"getcode",None)) or
+                        not callable(getattr(response,"read",None))):
+                    raise SourceProofDenied("Private Storage response incomplete")
                 if response.geturl()!=url or response.getcode()!=200:
                     raise SourceProofDenied("Private Storage acknowledgement unconfirmed")
-                headers=getattr(response,"headers",{})
-                size=headers.get("Content-Length") if headers is not None else None
-                kind=headers.get("Content-Type") if headers is not None else None
-                if (kind is not None and kind.split(";",1)[0].strip().lower()!=mime):
+                headers=getattr(response,"headers",None)
+                if not callable(getattr(headers,"get",None)):
+                    raise SourceProofDenied("Private Storage response headers unavailable")
+                size=headers.get("Content-Length")
+                kind=headers.get("Content-Type")
+                encoding=headers.get("Content-Encoding")
+                # Encoded transport bytes cannot be attested as the exact
+                # registered original. No transparent decompression or
+                # intermediary transformation is accepted.
+                if (encoding is not None and
+                        (not _printable_response_header(encoding) or
+                         encoding.strip().lower()!="identity")):
+                    raise SourceProofDenied("Encoded private source response denied")
+                if (kind is not None and
+                        (not _printable_response_header(kind) or
+                         kind.split(";",1)[0].strip().lower()!=mime)):
                     raise SourceProofDenied("Private Storage returned another media format")
-                if size is not None and (not isinstance(size,str) or
+                # Content-Length is at most eight decimal digits for 25 MB.
+                # Bound its syntax before integer conversion or any body read.
+                if size is not None and (type(size) is not str or
+                        not 1 <= len(size) <= 8 or
                         not size.isascii() or not size.isdigit() or
                         int(size)>_IMAGE_MAX):
                     raise SourceProofDenied("Untrusted private media size")
                 data=response.read(_IMAGE_MAX+1)
-        except (HTTPError,URLError,OSError,TimeoutError,ValueError) as exc:
+        except SourceProofDenied:
+            raise
+        except Exception as exc:
+            # Service-owned HTTP adapters and proxy wrappers can raise
+            # arbitrary ordinary exceptions. Deny opaquely; never leak
+            # internal details or issue a post-read rights receipt.
             raise SourceProofDenied("Private source byte read unavailable") from exc
         if type(data) is not bytes or not 100<=len(data)<=_IMAGE_MAX:
             raise SourceProofDenied("Private image incomplete or oversized")
@@ -175,13 +273,26 @@ class Feature3TrustedPrivateSourceProof:
                         for k in image.info)):
                     raise SourceProofDenied("Private image format or dimensions denied")
                 image.verify()
-        except (UnidentifiedImageError,ValueError,OSError,
-                Image.DecompressionBombError) as exc:
+            # Pillow verify() checks container structure, but does not
+            # decompress JPEG pixels. Truncated originals can pass it.
+            # Force full pixel decode before issuing any private SHA receipt.
+            with Image.open(BytesIO(data)) as decoded:
+                if decoded.format != _EXT[mime][1]:
+                    raise SourceProofDenied("Private image format changed during decode")
+                decoded.load()
+        except (UnidentifiedImageError,ValueError,OSError,SyntaxError,EOFError,
+                RuntimeError,Image.DecompressionBombError) as exc:
             raise SourceProofDenied("Invalid real private image") from exc
         return sha256(data).hexdigest()
 
     def _authorize(self,shop,asset,digest,media):
-        attestation=self.review(shop,asset,digest,dict(media))
+        # A rights-authority timeout, outage or malformed adapter response is
+        # a denial, never permission to read private model originals. Keep
+        # callback exception details out of public API error messages.
+        try:
+            attestation=self.review(shop,asset,digest,dict(media))
+        except Exception as exc:
+            raise SourceProofDenied("Independent current source review unavailable") from exc
         if (not isinstance(attestation,dict) or
                 set(attestation)!=_REVIEW_KEYS or
                 attestation.get("shop_id")!=shop or
@@ -198,17 +309,34 @@ class Feature3TrustedPrivateSourceProof:
 
     def __call__(self,shop_id,registered_media):
         shop=_uuid(shop_id)
-        asset,key=self._registered(shop,registered_media)
-        # Real bytes come ONLY from the signed-off service-owned private Storage
-        # path; declared metadata cannot substitute for actual bytes.
-        digest=self._private_bytes(key,registered_media["mime_type"])
-        if (key.split("/")[1]=="model-library" and
-                key.rsplit("/",1)[-1].rsplit(".",1)[0]!=digest):
+        # Freeze the authoritative PostgREST row for the entire private read.
+        # Transport callbacks or another caller must not swap licence/MIME
+        # metadata between the pre-read and post-read rights attestations.
+        if type(registered_media) is not dict:
+            raise SourceProofDenied("Trusted registered media row required")
+        media=dict(registered_media)
+        asset,key=self._registered(shop,media)
+        # For model originals the immutable SHA-named private key supplies
+        # a candidate digest for a *pre-read* independent rights check.
+        # This does NOT attest bytes: the later real Storage SHA comparison
+        # remains mandatory. Crucially, revoked/unapproved model originals
+        # must never be fetched with the backend service key first.
+        is_model=key.split("/")[1]=="model-library"
+        if is_model:
+            expected_digest=key.rsplit("/",1)[-1].rsplit(".",1)[0]
+            revision=self._authorize(shop,asset,expected_digest,media)
+        # Real bytes come ONLY from service-owned private Storage; browser
+        # declarations, key names and earlier approval cannot replace bytes.
+        digest=self._private_bytes(key,media["mime_type"])
+        if is_model and expected_digest!=digest:
             raise SourceProofDenied("Original model bytes differ from immutable path SHA")
-        revision=self._authorize(shop,asset,digest,registered_media)
-        # This second verification is independent of any DB snapshot refresh
-        # performed in the parent preflight and catches mid-read revocation.
-        if self._authorize(shop,asset,digest,registered_media)!=revision:
+        if not is_model:
+            # Generic private media keys are not SHA-named, so their first
+            # independently verifiable digest only exists after the read.
+            revision=self._authorize(shop,asset,digest,media)
+        # Recheck independent current rights after actual bytes. A changed
+        # revision, revoked approval or swapped image always denies use.
+        if self._authorize(shop,asset,digest,media)!=revision:
             raise SourceProofDenied("Original media review changed during read")
         return {"shop_id":shop,"asset_id":asset,"image_sha256":digest,
                 "rights_revision":revision,"private_bytes_verified":True,

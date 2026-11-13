@@ -27,6 +27,50 @@ class FunctionsRuntimeManifestTests(unittest.TestCase):
         self.assertNotIn("ai_agents/feature2_kokoro_local.py",source)
         self.assertNotIn("ai_agents/feature2_voice_quality.py",source)
 
+    def test_feature4_v1_runtime_only_video_modules(self):
+        entries = mod.source_files()
+        for module in ("render", "probe", "asset_preflight"):
+            self.assertIn("video-engine/" + module + ".py", entries)
+        self.assertNotIn("video-engine/generate_test_assets.py", entries)
+        self.assertTrue(mod.verify_runtime_video_imports(entries))
+        self.assertLessEqual(len(entries) + 3, 120)
+
+    def test_extra_feature4_editor_and_qa_sources_not_in_functions_zip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in mod.RUNTIME_VIDEO_MODULES:
+                (root / (name + ".py")).write_bytes((mod.RENDER / (name + ".py")).read_bytes())
+            for i in range(31):
+                (root / ("feature4_offline_qa_" + str(i) + ".py")).write_text(
+                    "SOURCE_ONLY = True\n", encoding="utf-8")
+            with patch.object(mod, "RENDER", root):
+                entries = mod.source_files()
+                self.assertTrue(mod.verify_runtime_video_imports(entries))
+            self.assertLessEqual(len(entries) + 3, 120)
+            self.assertFalse(any("feature4_offline" in path for path in entries))
+
+    def test_unregistered_feature4_worker_import_fails_closed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in mod.RUNTIME_VIDEO_MODULES:
+                (root / (name + ".py")).write_text("SOURCE_ONLY = False\n")
+            (root / "feature4_new_worker.py").write_text("SOURCE_ONLY = True\n")
+            forbidden = (
+                b"from feature4_new_worker import run\n",
+                b"import importlib as il\nil.import_module('feature4_new_worker')\n",
+                b"from importlib import import_module as load\nload('feature4_new_worker')\n",
+                b"__import__('feature4_new_worker')\n",
+            )
+            with patch.object(mod, "RENDER", root):
+                for statement in forbidden:
+                    with self.subTest(statement=statement):
+                        entries = {"azure-functions/campaign-api/future.py": statement}
+                        with self.assertRaisesRegex(ValueError, "Undeclared video-engine"):
+                            mod.verify_runtime_video_imports(entries)
+                valid = {"video-engine/render.py": b"from probe import verify_reel\n",
+                         "video-engine/probe.py": b"import json\n"}
+                self.assertTrue(mod.verify_runtime_video_imports(valid))
+
     def test_extra_twenty_offline_f2_modules_not_silently_shipped(self):
         with tempfile.TemporaryDirectory() as temp:
             home=Path(temp)
