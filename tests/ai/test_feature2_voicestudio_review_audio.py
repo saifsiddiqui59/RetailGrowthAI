@@ -1001,3 +1001,21 @@ def test_sql_receipt_rejects_type_coercion_and_noncanonical_hashes(field, invali
         read_current_voiceover_for_review(**args)
     assert len(sql.calls) == 1
     assert not storage.calls
+
+
+def test_nonprimitive_sql_review_status_equality_impostor_denied_before_private_get():
+    """A provider object that compares equal to NEEDS_REVIEW is not SQL evidence."""
+    class SpoofedStatus:
+        def __eq__(self, other):
+            return other == "NEEDS_REVIEW"
+
+    args, tenant, sql, storage, _ = harness()
+    def spoofed(*ids):
+        receipt = SQL.read_private_receipt(sql, *ids)
+        receipt["review_status"] = SpoofedStatus()
+        return receipt
+    sql.read_private_receipt = spoofed
+    with pytest.raises(VoiceStudioReviewDenied, match="access denied"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1
+    assert not storage.calls
