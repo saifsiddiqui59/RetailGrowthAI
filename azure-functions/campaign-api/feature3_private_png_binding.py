@@ -67,10 +67,15 @@ def build_private_png_reader_factory(*, origin, publishable_key,
             second_key = user_store.key
             final_origin = user_store.origin
             final_key = user_store.key
+            # A key getter can rotate the origin on its final access. Check
+            # origin after the last key read before private bytes escape.
+            post_key_origin = user_store.origin
             return (type(second_origin) is str and type(second_key) is str and
                     type(final_origin) is str and type(final_key) is str and
+                    type(post_key_origin) is str and
                     second_origin == origin and second_key == publishable_key and
-                    final_origin == origin and final_key == publishable_key)
+                    final_origin == origin and final_key == publishable_key and
+                    post_key_origin == origin)
         except Exception:
             return False
 
