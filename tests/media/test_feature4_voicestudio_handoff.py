@@ -76,6 +76,17 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         })
         self.assertNotIn("voiceover_source",draft)
 
+    def test_modified_pcm_never_reaches_compiler_even_with_valid_wav_header(self):
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        draft, snapshot, receipt, data = self.setup_case()
+        altered = bytearray(data)
+        altered[-2] ^= 1  # Valid PCM profile, but no longer approved bytes.
+        with patch.object(adapter, "compile_approved_storyboard") as compiler:
+            with self.assertRaisesRegex(CreativeContractError, "digest differs"):
+                self.call(draft, snapshot, receipt, bytes(altered))
+            compiler.assert_not_called()
+
     def test_compiler_cannot_inject_unsafe_worker_audio_path(self):
         # Even trusted compiler output is a boundary before FFmpeg opens files.
         from unittest.mock import patch
