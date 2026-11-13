@@ -70,6 +70,15 @@ reject({review:Object.assign(Object.create({schema:review.schema}),
   Object.fromEntries(Object.entries(review).filter(([k])=>k!=='schema')))});
 reject({lease:Object.assign(Object.create({active:true}),
   Object.fromEntries(Object.entries(lease).filter(([k])=>k!=='active')))});
+// A hostile word getter must not run while building signed evidence.
+for (const field of ['word','start','end']) {
+  let calls=0;
+  const hostile={...review.words[0]};
+  Object.defineProperty(hostile,field,{enumerable:true,get(){calls++;throw Error('word getter executed');}});
+  reject({review:{...review,words:[hostile,review.words[1]]}});
+  assert.equal(calls,0,field);
+}
+reject({review:{...review,words:[,review.words[1]]}});
 // Null-prototype records with explicit own data fields remain compatible.
 assert.equal(bindVoiceStudioReview({...input,review:Object.assign(Object.create(null),review),
   lease:Object.assign(Object.create(null),lease)}).approved,false);
