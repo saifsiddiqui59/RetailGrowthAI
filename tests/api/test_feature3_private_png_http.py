@@ -83,6 +83,10 @@ class HttpTests(unittest.TestCase):
                         dict(authorization="Bearer sb_secret_badsecret"),
                         dict(authorization="Bearer " + "t" * 9000),
                         dict(authorization="Bearer t\nother"),
+                        dict(authorization="Bearer " + "t" * 20 + ",other"),
+                        dict(authorization="Bearer " + "t" * 20 + ";other"),
+                        dict(authorization='Bearer ' + 't' * 20 + '"other'),
+                        dict(authorization="Bearer " + "t" * 20 + "\\other"),
                         dict(authorization=object())):
             with self.subTest(changes=repr(changes)):
                 self.assertNotEqual(self.call(**changes).status, 200)
