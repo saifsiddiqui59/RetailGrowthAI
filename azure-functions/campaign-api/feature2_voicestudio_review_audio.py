@@ -99,7 +99,7 @@ def read_current_voiceover_for_review(
     supplied by client JSON. Re-read SQL and membership after private GET.
     """
     if not (all(_v4(x) for x in (shop_id, campaign_id, request_id))
-            and isinstance(authorization, str)
+            and type(authorization) is str
             and authorization.startswith("Bearer ")
             and callable(verify_token)
             and callable(sql_store_factory)
