@@ -72,3 +72,9 @@ No paid model, GPU, Azure/PROD mutation or WineShopPOS change.
 - Previous exact head `dd460395ad0650952a7c983b704bda3c15de9aad` had four successful mandatory jobs in [Actions run 43434353167](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/43434353167/jobs). Independent reviews: zero; PR #937 remains protected and draft, stacked on the private-reader parent branch.
 - Commit `161d0cba0a0faecd272b637c4e5292c3e5f8a29b` added three synthetic digest-matching malformed PCM format cases to the F2 reviewer security test: float format, non-16-bit declaration, and invalid frame alignment. No service behavior, cloud, paid model, or protected SQL changes.
 - **NEXT CODE ACTION:** run `python -m pytest -q tests/ai/test_feature2_voicestudio_review_audio.py` on current #937 head; inspect exact-head four mandatory CI jobs, repair any failed owned test, then request independent security review. Reconcile current main and protected parents only after review; never merge draft/protected work without approval. Do not infer green from prior-head CI.
+
+
+## 2026-11-13 F2-19/F2-20 code-first checkpoint
+- Hardened canonical private review PCM: `byte_rate` must equal `sample_rate * block_align` and sample rate must remain 8–96 kHz before disclosure. Added two parameterized digest-matching malformed-byte-rate negative cases.
+- Source commits: `951c8ef68c790fa35156f06320c55e86446ee6cc`, `3862db5ed1349965d3c13d949818081239867a2f`. No cloud/model calls or SQL migrations.
+- NEXT CODE ACTION: run `python -m pytest -q tests/ai/test_feature2_voicestudio_review_audio.py tests/ai/test_feature2_voicestudio_riff_envelope.py`, fix any failures in owned F2 files; inspect exact-head four-job PR CI, reconcile current main, and request independent protected security review before merging PR #937. Do not claim DONE before postmerge main 4/4.
