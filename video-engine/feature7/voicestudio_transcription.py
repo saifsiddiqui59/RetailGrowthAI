@@ -52,6 +52,10 @@ def _checked_wav(wav_bytes):
     if (type(wav_bytes) is not bytes or not 44 <= len(wav_bytes) <= MAX_WAV
             or wav_bytes[:4] != b"RIFF" or wav_bytes[8:12] != b"WAVE"):
         raise VoiceStudioTranscriptionDenied("Bounded original WAV required")
+    # Reject trailing bytes and truncated RIFF declarations before invoking ASR.
+    # The signed digest must identify exactly one canonical original WAV object.
+    if int.from_bytes(wav_bytes[4:8], "little") + 8 != len(wav_bytes):
+        raise VoiceStudioTranscriptionDenied("WAV RIFF length mismatch")
     try:
         with wave.open(io.BytesIO(wav_bytes), "rb") as stream:
             rate, frames = stream.getframerate(), stream.getnframes()
