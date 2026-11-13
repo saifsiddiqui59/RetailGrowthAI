@@ -231,6 +231,17 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
                     "source_feature", "kind", "approved")
     ):
         raise CreativeContractError("Compiled private narration bundle changed")
+    # The approved private object is purpose-scoped to narration. A second
+    # asset ID must never point at the same private bucket/key: downstream
+    # staging could fetch the approved WAV as unreviewed music or footage.
+    # This also catches forged compiler bundle entries not present in the
+    # original trusted snapshot.
+    for other_id, other in output["bundle"]["assets"].items():
+        if other_id == asset_id or type(other) is not dict:
+            continue
+        if (other.get("storage_bucket") == before_asset["storage_bucket"]
+                and other.get("object_path") == before_asset["object_path"]):
+            raise CreativeContractError("Compiled private narration object aliases another asset")
     manifest_asset = output.get("manifest", {}).get("assets", {}).get(asset_id)
     if (type(manifest_asset) is not dict
             or manifest_asset.get("shop_id") != shop
