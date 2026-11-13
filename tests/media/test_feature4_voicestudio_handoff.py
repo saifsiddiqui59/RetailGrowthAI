@@ -96,7 +96,8 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                        "C:\\private.wav", "C:private.wav", "-i", "-filter_complex", "https://evil.test/voice.wav",
                        "assets/%2e%2e/voice.wav", "assets//voice.wav", "assets/./voice.wav",
                        "assets/voice\\n.wav", "assets/voice\u202e.wav",
-                       "assets/voice\u200b.wav"):
+                       "assets/voice\u200b.wav", "assets/vоice.wav", "assets/voicé.wav",
+                       "assets/voice\u00a0.wav"):
             draft, snapshot, receipt, data = self.setup_case()
             def forged_compiler(*args):
                 output = original_compiler(*args)
