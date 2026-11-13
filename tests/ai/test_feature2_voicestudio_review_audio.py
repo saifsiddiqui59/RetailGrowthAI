@@ -1053,3 +1053,28 @@ def test_authorization_string_subclass_denied_before_trusted_calls():
     with pytest.raises(VoiceStudioReviewDenied):
         read_current_voiceover_for_review(**args)
     assert not tokens and not tenant.calls and not sql.calls and not storage.calls
+
+
+@pytest.mark.parametrize("field,replacement", [
+    ("audio_asset_id", str(uuid4())),
+    ("commercial_rights_confirmed", False),
+    ("publish_approved", True),
+    ("plan_sha256", sha256(b"revoked plan").hexdigest()),
+])
+def test_receipt_security_state_changed_during_private_get_denies_disclosure(field, replacement):
+    """A changed rights, approval, asset or plan receipt must invalidate the read."""
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+
+    def changing_receipt(*ids):
+        result = original(*ids)
+        if len(sql.calls) == 2:
+            result[field] = replacement
+        return result
+
+    sql.read_private_receipt = changing_receipt
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(storage.calls) == 1
+    assert len(sql.calls) == 2
+    assert len(tenant.calls) == 1
