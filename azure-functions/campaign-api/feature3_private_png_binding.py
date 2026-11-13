@@ -75,6 +75,10 @@ def build_private_png_reader_factory(*, origin, publishable_key,
             current_output_rights=current_output_rights,
             transport=transport,
         )
+        # Construction can invoke injected adapter code. If its project
+        # binding rotates mid-construction, never hand out a cached reader.
+        if not project_matches():
+            raise ValueError("Tenant store project changed during reader construction")
 
         class ScopedPrivatePNGReader:
             def read(self, *, user_token, shop_id, job_id):
