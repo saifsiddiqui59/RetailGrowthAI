@@ -209,6 +209,16 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
         raise CreativeContractError("Compiled narration request scope changed")
     if request.get("voiceover_asset_id") != asset_id or request.get("voiceover_source") != "retailer":
         raise CreativeContractError("Video compiler discarded approved voice source")
+    # Recheck purpose at the compiled boundary: a future compiler revision must
+    # not reintroduce approved voice as background music or scene effects.
+    compiled_scenes = request.get("scenes")
+    if request.get("music_asset_id") == asset_id or (
+        type(compiled_scenes) is list and any(
+            type(scene) is dict and scene.get("sfx_asset_id") == asset_id
+            for scene in compiled_scenes
+        )
+    ):
+        raise CreativeContractError("Compiled narration cannot be reused as music or SFX")
     # The worker manifest intentionally replaces private object keys with
     # sandbox-local paths; verify its rights and identity separately from
     # the authoritative bundle, which must preserve the private object key.
