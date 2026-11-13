@@ -94,6 +94,27 @@ export async function bindVerifiedVoiceStudioMedia({
     Number.isSafeInteger(now_ms) && now_ms>=0 &&
     Number.isSafeInteger(now_ms+600000) &&
     (readNowMs===undefined || typeof readNowMs==='function'));
+  // Reject malformed review envelopes before any private media I/O. These are
+  // untrusted upstream outputs, never tenant authorization. Inspect descriptors
+  // rather than invoking getters or array overrides.
+  deny(review!==null && typeof review==='object' && !Array.isArray(review));
+  const earlyWords=Object.getOwnPropertyDescriptor(review,'words');
+  deny(earlyWords && Object.hasOwn(earlyWords,'value') &&
+    Array.isArray(earlyWords.value) && earlyWords.value.length>=1 &&
+    earlyWords.value.length<=2000);
+  for (const field of ['schema','approved','renderable','language','audio_sha256',
+    'text','word_timings_present','model_revision_verified_by_worker',
+    'requires_feature7_signed_evidence']) {
+    const descriptor=Object.getOwnPropertyDescriptor(review,field);
+    deny(descriptor && Object.hasOwn(descriptor,'value'));
+  }
+  deny(Object.getOwnPropertyDescriptor(review,'schema').value===
+    'retailgrowth.feature7-voicestudio-asr-review.v1' &&
+    Object.getOwnPropertyDescriptor(review,'approved').value===false &&
+    Object.getOwnPropertyDescriptor(review,'renderable').value===false &&
+    Object.getOwnPropertyDescriptor(review,'word_timings_present').value===true &&
+    Object.getOwnPropertyDescriptor(review,'requires_feature7_signed_evidence').value===true &&
+    Object.getOwnPropertyDescriptor(review,'model_revision_verified_by_worker').value===false);
   // Track elapsed time across asynchronous media reads; a lease can expire
   // even if its snapshot is unchanged. An injected clock is for offline tests.
   const started=performance.now();
