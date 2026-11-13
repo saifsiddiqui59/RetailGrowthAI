@@ -20,6 +20,12 @@ MAX_WAV = 8 * 1024 * 1024
 MAX_JSON = 512 * 1024
 _SHA = re.compile(r"^[0-9a-f]{64}$")
 _ALLOWED_LANGUAGES = frozenset(("en", "hi", "mr"))
+# Direction overrides and isolates can visually spoof review/caption text.
+_BIDI_CONTROLS = frozenset((0x061C, 0x200E, 0x200F, *range(0x202A, 0x202F), *range(0x2066, 0x206A)))
+
+
+def _unsafe_text(value):
+    return any(ord(ch) < 32 or 0xD800 <= ord(ch) <= 0xDFFF or ord(ch) in _BIDI_CONTROLS for ch in value)
 
 
 class VoiceStudioTranscriptionDenied(ValueError):
@@ -143,7 +149,7 @@ def transcribe_private_voice(
                 or start < previous_end - .01 or start < 0 or end <= start
                 or end > seconds + .1 or not isinstance(word, str)
                 or not 1 <= len(word.strip()) <= 120
-                or any(ord(ch) < 32 or 0xD800 <= ord(ch) <= 0xDFFF for ch in word)):
+                or _unsafe_text(word)):
             raise VoiceStudioTranscriptionDenied("ASR words are unaligned or invalid")
         # Validate the canonical millisecond clock used by signed receipts:
         # sub-ms words may collapse or overlap after upstream float checks.
@@ -151,14 +157,12 @@ def transcribe_private_voice(
         if (canonical_end <= canonical_start or
                 (validated and canonical_start < validated[-1]["end"])):
             raise VoiceStudioTranscriptionDenied("ASR timestamps collapse after canonicalization")
-        if any(0xD800 <= ord(ch) <= 0xDFFF for ch in word):
-            raise VoiceStudioTranscriptionDenied("Invalid ASR Unicode word")
         validated.append({"start": canonical_start, "end": canonical_end,
                           "word": word.strip()})
         previous_end = end
     transcript = parsed.get("text")
     if (type(transcript) is not str or not transcript.strip() or len(transcript) > 12000
-            or any(ord(ch) < 32 or 0xD800 <= ord(ch) <= 0xDFFF for ch in transcript)):
+            or _unsafe_text(transcript)):
         raise VoiceStudioTranscriptionDenied("Missing ASR transcript text")
     reported_language = parsed.get("language")
     if type(reported_language) is not str or reported_language not in _ALLOWED_LANGUAGES:
