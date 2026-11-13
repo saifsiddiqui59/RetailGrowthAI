@@ -109,6 +109,23 @@ def main():
             assert narration_level > 100, "Approved 350 Hz narration missing from AAC"
             assert bed_level > 5, "Licensed 196 Hz music bed missing from AAC"
             assert narration_level > bed_level, "Music bed is not ducked below narration"
+            # Probe the approved spoken-caption windows as well as the opening.
+            # The music-only track can satisfy a generic RMS check, so require
+            # the original 350 Hz WAV to remain present in each AAC window.
+            for second in (5, 14):
+                cue_pcm = subprocess.check_output(
+                    ["ffmpeg", "-nostdin", "-v", "error", "-ss", str(second),
+                     "-i", str(output), "-map", "0:a:0", "-t", "1",
+                     "-ac", "1", "-ar", "8000", "-f", "s16le",
+                     "-acodec", "pcm_s16le", "-"], timeout=45)
+                assert len(cue_pcm) >= 8000 * 2, (
+                    f"Approved narration AAC truncated at {second}s")
+                cue_samples = struct.unpack(
+                    "<" + "h" * (len(cue_pcm) // 2), cue_pcm)
+                assert tone_magnitude(cue_samples, 350) > 100, (
+                    f"Approved narration missing at {second}s")
+                assert tone_magnitude(cue_samples, 350) > tone_magnitude(cue_samples, 196), (
+                    f"Music masks approved narration at {second}s")
             # Confirm audio survives into the second half of the Reel; a first-
             # second-only PCM probe would miss truncated narration or a mixer
             # that silently drops the approved voiceover after the opening.
