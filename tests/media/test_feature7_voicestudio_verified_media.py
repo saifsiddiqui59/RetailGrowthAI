@@ -38,6 +38,16 @@ for (const invalidDuration of [undefined,null,0,-1,181,Infinity,NaN,'2']) {
  }));
  assert.equal(reads,0,'invalid duration must not touch private readers');
 }
+// Invalid signing clocks must fail before reading tenant-private media.
+for (const invalidNow of [-1,1.5,Number.NaN,Number.MAX_SAFE_INTEGER-599999]) {
+ let reads=0;
+ await assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,now_ms:invalidNow,
+  readOriginalVideo:async()=>{reads++;return video;},
+  readExtractedWav:async()=>{reads++;return wav;},
+  readCurrentLease:async()=>{reads++;return {...lease};}
+ }));
+ assert.equal(reads,0,'invalid signing clock must not read tenant media');
+}
 const result=await bindVerifiedVoiceStudioMedia(base);
 assert.equal(result.evidence.source_sha256,v);
 assert.equal(result.captions[0].words[0].text,'नमस्कार');
