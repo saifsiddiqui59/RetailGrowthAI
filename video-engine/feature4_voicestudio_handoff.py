@@ -187,7 +187,15 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     if snapshot != frozen_snapshot:
         raise CreativeContractError("Approved reel snapshot changed during private read")
     output = compile_approved_storyboard(deepcopy(frozen_draft), deepcopy(snapshot))
-    # A compromised or incompatible compiler must fail with a contract error,\n    # never an AttributeError after reading private tenant narration.\n    if (type(output) is not dict or type(output.get("request")) is not dict\n            or type(output.get("bundle")) is not dict\n            or type(output["bundle"].get("assets")) is not dict\n            or type(output.get("manifest")) is not dict\n            or type(output["manifest"].get("assets")) is not dict):\n        raise CreativeContractError("Malformed compiled private narration output")\n    if output["request"].get("voiceover_asset_id") != asset_id or output["request"].get("voiceover_source") != "retailer":
+    # A compromised or incompatible compiler must fail with a contract error,
+    # never an AttributeError after reading private tenant narration.
+    if (type(output) is not dict or type(output.get("request")) is not dict
+            or type(output.get("bundle")) is not dict
+            or type(output["bundle"].get("assets")) is not dict
+            or type(output.get("manifest")) is not dict
+            or type(output["manifest"].get("assets")) is not dict):
+        raise CreativeContractError("Malformed compiled private narration output")
+    if output["request"].get("voiceover_asset_id") != asset_id or output["request"].get("voiceover_source") != "retailer":
         raise CreativeContractError("Video compiler discarded approved voice source")
     # The worker manifest intentionally replaces private object keys with
     # sandbox-local paths; verify its rights and identity separately from
