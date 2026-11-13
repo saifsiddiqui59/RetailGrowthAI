@@ -137,6 +137,24 @@ for (const field of ['approved','renderable','language','audio_sha256','words','
   reject({review:mutable});
   assert.equal(getterCalls,0);
 }
+// A Proxy's ordinary get trap must not override own-data review snapshots.
+// All fields used for signing come from descriptors, not arbitrary reads.
+{
+  let gets=0;
+  const proxy=new Proxy({...review},{
+    get(target,field,receiver) {
+      if (['schema','approved','renderable','language','audio_sha256','words','text'].includes(field)) {
+        gets++;
+        throw Error('untrusted review get trap');
+      }
+      return Reflect.get(target,field,receiver);
+    }
+  });
+  const signed=bindVoiceStudioReview({...input,review:proxy});
+  assert.equal(signed.evidence.source_sha256,video);
+  assert.equal(signed.language,'hi');
+  assert.equal(gets,0);
+}
 // Null-prototype records with explicit own data fields remain compatible.
 assert.equal(bindVoiceStudioReview({...input,review:Object.assign(Object.create(null),review),
   lease:Object.assign(Object.create(null),lease)}).approved,false);
