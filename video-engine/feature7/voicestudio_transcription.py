@@ -62,6 +62,35 @@ def _checked_wav(wav_bytes):
     # The signed digest must identify exactly one canonical original WAV object.
     if int.from_bytes(wav_bytes[4:8], "little") + 8 != len(wav_bytes):
         raise VoiceStudioTranscriptionDenied("WAV RIFF length mismatch")
+    # Python's wave decoder can ignore trailing RIFF chunks. The downstream
+    # signed-media gate forbids them, so reject before sending private bytes
+    # to VoiceStudio as well. Do not interpret a second fmt/data as audio.
+    offset = 12
+    seen_fmt = seen_data = False
+    chunks = 0
+    while offset + 8 <= len(wav_bytes):
+        chunks += 1
+        if chunks > 128 or seen_data:
+            raise VoiceStudioTranscriptionDenied("Ambiguous WAV chunk layout")
+        ident = wav_bytes[offset:offset + 4]
+        if any(c < 32 or c > 126 for c in ident):
+            raise VoiceStudioTranscriptionDenied("Invalid WAV chunk identifier")
+        length = int.from_bytes(wav_bytes[offset + 4:offset + 8], "little")
+        end = offset + 8 + length
+        if end > len(wav_bytes) or (length % 2 and
+                                    (end >= len(wav_bytes) or wav_bytes[end] != 0)):
+            raise VoiceStudioTranscriptionDenied("Invalid WAV chunk boundary")
+        if ident == b"fmt ":
+            if seen_fmt or seen_data:
+                raise VoiceStudioTranscriptionDenied("Duplicate WAV format")
+            seen_fmt = True
+        elif ident == b"data":
+            if not seen_fmt or length == 0:
+                raise VoiceStudioTranscriptionDenied("Missing WAV format or samples")
+            seen_data = True
+        offset = end + length % 2
+    if offset != len(wav_bytes) or not seen_fmt or not seen_data:
+        raise VoiceStudioTranscriptionDenied("Incomplete WAV chunk layout")
     try:
         with wave.open(io.BytesIO(wav_bytes), "rb") as stream:
             rate, frames = stream.getframerate(), stream.getnframes()
