@@ -384,6 +384,28 @@ const printableSigned=await bindVerifiedVoiceStudioMedia({...base,
  review:{...review,audio_sha256:printableHash},
  readCurrentLease:async()=>({...lease,audio_sha256:printableHash})});
 assert.equal(printableSigned.evidence.source_sha256,v);
+// Aggregate non-audio metadata is capped even when the container, digest,
+// review and current lease all agree. This must not become a hidden 60 MiB
+// payload that is hashed and accepted as speech provenance.
+const metadata=(size)=>{
+ const header=Buffer.alloc(8);header.write('JUNK',0);header.writeUInt32LE(size,4);
+ const b=Buffer.concat([wav.subarray(0,12),header,Buffer.alloc(size),wav.subarray(12)]);
+ b.writeUInt32LE(b.length-8,4);return b;
+};
+const tooMuchMetadata=metadata(1024*1024);
+const metadataHash=digest(tooMuchMetadata);
+await denied({readExtractedWav:async()=>tooMuchMetadata,
+ original_audio_sha256:metadataHash,
+ review:{...review,audio_sha256:metadataHash},
+ readCurrentLease:async()=>({...lease,audio_sha256:metadataHash})});
+// Small ordinary metadata remains supported for compatible PCM extraction.
+const smallMetadata=metadata(128);
+const smallHash=digest(smallMetadata);
+const smallResult=await bindVerifiedVoiceStudioMedia({...base,
+ readExtractedWav:async()=>smallMetadata,original_audio_sha256:smallHash,
+ review:{...review,audio_sha256:smallHash},
+ readCurrentLease:async()=>({...lease,audio_sha256:smallHash})});
+assert.equal(smallResult.evidence.source_sha256,v);
 // A legitimate odd-sized pre-audio RIFF chunk needs exactly one zero pad.
 const oddChunk=Buffer.concat([Buffer.from('JUNK'),Buffer.from([1,0,0,0]),Buffer.from([7,0])]);
 const padded=Buffer.concat([wav.subarray(0,12),oddChunk,wav.subarray(12)]);
