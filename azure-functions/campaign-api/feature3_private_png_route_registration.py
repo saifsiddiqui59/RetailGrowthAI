@@ -1,4 +1,4 @@
-"""F3-08 optional Azure Functions Blueprint wiring; never auto-mounted.
+"""F3-08 optional Azure Functions Blueprint wiring; never auto-mounted.\n\nThis matches the existing fail-closed function_app.py route. Registering both\nthe Blueprint and the existing handler would duplicate the HTTP route; use\nonly one after independent review of a trusted reader binding.
 
 The application owner must explicitly register the returned blueprint and
 supply a reviewed, server-owned reader factory backed by real JWT/RLS/current
@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from feature3_private_png_route import handle_private_png_request
 
-ROUTE = "feature3/shops/{shop_id}/jobs/{job_id}/private.png"
+ROUTE = "shops/{shop_id}/feature3-private-png/{job_id}"
 
 
 def build_private_png_blueprint(*, azure_functions, reader_factory):
