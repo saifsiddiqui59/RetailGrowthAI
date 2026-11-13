@@ -68,8 +68,14 @@ def _canonical_pcm_chunks(content):
         # chunk layouts even when a decoder would tolerate them.
         if expected == b"fmt " and size != 16:
             raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
-        if expected == b"data" and (size == 0 or size % 2):
-            raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
+        if expected == b"data":
+            # Stereo PCM16 frames are four bytes, not merely two. Reject
+            # dangling half-frames that wave.open can silently ignore.
+            channels = int.from_bytes(content[22:24], "little")
+            block_align = int.from_bytes(content[32:34], "little")
+            if (channels not in (1, 2) or block_align != channels * 2
+                    or size == 0 or size % block_align):
+                raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
         end = offset + 8 + size
         if end > len(content):
             raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
