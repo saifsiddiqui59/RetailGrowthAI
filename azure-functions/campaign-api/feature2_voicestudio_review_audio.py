@@ -40,7 +40,8 @@ def _receipt(sql_reader, shop, campaign, request):
         or result.get("campaign_id") != campaign
         or result.get("request_id") != request
         or result.get("private") is not True
-        or result.get("review_status") != "NEEDS_REVIEW"
+        or type(result.get("review_status")) is not str
+        or result["review_status"] != "NEEDS_REVIEW"
         or result.get("commercial_rights_confirmed") is not True
         or result.get("publish_approved") is not False
         or type(result.get("original_sha256")) is not str
