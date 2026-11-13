@@ -83,7 +83,7 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         altered = bytearray(data)
         altered[-2] ^= 1  # Valid PCM profile, but no longer approved bytes.
         with patch.object(adapter, "compile_approved_storyboard") as compiler:
-            with self.assertRaisesRegex(CreativeContractError, "digest differs"):
+            with self.assertRaisesRegex(CreativeContractError, "private narration bytes changed"):
                 self.call(draft, snapshot, receipt, bytes(altered))
             compiler.assert_not_called()
 
