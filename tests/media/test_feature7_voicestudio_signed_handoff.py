@@ -75,6 +75,19 @@ reject({review:Object.assign(Object.create({schema:review.schema}),
   Object.fromEntries(Object.entries(review).filter(([k])=>k!=='schema')))});
 reject({lease:Object.assign(Object.create({active:true}),
   Object.fromEntries(Object.entries(lease).filter(([k])=>k!=='active')))});
+// Reject invalid word values before invoking the normalizer. These values
+// must never reach the HMAC signing path, even if an adapter is permissive.
+for (const word of [
+  {word:'',start:.1,end:.5},
+  {word:'x'.repeat(121),start:.1,end:.5},
+  {word:'ok',start:NaN,end:.5},
+  {word:'ok',start:Infinity,end:.5},
+  {word:'ok',start:'0.1',end:.5},
+  {word:'ok',start:.5,end:.5},
+  {word:'ok',start:-.1,end:.5},
+  {word:'ok',start:.1,end:2.1},
+  {word:'ok',start:.1,end:null}
+]) reject({review:{...review,words:[word]}});
 // A hostile word getter must not run while building signed evidence.
 for (const field of ['word','start','end']) {
   let calls=0;
