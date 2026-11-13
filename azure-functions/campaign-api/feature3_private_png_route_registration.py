@@ -1,4 +1,8 @@
-"""F3-08 optional Azure Functions Blueprint wiring; never auto-mounted.\n\nThis matches the existing fail-closed function_app.py route. Registering both\nthe Blueprint and the existing handler would duplicate the HTTP route; use\nonly one after independent review of a trusted reader binding.
+"""F3-08 optional Azure Functions Blueprint wiring; never auto-mounted.
+
+This matches the existing fail-closed function_app.py route. Registering both
+the Blueprint and the existing handler would duplicate the HTTP route; use
+only one after independent review of a trusted reader binding.
 
 The application owner must explicitly register the returned blueprint and
 supply a reviewed, server-owned reader factory backed by real JWT/RLS/current
@@ -45,4 +49,8 @@ def build_private_png_blueprint(*, azure_functions, reader_factory):
             request, reader_factory=reader_factory, response_type=response_type
         )
 
-    # A malformed decorator may silently discard the handler or replace it\n    # with a non-callable object. Reject that contract before opt-in mounting.\n    if not callable(feature3_private_png):\n        raise ValueError("Azure Functions route registration discarded handler")\n    return blueprint\n
+    # A malformed decorator may silently discard the handler or replace it
+    # with a non-callable object. Reject that contract before opt-in mounting.
+    if not callable(feature3_private_png):
+        raise ValueError("Azure Functions route registration discarded handler")
+    return blueprint
