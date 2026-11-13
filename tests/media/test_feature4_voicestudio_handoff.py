@@ -125,6 +125,25 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             with self.assertRaisesRegex(CreativeContractError, "aliases another asset"):
                 self.call(draft, snapshot, receipt, data)
 
+    def test_compiler_rejects_normalized_worker_path_collision(self):
+        # A distinct textual path may still resolve to the same staged WAV.
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original = adapter.compile_approved_storyboard
+        draft, snapshot, receipt, data = self.setup_case()
+        aid = draft["voiceover_asset_id"]
+
+        def aliased(*args):
+            result = original(*args)
+            other_id = next(key for key in result["manifest"]["assets"] if key != aid)
+            narration = result["manifest"]["assets"][aid]["path"]
+            result["manifest"]["assets"][other_id]["path"] = "temp/../" + narration
+            return result
+
+        with patch.object(adapter, "compile_approved_storyboard", side_effect=aliased):
+            with self.assertRaisesRegex(CreativeContractError, "aliases another asset"):
+                self.call(draft, snapshot, receipt, data)
+
     def test_compiler_rejects_casefolded_worker_path_collision(self):
         # Case-insensitive staging filesystems must not overwrite approved audio.
         from unittest.mock import patch
