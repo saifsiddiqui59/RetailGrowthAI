@@ -50,9 +50,17 @@ def build_private_png_blueprint(*, azure_functions, reader_factory):
     # Do not allow a host shim/decorator to replace this security boundary
     # with a different callable. A callable replacement could bypass the
     # injected reader even though a simple callable() check would pass.
-    decorated = route_decorator(
-        route=ROUTE, methods=["GET"], auth_level=auth_level.ANONYMOUS
-    )(feature3_private_png)
+    # A broken host decorator must never leave an apparently usable
+    # Blueprint. Normalize host errors without leaking adapter diagnostics.
+    try:
+        decorator = route_decorator(
+            route=ROUTE, methods=["GET"], auth_level=auth_level.ANONYMOUS
+        )
+        if not callable(decorator):
+            raise ValueError("Azure Functions route decorator returned no callable")
+        decorated = decorator(feature3_private_png)
+    except Exception as exc:
+        raise ValueError("Azure Functions private route registration failed") from exc
     if decorated is not feature3_private_png:
         raise ValueError("Azure Functions route registration replaced private handler")
     return blueprint
