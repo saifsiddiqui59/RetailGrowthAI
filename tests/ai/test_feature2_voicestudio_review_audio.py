@@ -922,3 +922,31 @@ def test_matching_digest_noncanonical_pcm_chunk_sizes_denied_before_second_auth(
     with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
         read_current_voiceover_for_review(**args)
     assert len(sql.calls) == 1 and len(tenant.calls) == 1
+
+
+@pytest.mark.parametrize("invalid_payload", [
+    bytearray(pcm()),
+    memoryview(pcm()),
+    pcm() + b"x" * (8 * 1024 * 1024),
+])
+def test_private_reader_requires_bounded_immutable_bytes(invalid_payload):
+    """A replaced storage adapter must not return mutable or oversized audio."""
+    args, tenant, sql, storage, _ = harness()
+    storage.read_verified_original = lambda *_ids: invalid_payload
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1
+    assert len(tenant.calls) == 1
+
+
+def test_receipt_factory_failure_never_fetches_private_audio():
+    args, tenant, sql, storage, _ = harness()
+    calls = []
+    def broken_factory(user_id):
+        calls.append(user_id)
+        raise TimeoutError("private database connection unavailable")
+    args["sql_store_factory"] = broken_factory
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert calls == [USER]
+    assert not sql.calls and not storage.calls
