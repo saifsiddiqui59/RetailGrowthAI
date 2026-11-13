@@ -57,6 +57,41 @@ class RuntimeCompositionTests(unittest.TestCase):
                     reader.read(user_token="synthetic-test-token",
                                 shop_id=foreign_shop, job_id=foreign_job)
 
+    def test_nonprimitive_tokens_denied_before_backend_read(self):
+        """Synthetic hostile token objects never reach a private reader."""
+        from unittest.mock import patch
+
+        class TokenSubclass(str):
+            pass
+
+        class HostileToken:
+            def __str__(self):
+                raise AssertionError("token coercion must not run")
+
+            def __eq__(self, other):
+                raise AssertionError("token equality must not run")
+
+        calls = []
+
+        class CountingReader:
+            def __init__(self, **kwargs):
+                pass
+
+            def read(self, **kwargs):
+                calls.append("backend")
+                return b"synthetic-bytes"
+
+        shop, job = str(uuid4()), str(uuid4())
+        with patch("feature3_private_png_runtime.Feature3RevocablePNGReader",
+                   CountingReader):
+            scoped = self.build()(shop, job)
+            for token in (None, b"fake-token", "", TokenSubclass("fake-token"),
+                          HostileToken()):
+                with self.subTest(token_type=type(token).__name__):
+                    with self.assertRaises(PrivateGeneratedDownloadDenied):
+                        scoped.read(user_token=token, shop_id=shop, job_id=job)
+        self.assertEqual(calls, [])
+
     def test_no_authoritative_rights_provider_is_never_allowed(self):
         for provider in (None, False, {}, "approved"):
             with self.subTest(provider=provider):
