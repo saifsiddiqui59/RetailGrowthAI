@@ -91,6 +91,47 @@ class ModelOriginalTests(unittest.TestCase):
                 self.assertEqual(self.call(body={**self.request,**change})[0],400)
         self.assertEqual(self.calls,[])
 
+    def test_declared_original_license_url_provenance_denylist(self):
+        # Provenance URL strings are NOT approvals. Disallow ambiguous
+        # authority, forbidden control bytes and alternate URL parsing before
+        # any JWT/RLS model-original registration RPC.
+        rejected = (
+            "http://license.example/terms",
+            "https://user:password@license.example/terms",
+            "https://%65xample.org/license",
+            "https://license.example:0443/terms",
+            "https://license.example:/terms",
+            "https://license.example:9443/terms",
+            "https://license.example./terms",
+            "https://localhost/license",
+            "https://127.0.0.1/terms",
+            "https://license.example\\\\@other.example/terms",
+            "https://license.example/invalid%GG",
+            "https://license.example/terms\\r\\nForged: yes",
+            "https://license.example/terms\\u202e",
+        )
+        for url in rejected:
+            with self.subTest(url=repr(url)):
+                response = self.call(body={**self.request,
+                                          "license_name":"commercial",
+                                          "license_url":url})
+                self.assertEqual(response[0], 400)
+        self.assertEqual(self.calls, [])
+
+    def test_declared_original_license_url_valid_https_path_remains_pending(self):
+        for url in ("https://license.example/licenses/terms-v1",
+                    "https://license.example:443/terms?version=2",
+                    "https://license.example/rights%20declaration"):
+            with self.subTest(url=url):
+                response = self.call(body={**self.request,
+                                          "license_name":"commercial",
+                                          "license_url":url})
+                self.assertEqual(response[0], 201)
+                self.assertEqual(response[1]["status"],
+                                 "SOURCE_REGISTERED_PENDING_EVIDENCE")
+                self.assertFalse(response[1]["license_verified"])
+        self.assertEqual(len(self.calls), 3)
+
     def test_uncertain_output_does_not_retry_or_infer_rights(self):
         self.receipt=None
         self.assertEqual(self.call()[0],409)

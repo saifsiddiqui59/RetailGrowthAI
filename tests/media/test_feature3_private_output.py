@@ -4,6 +4,7 @@ from pathlib import Path
 from io import BytesIO
 from uuid import uuid4
 from hashlib import sha256
+from zlib import crc32
 from unittest import TestCase, main
 from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "poster-engine"))
@@ -27,6 +28,7 @@ class OutputContractTests(TestCase):
                      "requires_human_review": True, "garment_fidelity_not_guaranteed": False}
         self.calls = []
         self.rights = True; self.claim = True; self.stage_good = True; self.commit_good = True
+        self.commit_attempt = 1
         self.rights_sequence = None; self.quarantined = False
         def check_claim(*a):
             self.calls.append("claim");return self.claim
@@ -40,7 +42,7 @@ class OutputContractTests(TestCase):
         def commit(shop,job,attempt,token,key,digest,size,source_ids):
             self.calls.append("commit");return {
                 "media_asset_id":self.asset,"shop_id":shop if self.commit_good else str(uuid4()),"job_id":job,
-                "claim_token":token,"attempt":attempt,"image_sha256":digest,"object_path":key,
+                "claim_token":token,"attempt":self.commit_attempt,"image_sha256":digest,"object_path":key,
                 "review_status":"UNREVIEWED","source":"GENERATED","private":True}
         def quarantine(shop,key,token):
             self.calls.append("quarantine");self.quarantined=True;return True
@@ -80,6 +82,33 @@ class OutputContractTests(TestCase):
         with self.assertRaises(ProviderBlocked):self.register(self.shop,self.job,b"not png",self.meta)
         with self.assertRaises(ProviderBlocked):self.register(self.shop,self.job,b"0"*(25*1024*1024+1),self.meta)
         self.assertFalse(self.calls)
+    def test_crc_correct_but_undecodable_png_never_staged_or_committed(self):
+        # A CRC-correct IDAT can still contain invalid zlib data. Pillow
+        # verify() accepts this PNG, but load() must reject it before CAS.
+        forged = bytearray(self.image)
+        offset = 8
+        while offset < len(forged):
+            size = int.from_bytes(forged[offset:offset + 4], "big")
+            kind = bytes(forged[offset + 4:offset + 8])
+            if kind == b"IDAT":
+                self.assertGreater(size, 0)
+                forged[offset + 8] = 0  # invalid zlib compression header
+                chunk = forged[offset + 4:offset + 8 + size]
+                forged[offset + 8 + size:offset + 12 + size] = (
+                    crc32(chunk).to_bytes(4, "big"))
+                break
+            offset += size + 12
+        else:
+            self.fail("Synthetic PNG lacks an IDAT chunk")
+        forged = bytes(forged)
+        with Image.open(BytesIO(forged)) as structural:
+            structural.verify()  # reproduces the former blind spot
+        self.meta["image_sha256"] = sha256(forged).hexdigest()
+        with self.assertRaisesRegex(ProviderBlocked, "Unsafe generated PNG"):
+            self.register(self.shop, self.job, forged, self.meta)
+        self.assertEqual(self.calls, [])
+        self.assertFalse(self.quarantined)
+
     def test_malformed_provenance_and_shas_denied(self):
         for k,v in [("provider","../../unknown"),("source_asset_ids",["not-uuid"]),("synthetic",False),
                     ("requires_human_review",False),("attempt",2),("inference_wall_seconds",901),
@@ -98,6 +127,29 @@ class OutputContractTests(TestCase):
         with self.assertRaises(ProviderBlocked):self.register(self.shop,self.job,self.image,self.meta)
         self.assertIn("commit",self.calls)
         self.assertFalse(self.quarantined)
+    def test_private_db_commit_attempt_requires_true_integer_one_only(self):
+        # A lost/forged DB acknowledgement must never be treated as verified
+        # merely because Python equates True and 1 or 1.0 and 1.
+        for invalid in (True, 1.0, "1", 0, 2, None, False):
+            with self.subTest(receipt_attempt=repr(invalid)):
+                self.setUp()
+                self.commit_attempt=invalid
+                with self.assertRaisesRegex(ProviderBlocked,"Media commit unconfirmed"):
+                    self.register(self.shop,self.job,self.image,self.meta)
+                self.assertEqual(self.calls,["claim","rights","stage","rights","commit"])
+                self.assertFalse(self.quarantined)
+        self.setUp()
+        self.assertEqual(self.register(self.shop,self.job,self.image,self.meta)["attempt"],1)
+
+    def test_private_metadata_attempt_bool_float_and_string_deny_before_any_stage(self):
+        for invalid in (True, 1.0, "1", False, None):
+            with self.subTest(metadata_attempt=repr(invalid)):
+                self.setUp()
+                self.meta["attempt"]=invalid
+                with self.assertRaises(ProviderBlocked):
+                    self.register(self.shop,self.job,self.image,self.meta)
+                self.assertEqual(self.calls,[])
+
     def test_reject_untrusted_extra_keys(self):
         self.meta["object_path"]="foreign/key"
         with self.assertRaises(ProviderBlocked):self.register(self.shop,self.job,self.image,self.meta)

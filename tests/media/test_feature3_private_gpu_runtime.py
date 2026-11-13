@@ -75,6 +75,12 @@ class FakeSQL:
         self.lease_active=True
         self.foreign_receipt=False
         self.unknown_commit=False
+        self.reservation_attempt=1
+        self.reservation_id_override=self.reservation
+        self.late_reservation_id_override=None
+        self.reserved_usd="0.05"
+        self.late_reserved_usd_override=None
+        self.commit_attempt=1
     def claim(self,job_id,token):
         self.calls.append("claim")
         if job_id!=self.job or self.token is not None:
@@ -86,10 +92,15 @@ class FakeSQL:
         if not self.lease_active or (shop,job,attempt,token)!=(
                 self.shop,self.job,1,self.token):
             raise ProviderBlocked("expired/foreign one-shot SQL lease")
-        return {"reservation_id":self.reservation,
+        late=self.calls.count("lease")>=2
+        return {"reservation_id":self.late_reservation_id_override
+                if late and self.late_reservation_id_override is not None
+                else self.reservation_id_override,
                 "shop_id":self.shop if not self.foreign_receipt else str(uuid4()),
-                "job_id":job,"attempt":1,"claim_token":token,
-                "reserved_usd":"0.05"}
+                "job_id":job,"attempt":self.reservation_attempt,"claim_token":token,
+                "reserved_usd":self.late_reserved_usd_override
+                if late and self.late_reserved_usd_override is not None
+                else self.reserved_usd}
     def commit_private_output(self,shop,job,attempt,token,key,digest,size,ids):
         self.calls.append("commit")
         if (shop,job,attempt,token)!=(self.shop,self.job,1,self.token):
@@ -99,7 +110,7 @@ class FakeSQL:
         if self.unknown_commit:
             raise TimeoutError("DB write may have committed")
         return {"shop_id":shop if not self.foreign_receipt else str(uuid4()),
-                "job_id":job,"claim_token":token,"attempt":1,
+                "job_id":job,"claim_token":token,"attempt":self.commit_attempt,
                 "media_asset_id":self.media,"image_sha256":digest,
                 "private":True,"review_status":"UNREVIEWED"}
     def finish(self,job,token,actual,asset):
@@ -157,7 +168,7 @@ class WorkerCompositionTests(unittest.TestCase):
         self.assertEqual(self.storage.methods,["POST","GET"])
         self.assertEqual(self.service.calls.count("claim"),1)
         self.assertEqual(self.service.calls.count("commit"),1)
-        self.assertEqual(self.service.calls.count("lease"),2)
+        self.assertEqual(self.service.calls.count("lease"),3)
         self.assertEqual([x for x in self.service.calls if isinstance(x,tuple)],
                          [("finish","0.011500",self.service.media)])
         self.assertGreaterEqual(self.rights_calls,4)
@@ -216,6 +227,81 @@ class WorkerCompositionTests(unittest.TestCase):
         self.assertEqual(self.storage.methods,["POST","GET"])
         self.assertEqual(len(self.storage.bytes),1)
         # Not a safe candidate for cleanup or automatic replay.
+
+    def test_preoutput_reservation_swap_denied_without_storage_or_commit(self):
+        # A fresh SQL row with a different valid reservation ID or funded
+        # amount is not the pre-inference one-shot reservation.
+        for field, bad in (
+            ("late_reservation_id_override", str(uuid4())),
+            ("late_reserved_usd_override", "0.04"),
+        ):
+            with self.subTest(field=field):
+                self.setUp()
+                setattr(self.service, field, bad)
+                with self.assertRaises(ProviderBlocked):
+                    self.runtime.execute(InferenceJob(
+                        self.shop,self.job,"image_edit",(self.source,),
+                        prompt="synthetic only"))
+                self.assertEqual(self.service.calls.count("lease"),2)
+                self.assertEqual(self.storage.methods,[])
+                self.assertNotIn("commit",self.service.calls)
+                self.assertFalse(any(isinstance(x,tuple) and x[0]=="finish"
+                                     for x in self.service.calls))
+
+    def test_noninteger_prepaid_lease_attempt_denied_before_storage_stage(self):
+        for invalid in (True, 1.0, "1", False, None, 2):
+            with self.subTest(lease_attempt=repr(invalid)):
+                self.setUp()
+                self.service.claim(self.job,str(uuid4()))
+                self.service.reservation_attempt=invalid
+                with self.assertRaises(ProviderBlocked):
+                    self.runtime.registrar(self.shop,self.job,self.png,self.metadata())
+                self.assertEqual(self.storage.methods,[])
+                self.assertEqual(self.service.calls.count("commit"),0)
+        self.setUp()
+        self.service.claim(self.job,str(uuid4()))
+        self.assertIsNotNone(self.runtime.registrar(
+            self.shop,self.job,self.png,self.metadata())["media_asset_id"])
+
+    def test_late_lease_malformed_or_unfunded_snapshot_never_stages_bytes(self):
+        # The initial pre-inference reserve is not enough: current SQL can
+        # return malformed/revoked funds before the output Storage POST.
+        for invalid in ("0", 0, -0.01, "0.051", "NaN", "Infinity",
+                        None, True, "not-money"):
+            with self.subTest(late_reserved_usd=repr(invalid)):
+                self.setUp()
+                self.service.claim(self.job,str(uuid4()))
+                self.service.reserved_usd=invalid
+                with self.assertRaises(ProviderBlocked):
+                    self.runtime.registrar(
+                        self.shop,self.job,self.png,self.metadata())
+                self.assertEqual(self.storage.methods,[])
+                self.assertEqual(self.service.calls.count("commit"),0)
+        for invalid_id in ("not-a-uuid", str(uuid4()).upper(), None, True):
+            with self.subTest(late_reservation_id=repr(invalid_id)):
+                self.setUp()
+                self.service.claim(self.job,str(uuid4()))
+                self.service.reservation_id_override=invalid_id
+                with self.assertRaises(ProviderBlocked):
+                    self.runtime.registrar(
+                        self.shop,self.job,self.png,self.metadata())
+                self.assertEqual(self.storage.methods,[])
+                self.assertEqual(self.service.calls.count("commit"),0)
+
+    def test_noninteger_postcommit_sql_receipt_denied_without_delete_or_retry(self):
+        for invalid in (True, 1.0, "1", False, None, 2):
+            with self.subTest(commit_attempt=repr(invalid)):
+                self.setUp()
+                self.service.claim(self.job,str(uuid4()))
+                self.service.commit_attempt=invalid
+                with self.assertRaisesRegex(ProviderBlocked,"SQL CAS unconfirmed"):
+                    self.runtime.registrar(self.shop,self.job,self.png,self.metadata())
+                self.assertEqual(self.service.calls.count("commit"),1)
+                self.assertEqual(self.storage.methods,["POST","GET"])
+                self.assertEqual(len(self.storage.bytes),1)
+                self.assertNotIn("DELETE",self.storage.methods)
+                self.assertFalse(any(isinstance(v,tuple) and v[0]=="finish"
+                                     for v in self.service.calls))
 
     def test_bad_service_or_user_secret_rejected_before_any_io(self):
         with self.assertRaises(ProviderBlocked):

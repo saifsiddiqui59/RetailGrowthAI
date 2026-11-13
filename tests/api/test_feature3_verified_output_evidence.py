@@ -7,6 +7,7 @@ import unittest
 from uuid import uuid4
 
 from PIL import Image
+from PIL.PngImagePlugin import PngInfo
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/"azure-functions/campaign-api"))
 from feature3_verified_output_evidence import (
@@ -22,13 +23,15 @@ def real_png():
 
 
 class FakeHTTP:
-    def __init__(self,url,blob,status,mime,redirect=False,content_length=None,read_hook=None):
+    def __init__(self,url,blob,status,mime,redirect=False,content_length=None,read_hook=None,content_encoding=None):
         self._url=url+("/redirect" if redirect else "")
         self.blob=blob
         self.status=status
         self.read_hook=read_hook
         self.headers={"Content-Type":mime,
                       "Content-Length":str(len(blob)) if content_length is None else content_length}
+        if content_encoding is not None:
+            self.headers["Content-Encoding"]=content_encoding
     def __enter__(self):return self
     def __exit__(self,*_):return False
     def geturl(self):return self._url
@@ -79,6 +82,7 @@ class ProofTests(unittest.TestCase):
         self.redirect=False
         self.length=None
         self.on_read=None
+        self.content_encoding=None
         self.reader=Feature3VerifiedOutputEvidenceReader(
             admin_store=self.store,transport=self.transport)
 
@@ -93,7 +97,7 @@ class ProofTests(unittest.TestCase):
         self.assertIn(self.store.evidence["object_path"],req.full_url)
         return FakeHTTP(req.full_url,self.blob,self.status,self.mime,
                         redirect=self.redirect,content_length=self.length,
-                        read_hook=self.on_read)
+                        read_hook=self.on_read,content_encoding=self.content_encoding)
 
     def test_actual_verified_png_matches_sql_twice_no_signed_url(self):
         result=self.reader(self.shop,self.job,self.asset)
@@ -153,6 +157,120 @@ class ProofTests(unittest.TestCase):
             with self.subTest(flag=flag),self.assertRaises(Feature3EvidenceReadDenied):
                 self.reader(self.shop,self.job,self.asset)
             self.assertEqual(len(self.store.calls),1)
+
+    def test_rejects_encoded_or_malformed_storage_headers_before_sql_recheck(self):
+        for field,value in (("content_encoding","gzip"),
+                            ("content_encoding","br"),
+                            ("content_encoding",17),
+                            ("mime",42)):
+            self.setUp()
+            setattr(self,field,value)
+            with self.subTest(field=field,value=value),self.assertRaises(
+                    Feature3EvidenceReadDenied):
+                self.reader(self.shop,self.job,self.asset)
+            self.assertEqual(len(self.store.calls),1)
+        self.setUp()
+        self.content_encoding="IDENTITY"
+        self.assertEqual(self.reader(self.shop,self.job,self.asset)["image_sha256"],
+                         self.store.digest)
+
+    def test_private_response_header_folding_unicode_and_unbounded_size_denied(self):
+        malformed=(
+            ("mime","image/png\\r\\nX-Unsafe: yes"),
+            ("mime","image/png\\u202e"),
+            ("mime","image/png;"+"x"*260),
+            ("content_encoding","identity\\n"),
+            ("content_encoding","identity\\u200b"),
+            ("content_encoding","identity"+"x"*260),
+            ("length","0"*200),
+            ("length","9"*9),
+            ("length",True),
+        )
+        for field,value in malformed:
+            with self.subTest(field=field,value=repr(value)[:40]):
+                self.setUp()
+                setattr(self,field,value)
+                with self.assertRaises(Feature3EvidenceReadDenied):
+                    self.reader(self.shop,self.job,self.asset)
+                self.assertEqual(len(self.store.calls),1)
+        self.setUp()
+        self.mime="image/png; charset=binary"
+        self.content_encoding="identity"
+        receipt=self.reader(self.shop,self.job,self.asset)
+        self.assertEqual(receipt["image_sha256"],self.store.digest)
+        self.assertEqual(len(self.store.calls),2)
+
+    def test_broken_private_adapter_response_and_secret_error_are_opaque(self):
+        secret="OPERATOR_PRIVATE_SERVICE_KEY_DO_NOT_EXPOSE"
+        class Broken:
+            def __enter__(self): return self
+            def __exit__(self,*args): return False
+            def geturl(self): raise RuntimeError(secret)
+            def getcode(self): return 200
+            def read(self,*args): return b""
+            headers={}
+        for impl in (
+            lambda req,timeout: Broken(),
+            lambda req,timeout: (_ for _ in ()).throw(RuntimeError(secret)),
+        ):
+            with self.subTest(variant=repr(impl)):
+                self.setUp()
+                self.reader.transport=impl
+                with self.assertRaises(Feature3EvidenceReadDenied) as caught:
+                    self.reader(self.shop,self.job,self.asset)
+                self.assertNotIn(secret,str(caught.exception))
+                self.assertTrue(caught.exception.__suppress_context__)
+                self.assertEqual(len(self.store.calls),1)
+
+    def test_crc_valid_but_corrupted_compressed_png_pixels_denied(self):
+        # Recalculate IDAT CRC after destroying compressed pixels: Pillow
+        # verify() accepts the CRC-valid container, but load() must reject.
+        import struct
+        import zlib
+        mutated=bytearray(self.png)
+        offset=8
+        modified=False
+        while offset < len(mutated):
+            size=struct.unpack(">I",mutated[offset:offset+4])[0]
+            kind=bytes(mutated[offset+4:offset+8])
+            start=offset+8
+            if kind==b"IDAT" and size > 2:
+                mutated[start:start+size]=bytes(size)
+                crc=zlib.crc32(kind+bytes(mutated[start:start+size]))&0xffffffff
+                mutated[start+size:start+size+4]=struct.pack(">I",crc)
+                modified=True
+                break
+            offset=start+size+4
+        self.assertTrue(modified)
+        self.blob=bytes(mutated)
+        digest=sha256(self.blob).hexdigest()
+        self.store.evidence.update({
+            "image_sha256":digest,
+            "object_path":f"{self.shop}/feature3/gpu/{self.job}/{digest}.png",
+            "object_bytes":len(self.blob),
+        })
+        from PIL import Image as PILImage
+        with PILImage.open(BytesIO(self.blob)) as container:
+            container.verify()  # verify() is intentionally not enough
+        with self.assertRaises(Feature3EvidenceReadDenied):
+            self.reader(self.shop,self.job,self.asset)
+        self.assertEqual(len(self.store.calls),1)
+
+    def test_png_xmp_metadata_denied_even_with_matching_sql_sha(self):
+        meta=PngInfo()
+        meta.add_text("XML:com.adobe.xmp","<xmp>untrusted metadata</xmp>")
+        out=BytesIO()
+        Image.new("RGB",(320,400),"#4e799c").save(out,format="PNG",pnginfo=meta)
+        self.blob=out.getvalue()
+        digest=sha256(self.blob).hexdigest()
+        self.store.digest=digest
+        self.store.evidence.update({
+            "image_sha256":digest,
+            "object_path":f"{self.shop}/feature3/gpu/{self.job}/{digest}.png",
+            "object_bytes":len(self.blob)})
+        with self.assertRaisesRegex(Feature3EvidenceReadDenied,"unsuitable"):
+            self.reader(self.shop,self.job,self.asset)
+        self.assertEqual(len(self.store.calls),1)
 
     def test_same_shop_wrong_object_token_and_api_key_fails_closed(self):
         with self.assertRaises(Feature3EvidenceReadDenied):

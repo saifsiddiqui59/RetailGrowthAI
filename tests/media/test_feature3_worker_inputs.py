@@ -48,7 +48,7 @@ class Feature3PrivateHandoffTests(unittest.TestCase):
                          self.f.blobs[self.f.tryon])
         self.assertEqual(result["sources"]["model"]["sha256"],
                          sha256(self.f.blobs[self.f.model_asset]).hexdigest())
-        self.assertEqual(len(self.leases),1)
+        self.assertEqual(len(self.leases),2)
         self.assertFalse(result["publish_approved"])
         self.assertFalse(result["gpu_authorized"])
         self.assertNotIn("signed_url",str(result))
@@ -63,6 +63,43 @@ class Feature3PrivateHandoffTests(unittest.TestCase):
                          result["sources"]["garment"]["image_bytes"])
         self.assertFalse(result["output_approved"])
 
+    def test_feature4_rejects_other_model_uuid_at_second_private_read(self):
+        # The first manifest refresh is valid. A later same-tenant path
+        # with a different canonical model UUID but the same SHA must not
+        # trigger a second privileged model image read.
+        manifest = self.build("editing")
+        readers = self.f.readers()
+        original_row = readers["read_asset"]
+        original_bytes = readers["read_private_bytes"]
+        calls, model_reads = [0], [0]
+        foreign_model_key = (
+            f"{self.f.shop}/model-library/{self.f.other}/"
+            f"{self.f.model_data['image_sha256']}.png"
+        )
+
+        def swapped_row(shop, asset):
+            row = original_row(shop, asset)
+            if asset == self.f.model_asset:
+                calls[0] += 1
+                if calls[0] == 2:
+                    return {**row, "object_path": foreign_model_key}
+            return row
+
+        def bytes_read(shop, asset, path):
+            if asset == self.f.model_asset:
+                model_reads[0] += 1
+            return original_bytes(shop, asset, path)
+
+        readers["read_asset"] = swapped_row
+        readers["read_private_bytes"] = bytes_read
+        with self.assertRaises(FashionReferenceDenied):
+            materialize_feature4_inputs(
+                expected_manifest=manifest, current_readers=readers,
+                verify_render_job=self.claim)
+        self.assertEqual(calls[0], 2)
+        self.assertEqual(model_reads[0], 1,
+                         "the swapped second model key must not reach Storage")
+
     def test_feature5_actual_private_frame_bytes_without_gpu_permission(self):
         manifest=self.build("image_to_video")
         result=materialize_feature5_input(
@@ -73,9 +110,28 @@ class Feature3PrivateHandoffTests(unittest.TestCase):
         self.assertEqual(result["dimensions"],[720,1080])
         self.assertFalse(result["provider_call_permitted"])
         self.assertFalse(result["gpu_authorized"])
-        self.assertTrue(len(self.leases)>=2)
+        self.assertTrue(len(self.leases)>=3)
         self.assertNotIn("signed_url",str(result))
         self.assertNotIn("object_path",str(result))
+
+    def test_lease_revoked_during_private_materialization_denies_final_delivery(self):
+        # The initial claim alone must not authorize returning staged private
+        # bytes. Feature5 also has an intermediate first-frame lease check.
+        for purpose,fn,field,max_valid,expected_reads in (
+            ("editing",materialize_feature4_inputs,"verify_render_job",1,2),
+            ("image_to_video",materialize_feature5_input,"verify_motion_job",2,3),
+        ):
+            with self.subTest(purpose=purpose):
+                self.leases.clear()
+                manifest=self.build(purpose)
+                def current_lease(shop,ids,fingerprint):
+                    self.leases.append((shop,ids,fingerprint))
+                    return len(self.leases) <= max_valid
+                with self.assertRaises(FashionReferenceDenied):
+                    fn(expected_manifest=manifest,
+                       current_readers=self.f.readers(),
+                       **{field:current_lease})
+                self.assertEqual(len(self.leases),expected_reads)
 
     def test_missing_durable_lease_denies_both_consumers(self):
         for purpose,fn,field in (("editing",materialize_feature4_inputs,"verify_render_job"),

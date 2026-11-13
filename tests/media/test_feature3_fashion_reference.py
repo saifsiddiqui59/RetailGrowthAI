@@ -150,6 +150,30 @@ class FashionKurtiReferenceTests(unittest.TestCase):
         self.assertEqual(worker["image_bytes"],self.blobs[self.garment])
         self.assertEqual(worker["dimensions"],[720,1080])
         self.assertFalse(worker["gpu_authorized"])
+    def test_truncated_jpeg_with_matching_registered_sha_is_not_worker_input(self):
+        # Pillow verify() alone can accept a truncated JPEG even when the
+        # registered SHA matches the truncated object. A real decode must
+        # succeed before a private source can enter a worker manifest.
+        from hashlib import sha256
+        buffer = BytesIO()
+        Image.new("RGB", (320, 320), "#2B6978").save(buffer, "JPEG")
+        complete = buffer.getvalue()
+        for raw, allowed in ((complete, True), (complete[:-2], False),
+                             (complete[:-40], False)):
+            with self.subTest(bytes_missing=len(complete) - len(raw)):
+                self.setUp()
+                self.blobs[self.garment] = raw
+                row = self.rows[self.garment]
+                row["mime_type"] = "image/jpeg"
+                row["object_path"] = f"{self.shop}/uploads/{self.upload_object}.jpg"
+                row["image_sha256"] = sha256(raw).hexdigest()
+                if allowed:
+                    self.assertEqual(self.prepare()["sources"]["garment"]["sha256"],
+                                     row["image_sha256"])
+                else:
+                    with self.assertRaises(FashionReferenceDenied):
+                        self.prepare()
+
     def test_feature2_4_consume_metadata_not_private_image_bytes(self):
         for consumer in ("creative_direction","editing"):
             package=self.prepare(purpose=consumer)
@@ -185,6 +209,37 @@ class FashionKurtiReferenceTests(unittest.TestCase):
         with self.assertRaises(FashionReferenceDenied):
             self.prepare(model_asset_id=self.model_asset,model_id=self.model_id,
                          try_on_asset_id=self.tryon)
+
+    def test_video_reference_uses_must_be_explicit_unique_string_array(self):
+        # Transport coercion must not turn a substring or mapping key into
+        # independently reviewed video_reference permission.
+        invalid = (
+            "video_reference", {"video_reference": True},
+            ("video_reference",), {"video_reference"}, None, [],
+            ["poster"], ["video_reference", "video_reference"],
+            ["video_reference", "unknown"], ["video_reference", True],
+            ["video_reference", {"poster": True}],
+            ["video_reference", "poster", "try_on", "poster"],
+        )
+        original = self.model_data["approved_uses"]
+        try:
+            for uses in invalid:
+                self.model_data["approved_uses"] = uses
+                with self.subTest(uses=repr(uses)):
+                    with self.assertRaises(FashionReferenceDenied):
+                        self.prepare(model_asset_id=self.model_asset,
+                                     model_id=self.model_id)
+            for uses in (["video_reference"],
+                         ["poster", "video_reference"],
+                         ["poster", "try_on", "video_reference"]):
+                self.model_data["approved_uses"] = uses
+                with self.subTest(uses=repr(uses)):
+                    bundle = self.prepare(model_asset_id=self.model_asset,
+                                          model_id=self.model_id)
+                    self.assertFalse(bundle["gpu_authorized"])
+                    self.assertEqual(bundle["model"]["model_id"], self.model_id)
+        finally:
+            self.model_data["approved_uses"] = original
 
     def test_revoked_model_and_foreign_image_deny(self):
         with self.assertRaises(FashionReferenceDenied):
@@ -229,6 +284,41 @@ class FashionKurtiReferenceTests(unittest.TestCase):
         self.blobs[self.garment]=self.blobs[self.model_asset]
         with self.assertRaises(FashionReferenceDenied):self.prepare()
 
+    def test_malformed_private_flags_and_mime_deny_before_any_storage_read(self):
+        # Optional persisted flags must be exactly False when present. A
+        # malformed authority row may not silently turn a fixture or revoked
+        # source into approved worker media; malformed MIME must fail closed.
+        cases = (
+            ("row", "fixture_only", 1),
+            ("row", "fixture_only", 0),
+            ("row", "fixture_only", "false"),
+            ("row", "fixture_only", []),
+            ("grant", "fixture_only", 1),
+            ("grant", "fixture_only", 0),
+            ("grant", "fixture_only", "false"),
+            ("grant", "fixture_only", {}),
+            ("row", "revoked", 1),
+            ("row", "revoked", 0),
+            ("row", "revoked", "false"),
+            ("row", "revoked", {}),
+            ("row", "mime_type", []),
+            ("row", "mime_type", {}),
+        )
+        for target, field, invalid in cases:
+            with self.subTest(target=target, field=field, invalid=repr(invalid)):
+                self.setUp()
+                record = (self.rows[self.garment] if target == "row"
+                          else self.grants[self.garment])
+                record[field] = invalid
+                with self.assertRaises(FashionReferenceDenied):
+                    self.prepare()
+                self.assertFalse(any(call[0] == "bytes" for call in self.calls))
+        self.setUp()
+        self.rows[self.garment]["fixture_only"] = False
+        self.rows[self.garment]["revoked"] = False
+        self.grants[self.garment]["fixture_only"] = False
+        self.assertEqual(self.prepare()["shop_id"], self.shop)
+
     def test_forged_commercial_metadata_and_unreviewed_fixture_denied(self):
         self.rows[self.garment]["fixture_only"]=True
         with self.assertRaises(FashionReferenceDenied):self.prepare()
@@ -241,6 +331,171 @@ class FashionKurtiReferenceTests(unittest.TestCase):
         self.info["embroidery"]="Gold floral chest embroidery"
         self.info["base_color"]="teal"
         with self.assertRaises(FashionReferenceDenied):self.prepare()
+
+    def test_model_library_rejects_mutable_or_wrong_sha_keys_before_private_read(self):
+        # A forged approved model path must never reach the worker's
+        # privileged private bytes callback, even when tenant and model
+        # metadata/rights are otherwise current. UUIDv5 is permitted for
+        # platform/sample model identifiers, but the filename is SHA-bound.
+        digest = self.model_data["image_sha256"]
+        bad_paths = [
+            f"{self.shop}/model-library/not-a-uuid/{digest}.png",
+            f"{self.shop}/model-library/{uuid4()}/{digest}.png",
+            f"{self.shop}/model-library/platform/{uuid4()}/{digest}.png",
+            f"{self.shop}/model-library/{self.model_id}/{'b'*64}.png",
+            f"{self.shop}/model-library/{self.model_id}/portrait.png",
+            f"{self.shop}/model-library/{self.model_id}/extra/{digest}.png",
+            f"{self.shop}/model-library/alternate/{self.model_id}/{digest}.png",
+            f"{self.shop}/model-library/platform/not-a-uuid/{digest}.png",
+            f"{self.shop}/model-library/platform/{self.model_id}/{digest}.jpg",
+            f"{self.shop}/model-library/{self.model_id}/{digest}%2F.png",
+        ]
+        for bad_path in bad_paths:
+            with self.subTest(path=bad_path):
+                self.setUp()
+                self.rows[self.model_asset]["object_path"] = bad_path
+                with self.assertRaises(FashionReferenceDenied):
+                    self.prepare(model_asset_id=self.model_asset,
+                                 model_id=self.model_id)
+                self.assertFalse(any(
+                    call[0] == "bytes" and call[2] == self.model_asset
+                    for call in self.calls
+                ), "invalid model-library namespace must not trigger a private read")
+
+    def test_platform_library_sha_named_original_is_still_accepted(self):
+        # The existing platform-library namespace is explicitly supported.
+        digest = self.model_data["image_sha256"]
+        self.rows[self.model_asset]["object_path"] = (
+            f"{self.shop}/model-library/platform/{self.model_id}/{digest}.png"
+        )
+        bundle = self.prepare(model_asset_id=self.model_asset,
+                              model_id=self.model_id)
+        self.assertEqual(bundle["model"]["model_id"], self.model_id)
+        self.assertEqual(bundle["sources"]["model"]["sha256"], digest)
+
+    def test_final_first_frame_rejects_transient_private_path_before_byte_read(self):
+        # Feature5's standalone first-frame reader is an independent consumer
+        # of the same private source authority as Feature3's worker packet.
+        # A second row read after the lease must never fetch a substituted
+        # foreign, public, traversal, or wrong-role Storage object.
+        for tryon in (False, True):
+            for kind in ("foreign_path", "external_url", "traversal",
+                         "public_bucket", "wrong_source", "foreign_shop",
+                         "forged_asset"):
+                with self.subTest(tryon=tryon, mutation=kind):
+                    self.setUp()
+                    mutation = {
+                        "foreign_path": {"object_path":
+                            f"{self.other}/uploads/{self.upload_object}.png"},
+                        "external_url": {"object_path":
+                            "https://external.invalid/private.png"},
+                        "traversal": {"object_path":
+                            f"{self.shop}/uploads/../secret.png"},
+                        "public_bucket": {"storage_bucket": "public-media"},
+                        "wrong_source": {"source":
+                            "UPLOAD" if tryon else "GENERATED"},
+                        "foreign_shop": {"shop_id": self.other},
+                        "forged_asset": {"id": str(uuid4())},
+                    }[kind]
+                    target=self.tryon if tryon else self.garment
+                    manifest=(self.prepare(
+                        model_asset_id=self.model_asset,model_id=self.model_id,
+                        try_on_asset_id=self.tryon) if tryon else self.prepare())
+                    readers=self.readers()
+                    original_row=readers["read_asset"]
+                    original_bytes=readers["read_private_bytes"]
+                    calls=[0]
+                    byte_paths=[]
+                    def changed_row(shop,asset):
+                        row=original_row(shop,asset)
+                        if asset==target:
+                            calls[0]+=1
+                            if calls[0]==2:
+                                return {**row,**mutation}
+                        return row
+                    def tracked_bytes(shop,asset,path):
+                        byte_paths.append(path)
+                        return original_bytes(shop,asset,path)
+                    readers["read_asset"]=changed_row
+                    readers["read_private_bytes"]=tracked_bytes
+                    with self.assertRaises(FashionReferenceDenied):
+                        resolve_first_frame(
+                            expected_manifest=manifest,current_readers=readers,
+                            verify_worker_job=self.worker_claim)
+                    self.assertEqual(calls[0],2)
+                    # First manifest pass may read original sources, but the
+                    # substituted second-row path must never be fetched.
+                    self.assertEqual(len(byte_paths),3 if tryon else 1)
+                    self.assertNotIn(mutation.get("object_path","not-a-path"),
+                                     byte_paths)
+
+    def test_final_first_frame_rechecks_typed_rights_before_private_byte_read(self):
+        # A transient revocation or bool/float revision cannot be repaired by
+        # a later clean callback: deny the current final-byte read itself.
+        for invalid in (True,1.0,"3",None):
+            with self.subTest(revision=repr(invalid)):
+                self.setUp()
+                manifest=self.prepare()
+                readers=self.readers()
+                original=readers["authorize_asset"]
+                original_bytes=readers["read_private_bytes"]
+                seen=[0]
+                byte_reads=[]
+                def changed_grant(shop,asset,purpose):
+                    value=original(shop,asset,purpose)
+                    if asset==self.garment:
+                        seen[0]+=1
+                        if seen[0]==2:
+                            return {**value,"rights_revision":invalid}
+                    return value
+                def tracked_bytes(shop,asset,path):
+                    byte_reads.append(path)
+                    return original_bytes(shop,asset,path)
+                readers["authorize_asset"]=changed_grant
+                readers["read_private_bytes"]=tracked_bytes
+                with self.assertRaises(FashionReferenceDenied):
+                    resolve_first_frame(expected_manifest=manifest,
+                                        current_readers=readers,
+                                        verify_worker_job=self.worker_claim)
+                self.assertEqual(seen[0],2)
+                self.assertEqual(len(byte_reads),1)
+
+    def test_final_first_frame_denies_lease_revoked_during_private_read(self):
+        # A valid claim before the byte read is insufficient: Feature5 may
+        # consume this standalone helper without the outer F3 worker packet.
+        for tryon in (False, True):
+            with self.subTest(reviewed_try_on=tryon):
+                self.setUp()
+                manifest = (self.prepare(model_asset_id=self.model_asset,
+                                         model_id=self.model_id,
+                                         try_on_asset_id=self.tryon)
+                            if tryon else self.prepare())
+                checks = []
+                def lease(*args):
+                    checks.append(args)
+                    return len(checks) == 1
+                with self.assertRaises(FashionReferenceDenied):
+                    resolve_first_frame(expected_manifest=manifest,
+                                        current_readers=self.readers(),
+                                        verify_worker_job=lease)
+                self.assertEqual(len(checks), 2)
+
+    def test_final_first_frame_denies_rights_revoked_by_last_lease_read(self):
+        # Even a positive second lease callback cannot hide a simultaneous
+        # authoritative rights revocation. Re-read after the lease callback.
+        self.setUp()
+        manifest = self.prepare()
+        checks = []
+        def lease(*args):
+            checks.append(args)
+            if len(checks) == 2:
+                self.grants[self.garment]["rights_revoked"] = True
+            return True
+        with self.assertRaises(FashionReferenceDenied):
+            resolve_first_frame(expected_manifest=manifest,
+                                current_readers=self.readers(),
+                                verify_worker_job=lease)
+        self.assertEqual(len(checks), 2)
 
     def test_worker_without_durable_claim_is_denied_before_private_delivery(self):
         original=self.prepare()
