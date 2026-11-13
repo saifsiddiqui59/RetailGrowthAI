@@ -950,3 +950,28 @@ def test_receipt_factory_failure_never_fetches_private_audio():
         read_current_voiceover_for_review(**args)
     assert calls == [USER]
     assert not sql.calls and not storage.calls
+
+
+@pytest.mark.parametrize("extra_chunk", [b"LIST", b"JUNK"])
+def test_digest_matching_wav_with_unapproved_riff_chunk_denied(extra_chunk):
+    """A valid digest must not authorize metadata inserted into private PCM."""
+    args, tenant, sql, storage, _ = harness()
+    original = pcm()
+    # Inject an extra, even-sized chunk between canonical fmt and data.
+    fmt_end = 12 + 8 + int.from_bytes(original[16:20], "little")
+    extra = extra_chunk + (4).to_bytes(4, "little") + b"meta"
+    payload = bytearray(original[:fmt_end] + extra + original[fmt_end:])
+    payload[4:8] = (len(payload) - 8).to_bytes(4, "little")
+    malformed = bytes(payload)
+    original_reader = sql.read_private_receipt
+
+    def receipt(*ids):
+        result = original_reader(*ids)
+        result["original_sha256"] = sha256(malformed).hexdigest()
+        return result
+
+    sql.read_private_receipt = receipt
+    storage.read_verified_original = lambda *ids: malformed
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1 and len(tenant.calls) == 1
