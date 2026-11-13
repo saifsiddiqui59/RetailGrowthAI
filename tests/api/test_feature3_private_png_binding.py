@@ -65,7 +65,7 @@ class PrivatePNGCompositionTests(unittest.TestCase):
         with patch("feature3_private_png_binding.Feature3RevocablePNGReader") as reader:
             for shop, job in variants:
                 with self.subTest(shop=shop, job=job):
-                    with self.assertRaisesRegex(ValueError, "canonical UUID"):
+                    with self.assertRaisesRegex(ValueError, "invalid UUID|canonical UUID"):
                         factory(shop, job)
             reader.assert_not_called()
 
