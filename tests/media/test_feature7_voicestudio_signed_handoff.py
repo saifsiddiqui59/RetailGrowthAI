@@ -153,6 +153,23 @@ for (const field of ['approved','renderable','language','audio_sha256','words','
   reject({review:mutable});
   assert.equal(swapped,true);
 }
+// A word may mutate another word's values without replacing the array slot.
+// The signed normalized transcript must reject this in-place TOCTOU change.
+for (const field of ['word','start','end']) {
+  const words=review.words.map(w=>({...w}));
+  let changed=false;
+  words[0]=new Proxy(words[0],{
+    get(target,property,receiver) {
+      if(property==='word' && !changed) {
+        changed=true;
+        words[1][field]=field==='word'?'forged':field==='start'?.8:1.1;
+      }
+      return Reflect.get(target,property,receiver);
+    }
+  });
+  reject({review:{...review,words}});
+  assert.equal(changed,true,field);
+}
 // A mid-normalization replacement with an accessor must not execute it.
 {
   const mutable={...review};
