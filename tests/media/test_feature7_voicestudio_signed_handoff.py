@@ -45,6 +45,9 @@ reject({now_ms:1.5});
 reject({lease:{...lease,active:false}});
 reject({lease:{...lease,job_id:'foreign'}});
 reject({review:{...review,approved:true}});
+// Bound untrusted upstream text independently of the word-count limit.
+reject({review:{...review,text:'x'.repeat(20001)}});
+assert.equal(bindVoiceStudioReview({...input,review:{...review,text:'x'.repeat(20000)}}).approved,false);
 reject({review:{...review,words:[{word:'x',start:1.5,end:1.0}]}});
 reject({review:{...review,words:[{word:'x',start:0,end:3}]}});
 reject({review:{...review,words:[{word:'\u202Ebad',start:0,end:.5}]}});
