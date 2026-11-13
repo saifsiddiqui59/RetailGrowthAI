@@ -41,6 +41,22 @@ for (const override of [
   readOriginalVideo:noRead,readExtractedWav:noRead,readCurrentLease:noRead}));
  assert.equal(reads,0,'invalid scope or HMAC key must not read private media');
 }
+// A review with invalid language, audio binding or transcript text is not a
+// reason to read tenant-private video or WAV bytes. The signer rejects these
+// too, but the worker must reject them BEFORE any private reader is called.
+for (const invalidReview of [
+ {...review,language:'fr'}, {...review,language:null},
+ {...review,audio_sha256:'0'.repeat(64)},
+ {...review,text:''}, {...review,text:'  '},
+ {...review,text:undefined}, {...review,text:'x'.repeat(20001)}
+]) {
+ let reads=0;
+ const noRead=async()=>{reads++;throw Error('private reader invoked');};
+ await assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,
+   review:invalidReview,readOriginalVideo:noRead,
+   readExtractedWav:noRead,readCurrentLease:noRead}));
+ assert.equal(reads,0,'invalid review envelope must not read private media');
+}
 // Invalid source clocks must fail before any private byte/lease reads.
 for (const invalidDuration of [undefined,null,0,-1,181,Infinity,NaN,'2']) {
  let reads=0;
