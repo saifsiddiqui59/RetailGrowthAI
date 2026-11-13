@@ -67,8 +67,13 @@ def _canonical_pcm_chunks(content):
         # The private VoiceStudio contract emits canonical PCM16: a 16-byte
         # fmt body and a nonempty, frame-aligned data body. Reject alternate
         # chunk layouts even when a decoder would tolerate them.
-        if expected == b"fmt " and size != 16:
-            raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
+        if expected == b"fmt ":
+            # Do not rely on Python wave decoder version for the canonical
+            # PCM16 contract: reject float, extensible and non-16-bit fmt.
+            if (size != 16 or offset + 24 > len(content)
+                    or int.from_bytes(content[offset + 8:offset + 10], "little") != 1
+                    or int.from_bytes(content[offset + 22:offset + 24], "little") != 16):
+                raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
         if expected == b"data":
             # Stereo PCM16 frames are four bytes, not merely two. Reject
             # dangling half-frames that wave.open can silently ignore.
