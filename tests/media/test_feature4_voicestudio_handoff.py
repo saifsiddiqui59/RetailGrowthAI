@@ -95,6 +95,23 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                 with self.assertRaisesRegex(CreativeContractError, "manifest changed"):
                     self.call(draft, snapshot, receipt, data)
 
+    def test_compiler_cannot_retarget_approved_narration_scope(self):
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original_compiler = adapter.compile_approved_storyboard
+        for key, forged in (("shop_id", str(uuid4())),
+                            ("duration_seconds", 15),
+                            ("campaign_id", str(uuid4()))):
+            draft, snapshot, receipt, data = self.setup_case()
+            def forged_compiler(*args):
+                result = original_compiler(*args)
+                result["request"][key] = forged
+                return result
+            with self.subTest(key=key), patch.object(
+                    adapter, "compile_approved_storyboard", side_effect=forged_compiler):
+                with self.assertRaisesRegex(CreativeContractError, "request scope changed"):
+                    self.call(draft, snapshot, receipt, data)
+
     def test_malformed_compiler_output_denied_with_contract_error(self):
         from unittest.mock import patch
         import feature4_voicestudio_handoff as adapter
