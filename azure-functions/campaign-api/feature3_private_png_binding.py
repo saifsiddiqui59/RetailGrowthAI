@@ -49,10 +49,15 @@ def build_private_png_reader_factory(*, origin, publishable_key,
     user_store = tenant if tenant is not None else TenantStore(origin, publishable_key)
 
     def project_matches():
-        return (type(getattr(user_store, "origin", None)) is str and
-                type(getattr(user_store, "key", None)) is str and
-                user_store.origin == origin and
-                user_store.key == publishable_key)
+        # A remote or injected store may fail while reading its configuration.
+        # Treat that as revoked binding, never as a reason to enter JWT/RLS IO.
+        try:
+            store_origin = user_store.origin
+            store_key = user_store.key
+        except Exception:
+            return False
+        return (type(store_origin) is str and type(store_key) is str and
+                store_origin == origin and store_key == publishable_key)
 
     def factory(shop_id, job_id):
         # An injected store can be reconfigured after composition. Refuse
