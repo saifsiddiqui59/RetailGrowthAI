@@ -1179,3 +1179,29 @@ def test_digest_matching_pcm_with_inconsistent_byte_rate_denied(byte_rate_offset
         read_current_voiceover_for_review(**args)
     assert len(sql.calls) == 1
     assert len(tenant.calls) == 1
+
+
+@pytest.mark.parametrize("field_offset, replacement", [
+    (20, 3),  # IEEE float format tag, not canonical integer PCM.
+    (20, 65534),  # WAVE_FORMAT_EXTENSIBLE is not the original PCM16 contract.
+    (34, 8),  # 8-bit sample width must not be interpreted as PCM16.
+    (34, 32),  # 32-bit sample width must not be interpreted as PCM16.
+])
+def test_matching_digest_non_pcm16_format_denied_before_second_sql_read(field_offset, replacement):
+    """Even a matching SQL SHA cannot authorize a noncanonical fmt chunk."""
+    args, tenant, sql, storage, _ = harness()
+    modified = bytearray(pcm())
+    modified[field_offset:field_offset + 2] = replacement.to_bytes(2, "little")
+    payload = bytes(modified)
+    original = sql.read_private_receipt
+
+    def receipt(*ids):
+        row = original(*ids)
+        row["original_sha256"] = sha256(payload).hexdigest()
+        return row
+
+    sql.read_private_receipt = receipt
+    storage.read_verified_original = lambda *ids: payload
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1 and len(tenant.calls) == 1
