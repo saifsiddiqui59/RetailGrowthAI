@@ -95,6 +95,19 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                 with self.assertRaisesRegex(CreativeContractError, "manifest changed"):
                     self.call(draft, snapshot, receipt, data)
 
+    def test_malformed_compiler_output_denied_with_contract_error(self):
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        for malformed in (None, [], "not a reel", {}, {"request": []},
+                          {"request": {}, "bundle": None, "manifest": {}},
+                          {"request": {}, "bundle": {"assets": []}, "manifest": {"assets": {}}},
+                          {"request": {}, "bundle": {"assets": {}}, "manifest": {"assets": None}}):
+            draft, snapshot, receipt, data = self.setup_case()
+            with self.subTest(malformed=malformed), patch.object(
+                    adapter, "compile_approved_storyboard", return_value=malformed):
+                with self.assertRaisesRegex(CreativeContractError, "Malformed compiled"):
+                    self.call(draft, snapshot, receipt, data)
+
     def test_private_narration_cannot_be_reused_as_soundtrack_or_sfx(self):
         # Approval is purpose-scoped: voiceover is not a music/SFX license.
         for reuse in ("music", "sfx"):
