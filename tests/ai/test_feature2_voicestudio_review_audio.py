@@ -895,3 +895,30 @@ def test_digest_matching_wav_with_unexpected_private_chunk_denied(injected):
     with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
         read_current_voiceover_for_review(**args)
     assert len(sql.calls) == 1 and len(tenant.calls) == 1
+
+
+@pytest.mark.parametrize("mutation", ["extended_fmt", "odd_data"])
+def test_matching_digest_noncanonical_pcm_chunk_sizes_denied_before_second_auth(mutation):
+    """A decodable WAV is not necessarily the canonical private PCM envelope."""
+    args, tenant, sql, storage, _ = harness()
+    source = pcm()
+    if mutation == "extended_fmt":
+        payload = bytearray(source[:16] + (18).to_bytes(4, "little") + source[20:36] + b"\\x00\\x00" + source[36:])
+    else:
+        payload = bytearray(source[:-1])
+        offset = payload.index(b"data", 12)
+        payload[offset + 4:offset + 8] = (len(payload) - offset - 8).to_bytes(4, "little")
+    payload[4:8] = (len(payload) - 8).to_bytes(4, "little")
+    content = bytes(payload)
+    original_reader = sql.read_private_receipt
+
+    def matching_receipt(*ids):
+        receipt = original_reader(*ids)
+        receipt["original_sha256"] = sha256(content).hexdigest()
+        return receipt
+
+    sql.read_private_receipt = matching_receipt
+    storage.read_verified_original = lambda *ids: content
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1 and len(tenant.calls) == 1
