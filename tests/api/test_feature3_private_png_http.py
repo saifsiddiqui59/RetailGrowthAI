@@ -92,6 +92,29 @@ class HttpTests(unittest.TestCase):
                 self.assertNotEqual(self.call(**changes).status, 200)
         self.assertEqual(self.factories, [])
 
+    def test_oversized_and_noncanonical_scope_is_rejected_before_reader_io(self):
+        # Direct HTTP callers must not trigger UUID parsing or backend IO on
+        # oversized path input, even if the Azure route adapter was bypassed.
+        class ForgedUUID(str):
+            def __eq__(self, other):
+                return True
+
+        invalid = (
+            dict(shop_id="a" * 100000),
+            dict(job_id="b" * 100000),
+            dict(shop_id=ForgedUUID(self.shop)),
+            dict(job_id=ForgedUUID(self.job)),
+            dict(shop_id=self.shop.upper()),
+            dict(job_id=self.job.replace("-", "")),
+        )
+        for changes in invalid:
+            with self.subTest(field=next(iter(changes))):
+                reply = self.call(**changes)
+                self.assertEqual(reply.status, 404)
+                self.assertEqual(reply.body, b"")
+        self.assertEqual(self.factories, [])
+        self.assertEqual(self.reader.calls, 0)
+
     def test_denials_and_outages_never_return_private_bytes(self):
         for error, status in ((PrivateGeneratedDownloadDenied("secret"), 404),
                               (StorageUnavailable("secret"), 503),
