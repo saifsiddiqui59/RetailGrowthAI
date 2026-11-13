@@ -157,7 +157,10 @@ def transcribe_private_voice(
             or any(ord(ch) < 32 or 0xD800 <= ord(ch) <= 0xDFFF for ch in transcript)):
         raise VoiceStudioTranscriptionDenied("Missing ASR transcript text")
     reported_language = parsed.get("language")
-    if (type(reported_language) is not str or not reported_language\n            or len(reported_language) > 20 or\n            any(ord(ch) < 32 or 0xD800 <= ord(ch) <= 0xDFFF\n                for ch in reported_language)):
+    if (type(reported_language) is not str or not reported_language
+            or len(reported_language) > 20 or
+            any(ord(ch) < 32 or 0xD800 <= ord(ch) <= 0xDFFF
+                for ch in reported_language)):
         raise VoiceStudioTranscriptionDenied("Invalid ASR language report")
     if language and reported_language != language:
         raise VoiceStudioTranscriptionDenied("Unexpected transcription language")
