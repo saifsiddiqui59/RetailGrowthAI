@@ -79,6 +79,17 @@ export function bindVoiceStudioReview({
   for (let i=0;i<reviewSnapshot.words.length;i++) {
     deny(Object.hasOwn(reviewSnapshot.words,i),'Sparse VoiceStudio word list');
     requireOwnDataFields(reviewSnapshot.words[i],['word','start','end']);
+    // Fail closed before entering the normalizer. Never invoke arbitrary word
+    // getters merely to discover malformed timestamp or text fields.
+    const word=reviewSnapshot.words[i];
+    const value=Object.fromEntries(['word','start','end'].map(field=>
+      [field,Object.getOwnPropertyDescriptor(word,field).value]));
+    deny(typeof value.word==='string' && value.word.trim().length>0 &&
+      value.word.length<=120 && typeof value.start==='number' &&
+      typeof value.end==='number' && Number.isFinite(value.start) &&
+      Number.isFinite(value.end) && value.start>=0 &&
+      value.end>value.start && value.end<=source_duration_seconds,
+      'Invalid VoiceStudio word before normalization');
   }
   // Normalize through the existing transcript hash contract; never sign the
   // audio digest in place of the original VIDEO digest.
