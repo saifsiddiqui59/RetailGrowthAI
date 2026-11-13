@@ -176,6 +176,41 @@ class PrivatePNGCompositionTests(unittest.TestCase):
                         reader.read(user_token="synthetic-not-hosted",
                                     shop_id=self.shop, job_id=self.job)
 
+    def test_project_config_read_outage_denies_cached_reader_before_jwt(self):
+        from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+
+        class FlakyTenant(SyntheticTenant):
+            def __init__(self):
+                self.fail = False
+
+            @property
+            def origin(self):
+                if self.fail:
+                    raise RuntimeError("synthetic project configuration outage")
+                return SyntheticTenant.origin
+
+            @property
+            def key(self):
+                if self.fail:
+                    raise RuntimeError("synthetic project key outage")
+                return SyntheticTenant.key
+
+        tenant = FlakyTenant()
+        observed = []
+        factory = self.make(
+            lambda *args: observed.append("rights"),
+            verifier=lambda token: observed.append("jwt"),
+            tenant=tenant,
+        )
+        cached = factory(self.shop, self.job)
+        tenant.fail = True
+        with self.assertRaises(ValueError):
+            factory(self.shop, self.job)
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            cached.read(user_token="synthetic-not-hosted",
+                        shop_id=self.shop, job_id=self.job)
+        self.assertEqual(observed, [])
+
     def test_reader_rejects_service_key_and_non_https_origin(self):
         tenant = SyntheticTenant()
         tenant.key = "service-role-key"
