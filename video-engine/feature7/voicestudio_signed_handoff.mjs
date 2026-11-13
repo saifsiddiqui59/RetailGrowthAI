@@ -66,7 +66,7 @@ export function bindVoiceStudioReview({
     source_duration_seconds,
     transcript:{segments:[{words:review.words}]}
   });
-  const expires_at_ms=Math.min(leaseSnapshot.expires_at_ms,now_ms+600000);
+  // Recheck after normalization: a mutable lease revoked mid-operation must\n  // never yield a signed transcript, even when the adapter reuses one object.\n  requireOwnDataFields(lease,Object.keys(leaseSnapshot));\n  deny(Object.entries(leaseSnapshot).every(([field,value])=>\n    Object.is(Object.getOwnPropertyDescriptor(lease,field).value,value)),\n    'ASR lease changed during transcript normalization');\n  const expires_at_ms=Math.min(leaseSnapshot.expires_at_ms,now_ms+600000);
   const evidence=sealTranscriptEvidence({key,now_ms,data:{
     shop_id,asset_id,job_id,source_sha256:original_video_sha256,
     transcript_sha256:normalized.transcript_sha256,model_id,
