@@ -52,6 +52,24 @@ class BlueprintTests(unittest.TestCase):
                 build_private_png_blueprint(
                     azure_functions=module, reader_factory=lambda *_: None)
 
+    def test_broken_blueprint_route_contract_rejected_before_registration(self):
+        # A host shim with no decorator must not publish a private endpoint.
+        class MissingRoute:
+            pass
+
+        class NonCallableRoute:
+            route = "public"
+
+        for broken in (MissingRoute, NonCallableRoute):
+            host = SimpleNamespace(
+                Blueprint=broken, HttpResponse=Response,
+                AuthLevel=SimpleNamespace(ANONYMOUS="anonymous"))
+            with self.subTest(blueprint=broken.__name__):
+                with self.assertRaisesRegex(ValueError, "route decorator"):
+                    build_private_png_blueprint(
+                        azure_functions=host,
+                        reader_factory=lambda *_: None)
+
     def test_opt_in_get_route_and_backend_failure_are_fail_closed(self):
         calls = []
         def factory(*args):
