@@ -110,6 +110,25 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
                           source_sha256=sha256(malformed).hexdigest())
             self.assertEqual(self.calls, [])
 
+    def test_ambiguous_riff_chunks_denied_before_asr_egress(self):
+        # wave.open accepts valid PCM followed by extra chunks; downstream
+        # evidence signing must not disagree with upstream ASR input validity.
+        original = self.original
+        extra = b"JUNK" + (0).to_bytes(4, "little")
+        duplicate_data = b"data" + (2).to_bytes(4, "little") + b"\\x00\\x00"
+        duplicate_fmt = original[12:36]
+        layouts = [original + extra, original + duplicate_data,
+                   original[:36] + duplicate_fmt + original[36:],
+                   original[:12] + original[36:] + original[12:36]]
+        for raw in layouts:
+            malformed = bytearray(raw)
+            malformed[4:8] = (len(malformed) - 8).to_bytes(4, "little")
+            self.calls.clear()
+            with self.subTest(layout=len(malformed)), self.assertRaises(VoiceStudioTranscriptionDenied):
+                self.call(original_wav=bytes(malformed),
+                          source_sha256=sha256(malformed).hexdigest())
+            self.assertEqual(self.calls, [])
+
     def test_zero_sample_rate_wav_fails_closed_without_egress(self):
         # RIFF header may be structurally readable while PCM rate is zero.
         # The worker must raise its domain denial, never ZeroDivisionError.
