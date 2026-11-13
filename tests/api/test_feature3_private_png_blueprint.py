@@ -102,6 +102,33 @@ class BlueprintTests(unittest.TestCase):
             build_private_png_blueprint(
                 azure_functions=host, reader_factory=lambda *_: None)
 
+    def test_broken_host_decorator_errors_fail_closed(self):
+        # A framework upgrade or malformed shim may return a non-callable
+        # decorator or throw during route binding. Neither can register a
+        # usable private PNG route or invoke the reader.
+        for behavior in ("noncallable", "raise_on_route", "raise_on_bind"):
+            calls = []
+            class BrokenBlueprint:
+                def route(self, **options):
+                    if behavior == "raise_on_route":
+                        raise RuntimeError("synthetic host error")
+                    if behavior == "noncallable":
+                        return object()
+                    def bind(handler):
+                        raise RuntimeError("synthetic binding error")
+                    return bind
+            host = SimpleNamespace(
+                Blueprint=BrokenBlueprint, HttpResponse=Response,
+                AuthLevel=SimpleNamespace(ANONYMOUS="anonymous"))
+            def reader(*args):
+                calls.append(args)
+                raise AssertionError("must never invoke reader")
+            with self.subTest(behavior=behavior):
+                with self.assertRaisesRegex(ValueError, "private route registration failed"):
+                    build_private_png_blueprint(
+                        azure_functions=host, reader_factory=reader)
+                self.assertEqual(calls, [])
+
     def test_opt_in_get_route_and_backend_failure_are_fail_closed(self):
         calls = []
         def factory(*args):
