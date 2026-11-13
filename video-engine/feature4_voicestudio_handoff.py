@@ -100,6 +100,16 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
                 or type(row.get("rights_evidence")) is not str
                 or not row["rights_evidence"].strip()):
             raise CreativeContractError("Feature4 trusted media does not match private VoiceStudio asset")
+        # Reject private-object aliasing in the trusted snapshot before any
+        # private WAV bytes are fetched. The compiled-output check below is a
+        # second fence, not a substitute for this pre-I/O tenant/media gate.
+        for other_id, other in assets.items():
+            if other_id == asset_id:
+                continue
+            if (type(other) is dict
+                    and other.get("storage_bucket") == row["storage_bucket"]
+                    and other.get("object_path") == row["object_path"]):
+                raise CreativeContractError("Private narration object aliases another media asset")
         return record
 
     # Freeze the request before invoking external trusted readers: a callback
