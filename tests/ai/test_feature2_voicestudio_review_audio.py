@@ -1156,3 +1156,26 @@ def test_review_rights_revoked_during_storage_get_never_disclose_audio(field, re
     assert len(storage.calls) == 1
     assert len(sql.calls) == 2
     assert len(tenant.calls) == 1
+
+
+@pytest.mark.parametrize("byte_rate_offset", [-1, 1])
+def test_digest_matching_pcm_with_inconsistent_byte_rate_denied(byte_rate_offset):
+    """A valid digest must not authorize a malformed PCM byte-rate header."""
+    args, tenant, sql, storage, _ = harness()
+    malformed = bytearray(pcm())
+    byte_rate = int.from_bytes(malformed[28:32], "little")
+    malformed[28:32] = (byte_rate + byte_rate_offset).to_bytes(4, "little")
+    payload = bytes(malformed)
+    original_reader = sql.read_private_receipt
+
+    def matching_receipt(*ids):
+        receipt = original_reader(*ids)
+        receipt["original_sha256"] = sha256(payload).hexdigest()
+        return receipt
+
+    sql.read_private_receipt = matching_receipt
+    storage.read_verified_original = lambda *ids: payload
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1
+    assert len(tenant.calls) == 1
