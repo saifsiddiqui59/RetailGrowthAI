@@ -1078,3 +1078,30 @@ def test_receipt_security_state_changed_during_private_get_denies_disclosure(fie
     assert len(storage.calls) == 1
     assert len(sql.calls) == 2
     assert len(tenant.calls) == 1
+
+
+def test_sql_reader_factory_failure_denies_before_private_storage():
+    args, tenant, sql, storage, _ = harness()
+    calls = []
+    def failed_factory(uid):
+        calls.append(uid)
+        raise ConnectionError("private SQL credentials unavailable")
+    args["sql_store_factory"] = failed_factory
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert calls == [USER]
+    assert len(tenant.calls) == 1
+    assert not sql.calls and not storage.calls
+
+
+def test_mutable_storage_payload_denied_without_post_read_disclosure():
+    args, tenant, sql, storage, _ = harness()
+    calls = []
+    def mutable_original(*ids):
+        calls.append(ids)
+        return bytearray(pcm())
+    storage.read_verified_original = mutable_original
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(calls) == 1
+    assert len(sql.calls) == 1 and len(tenant.calls) == 1
