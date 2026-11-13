@@ -122,6 +122,24 @@ for (const field of ['approved','renderable','language','audio_sha256','words','
   reject({review:mutable});
   assert.equal(changed,true,field);
 }
+// In-place array slot replacement must fail even when the review retains
+// the same words-array reference and all top-level approval flags stay fixed.
+{
+  const mutable={...review,words:[...review.words]};
+  let swapped=false;
+  const first=new Proxy({...review.words[0]},{
+    get(target,field,receiver) {
+      if(field==='word' && !swapped) {
+        swapped=true;
+        mutable.words[1]={word:'forged',start:.7,end:1.2};
+      }
+      return Reflect.get(target,field,receiver);
+    }
+  });
+  mutable.words[0]=first;
+  reject({review:mutable});
+  assert.equal(swapped,true);
+}
 // A mid-normalization replacement with an accessor must not execute it.
 {
   const mutable={...review};
