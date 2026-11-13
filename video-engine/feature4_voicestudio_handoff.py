@@ -210,7 +210,7 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
             or not manifest_asset["path"].strip()
             # Worker paths must stay relative to its sandbox. Never pass an
             # absolute path, traversal, Windows separator or control byte to FFmpeg.
-            or manifest_asset["path"].startswith(("/", "\\"))
+            or manifest_asset["path"].startswith(("/", "\\", "-"))
             or "\\" in manifest_asset["path"]
             # Reject drive-relative and URI-shaped paths as well as percent-encoded
             # traversal. Worker paths are literal sandbox paths, never URLs.
