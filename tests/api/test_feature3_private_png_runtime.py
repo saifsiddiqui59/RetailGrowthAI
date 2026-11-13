@@ -161,6 +161,38 @@ class RuntimeCompositionTests(unittest.TestCase):
             scoped.read(user_token="synthetic-only", shop_id=shop, job_id=job)
         self.assertEqual(calls, [])
 
+    def test_side_effecting_key_getter_rotates_origin_before_reader_use(self):
+        """Synthetic getter rotation must deny before JWT or private bytes."""
+        class RotatingStore(SyntheticStore):
+            def __init__(self):
+                self._origin = ORIGIN
+                self.key_reads = 0
+
+            @property
+            def origin(self):
+                return self._origin
+
+            @property
+            def key(self):
+                self.key_reads += 1
+                if self.key_reads == 3:
+                    self._origin = "https://foreign-project.supabase.co"
+                return KEY
+
+        store = RotatingStore()
+        calls = []
+        def verifier(token):
+            calls.append("jwt")
+            return str(uuid4())
+
+        shop, job = str(uuid4()), str(uuid4())
+        factory = self.build(tenant_store=store, jwt_verifier=verifier)
+        reader = factory(shop, job)
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            reader.read(user_token="synthetic-only", shop_id=shop, job_id=job)
+        self.assertEqual(calls, [])
+        self.assertEqual(store.origin, "https://foreign-project.supabase.co")
+
     def test_cross_project_store_is_rejected(self):
         class ForeignStore(SyntheticStore):
             origin = "https://foreign-project.supabase.co"
