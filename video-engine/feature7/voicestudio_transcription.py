@@ -55,7 +55,7 @@ def _checked_wav(wav_bytes):
     try:
         with wave.open(io.BytesIO(wav_bytes), "rb") as stream:
             rate, frames = stream.getframerate(), stream.getnframes()
-            if (rate < 8000 or rate > 96000 or not 0 < frames / rate <= 180
+            if (not 8000 <= rate <= 96000 or not 0 < frames / rate <= 180
                     or stream.getnchannels() not in (1, 2)
                     or stream.getsampwidth() != 2 or stream.getcomptype() != "NONE"):
                 raise VoiceStudioTranscriptionDenied("Unapproved WAV codec/duration")
