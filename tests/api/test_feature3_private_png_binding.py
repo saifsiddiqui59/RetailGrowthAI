@@ -50,6 +50,30 @@ class PrivatePNGCompositionTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     factory(shop, job)
 
+    def test_factory_rejects_spoofed_scope_before_reader_construction(self):
+        from unittest.mock import patch
+
+        class SpoofedUUID(str):
+            def __eq__(self, other):
+                return True
+
+        factory = self.make(lambda *args: False)
+        with patch("feature3_private_png_binding.Feature3RevocablePNGReader") as reader:
+            for shop, job in (
+                (SpoofedUUID(self.shop), self.job),
+                (self.shop, SpoofedUUID(self.job)),
+                (object(), self.job),
+                (self.shop, object()),
+            ):
+                with self.subTest(shop_type=type(shop).__name__, job_type=type(job).__name__):
+                    with self.assertRaises(ValueError):
+                        factory(shop, job)
+            reader.assert_not_called()
+        # Exact UUID strings still enter the ordinary secure reader path.
+        reader = factory(self.shop, self.job)
+        with self.assertRaises(PermissionError):
+            reader.read(user_token="synthetic-not-hosted", shop_id=self.shop, job_id=self.job)
+
     def test_reader_uses_explicit_rights_authority_and_denies_fixture_membership(self):
         def rights(*args):
             self.calls.append(args)
