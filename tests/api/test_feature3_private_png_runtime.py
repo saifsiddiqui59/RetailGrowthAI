@@ -106,6 +106,61 @@ class RuntimeCompositionTests(unittest.TestCase):
                                 shop_id=shop, job_id=job)
                 self.assertEqual(verifier.calls, 0)
 
+    def test_runtime_denies_bytes_when_project_rotates_during_backend_read(self):
+        """Synthetic backend cannot release bytes after project-key rotation."""
+        from unittest.mock import patch
+
+        class MutableStore(SyntheticStore):
+            pass
+
+        store = MutableStore()
+        calls = []
+
+        class SyntheticReader:
+            def __init__(self, **kwargs):
+                calls.append("constructed")
+
+            def read(self, **kwargs):
+                calls.append("read")
+                store.key = "sb_publishable_rotated_test_only"
+                return b"synthetic-private-bytes-not-hosted"
+
+        shop, job = str(uuid4()), str(uuid4())
+        with patch("feature3_private_png_runtime.Feature3RevocablePNGReader",
+                   SyntheticReader):
+            scoped = self.build(tenant_store=store)(shop, job)
+            with self.assertRaises(PrivateGeneratedDownloadDenied):
+                scoped.read(user_token="synthetic-only", shop_id=shop, job_id=job)
+        self.assertEqual(calls, ["constructed", "read"])
+
+    def test_runtime_configuration_getter_failure_denies_before_jwt(self):
+        """A broken injected store never falls through to authentication."""
+        class FlakyStore(SyntheticStore):
+            def __init__(self):
+                self.fail = False
+
+            @property
+            def origin(self):
+                if self.fail:
+                    raise RuntimeError("synthetic config unavailable")
+                return ORIGIN
+
+        store = FlakyStore()
+        calls = []
+        def verifier(token):
+            calls.append("jwt")
+            return str(uuid4())
+
+        shop, job = str(uuid4()), str(uuid4())
+        factory = self.build(tenant_store=store, jwt_verifier=verifier)
+        scoped = factory(shop, job)
+        store.fail = True
+        with self.assertRaises(ValueError):
+            factory(shop, job)
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            scoped.read(user_token="synthetic-only", shop_id=shop, job_id=job)
+        self.assertEqual(calls, [])
+
     def test_cross_project_store_is_rejected(self):
         class ForeignStore(SyntheticStore):
             origin = "https://foreign-project.supabase.co"
