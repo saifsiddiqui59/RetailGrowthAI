@@ -51,6 +51,28 @@ reject({review:{...review,words:[{word:'\u202Ebad',start:0,end:.5}]}});
 assert.throws(()=>verifyTranscriptEvidence({evidence:ok.evidence,key,
  now_ms:now,expect:{shop_id:'shopB',asset_id:'video1',job_id:'job1',
  source_sha256:video,transcript_sha256:ok.transcript.transcript_sha256}}));
+// Accessors must never execute before HMAC or source/lease validation.
+for (const field of ['schema','language','audio_sha256','words','text']) {
+  let calls=0;
+  const hostile={...review};
+  Object.defineProperty(hostile,field,{enumerable:true,get(){calls++;throw Error('getter executed');}});
+  reject({review:hostile});
+  assert.equal(calls,0,field);
+}
+for (const field of ['shop_id','source_sha256','active','expires_at_ms']) {
+  let calls=0;
+  const hostile={...lease};
+  Object.defineProperty(hostile,field,{enumerable:true,get(){calls++;throw Error('getter executed');}});
+  reject({lease:hostile});
+  assert.equal(calls,0,field);
+}
+reject({review:Object.assign(Object.create({schema:review.schema}),
+  Object.fromEntries(Object.entries(review).filter(([k])=>k!=='schema')))});
+reject({lease:Object.assign(Object.create({active:true}),
+  Object.fromEntries(Object.entries(lease).filter(([k])=>k!=='active')))});
+// Null-prototype records with explicit own data fields remain compatible.
+assert.equal(bindVoiceStudioReview({...input,review:Object.assign(Object.create(null),review),
+  lease:Object.assign(Object.create(null),lease)}).approved,false);
 console.log('VoiceStudio signed handoff positive and negative cases passed');
 """
 class VoiceStudioSignedHandoffTests(unittest.TestCase):
