@@ -192,7 +192,7 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
                 writer.setnchannels(channels)
                 writer.setsampwidth(2)
                 writer.setframerate(16000)
-                writer.writeframes(b"\\x00" * (channels * 2 * 16000))
+                writer.writeframes(bytes([0]) * (channels * 2 * 32000))
             canonical = output.getvalue()
             self.calls.clear()
             self.assertEqual(self.call(original_wav=canonical,
@@ -201,7 +201,7 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
             for remainder in range(1, channels * 2):
                 # Preserve valid RIFF size and original-byte SHA; only the
                 # declared data length is inconsistent with PCM sample frames.
-                malformed = bytearray(canonical + b"\\x00" * remainder)
+                malformed = bytearray(canonical + bytes([0]) * remainder)
                 malformed[4:8] = (len(malformed) - 8).to_bytes(4, "little")
                 malformed[40:44] = (len(malformed) - 44).to_bytes(4, "little")
                 if remainder % 2:
