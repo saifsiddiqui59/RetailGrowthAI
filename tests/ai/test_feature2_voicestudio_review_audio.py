@@ -1282,3 +1282,29 @@ def test_matching_digest_stereo_pcm_with_half_frame_denied():
     with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
         read_current_voiceover_for_review(**args)
     assert len(sql.calls) == 1 and len(tenant.calls) == 1
+
+
+@pytest.mark.parametrize("invalid", [b"", b"RIFF", bytearray(b"fake"), memoryview(b"fake")])
+def test_private_storage_never_returns_empty_or_mutable_audio(invalid):
+    """Only a complete immutable, verified WAV may leave the review gate."""
+    args, tenant, sql, storage, _ = harness()
+    storage.read_verified_original = lambda *ids: invalid
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1
+    assert len(tenant.calls) == 1
+
+
+def test_changed_audio_asset_identity_after_private_get_denies_bytes():
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+    def replaced_asset(*ids):
+        receipt = original(*ids)
+        if len(sql.calls) == 2:
+            receipt["audio_asset_id"] = str(uuid4())
+        return receipt
+    sql.read_private_receipt = replaced_asset
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(storage.calls) == 1
+    assert len(sql.calls) == 2
