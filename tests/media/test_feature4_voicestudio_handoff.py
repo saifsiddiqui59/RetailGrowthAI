@@ -236,11 +236,13 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         original_overlay = scene.get("poster_overlay_asset_id")
         other_id = next(key for key in snapshot["assets"]
                         if key not in (draft["voiceover_asset_id"], original_overlay))
-        scene["poster_overlay_asset_id"] = other_id
+        # Keep the approved draft valid; mutate only the compiler output.
+        # Changing the draft itself is rejected earlier by the normal
+        # distinct-Feature3-poster contract and never exercises this guard.
 
         def forged(*args):
             result = original(*args)
-            result["request"]["scenes"][0]["poster_overlay_asset_id"] = original_overlay
+            result["request"]["scenes"][0]["poster_overlay_asset_id"] = other_id
             return result
 
         with patch.object(adapter, "compile_approved_storyboard", side_effect=forged):
