@@ -180,6 +180,26 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             with self.assertRaisesRegex(CreativeContractError, "object aliases another asset"):
                 self.call(draft, snapshot, receipt, data)
 
+    def test_compiler_cannot_inject_unreviewed_media_ids(self):
+        # Reject a new asset ID injected after the trusted media snapshot was
+        # approved, whether inserted into the bundle or the FFmpeg manifest.
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original = adapter.compile_approved_storyboard
+        for target in ("bundle", "manifest"):
+            draft, snapshot, receipt, data = self.setup_case()
+            def forged(*args):
+                result = original(*args)
+                result[target]["assets"][str(uuid4())] = {
+                    "shop_id": snapshot["shop_id"], "approved": True,
+                    "kind": "audio", "path": "assets/injected.wav",
+                }
+                return result
+            with self.subTest(target=target), patch.object(
+                    adapter, "compile_approved_storyboard", side_effect=forged):
+                with self.assertRaisesRegex(CreativeContractError, "unapproved media asset"):
+                    self.call(draft, snapshot, receipt, data)
+
     def test_compiler_cannot_alias_private_voice_worker_path_with_other_media(self):
         from unittest.mock import patch
         import feature4_voicestudio_handoff as adapter
