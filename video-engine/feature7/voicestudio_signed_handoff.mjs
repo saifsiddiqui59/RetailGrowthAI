@@ -88,7 +88,8 @@ export function bindVoiceStudioReview({
     requireOwnDataFields(slot.value,['word','start','end']);
     // Fail closed before entering the normalizer. Never invoke arbitrary word
     // getters merely to discover malformed timestamp or text fields.
-    const word=reviewSnapshot.words[i];
+    // Reuse the validated slot descriptor; array Proxy get traps are untrusted.
+    const word=slot.value;
     const value=Object.fromEntries(['word','start','end'].map(field=>
       [field,Object.getOwnPropertyDescriptor(word,field).value]));
     wordSnapshots.push(value);
