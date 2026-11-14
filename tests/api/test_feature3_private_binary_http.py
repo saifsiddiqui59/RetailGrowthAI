@@ -82,6 +82,46 @@ class BinaryHTTPTests(unittest.TestCase):
             self.assertEqual(body,b"")
             self.assert_private_headers(headers)
         self.assertEqual(self.reader.calls,[])
+    def test_noncanonical_route_scope_denied_before_private_reader(self):
+        # No implicit normalization of a URL's tenant/job identity.
+        from uuid import UUID
+        shop, job = self.shop, self.job
+        malformed = (
+            (shop.upper() if shop.upper()!=shop else shop+"A", job), (shop.replace("-", ""), job),
+            ("{" + shop + "}", job), (shop, job.upper() if job.upper()!=job else job+"A"),
+            (shop, job.replace("-", "")), (object(), job),
+            (shop, UUID(job)),
+        )
+        for bad_shop, bad_job in malformed:
+            with self.subTest(shop=repr(bad_shop), job=repr(bad_job)):
+                status, body, headers = self.api.handle(
+                    method="GET", authorization="Bearer signed-retailer-test",
+                    shop_id=bad_shop, job_id=bad_job)
+                self.assertEqual((status, body), (404, b""))
+                self.assert_private_headers(headers)
+        self.assertEqual(self.reader.calls, [])
+
+    def test_ambiguous_bearer_token_denied_before_reader(self):
+        for token in ("signed,other-token", "signed;other-token",
+                      'signed"other-token', "signed\\\\other-token",
+                      "signed\u0080other-token"):
+            with self.subTest(token=repr(token)):
+                status, body, headers = self.call(auth="Bearer " + token)
+                self.assertEqual((status, body), (401, b""))
+                self.assert_private_headers(headers)
+        self.assertEqual(self.reader.calls, [])
+
+    def test_noncanonical_media_receipt_denies_private_bytes(self):
+        original = self.reader.media
+        for forged in (original.upper() if original.upper()!=original else original+"A", original.replace("-", ""),
+                       "{" + original + "}"):
+            self.reader.extra = {"media_asset_id": forged}
+            with self.subTest(forged=forged):
+                status, body, headers = self.call()
+                self.assertEqual((status, body), (503, b""))
+                self.assert_private_headers(headers)
+        self.reader.extra = {}
+
     def test_revoked_foreign_job_or_unverified_reader_never_returns_bytes(self):
         for exc in (PrivateGeneratedDownloadDenied("revoked"),
                     ValueError("foreign output"),KeyError("source missing")):
@@ -114,6 +154,50 @@ class BinaryHTTPTests(unittest.TestCase):
                 self.assertEqual(body,b"")
                 self.assert_private_headers(headers)
         self.reader.extra={}
+    def test_spoofed_receipt_identity_cannot_authorize_private_bytes(self):
+        # Injected rights adapters must not authorize using attacker __eq__.
+        class AlwaysEqual:
+            def __eq__(self, other):
+                return True
+        class SpoofedString(str):
+            def __eq__(self, other):
+                return True
+        for key in ("shop_id", "job_id", "media_asset_id"):
+            for forged in (AlwaysEqual(), SpoofedString("foreign")):
+                self.reader.extra = {key: forged}
+                with self.subTest(key=key, forged=type(forged).__name__):
+                    status, body, headers = self.call()
+                    self.assertEqual((status, body), (503, b""))
+                    self.assert_private_headers(headers)
+        self.reader.extra = {}
+        self.assertEqual(self.call()[0], 200)
+
+    def test_spoofed_http_method_and_mime_cannot_bypass_primitive_checks(self):
+        # Python equality overrides must not turn a foreign method into GET,
+        # or an untrusted Content-Type into the approved PNG media type.
+        class EqualToGet:
+            def __eq__(self, other):
+                return other == "GET"
+        class EqualToPng:
+            def __eq__(self, other):
+                return other == "image/png"
+        class SpoofedMethod(str):
+            def __eq__(self, other):
+                return True
+        for forged in (EqualToGet(), SpoofedMethod("POST")):
+            with self.subTest(method=type(forged).__name__):
+                status, body, headers = self.call(method=forged)
+                self.assertEqual((status, body), (405, b""))
+                self.assertEqual(headers["Allow"], "GET")
+        self.assertEqual(self.reader.calls, [])
+        for forged in (EqualToPng(),):
+            self.reader.extra = {"mime_type": forged}
+            status, body, headers = self.call()
+            self.assertEqual((status, body), (503, b""))
+            self.assert_private_headers(headers)
+        self.reader.extra = {}
+        self.assertEqual(self.call()[0], 200)
+
     def test_valid_sha_does_not_make_non_png_or_trailing_bytes_downloadable(self):
         # A forged or broken reader can supply a self-consistent SHA; the HTTP
         # boundary must still reject non-PNG bytes and trailing payloads.
@@ -230,6 +314,51 @@ class BinaryHTTPTests(unittest.TestCase):
                 self.assert_private_headers(headers)
         self.reader.png=original
         self.assertEqual(self.call()[0],200)
+
+    def test_crc_valid_ancillary_metadata_never_leaks_from_private_http(self):
+        # Defense in depth: a compromised rights reader may return PNG bytes
+        # with a valid digest but embedded private EXIF/text/profile metadata.
+        original = self.reader.png
+        def chunk(kind, payload):
+            return (len(payload).to_bytes(4, "big") + kind + payload +
+                    (crc32(kind + payload) & 0xffffffff).to_bytes(4, "big"))
+        for kind, payload in (
+            (b"tEXt", b"Comment\\x00synthetic-private-value"),
+            (b"zTXt", b"Comment\\x00\\x00compressed"),
+            (b"iTXt", b"Comment\\x00\\x00\\x00\\x00\\x00private"),
+            (b"eXIf", b"synthetic-exif"),
+            (b"iCCP", b"Profile\\x00\\x00synthetic"),
+            (b"tIME", bytes((26, 1, 1, 0, 0, 0, 0))),
+        ):
+            self.reader.png = original[:33] + chunk(kind, payload) + original[33:]
+            with self.subTest(kind=kind):
+                status, body, headers = self.call()
+                self.assertEqual((status, body), (503, b""))
+                self.assert_private_headers(headers)
+        self.reader.png = original
+        self.assertEqual(self.call()[0], 200)
+
+    def test_empty_idat_only_png_is_rejected_despite_valid_crc_and_sha(self):
+        # An untrusted reader can forge a self-consistent receipt for a PNG
+        # containing only empty IDAT chunks. No private bytes may be returned.
+        original = self.reader.png
+        def chunk(kind, payload):
+            return (len(payload).to_bytes(4, "big") + kind + payload +
+                    (crc32(kind + payload) & 0xffffffff).to_bytes(4, "big"))
+        ihdr = original[:33]
+        iend = original[-12:]
+        for count in (1, 2, 10):
+            forged = ihdr + chunk(b"IDAT", b"") * count + iend
+            self.reader.png = forged
+            with self.subTest(empty_chunks=count):
+                status, body, headers = self.call()
+                self.assertEqual((status, body), (503, b""))
+                self.assert_private_headers(headers)
+        # A zero-length IDAT chunk alongside actual image data remains valid.
+        self.reader.png = ihdr + chunk(b"IDAT", b"") + original[33:]
+        self.assertEqual(self.call()[0], 200)
+        self.reader.png = original
+        self.assertEqual(self.call()[0], 200)
 
     def test_pathological_png_chunk_count_is_denied(self):
         # Repeated valid ancillary chunks must not turn private download into

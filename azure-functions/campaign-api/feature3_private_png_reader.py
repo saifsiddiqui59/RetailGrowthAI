@@ -88,8 +88,15 @@ class Feature3RevocablePNGReader:
         except Exception:
             raise PrivateGeneratedDownloadDenied(
                 "Private generated output unavailable") from None
-        if (not isinstance(row, dict) or row.get("id") != job or
-                row.get("shop_id") != shop or row.get("status") != "SUCCEEDED"):
+        # Reject hostile mapping keys before any lookup: custom __hash__/__eq__
+        # methods could impersonate a trusted field or execute during get().
+        if type(row) is not dict or any(type(key) is not str for key in row):
+            raise PrivateGeneratedDownloadDenied("Private generated output unavailable")
+        # Injected tenant adapters must not impersonate identities via __eq__.
+        if (type(row) is not dict or
+                type(row.get("id")) is not str or row["id"] != job or
+                type(row.get("shop_id")) is not str or row["shop_id"] != shop or
+                type(row.get("status")) is not str or row["status"] != "SUCCEEDED"):
             raise PrivateGeneratedDownloadDenied("Private generated output unavailable")
         asset_id = canonical_uuid(row.get("output_asset_id"))
         try:
@@ -102,28 +109,34 @@ class Feature3RevocablePNGReader:
         except Exception:
             raise PrivateGeneratedDownloadDenied(
                 "Private generated output unavailable") from None
+        if type(asset) is not dict or any(type(field) is not str for field in asset):
+            raise PrivateGeneratedDownloadDenied("Private generated output unavailable")
         key = asset.get("object_path") if isinstance(asset, dict) else None
         prefix = f"{shop}/feature3/gpu/{job}/"
         # The TenantStore currently validates these fields, but this is
         # also a trust boundary for any future injected store adapter.
         # A path alone cannot prove that the registered row belongs to this
         # generated output rather than an uploaded/foreign media asset.
-        if (not isinstance(key, str) or
-                asset.get("id") != asset_id or
-                asset.get("shop_id") != shop or
-                asset.get("storage_bucket") != "retailgrowth-media" or
-                asset.get("source") != "GENERATED" or
+        if (type(asset) is not dict or type(key) is not str or
+                type(asset.get("id")) is not str or asset["id"] != asset_id or
+                type(asset.get("shop_id")) is not str or asset["shop_id"] != shop or
+                type(asset.get("storage_bucket")) is not str or
+                asset["storage_bucket"] != "retailgrowth-media" or
+                type(asset.get("source")) is not str or
+                asset["source"] != "GENERATED" or
                 not key.startswith(prefix) or
                 not key.endswith(".png") or
                 not _SHA.fullmatch(key[len(prefix):-4]) or
-                asset.get("mime_type") != "image/png"):
+                type(asset.get("mime_type")) is not str or
+                asset["mime_type"] != "image/png"):
             raise PrivateGeneratedDownloadDenied("Private generated output unavailable")
         # Must be a real backend check of original source rights/approval
         # and immutable output evidence, NOT a caller-created True from UI.
         try:
             current_rights = self.rights(shop, job, asset_id)
-        except StorageUnavailable:
-            # Preserve opaque 503 for a current rights backend outage.
+        except (StorageUnavailable, OSError):
+            # A genuine backend transport failure must remain an opaque 503,
+            # never be confused with a deliberate rights denial (404).
             raise
         except Exception:
             # A reviewer outage cannot fall back to the Storage key, JWT
@@ -159,6 +172,21 @@ class Feature3RevocablePNGReader:
                 length = headers.get("Content-Length")
                 mime = headers.get("Content-Type")
                 content_encoding = headers.get("Content-Encoding")
+                # A private immutable object is always a complete 200 response.
+                # Reject proxy-supplied partial-content metadata before body IO.
+                if headers.get("Content-Range") is not None:
+                    raise PrivateGeneratedDownloadDenied(
+                        "Untrusted partial private PNG response")
+                # No intermediary is allowed to transform an immutable
+                # SHA-named private object. Ambiguous transfer framing can
+                # conceal extra bytes or disagree with Content-Length.
+                transfer_encoding = headers.get("Transfer-Encoding")
+                if transfer_encoding is not None:
+                    if (type(transfer_encoding) is not str or
+                            transfer_encoding.strip().lower() != "chunked" or
+                            headers.get("Content-Length") is not None):
+                        raise PrivateGeneratedDownloadDenied(
+                            "Untrusted private PNG transfer framing")
                 # Refuse folded, invisible or unbounded HTTP metadata before
                 # any authenticated private PNG body is consumed.
                 def printable_header(value):
@@ -175,9 +203,8 @@ class Feature3RevocablePNGReader:
                          not length.isdigit() or int(length) > _MAX)):
                     raise PrivateGeneratedDownloadDenied(
                         "Invalid private image Content-Length")
-                if (mime is not None and
-                        (not printable_header(mime) or
-                         mime.split(";", 1)[0].strip().lower() != "image/png")):
+                if (not printable_header(mime) or
+                        mime.strip().lower() != "image/png"):
                     raise PrivateGeneratedDownloadDenied("Invalid private image MIME")
                 raw = response.read(_MAX + 1)
         except PrivateGeneratedDownloadDenied:
@@ -195,6 +222,163 @@ class Feature3RevocablePNGReader:
         if length is not None and int(length)!=len(raw):
             raise PrivateGeneratedDownloadDenied(
                 "Private image response length changed")
+        # Reject bytes appended after PNG IEND, including hidden payloads.
+        # Pillow may successfully decode a PNG while silently ignoring such
+        # trailing data; the private output contract is exactly one PNG.
+        offset = 8
+        if not raw.startswith(bytes.fromhex("89504e470d0a1a0a")):
+            raise PrivateGeneratedDownloadDenied("Untrusted private PNG structure")
+        seen_header = False
+        seen_pixels = False
+        seen_palette = False
+        seen_transparency = False
+        png_color_type = None
+        palette_entries = None
+        transparency_entries = None
+        pixels_finished = False
+        # Bound parser work independently of the 25 MiB byte limit: a PNG
+        # can contain millions of tiny ancillary chunks with valid CRCs.
+        # A generated poster needs nowhere near this many chunks.
+        chunk_count = 0
+        while offset + 12 <= len(raw):
+            chunk_count += 1
+            if chunk_count > 4096:
+                raise PrivateGeneratedDownloadDenied(
+                    "Excessive private PNG chunk count")
+            chunk_size = int.from_bytes(raw[offset:offset + 4], "big")
+            chunk_type = raw[offset + 4:offset + 8]
+            end = offset + 12 + chunk_size
+            if end > len(raw):
+                raise PrivateGeneratedDownloadDenied("Untrusted private PNG structure")
+            # A valid single-image PNG starts with exactly one 13-byte IHDR
+            # and contains IDAT before its final zero-length IEND. Enforce
+            # this before handing potentially hostile bytes to Pillow.
+            if not seen_header:
+                if chunk_type != b"IHDR" or chunk_size != 13:
+                    raise PrivateGeneratedDownloadDenied("Missing private PNG header")
+                seen_header = True
+                # IHDR data starts after the 4-byte length and 4-byte type.
+                # Its color-type byte is data[9], i.e. chunk offset + 17.
+                png_color_type = raw[offset + 17]
+                # Reject impossible PNG IHDR bit-depth/color combinations
+                # before any palette or transparency metadata is interpreted.
+                bit_depth = raw[offset + 16]
+                allowed_depths = {
+                    0: (1, 2, 4, 8, 16),
+                    2: (8, 16),
+                    3: (1, 2, 4, 8),
+                    4: (8, 16),
+                    6: (8, 16),
+                }
+                if bit_depth not in allowed_depths.get(png_color_type, ()):
+                    raise PrivateGeneratedDownloadDenied(
+                        "Invalid private PNG IHDR color/bit depth")
+                # PNG compression and filter methods must be zero. Interlace
+                # may only be the standard noninterlaced or Adam7 mode.
+                # Validate these bytes before decoding or serving the image.
+                if (raw[offset + 18] != 0 or raw[offset + 19] != 0 or
+                        raw[offset + 20] not in (0, 1)):
+                    raise PrivateGeneratedDownloadDenied(
+                        "Invalid private PNG IHDR encoding methods")
+            elif chunk_type == b"IHDR":
+                raise PrivateGeneratedDownloadDenied("Duplicate private PNG header")
+            # Unknown critical chunks cannot be safely interpreted by the
+            # consumer. PNG IDAT chunks must be contiguous; otherwise a
+            # decoder may silently ignore ambiguous or hidden pixel data.
+            if (chunk_type[0] & 0x20) == 0 and chunk_type not in (
+                    b"IHDR", b"PLTE", b"IDAT", b"IEND"):
+                raise PrivateGeneratedDownloadDenied(
+                    "Untrusted private PNG critical chunk")
+            # PNG chunk names are exactly four ASCII letters. The third
+            # letter is reserved and must be uppercase; reject ambiguous
+            # or future-incompatible names before Pillow parses the bytes.
+            if (len(chunk_type) != 4 or
+                    any(not (65 <= c <= 90 or 97 <= c <= 122)
+                        for c in chunk_type) or
+                    not 65 <= chunk_type[2] <= 90):
+                raise PrivateGeneratedDownloadDenied(
+                    "Untrusted private PNG chunk name")
+            # APNG control/frame chunks are not valid for a single immutable
+            # generated poster. Pillow can report one frame for an animated
+            # container with only one declared frame; reject the container
+            # semantics explicitly, including SHA-matched synthetic payloads.
+            if chunk_type in (b"acTL", b"fcTL", b"fdAT"):
+                raise PrivateGeneratedDownloadDenied(
+                    "Animated private PNG container not permitted")
+            # Generated private posters are pixel-only artifacts. PNG textual
+            # and EXIF chunks can carry hidden customer data, external links,
+            # or unreviewed rights claims even when pixels and SHA match.
+            # Refuse these chunks instead of trusting Pillow's info mapping.
+            # ICC profiles, suggested palettes and calibration chunks may
+            # also contain opaque user-controlled metadata; generated PNGs
+            # do not need these to deliver verified pixels.
+            if chunk_type in (b"tEXt", b"zTXt", b"iTXt", b"eXIf",
+                              b"iCCP", b"sPLT", b"pCAL", b"sCAL"):
+                raise PrivateGeneratedDownloadDenied(
+                    "Private PNG embedded metadata not permitted")
+            # Palette entries are RGB triples (1..256 entries). A malformed
+            # PLTE can be ignored by some decoders yet accepted as a PNG.
+            # Transparency metadata must precede the first pixel chunk.
+            if chunk_type == b"PLTE" and (chunk_size == 0 or
+                    chunk_size > 768 or chunk_size % 3 != 0):
+                raise PrivateGeneratedDownloadDenied(
+                    "Invalid private PNG palette size")
+            # Grayscale PNGs cannot carry PLTE. Indexed palette entries
+            # must fit the IHDR bit depth, even when unused by pixel data.
+            if chunk_type == b"PLTE":
+                bit_depth = raw[24]
+                if (png_color_type in (0, 4) or
+                        (png_color_type == 3 and
+                         chunk_size // 3 > (1 << bit_depth))):
+                    raise PrivateGeneratedDownloadDenied(
+                        "Invalid private PNG palette for color type")
+            if chunk_type == b"tRNS":
+                # Transparency must match IHDR color type; indexed alpha
+                # requires a preceding palette and cannot exceed its entries.
+                if (png_color_type not in (0, 2, 3) or
+                        (png_color_type == 0 and chunk_size != 2) or
+                        (png_color_type == 2 and chunk_size != 6) or
+                        (png_color_type == 3 and (
+                            palette_entries is None or
+                            not 1 <= chunk_size <= palette_entries))):
+                    raise PrivateGeneratedDownloadDenied(
+                        "Invalid private PNG transparency payload")
+                if seen_pixels or seen_transparency:
+                    raise PrivateGeneratedDownloadDenied(
+                        "Invalid private PNG transparency order")
+                seen_transparency = True
+                transparency_entries = chunk_size
+            if chunk_type == b"PLTE":
+                if seen_palette or seen_pixels:
+                    raise PrivateGeneratedDownloadDenied(
+                        "Invalid private PNG palette order")
+                seen_palette = True
+                palette_entries = chunk_size // 3
+            # Revalidate indexed metadata at the pixel boundary, including
+            # a palette that must exist and a transparency table that must
+            # never exceed the palette size.
+            if chunk_type == b"IDAT" and png_color_type == 3:
+                if (not seen_palette or palette_entries is None or
+                        (seen_transparency and transparency_entries >
+                         palette_entries)):
+                    raise PrivateGeneratedDownloadDenied(
+                        "Invalid indexed private PNG metadata")
+            if chunk_type == b"IDAT":
+                if pixels_finished:
+                    raise PrivateGeneratedDownloadDenied(
+                        "Noncontiguous private PNG pixels")
+                seen_pixels = True
+            elif seen_pixels:
+                pixels_finished = True
+            if chunk_type == b"IEND":
+                if not seen_pixels or chunk_size != 0:
+                    raise PrivateGeneratedDownloadDenied("Untrusted private PNG terminator")
+                if end != len(raw):
+                    raise PrivateGeneratedDownloadDenied("Untrusted trailing PNG bytes")
+                break
+            offset = end
+        else:
+            raise PrivateGeneratedDownloadDenied("Missing private PNG terminator")
         try:
             with Image.open(BytesIO(raw)) as img:
                 if (img.format != "PNG" or getattr(img,"n_frames",1) != 1 or

@@ -1,0 +1,201 @@
+"""F3-08 optional Blueprint wiring: synthetic only, no hosted auth claim."""
+import sys
+import unittest
+from pathlib import Path
+from types import SimpleNamespace
+from uuid import uuid4
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "azure-functions" / "campaign-api"))
+from feature3_private_png_route_registration import ROUTE, build_private_png_blueprint
+
+
+class Response:
+    def __init__(self, *, body, status_code, headers, mimetype):
+        self.body, self.status_code = body, status_code
+        self.headers, self.mimetype = headers, mimetype
+
+
+class Blueprint:
+    def __init__(self):
+        self.routes = []
+
+    def route(self, **options):
+        def decorate(handler):
+            self.routes.append((options, handler))
+            return handler
+        return decorate
+
+
+class BlueprintTests(unittest.TestCase):
+    def setUp(self):
+        self.azure = SimpleNamespace(
+            Blueprint=Blueprint, HttpResponse=Response,
+            AuthLevel=SimpleNamespace(ANONYMOUS="anonymous"))
+
+    def test_optional_route_matches_existing_fail_closed_registration(self):
+        # Static source contract: never introduce a second public path for
+        # the same private asset or accidentally enable an unreviewed reader.
+        source = (Path(__file__).resolve().parents[2] / "azure-functions" /
+                  "campaign-api" / "function_app.py").read_text(encoding="utf-8")
+        self.assertIn('route="' + ROUTE + '"', source)
+        self.assertIn("reader_factory=None, response_type=func.HttpResponse", source)
+        self.assertNotIn("register_blueprint", source)
+
+    def test_untrusted_factory_or_incomplete_host_contract_refused(self):
+        for factory in (None, object(), "browser-rights"):
+            with self.assertRaises(ValueError):
+                build_private_png_blueprint(
+                    azure_functions=self.azure, reader_factory=factory)
+        for module in (None, SimpleNamespace(), SimpleNamespace(
+                Blueprint=Blueprint, HttpResponse=Response)):
+            with self.assertRaises(ValueError):
+                build_private_png_blueprint(
+                    azure_functions=module, reader_factory=lambda *_: None)
+
+    def test_broken_blueprint_route_contract_rejected_before_registration(self):
+        # A host shim with no decorator must not publish a private endpoint.
+        class MissingRoute:
+            pass
+
+        class NonCallableRoute:
+            route = "public"
+
+        for broken in (MissingRoute, NonCallableRoute):
+            host = SimpleNamespace(
+                Blueprint=broken, HttpResponse=Response,
+                AuthLevel=SimpleNamespace(ANONYMOUS="anonymous"))
+            with self.subTest(blueprint=broken.__name__):
+                with self.assertRaisesRegex(ValueError, "route decorator"):
+                    build_private_png_blueprint(
+                        azure_functions=host,
+                        reader_factory=lambda *_: None)
+
+    def test_blueprint_initialization_failures_are_opaque(self):
+        # Framework constructors and dynamic attributes may raise errors
+        # containing environment details; never expose them as route errors.
+        class BrokenConstructor:
+            def __init__(self):
+                raise RuntimeError("synthetic-secret-in-constructor")
+
+        class BrokenRouteProperty:
+            @property
+            def route(self):
+                raise RuntimeError("synthetic-secret-in-route-property")
+
+        for broken in (BrokenConstructor, BrokenRouteProperty):
+            host = SimpleNamespace(
+                Blueprint=broken, HttpResponse=Response,
+                AuthLevel=SimpleNamespace(ANONYMOUS="anonymous"))
+            with self.subTest(blueprint=broken.__name__):
+                with self.assertRaisesRegex(
+                        ValueError, "^Azure Functions Blueprint initialization failed$") as caught:
+                    build_private_png_blueprint(
+                        azure_functions=host,
+                        reader_factory=lambda *_: self.fail("reader invoked"))
+                self.assertNotIn("synthetic-secret", str(caught.exception))
+
+    def test_decorator_must_preserve_callable_private_handler(self):
+        # An invalid host shim must not silently register a missing handler.
+        class DiscardingBlueprint:
+            def route(self, **options):
+                return lambda handler: None
+
+        host = SimpleNamespace(
+            Blueprint=DiscardingBlueprint, HttpResponse=Response,
+            AuthLevel=SimpleNamespace(ANONYMOUS="anonymous"))
+        with self.assertRaisesRegex(ValueError, "replaced private handler"):
+            build_private_png_blueprint(
+                azure_functions=host, reader_factory=lambda *_: None)
+
+    def test_callable_handler_substitution_is_rejected(self):
+        # A malicious or broken decorator can replace the private handler
+        # with a different callable, not just None. Never trust that route.
+        class ReplacingBlueprint:
+            def route(self, **options):
+                def decorate(handler):
+                    def unguarded_handler(request):
+                        return Response(body=b"untrusted", status_code=200,
+                                        headers={}, mimetype="image/png")
+                    return unguarded_handler
+                return decorate
+
+        host = SimpleNamespace(
+            Blueprint=ReplacingBlueprint, HttpResponse=Response,
+            AuthLevel=SimpleNamespace(ANONYMOUS="anonymous"))
+        with self.assertRaisesRegex(ValueError, "replaced private handler"):
+            build_private_png_blueprint(
+                azure_functions=host, reader_factory=lambda *_: None)
+
+    def test_broken_host_decorator_errors_fail_closed(self):
+        # A framework upgrade or malformed shim may return a non-callable
+        # decorator or throw during route binding. Neither can register a
+        # usable private PNG route or invoke the reader.
+        for behavior in ("noncallable", "raise_on_route", "raise_on_bind"):
+            calls = []
+            class BrokenBlueprint:
+                def route(self, **options):
+                    if behavior == "raise_on_route":
+                        raise RuntimeError("synthetic host error")
+                    if behavior == "noncallable":
+                        return object()
+                    def bind(handler):
+                        raise RuntimeError("synthetic binding error")
+                    return bind
+            host = SimpleNamespace(
+                Blueprint=BrokenBlueprint, HttpResponse=Response,
+                AuthLevel=SimpleNamespace(ANONYMOUS="anonymous"))
+            def reader(*args):
+                calls.append(args)
+                raise AssertionError("must never invoke reader")
+            with self.subTest(behavior=behavior):
+                with self.assertRaisesRegex(ValueError, "private route registration failed"):
+                    build_private_png_blueprint(
+                        azure_functions=host, reader_factory=reader)
+                self.assertEqual(calls, [])
+
+    def test_opt_in_get_route_and_backend_failure_are_fail_closed(self):
+        calls = []
+        def factory(*args):
+            calls.append(args)
+            raise RuntimeError("synthetic backend unavailable")
+        blueprint = build_private_png_blueprint(
+            azure_functions=self.azure, reader_factory=factory)
+        self.assertEqual(len(blueprint.routes), 1)
+        options, handler = blueprint.routes[0]
+        self.assertEqual(options, {
+            "route": ROUTE, "methods": ["GET"], "auth_level": "anonymous"})
+        self.assertEqual(calls, [])
+        shop, job = str(uuid4()), str(uuid4())
+        req = SimpleNamespace(
+            method="GET", route_params={"shop_id": shop, "job_id": job},
+            headers={"Authorization": "Bearer " + "x" * 30},
+            params={}, get_body=lambda: b"")
+        reply = handler(req)
+        self.assertEqual((reply.status_code, reply.body), (503, b""))
+        self.assertEqual(calls, [(shop, job)])
+        self.assertEqual(reply.headers["Cache-Control"], "no-store, private")
+
+    def test_foreign_scope_or_missing_auth_never_invokes_reader(self):
+        calls = []
+        def factory(*args):
+            calls.append(args)
+            raise RuntimeError("unreachable")
+        handler = build_private_png_blueprint(
+            azure_functions=self.azure,
+            reader_factory=factory).routes[0][1]
+        for params, headers in (
+            ({"shop_id": "foreign", "job_id": str(uuid4())},
+             {"Authorization": "Bearer " + "x" * 30}),
+            ({"shop_id": str(uuid4()), "job_id": str(uuid4())}, {}),
+        ):
+            req = SimpleNamespace(
+                method="GET", route_params=params, headers=headers,
+                params={}, get_body=lambda: b"")
+            reply = handler(req)
+            self.assertNotEqual(reply.status_code, 200)
+            self.assertEqual(reply.body, b"")
+        self.assertEqual(calls, [])
+
+
+if __name__ == "__main__":
+    unittest.main()
