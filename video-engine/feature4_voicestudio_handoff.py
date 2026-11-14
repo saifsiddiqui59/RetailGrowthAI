@@ -464,8 +464,9 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
         staged_paths.add(normalized)
     # The compiler may perform additional trusted reads. Do not return a reel
     # compiled from narration whose approval was revoked during that work.
-    if authoritative() != before or snapshot["assets"].get(asset_id) != before_asset:
-        raise CreativeContractError("Narration approval or private asset changed during compilation")
+    if (authoritative() != before or snapshot != frozen_snapshot
+            or draft != frozen_draft):
+        raise CreativeContractError("Narration approval or reviewed media changed during compilation")
     # Re-read the authoritative private object after compilation. A mutable
     # storage key could be replaced without changing its approval receipt.
     final_bytes = read_current_private_wav(shop, campaign, asset_id)
