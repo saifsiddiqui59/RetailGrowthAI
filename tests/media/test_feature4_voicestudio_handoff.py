@@ -93,6 +93,20 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                 read_current_private_wav=lambda *_: reads.append(True) or data)
         self.assertEqual(reads, [], "Aliased private WAV must not be fetched")
 
+    def test_private_voice_cannot_be_reused_as_scene_footage_before_read(self):
+        # The narration receipt grants audio mixing, never image/video use.
+        draft, snapshot, receipt, data = self.setup_case()
+        draft["scenes"][0]["asset_id"] = draft["voiceover_asset_id"]
+        receipt_reads, wav_reads = [], []
+        with self.assertRaisesRegex(CreativeContractError, "music, SFX or footage"):
+            compile_voicestudio_narrated_reel(
+                draft=draft, snapshot=snapshot,
+                read_current_receipt=lambda *_: receipt_reads.append(True) or dict(receipt),
+                read_current_private_wav=lambda *_: wav_reads.append(True) or data,
+            )
+        self.assertEqual(receipt_reads, [])
+        self.assertEqual(wav_reads, [])
+
     def test_modified_pcm_never_reaches_compiler_even_with_valid_wav_header(self):
         from unittest.mock import patch
         import feature4_voicestudio_handoff as adapter
