@@ -26,7 +26,9 @@ _BIDI_CONTROLS = frozenset((0x061C, 0x200E, 0x200F, *range(0x202A, 0x202F), *ran
 
 
 def _unsafe_text(value):
-    return any(ord(ch) < 32 or 0xD800 <= ord(ch) <= 0xDFFF or ord(ch) in _BIDI_CONTROLS for ch in value)
+    return any(ord(ch) < 32 or 0x7F <= ord(ch) <= 0x9F or 0xD800 <= ord(ch) <= 0xDFFF
+               or ord(ch) in _BIDI_CONTROLS or ord(ch) in (0x2028, 0x2029, 0xFEFF)
+               for ch in value)
 
 
 class VoiceStudioTranscriptionDenied(ValueError):
