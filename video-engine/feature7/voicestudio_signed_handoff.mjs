@@ -68,18 +68,23 @@ export function bindVoiceStudioReview({
     Number.isSafeInteger(leaseSnapshot.expires_at_ms) &&
     leaseSnapshot.expires_at_ms>now_ms && leaseSnapshot.expires_at_ms<=now_ms+600000,
     'Missing active exact-source ASR lease');
-  deny(Array.isArray(reviewSnapshot.words) && reviewSnapshot.words.length>=1 &&
-    reviewSnapshot.words.length<=2000 && typeof reviewSnapshot.text==='string' &&
+  // Read array length through its own data descriptor: a Proxy get trap on
+  // 'length' must not mutate the active lease or trigger private side effects.
+  const wordLengthDescriptor=Array.isArray(reviewSnapshot.words)
+    ? Object.getOwnPropertyDescriptor(reviewSnapshot.words,'length') : null;
+  const wordCount=wordLengthDescriptor && Object.hasOwn(wordLengthDescriptor,'value')
+    ? wordLengthDescriptor.value : -1;
+  deny(wordCount>=1 && wordCount<=2000 && typeof reviewSnapshot.text==='string' &&
     reviewSnapshot.text.length<=20000 && reviewSnapshot.text.trim().length>0,'Missing real word timings');
   // Pin the indexed word identities before normalization. A mutable array can
   // replace an element without changing the review's `words` reference; never
   // sign a transcript derived from a list that changed mid-operation.
-  const wordIdentities=Array.from({length:reviewSnapshot.words.length},(_,i)=>
+  const wordIdentities=Array.from({length:wordCount},(_,i)=>
     Object.getOwnPropertyDescriptor(reviewSnapshot.words,String(i))?.value);
   const wordSnapshots=[];
   // Validate each word's own data descriptors before the normalizer reads it.
   // Accessor-backed timestamps or text must not execute inside a signing path.
-  for (let i=0;i<reviewSnapshot.words.length;i++) {
+  for (let i=0;i<wordCount;i++) {
     // An own array slot can still be an accessor. Reject it by descriptor
     // before reading the slot, so untrusted index getters never execute.
     const slot=Object.getOwnPropertyDescriptor(reviewSnapshot.words,String(i));
@@ -109,7 +114,7 @@ export function bindVoiceStudioReview({
     // 2000 accepted VoiceStudio words in bounded consecutive segments.
     // Preserve existing post-normalization mutation checks for hostile inputs.
     transcript:{segments:Array.from(
-      {length:Math.ceil(reviewSnapshot.words.length/200)},(_,i)=>({
+      {length:Math.ceil(wordCount/200)},(_,i)=>({
         words:wordSnapshots.slice(i*200,(i+1)*200)
       }))}
 
@@ -135,7 +140,7 @@ export function bindVoiceStudioReview({
         Object.is(descriptor.value,snapshot[field]);
     });
   }), 'VoiceStudio word fields changed during normalization');
-  deny(reviewSnapshot.words.length===wordIdentities.length &&
+  deny(wordCount===wordIdentities.length &&
     wordIdentities.every((word,i)=>{
       const descriptor=Object.getOwnPropertyDescriptor(reviewSnapshot.words,String(i));
       return descriptor && Object.hasOwn(descriptor,'value') &&
