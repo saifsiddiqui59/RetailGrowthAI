@@ -57,6 +57,30 @@ for (const invalidReview of [
    readExtractedWav:noRead,readCurrentLease:noRead}));
  assert.equal(reads,0,'invalid review envelope must not read private media');
 }
+// Malformed individual ASR words must never trigger original-video or WAV I/O.
+for (const invalidWords of [
+ [{word:'',start:.1,end:.7}], [{word:'x'.repeat(121),start:.1,end:.7}],
+ [{word:'ok',start:-1,end:.7}], [{word:'ok',start:.7,end:.7}],
+ [{word:'ok',start:.1,end:3}], [{word:'ok',start:NaN,end:.7}],
+ [{word:'ok',start:.1,end:Infinity}], [null], new Array(1),
+]) {
+ let reads=0;
+ const reader=async()=>{reads++;throw Error('unexpected private read');};
+ await assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,
+  review:{...review,words:invalidWords},readOriginalVideo:reader,
+  readExtractedWav:reader,readCurrentLease:reader}));
+ assert.equal(reads,0,'invalid word must fail before private media I/O');
+}
+for (const field of ['word','start','end']) {
+ let reads=0,getters=0;
+ const hostile={word:'ok',start:.1,end:.7};
+ Object.defineProperty(hostile,field,{get(){getters++;throw Error('getter');}});
+ const reader=async()=>{reads++;throw Error('unexpected private read');};
+ await assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,
+  review:{...review,words:[hostile]},readOriginalVideo:reader,
+  readExtractedWav:reader,readCurrentLease:reader}));
+ assert.equal(reads,0);assert.equal(getters,0);
+}
 // Invalid source clocks must fail before any private byte/lease reads.
 for (const invalidDuration of [undefined,null,0,-1,181,Infinity,NaN,'2']) {
  let reads=0;
