@@ -55,7 +55,7 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
             type(getattr(getattr(verifier, "client", None), "uri", None)) is not str or
             verifier.client.uri != supabase_origin.rstrip("/") + "/auth/v1/.well-known/jwks.json"):
         raise ValueError("JWT verifier must match configured project")
-    # Do not permit equality-overloaded objects or string subclasses to
+    # Pin the exact JWKS client object; replacing it with a same-URI client\n    # must not silently rotate the trust authority of a cached reader.\n    pinned_jwks_client = verifier.client if isinstance(verifier, SupabaseJWTVerifier) else None\n    # Do not permit equality-overloaded objects or string subclasses to
     # impersonate the configured project or public key at this trust boundary.
     store_origin = getattr(store, "origin", None)
     store_key = getattr(store, "key", None)
@@ -100,7 +100,7 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                     type(issuer_a) is str and type(issuer_b) is str and
                     type(jwks_a) is str and type(jwks_b) is str and
                     issuer_a == issuer_b == supabase_origin.rstrip("/") + "/auth/v1" and
-                    client_a is client_b and
+                    client_a is client_b and client_a is pinned_jwks_client and
                     jwks_a == jwks_b == supabase_origin.rstrip("/") + "/auth/v1/.well-known/jwks.json"
                 )
         except Exception:
