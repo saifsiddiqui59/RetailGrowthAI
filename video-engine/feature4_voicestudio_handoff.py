@@ -108,10 +108,17 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
         for other_id, other in assets.items():
             if other_id == asset_id:
                 continue
-            if (type(other) is dict
-                    and other.get("storage_bucket") == row["storage_bucket"]
-                    and other.get("object_path") == row["object_path"]):
-                raise CreativeContractError("Private narration object aliases another media asset")
+            # Deny alternate spellings of the same private object before I/O.
+            if type(other) is dict and other.get("storage_bucket") == row["storage_bucket"]:
+                other_path = other.get("object_path")
+                if type(other_path) is str:
+                    normalized = posixpath.normpath("/".join(
+                        part if part in (".", "..") else part.rstrip(" .")
+                        for part in unicodedata.normalize("NFKC", other_path)
+                            .replace(chr(92), "/").split("/")
+                    )).casefold()
+                    if normalized == expected_path.casefold():
+                        raise CreativeContractError("Private narration object aliases another media asset")
         return record
 
     # Freeze the request before invoking external trusted readers: a callback
