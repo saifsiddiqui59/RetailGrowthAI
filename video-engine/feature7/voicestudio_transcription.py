@@ -201,7 +201,17 @@ def transcribe_private_voice(
                 raise VoiceStudioTranscriptionDenied("Duplicate ASR JSON field")
             result[key] = value
         return result
-    # HTTP JSON from the private ASR endpoint must be UTF-8 without a BOM.\n    # json.loads(bytes) otherwise auto-detects UTF-16/32 and accepts a second\n    # wire representation that downstream signed evidence does not expect.\n    try:\n        decoded = raw.decode("utf-8", errors="strict")\n    except UnicodeError as exc:\n        raise VoiceStudioTranscriptionDenied("ASR JSON must be UTF-8") from exc\n    if decoded.startswith("\ufeff"):\n        raise VoiceStudioTranscriptionDenied("ASR JSON BOM denied")\n    try:\n        parsed = json.loads(decoded, object_pairs_hook=unique_object,
+    # HTTP JSON from the private ASR endpoint must be UTF-8 without a BOM.
+    # json.loads(bytes) otherwise auto-detects UTF-16/32 and accepts a second
+    # wire representation that downstream signed evidence does not expect.
+    try:
+        decoded = raw.decode("utf-8", errors="strict")
+    except UnicodeError as exc:
+        raise VoiceStudioTranscriptionDenied("ASR JSON must be UTF-8") from exc
+    if decoded.startswith("\ufeff"):
+        raise VoiceStudioTranscriptionDenied("ASR JSON BOM denied")
+    try:
+        parsed = json.loads(decoded, object_pairs_hook=unique_object,
                             parse_constant=lambda value: (_ for _ in ()).throw(
                                 VoiceStudioTranscriptionDenied("Non-finite ASR JSON number")))
     except (UnicodeError, ValueError, TypeError, RecursionError) as exc:
