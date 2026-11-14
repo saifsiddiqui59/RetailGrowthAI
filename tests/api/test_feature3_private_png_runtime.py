@@ -141,6 +141,23 @@ class RuntimeCompositionTests(unittest.TestCase):
                             shop_id=shop, job_id=job), b"synthetic-only")
         self.assertEqual(calls, ["backend"])
 
+    def test_cross_project_real_verifier_is_rejected_before_reader_io(self):
+        """Synthetic configuration regression; no hosted JWT is minted."""
+        from security import SupabaseJWTVerifier
+
+        # Construct an inert verifier without a network JWKS client.
+        verifier = object.__new__(SupabaseJWTVerifier)
+        verifier.issuer = "https://foreign-project.supabase.co/auth/v1"
+        with self.assertRaisesRegex(ValueError, "JWT verifier must match"):
+            self.build(jwt_verifier=verifier)
+
+        # Correctly pinned issuer is accepted for composition only; it does
+        # not authorize any bytes or substitute for a signed JWT.
+        verifier.issuer = ORIGIN + "/auth/v1"
+        shop, job = str(uuid4()), str(uuid4())
+        scoped = self.build(jwt_verifier=verifier)(shop, job)
+        self.assertTrue(callable(scoped.read))
+
     def test_no_authoritative_rights_provider_is_never_allowed(self):
         for provider in (None, False, {}, "approved"):
             with self.subTest(provider=provider):
