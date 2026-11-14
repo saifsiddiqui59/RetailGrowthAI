@@ -59,7 +59,18 @@ class Feature3CurrentOutputRights:
             row = self._read(shop_id, job_id, asset_id)
         except Exception:
             return False
-        if type(row) is not dict or set(row) != _FIELDS:
+        # A backend adapter may return a plain dict with attacker-controlled key
+        # objects. Reject those before set/equality operations: a custom key
+        # can spoof a required field via __hash__/__eq__ or raise during
+        # validation. Only literal protocol field names are accepted.
+        if type(row) is not dict or len(row) != len(_FIELDS):
+            return False
+        try:
+            if any(type(key) is not str for key in row):
+                return False
+            if set(row) != _FIELDS:
+                return False
+        except Exception:
             return False
         # Do not trust overloaded equality from a backend adapter object.
         # Each returned identity must be a canonical, exact Python string,
