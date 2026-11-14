@@ -51,12 +51,12 @@ def private_png_http(*, authorization, shop_id, job_id, reader_factory):
         return _opaque(404)
     if type(authorization) is not str or len(authorization) > 8200:
         return _opaque(401)
-    if not authorization.startswith("Bearer "):
+    if not authorization.startswith("Bearer ") or authorization.count("Bearer ") != 1:
         return _opaque(401)
     token = authorization[7:]
     if (not 12 <= len(token) <= 8192 or
             any(ord(ch) < 33 or ord(ch) > 126 for ch in token) or
-            any(ch in token for ch in (",", ";", '"', "\\")) or
+            any(ch in token for ch in (",", ";", '"', "\\", " ")) or
             token.startswith(("sb_secret_", "sb_publishable_"))):
         return _opaque(401)
     if not callable(reader_factory):
