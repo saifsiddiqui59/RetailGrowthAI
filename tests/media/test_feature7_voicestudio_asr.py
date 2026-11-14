@@ -315,7 +315,7 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
         # C1/DEL controls, line separators and BOM can hide or visually split
         # Indic captions even though they are not ASCII control characters.
         # Legitimate Devanagari combining marks remain permitted.
-        for control in ("\\u007f", "\\u0085", "\\u009f", "\\u2028", "\\u2029", "\\ufeff"):
+        for control in (chr(0x7f), chr(0x85), chr(0x9f), chr(0x2028), chr(0x2029), chr(0xfeff)):
             for field in ("word", "text"):
                 self.payload["words"] = [{"start": 0.1, "end": 0.7, "word": "नमस्ते"}]
                 self.payload["text"] = "नमस्ते"
