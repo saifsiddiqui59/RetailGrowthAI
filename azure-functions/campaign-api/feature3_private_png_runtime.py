@@ -70,7 +70,18 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
             post_key_origin = store.origin
         except Exception:
             return False
-        return (type(first_origin) is str and type(first_key) is str and
+        # A real verifier can rotate after composition or during backend IO.
+        # Deny both cases before private bytes can leave this boundary.
+        try:
+            issuer_matches = (
+                not isinstance(verifier, SupabaseJWTVerifier) or
+                (type(verifier.issuer) is str and
+                 verifier.issuer == supabase_origin.rstrip("/") + "/auth/v1")
+            )
+        except Exception:
+            return False
+        return (issuer_matches and
+                type(first_origin) is str and type(first_key) is str and
                 type(second_origin) is str and type(second_key) is str and
                 type(last_origin) is str and type(last_key) is str and
                 type(post_key_origin) is str and
