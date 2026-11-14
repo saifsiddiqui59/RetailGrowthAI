@@ -283,6 +283,17 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
         # Valid Indic JSON remains accepted, including nested word objects.
         self.assertEqual(self.call()["words"][0]["word"], "नमस्ते")
 
+    def test_nonstandard_json_constants_denied_even_in_ignored_metadata(self):
+        # Python's JSON decoder otherwise accepts NaN/Infinity as extensions.
+        # A signed review must originate from standards-compliant JSON only.
+        base = json.dumps(self.payload, ensure_ascii=False)
+        for constant in ("NaN", "Infinity", "-Infinity"):
+            body = base[:-1] + ', "untrusted_metadata": ' + constant + '}'
+            with self.subTest(constant=constant), self.assertRaises(VoiceStudioTranscriptionDenied):
+                self.call(transport=lambda req, timeout, body=body:
+                          Reply(body.encode("utf-8")))
+        self.assertEqual(self.call()["language"], "hi")
+
     def test_upstream_error_redacted(self):
         from urllib.error import URLError
         def sender(req,timeout):
