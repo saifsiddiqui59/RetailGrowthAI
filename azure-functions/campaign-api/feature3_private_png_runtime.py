@@ -174,7 +174,13 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                 # this framing check is not a substitute for JWT verification.
                 if tenant_store is None:
                     parts = user_token.split(".")
+                    # Compact JWS base64url segments cannot have length 1 mod 4.
+                    # Bound each component independently so an attacker cannot
+                    # hide an enormous header/signature inside a valid total size.
                     if (len(parts) != 3 or any(not part for part in parts) or
+                            len(parts[0]) > 2048 or len(parts[1]) > 6144 or
+                            len(parts[2]) > 2048 or
+                            any(len(part) % 4 == 1 for part in parts) or
                             any(any(not (ch.isascii() and
                                          (ch.isalnum() or ch in "-_"))
                                     for ch in part) for part in parts)):
