@@ -42,7 +42,7 @@ class _NoRedirect(HTTPRedirectHandler):
 
 def _endpoint(base_url):
     if (type(base_url) is not str or not base_url.isascii()
-            or any(ord(ch) <= 32 or ord(ch) >= 127 or ch == "\\\\" for ch in base_url)):
+            or any(ord(ch) <= 32 or ord(ch) >= 127 or ord(ch) == 92 for ch in base_url)):
         raise VoiceStudioTranscriptionDenied("Trusted canonical ASR endpoint required")
     try:
         p = urlsplit(base_url)
