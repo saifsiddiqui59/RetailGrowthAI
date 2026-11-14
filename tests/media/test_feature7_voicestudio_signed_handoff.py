@@ -181,6 +181,23 @@ for (const word of [
   assert.equal(signed.transcript.words.length,2);
   assert.equal(signed.evidence.source_sha256,video);
 }
+// Array length reads must use an own descriptor rather than Proxy get traps.
+// A hostile length getter could revoke a lease even with valid word slots.
+{
+  let lengthGets=0;
+  const words=new Proxy([...review.words],{
+    get(target,property,receiver) {
+      if (property==='length') {
+        lengthGets++;
+        throw Error('untrusted word array length get trap');
+      }
+      return Reflect.get(target,property,receiver);
+    }
+  });
+  const signed=bindVoiceStudioReview({...input,review:{...review,words}});
+  assert.equal(lengthGets,0);
+  assert.equal(signed.transcript.words.length,2);
+}
 // A hostile word getter must not run while building signed evidence.
 for (const field of ['word','start','end']) {
   let calls=0;
