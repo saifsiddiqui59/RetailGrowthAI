@@ -96,6 +96,14 @@ for (const word of [
   }));
   const signed=bindVoiceStudioReview({...input,review:{...review,words}});
   assert.equal(signed.transcript.words.length,201);
+  // Every original millisecond boundary and word identity survives the
+  // 200-word segmentation boundary used by the existing F7 normalizer.
+  for (let i=0;i<words.length;i++) {
+    assert.equal(signed.transcript.words[i].word,words[i].word);
+    assert.equal(signed.transcript.words[i].startMs,Math.round(words[i].start*1000));
+    assert.equal(signed.transcript.words[i].endMs,Math.round(words[i].end*1000));
+  }
+
   assert.equal(signed.whisperx_json.segments[0].words.length,201);
   assert.equal(signed.transcript.words[200].word,'शब्द');
   const tooMany=Array.from({length:2001},(_,i)=>({
