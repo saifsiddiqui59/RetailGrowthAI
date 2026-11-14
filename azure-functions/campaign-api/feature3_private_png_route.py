@@ -287,10 +287,22 @@ def handle_private_png_request(request, *, reader_factory, response_type):
         # supplied by a faulty internal adapter. Never accept a transformed,
         # ranged, cookie-bearing or case-duplicated backend representation.
         backend_names = list(islice(backend_headers, 17))
+        # Do not accept partial legacy envelopes: a successful private
+        # response must carry the complete canonical security and integrity
+        # contract. Missing cache/CSP/scope fields are an internal outage,
+        # never permission to release bytes.
+        expected_names = {
+            "Content-Type", "Cache-Control", "Content-Length",
+            "X-Feature3-Shop-Id", "X-Feature3-Job-Id",
+            "X-Feature3-Media-Asset-Id", "X-Feature3-Image-Sha256",
+            "Content-Disposition", "Pragma", "X-Content-Type-Options",
+            "Content-Security-Policy", "Vary",
+        }
         if (len(backend_names) > 16 or
                 any(type(name) is not str or len(name) > 256 or
                     _HEADER_NAME.fullmatch(name) is None for name in backend_names) or
                 len({name.lower() for name in backend_names}) != len(backend_names) or
+                set(backend_names) != expected_names or
                 # Treat the backend receipt as a fixed contract, not an
                 # arbitrary HTTP response. Unexpected headers (including
                 # redirects and content-disposition) cannot be trusted.
