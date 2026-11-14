@@ -118,7 +118,7 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
             for token in ("synthetic-test-token", "abc.def", "abc..def",
                           ".abc.def", "abc.def.", "abc.def.ghi.jkl",
                           "abc.def.ghi=", "abc.def.ghi+", "abc.def.ghi/",
-                          "a.def.ghi", "abc.d.ghi", "abc.def.g",
+                          "a.def.ghi", "abc.d.ghi", "abc.def.g", "ab.def.ghi", "abc.de.ghi",
                           "a" * 2049 + ".def.ghi",
                           "abc." + "b" * 6145 + ".ghi",
                           "abc.def." + "c" * 2049):
