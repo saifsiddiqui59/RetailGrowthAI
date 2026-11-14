@@ -111,6 +111,15 @@ export function bindVoiceStudioReview({
       }))}
 
   });
+  // Require lossless, in-order conversion before sealing the digest. Future
+  // normalizer changes must never silently drop, merge or retime ASR words.
+  deny(normalized.words.length===wordSnapshots.length &&
+    normalized.words.every((word,i)=>{
+      const original=wordSnapshots[i];
+      return word.word===original.word.trim() &&
+        word.startMs===Math.round(original.start*1000) &&
+        word.endMs===Math.round(original.end*1000);
+    }), 'VoiceStudio word normalization lost source identity');
   // Recheck every word field: a Proxy may mutate a sibling word's timing or
   // text while the normalizer reads an earlier word without replacing slots.
   deny(wordSnapshots.every((snapshot,i)=>{
