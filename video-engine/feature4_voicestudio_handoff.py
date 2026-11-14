@@ -64,7 +64,13 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
         )
     ):
         raise CreativeContractError("Approved narration cannot be reused as music, SFX or footage")
-    if snapshot.get("brand", {}).get("logo_asset_id") == asset_id:
+    # Validate the trusted brand shape before dereferencing it. A malformed
+    # snapshot must fail with a contract denial, never an AttributeError that
+    # can escape the media worker boundary before private-read preflight.
+    brand = snapshot.get("brand")
+    if type(brand) is not dict:
+        raise CreativeContractError("Trusted narration brand required")
+    if brand.get("logo_asset_id") == asset_id:
         raise CreativeContractError("Approved narration cannot be reused as brand logo")
     duration = draft.get("duration_seconds")
     if type(duration) is not int or duration not in (15, 30, 60):
