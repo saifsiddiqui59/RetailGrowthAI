@@ -178,6 +178,26 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                     read_current_private_wav=lambda *_: reads.append("wav") or data)
             self.assertEqual(reads, [])
 
+    def test_malformed_compiled_brand_denied_as_contract_error(self):
+        # A malformed trusted compiler result must fail closed rather than
+        # escape as AttributeError after reading private approved WAV bytes.
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original = adapter.compile_approved_storyboard
+        for malformed in (None, [], "brand", False):
+            draft, snapshot, receipt, data = self.setup_case()
+
+            def forged(*args):
+                result = original(*args)
+                result["bundle"]["brand"] = malformed
+                return result
+
+            with self.subTest(brand=malformed), patch.object(
+                    adapter, "compile_approved_storyboard", side_effect=forged):
+                with self.assertRaisesRegex(
+                        CreativeContractError, "Malformed compiled narration brand"):
+                    self.call(draft, snapshot, receipt, data)
+
     def test_compiler_cannot_rewrite_other_worker_media_rights(self):
         from unittest.mock import patch
         import feature4_voicestudio_handoff as adapter
