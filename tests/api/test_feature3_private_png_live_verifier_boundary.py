@@ -128,7 +128,7 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
             self.assertEqual(calls, ["construct"])
             # Framing alone never authorizes bytes; the real verifier and
             # downstream reader still own cryptographic/tenant checks.
-            self.assertEqual(scoped.read(user_token="abc.def.ghi",
+            self.assertEqual(scoped.read(user_token="abc.deQ.ghg",
                                          shop_id=shop, job_id=job), b"synthetic-only")
             self.assertEqual(calls, ["construct", "read"])
 
