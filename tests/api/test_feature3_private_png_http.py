@@ -85,6 +85,9 @@ class HttpTests(unittest.TestCase):
                         dict(authorization="Bearer t\nother"),
                         dict(authorization="Bearer " + "t" * 20 + ",other"),
                         dict(authorization="Bearer " + "t" * 20 + ";other"),
+                        dict(authorization="Bearer " + "t" * 20 + " extra"),
+                        dict(authorization="Bearer Bearer " + "t" * 30),
+                        dict(authorization="Bearer " + "t" * 20 + "\tother"),
                         dict(authorization='Bearer ' + 't' * 20 + '"other'),
                         dict(authorization="Bearer " + "t" * 20 + "\\other"),
                         dict(authorization=object())):
