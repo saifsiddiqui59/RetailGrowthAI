@@ -80,3 +80,21 @@ def test_review_denial_does_not_expose_private_response(monkeypatch):
     assert "Content-Type" not in headers
     assert "Content-Length" not in headers
     assert "private original key" not in repr((headers, body))
+
+
+def test_malformed_request_headers_fail_closed_without_service(monkeypatch):
+    calls = []
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: calls.append(1))
+    for request in (None, object(), SimpleNamespace(headers=None),
+                    SimpleNamespace(headers=[]),
+                    SimpleNamespace(headers=SimpleNamespace(get=lambda _: (_ for _ in ()).throw(ValueError("bad header"))))):
+        status, headers, body = http.private_original_review_response(
+            request=request, shop_id=str(uuid4()), campaign_id=str(uuid4()),
+            request_id=str(uuid4()), verify_token=lambda _: str(uuid4()),
+            tenant_store=object(), sql_store_factory=lambda _: object(),
+            private_storage=object(),
+        )
+        assert status == 401 and body == b""
+        assert headers["Cache-Control"] == "no-store, private"
+        assert "Content-Type" not in headers
+    assert not calls
