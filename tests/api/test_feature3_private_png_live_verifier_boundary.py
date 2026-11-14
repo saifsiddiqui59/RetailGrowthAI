@@ -76,6 +76,40 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
             store.return_value.member.assert_not_called()
             store.return_value.feature3_gpu_job.assert_not_called()
 
+    def test_live_route_rejects_malformed_compact_jws_before_backend_io(self):
+        from uuid import uuid4
+        from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+        verifier = SupabaseJWTVerifier(ORIGIN)
+        calls = []
+
+        class CountingReader:
+            def __init__(self, **kwargs):
+                calls.append("construct")
+
+            def read(self, **kwargs):
+                calls.append("read")
+                return b"synthetic-only"
+
+        with patch("feature3_private_png_runtime.TenantStore") as store, patch(
+                "feature3_private_png_runtime.Feature3RevocablePNGReader",
+                CountingReader):
+            store.return_value.origin = ORIGIN
+            store.return_value.key = KEY
+            shop, job = str(uuid4()), str(uuid4())
+            scoped = compose(jwt_verifier=verifier)(shop, job)
+            for token in ("synthetic-test-token", "abc.def", "abc..def",
+                          ".abc.def", "abc.def.", "abc.def.ghi.jkl",
+                          "abc.def.ghi=", "abc.def.ghi+", "abc.def.ghi/"):
+                with self.subTest(token=token):
+                    with self.assertRaises(PrivateGeneratedDownloadDenied):
+                        scoped.read(user_token=token, shop_id=shop, job_id=job)
+            self.assertEqual(calls, ["construct"])
+            # Framing alone never authorizes bytes; the real verifier and
+            # downstream reader still own cryptographic/tenant checks.
+            self.assertEqual(scoped.read(user_token="abc.def.ghi",
+                                         shop_id=shop, job_id=job), b"synthetic-only")
+            self.assertEqual(calls, ["construct", "read"])
+
     def test_injected_isolated_store_retains_synthetic_fixture_support(self):
         class Store:
             origin = ORIGIN
