@@ -142,7 +142,7 @@ def test_http_boundary_rejects_malformed_or_oversized_reader_bytes(monkeypatch):
 def test_blank_authorization_never_reaches_private_audio_service(monkeypatch):
     calls = []
     monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: calls.append(1))
-    for auth in ("", " ", "\\t", "\\r\\n", "  \\t  "):
+    for auth in ("", " ", "\t", "\r\n", "  \t  "):
         status, headers, body = _call(auth)
         assert status == 401 and body == b""
         assert headers["Cache-Control"] == "no-store, private"
@@ -153,8 +153,8 @@ def test_blank_authorization_never_reaches_private_audio_service(monkeypatch):
 def test_control_characters_in_authorization_never_reach_service(monkeypatch):
     calls = []
     monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: calls.append(1))
-    for auth in ("Bearer token\\r\\nX-Injected: yes", "Bearer token\\x00",
-                 "Bearer token\\x7f", "Bearer token\\n", "Bearer token\\t"):
+    for auth in ("Bearer token\r\nX-Injected: yes", "Bearer token\x00",
+                 "Bearer token\x7f", "Bearer token\n", "Bearer token\t"):
         status, headers, body = _call(auth)
         assert status == 401 and body == b""
         assert headers["Cache-Control"] == "no-store, private"
