@@ -65,3 +65,12 @@ Added `tests/media/test_feature7_voicestudio_signed_handoff.py` with positive Hi
 - Test commit `6996d190b5361bf8da01717e9ae2451a0dae2e11` adds deterministic object, boxed-string, number and null rejection with zero coercion calls. Scope: F7 only. VoiceStudio remains review-only; F4 dependency [#910](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/910).
 - Exact test-head GitHub workflow lookup returned no PR runs or commit statuses (0/4 verified). Local checkout cannot resolve github.com; **tests not executed**. Parent remains unmerged; child [#911](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/911) and [#926](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/926) are already merged into it.
 - **NEXT CODE ACTION:** run `python -m unittest tests/media/test_feature7_voicestudio_signed_handoff.py` plus ASR/verified-media suites in a reachable runner, inspect final-head four-job CI, then resolve #513 main conflicts with serialized integration writer. Follow with original-video/WAV extraction provenance and lease-clock negative tests. No paid/GPU/cloud/PROD/WineShopPOS changes.
+
+
+## 2026-11-14 F7 worker checkpoint — source digest coercion
+- Parent PR #513 remains OPEN and GitHub reports mergeable=false; #911 and #926 are already merged into parent. F4 dependency #910 merged only into its F4 parent.
+- Fixed pre-private-reader SHA validation in `voicestudio_verified_media.mjs`: require primitive string digests before `RegExp.test`, preventing attacker-defined `toString` execution.
+- Added deterministic negative cases for null, numeric, boxed-string and throwing/coercion digests in `test_feature7_voicestudio_verified_media.py` with zero private reader calls.
+- Source commit `f081da52d9be1efab1980d8651d73238794b410a`; regression commit `0cdcd4e2c27b786a5ed8d6a338ddf16baead74cf`.
+- Exact-head workflow query returned zero PR-triggered runs at inspection; local CPU tests not executed here. Do NOT claim CI green or integrated DONE.
+- NEXT CODE ACTION: run `python -m unittest tests/media/test_feature7_voicestudio_verified_media.py` on a checked-out parent, inspect any failure and repair only F7-owned paths; obtain exact-head four-job CI, reconcile main conflicts under integration review, then verify postmerge main 4/4. No GPU/paid/cloud/PROD/WineShopPOS.
