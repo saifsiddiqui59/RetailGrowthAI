@@ -113,6 +113,22 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             self.assertEqual(receipt_reads, [])
             self.assertEqual(wav_reads, [])
 
+    def test_unlicensed_companion_denied_before_private_read(self):
+        for field, invalid in (("license_name", "unknown"),
+                               ("rights_source", " "),
+                               ("rights_evidence", None)):
+            draft, snapshot, receipt, data = self.setup_case()
+            music = snapshot["assets"][draft["music_asset_id"]]
+            music[field] = invalid
+            reads = []
+            with self.subTest(field=field), self.assertRaisesRegex(
+                    CreativeContractError, "companion media rights missing"):
+                compile_voicestudio_narrated_reel(
+                    draft=draft, snapshot=snapshot,
+                    read_current_receipt=lambda *_: reads.append("receipt") or dict(receipt),
+                    read_current_private_wav=lambda *_: reads.append("wav") or data)
+            self.assertEqual(reads, [])
+
     def test_private_object_alias_rejected_before_wav_reader(self):
         # A second media ID may not reuse the approved VoiceStudio object,
         # even when the unrelated media row claims separate rights.
