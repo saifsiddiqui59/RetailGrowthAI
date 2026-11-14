@@ -88,6 +88,21 @@ for (const word of [
   {word:'ok',start:.1,end:2.1},
   {word:'ok',start:.1,end:null}
 ]) reject({review:{...review,words:[word]}});
+// A long valid VoiceStudio review must pass the existing normalizer's 200-word
+// per-segment limit without truncation, reordering, or changing the HMAC hash.
+{
+  const words=Array.from({length:201},(_,i)=>({
+    word:'शब्द',start:i*.005,end:i*.005+.004
+  }));
+  const signed=bindVoiceStudioReview({...input,review:{...review,words}});
+  assert.equal(signed.transcript.words.length,201);
+  assert.equal(signed.whisperx_json.segments[0].words.length,201);
+  assert.equal(signed.transcript.words[200].word,'शब्द');
+  const tooMany=Array.from({length:2001},(_,i)=>({
+    word:'शब्द',start:i*.0005,end:i*.0005+.0004
+  }));
+  reject({review:{...review,words:tooMany}});
+}
 // Array index accessors must not run even if they are own properties.
 // An index getter could exfiltrate tenant identifiers or mutate lease state.
 {
