@@ -78,3 +78,9 @@ No paid model, GPU, Azure/PROD mutation or WineShopPOS change.
 - Hardened canonical private review PCM: `byte_rate` must equal `sample_rate * block_align` and sample rate must remain 8–96 kHz before disclosure. Added two parameterized digest-matching malformed-byte-rate negative cases.
 - Source commits: `951c8ef68c790fa35156f06320c55e86446ee6cc`, `3862db5ed1349965d3c13d949818081239867a2f`. No cloud/model calls or SQL migrations.
 - NEXT CODE ACTION: run `python -m pytest -q tests/ai/test_feature2_voicestudio_review_audio.py tests/ai/test_feature2_voicestudio_riff_envelope.py`, fix any failures in owned F2 files; inspect exact-head four-job PR CI, reconcile current main, and request independent protected security review before merging PR #937. Do not claim DONE before postmerge main 4/4.
+
+
+## 2026-11-14 F2-19/F2-20 code-first checkpoint
+- Commit `7eeeefb32602ffedfd7092d71326fc6e8c9cef45` adds four parameterized invalid/mutable private storage payload cases and one post-read audio-asset-identity rotation denial test. Source-only tests; no inference, cloud mutation, SQL deployment or protected merge.
+- Prior exact head `cc6e879278f026d6296c71f467c13098f407b6c5` passed all four mandatory jobs in Actions run [43551979722](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/43551979722); this is NOT evidence for new head. Targeted local pytest not executed.
+- **NEXT CODE ACTION:** inspect exact-head Actions for `7eeeefb3`, run `python -m pytest -q tests/ai/test_feature2_voicestudio_review_audio.py tests/ai/test_feature2_voicestudio_riff_envelope.py`, repair any F2-owned failures; check fresh main and all protected PRs, then obtain independent review of stacked draft #937/#920/#923/#925. No merge without independent approval, 4/4 exact-head and fresh main 4/4 postmerge.
