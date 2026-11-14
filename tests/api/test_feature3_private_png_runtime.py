@@ -92,6 +92,55 @@ class RuntimeCompositionTests(unittest.TestCase):
                         scoped.read(user_token=token, shop_id=shop, job_id=job)
         self.assertEqual(calls, [])
 
+    def test_malformed_direct_reader_tokens_denied_without_backend_io(self):
+        """Synthetic direct callers cannot bypass route-level token framing."""
+        from unittest.mock import patch
+
+        calls = []
+        class CountingReader:
+            def __init__(self, **kwargs):
+                pass
+            def read(self, **kwargs):
+                calls.append("private-io")
+                return b"synthetic-only"
+
+        shop, job = str(uuid4()), str(uuid4())
+        with patch("feature3_private_png_runtime.Feature3RevocablePNGReader",
+                   CountingReader):
+            scoped = self.build()(shop, job)
+            for token in ("short", "Bearer synthetic-valid-token",
+                          "sb_secret_synthetic_test_only",
+                          "sb_publishable_synthetic_test_only",
+                          "synthetic token with spaces",
+                          "synthetic\\nnewline-token", "synthetic,comma-token",
+                          "synthetic;semicolon-token",
+                          "synthetic" + "a" * 8192):
+                with self.subTest(token=token[:30]):
+                    with self.assertRaises(PrivateGeneratedDownloadDenied):
+                        scoped.read(user_token=token, shop_id=shop, job_id=job)
+        self.assertEqual(calls, [])
+
+    def test_well_formed_direct_reader_token_reaches_backend(self):
+        """Synthetic test only: valid framing does not imply JWT authorization."""
+        from unittest.mock import patch
+
+        calls = []
+        class CountingReader:
+            def __init__(self, **kwargs):
+                pass
+            def read(self, **kwargs):
+                calls.append("backend")
+                return b"synthetic-only"
+
+        shop, job = str(uuid4()), str(uuid4())
+        with patch("feature3_private_png_runtime.Feature3RevocablePNGReader",
+                   CountingReader):
+            scoped = self.build()(shop, job)
+            self.assertEqual(
+                scoped.read(user_token="synthetic-test-token-123",
+                            shop_id=shop, job_id=job), b"synthetic-only")
+        self.assertEqual(calls, ["backend"])
+
     def test_no_authoritative_rights_provider_is_never_allowed(self):
         for provider in (None, False, {}, "approved"):
             with self.subTest(provider=provider):
