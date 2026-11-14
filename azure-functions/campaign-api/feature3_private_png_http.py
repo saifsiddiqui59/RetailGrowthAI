@@ -105,10 +105,13 @@ def private_png_http(*, authorization, shop_id, job_id, reader_factory):
         "Cache-Control", "Pragma", "X-Content-Type-Options",
         "Content-Security-Policy", "Vary",
     }
+    # Inspect literal key types before hashing/comparing untrusted mapping
+    # keys. A spoofed __eq__/__hash__ must not reach header lookups.
     if (type(body) is not bytes or type(headers) is not dict or
-            set(headers) != allowed or
+            len(headers) != len(allowed) or
             any(type(k) is not str or type(v) is not str
                 for k, v in headers.items()) or
+            set(headers) != allowed or
             headers["Content-Type"] != "image/png" or
             headers["Content-Length"] != str(len(body)) or
             headers["X-Feature3-Shop-Id"] != shop_id or
