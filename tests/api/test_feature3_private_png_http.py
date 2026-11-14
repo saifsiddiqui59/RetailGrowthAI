@@ -7,6 +7,7 @@ from hashlib import sha256
 from io import BytesIO
 from PIL import Image
 from pathlib import Path
+from unittest.mock import patch
 from uuid import uuid4
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "azure-functions" / "campaign-api"))
@@ -75,6 +76,38 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(reply.headers["Content-Length"], str(len(PNG)))
         self.assertIn("no-store", reply.headers["Cache-Control"])
         self.assertEqual(self.factories, [(self.shop, self.job)])
+
+    def test_outer_boundary_rejects_success_header_or_digest_drift(self):
+        # Synthetic canonical-handler fault injection. Even a status 200
+        # must not forward a public cache policy, redirect or corrupt digest.
+        good = self.call()
+        self.assertEqual(good.status, 200)
+        cases = (
+            {"Cache-Control": "public, max-age=3600"},
+            {"Location": "https://example.invalid/private"},
+            {"Set-Cookie": "session=leaked"},
+            {"Content-Length": "1"},
+            {"X-Feature3-Image-Sha256": "0" * 64},
+            {"X-Feature3-Shop-Id": str(uuid4())},
+            {"X-Feature3-Media-Asset-Id": "not-a-uuid"},
+            {"Content-Disposition": "inline"},
+            {"Vary": "*"},
+        )
+        for changes in cases:
+            with self.subTest(changes=changes):
+                headers = dict(good.headers)
+                headers.update(changes)
+                with patch("feature3_private_png_http.Feature3PrivateBinaryHTTP.handle",
+                           return_value=(200, PNG, headers)):
+                    result = self.call()
+                self.assertEqual(result.status, 503)
+                self.assertEqual(result.body, b"")
+                self.assertNotIn("Location", result.headers)
+                self.assertNotIn("Set-Cookie", result.headers)
+        with patch("feature3_private_png_http.Feature3PrivateBinaryHTTP.handle",
+                   return_value=(200, PNG + b"x", dict(good.headers))):
+            self.assertEqual(self.call().status, 503)
+        self.assertEqual(self.call().status, 200)
 
     def test_invalid_scope_and_credentials_never_construct_reader(self):
         for changes in (dict(shop_id=str(uuid4()).upper()),
