@@ -180,6 +180,28 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             with self.assertRaisesRegex(CreativeContractError, "object aliases another asset"):
                 self.call(draft, snapshot, receipt, data)
 
+    def test_compiler_cannot_drop_reviewed_media_from_both_worker_maps(self):
+        # A subset-only asset check misses omissions when both maps agree.
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original = adapter.compile_approved_storyboard
+        for kind in ("music", "scene"):
+            draft, snapshot, receipt, data = self.setup_case()
+            target = (draft["music_asset_id"] if kind == "music"
+                      else draft["scenes"][0]["asset_id"])
+            self.assertIsNotNone(target)
+
+            def forged(*args):
+                output = original(*args)
+                output["bundle"]["assets"].pop(target)
+                output["manifest"]["assets"].pop(target)
+                return output
+
+            with self.subTest(kind=kind), patch.object(
+                    adapter, "compile_approved_storyboard", side_effect=forged):
+                with self.assertRaisesRegex(CreativeContractError, "omitted reviewed media"):
+                    self.call(draft, snapshot, receipt, data)
+
     def test_compiler_cannot_inject_unreviewed_media_ids(self):
         # Reject a new asset ID injected after the trusted media snapshot was
         # approved, whether inserted into the bundle or the FFmpeg manifest.
