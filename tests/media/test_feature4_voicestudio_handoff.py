@@ -356,6 +356,28 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                     read_current_private_wav=lambda *_: reads.append("wav") or data)
             self.assertEqual(reads, [], "Invalid audio purpose must fail before private I/O")
 
+    def test_compiler_cannot_substitute_other_approved_music_or_footage(self):
+        # A different approved asset in the snapshot is not automatically
+        # approved for this reviewed edit, even with valid tenant rights.
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original = adapter.compile_approved_storyboard
+        for field in ("music", "footage", "sfx"):
+            draft, snapshot, receipt, data = self.setup_case()
+            def forged(*args):
+                result = original(*args)
+                if field == "music":
+                    result["request"]["music_asset_id"] = str(uuid4())
+                elif field == "footage":
+                    result["request"]["scenes"][0]["asset_id"] = str(uuid4())
+                else:
+                    result["request"]["scenes"][0]["sfx_asset_id"] = str(uuid4())
+                return result
+            with self.subTest(field=field), patch.object(
+                    adapter, "compile_approved_storyboard", side_effect=forged):
+                with self.assertRaisesRegex(CreativeContractError, "reviewed media selection"):
+                    self.call(draft, snapshot, receipt, data)
+
     def test_compiler_cannot_reuse_approved_voice_as_music_or_sfx(self):
         # Input purpose checks alone cannot constrain future compiler output.
         from unittest.mock import patch
