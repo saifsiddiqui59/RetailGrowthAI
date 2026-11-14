@@ -95,7 +95,8 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                 from jwt import PyJWKClient
                 issuer_matches = (
                     type(verifier) is SupabaseJWTVerifier and
-                    (tenant_store is not None or\n                     (type(client_a) is PyJWKClient and type(client_b) is PyJWKClient)) and
+                    (tenant_store is not None or
+                     (type(client_a) is PyJWKClient and type(client_b) is PyJWKClient)) and
                     type(issuer_a) is str and type(issuer_b) is str and
                     type(jwks_a) is str and type(jwks_b) is str and
                     issuer_a == issuer_b == supabase_origin.rstrip("/") + "/auth/v1" and
