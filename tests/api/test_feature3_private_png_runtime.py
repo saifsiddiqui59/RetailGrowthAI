@@ -366,5 +366,41 @@ class RuntimeCompositionTests(unittest.TestCase):
                 factory(shop, job)
 
 
+    def test_scope_parser_denies_oversized_and_non_v4_ids_before_reader_io(self):
+        """Hostile path input must not trigger JWT, RLS, or reader construction."""
+        from unittest.mock import patch
+        calls = []
+
+        class UnexpectedReader:
+            def __init__(self, **kwargs):
+                calls.append("reader")
+                raise AssertionError("private reader must not be constructed")
+
+        factory = self.build()
+        good = str(uuid4())
+        bad_values = (
+            "a" * 100000,
+            good.upper(),
+            good.replace("-", ""),
+            "00000000-0000-0000-0000-000000000000",
+            "00000000-0000-4000-8000-00000000000g",
+        )
+        with patch("feature3_private_png_runtime.Feature3RevocablePNGReader",
+                   UnexpectedReader):
+            for bad in bad_values:
+                with self.subTest(bad_length=len(bad)):
+                    for shop, job in ((bad, good), (good, bad)):
+                        with self.assertRaises(ValueError):
+                            factory(shop, job)
+        self.assertEqual(calls, [])
+
+    def test_scope_parser_accepts_canonical_uuid4_without_duplicate_parse(self):
+        """The trusted reader still accepts normal route UUIDs."""
+        shop, job = str(uuid4()), str(uuid4())
+        factory = self.build()
+        scoped = factory(shop, job)
+        self.assertTrue(callable(scoped.read))
+
+
 if __name__ == "__main__":
     unittest.main()
