@@ -265,6 +265,29 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                 with self.assertRaisesRegex(CreativeContractError, "aliases another asset"):
                     self.call(draft, snapshot, receipt, data)
 
+    def test_compiler_rejects_unicode_compatibility_staging_alias(self):
+        # Fullwidth ASCII normalizes to the same worker filename on systems
+        # that apply Unicode compatibility normalization before opening it.
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original = adapter.compile_approved_storyboard
+        draft, snapshot, receipt, data = self.setup_case()
+        aid = draft["voiceover_asset_id"]
+
+        def forged(*args):
+            output = original(*args)
+            other_id = next(key for key in output["manifest"]["assets"] if key != aid)
+            narration = output["manifest"]["assets"][aid]["path"]
+            output["manifest"]["assets"][other_id]["path"] = "".join(
+                chr(ord(ch) + 0xFEE0) if "!" <= ch <= "~" else ch
+                for ch in narration
+            )
+            return output
+
+        with patch.object(adapter, "compile_approved_storyboard", side_effect=forged):
+            with self.assertRaisesRegex(CreativeContractError, "aliases another asset"):
+                self.call(draft, snapshot, receipt, data)
+
     def test_compiler_cannot_retarget_approved_narration_scope(self):
         from unittest.mock import patch
         import feature4_voicestudio_handoff as adapter
