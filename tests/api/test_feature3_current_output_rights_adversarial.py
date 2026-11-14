@@ -72,6 +72,22 @@ class AdversarialRightsTests(unittest.TestCase):
                 self.assertIs(rights(shop, self.job, self.asset), False)
         self.assertEqual(self.calls, 0)
 
+    def test_oversized_and_forged_scope_never_reaches_authority(self):
+        class ForgedUUID(str):
+            def __eq__(self, other):
+                return True
+
+        rights = Feature3CurrentOutputRights(authoritative_read=self.authority)
+        invalid = ("x" * 100000, ForgedUUID(self.shop),
+                   self.shop.replace("-", ""), self.shop.upper())
+        for field in range(3):
+            for value in invalid:
+                scope = [self.shop, self.job, self.asset]
+                scope[field] = value
+                with self.subTest(field=field, kind=type(value).__name__):
+                    self.assertIs(rights(*scope), False)
+        self.assertEqual(self.calls, 0)
+
     def test_backend_pinned_digest_rejects_substituted_output(self):
         rights = Feature3CurrentOutputRights(
             authoritative_read=self.authority, expected_output_sha256="a" * 64)
