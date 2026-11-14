@@ -132,7 +132,7 @@ for (const word of [
 // truncation or an 11th empty segment. This is synthetic CPU-only timing data.
 {
   const words=Array.from({length:2000},(_,i)=>({
-    word:'शब्द',start:i*.0008,end:i*.0008+.0006
+    word:'शब्द',start:i*.001,end:i*.001+.0009
   }));
   const signed=bindVoiceStudioReview({...input,review:{...review,words}});
   assert.equal(signed.transcript.words.length,2000);
