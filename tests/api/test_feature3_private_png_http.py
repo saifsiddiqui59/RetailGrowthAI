@@ -376,6 +376,44 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(reply.status, 404)
         self.assertEqual(reply.body, b"")
 
+    def test_canonical_binary_handler_rejects_hostile_receipt_keys(self):
+        # Exercise the inner handler directly: a custom key must never
+        # impersonate a protocol field or run overloaded equality during
+        # set comparison. This is a synthetic backend fault, not hosted auth.
+        from feature3_private_binary_http import Feature3PrivateBinaryHTTP
+
+        class HostileKey:
+            def __hash__(self):
+                return hash("shop_id")
+
+            def __eq__(self, other):
+                raise AssertionError("untrusted key equality executed")
+
+        class HostileReader:
+            def read(self, **kwargs):
+                return {
+                    HostileKey(): self_shop,
+                    "job_id": self_job,
+                    "media_asset_id": str(uuid4()),
+                    "image_sha256": sha256(PNG).hexdigest(),
+                    "image_bytes": PNG,
+                    "mime_type": "image/png",
+                    "private": True,
+                    "signed_url_issued": False,
+                    "approved_model": False,
+                    "publish_approved": False,
+                }
+
+        self_shop, self_job = self.shop, self.job
+        handler = Feature3PrivateBinaryHTTP(reader=HostileReader())
+        status, body, headers = handler.handle(
+            method="GET", authorization="Bearer " + "t" * 30,
+            shop_id=self.shop, job_id=self.job)
+        self.assertEqual(status, 503)
+        self.assertEqual(body, b"")
+        self.assertIn("no-store", headers["Cache-Control"])
+        self.assertNotIn("X-Feature3-Image-Sha256", headers)
+
     def test_non_dictionary_reader_result_never_releases_bytes(self):
         class InvalidReader:
             def read(self, **kwargs):
