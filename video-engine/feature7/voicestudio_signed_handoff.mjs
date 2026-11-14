@@ -126,7 +126,9 @@ export function bindVoiceStudioReview({
   // Recheck every word field: a Proxy may mutate a sibling word's timing or
   // text while the normalizer reads an earlier word without replacing slots.
   deny(wordSnapshots.every((snapshot,i)=>{
-    const word=reviewSnapshot.words[i];
+    const slot=Object.getOwnPropertyDescriptor(reviewSnapshot.words,String(i));
+    if (!slot || !Object.hasOwn(slot,'value')) return false;
+    const word=slot.value;
     return ['word','start','end'].every(field=>{
       const descriptor=Object.getOwnPropertyDescriptor(word,field);
       return descriptor && Object.hasOwn(descriptor,'value') &&
