@@ -220,6 +220,20 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
         raise CreativeContractError("Compiled narration request scope changed")
     if request.get("voiceover_asset_id") != asset_id or request.get("voiceover_source") != "retailer":
         raise CreativeContractError("Video compiler discarded approved voice source")
+    # A compiler must not substitute a different already-trusted media ID:
+    # approval of a private narration does not authorize changing the music
+    # or footage selected by the reviewed storyboard.
+    source_scenes = frozen_draft.get("scenes")
+    rendered_scenes = request.get("scenes")
+    if (request.get("music_asset_id") != frozen_draft.get("music_asset_id")
+            or type(source_scenes) is not list
+            or type(rendered_scenes) is not list
+            or len(source_scenes) != len(rendered_scenes)
+            or any(type(before_scene) is not dict or type(after_scene) is not dict
+                   or before_scene.get("asset_id") != after_scene.get("asset_id")
+                   or before_scene.get("sfx_asset_id") != after_scene.get("sfx_asset_id")
+                   for before_scene, after_scene in zip(source_scenes, rendered_scenes))):
+        raise CreativeContractError("Compiled narration changed reviewed media selection")
     # Recheck purpose at the compiled boundary: a future compiler revision must
     # not reintroduce approved voice as background music or scene effects.
     compiled_scenes = request.get("scenes")
