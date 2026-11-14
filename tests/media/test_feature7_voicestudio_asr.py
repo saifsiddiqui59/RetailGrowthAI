@@ -261,6 +261,28 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
             with self.subTest(n=len(payload)),self.assertRaises(VoiceStudioTranscriptionDenied):
                 self.call(transport=lambda req,timeout:Reply(payload))
 
+    def test_duplicate_json_keys_at_every_depth_are_denied(self):
+        # Never accept parser-dependent first/last-key interpretations before
+        # a review can be converted into a signed tenant-scoped transcript.
+        base = json.dumps(self.payload, ensure_ascii=False)
+        variants = [
+            base.replace('"task": "transcribe"',
+                         '"task": "translate", "task": "transcribe"', 1),
+            base.replace('"language": "hi"',
+                         '"language": "mr", "language": "hi"', 1),
+            base.replace('"start": 0.1',
+                         '"start": 1.9, "start": 0.1', 1),
+            base.replace('"word": "नमस्ते"',
+                         '"word": "spoof", "word": "नमस्ते"', 1),
+        ]
+        for body in variants:
+            self.assertNotEqual(body, base)
+            with self.subTest(body=body[:100]), self.assertRaises(VoiceStudioTranscriptionDenied):
+                self.call(transport=lambda req, timeout, body=body:
+                          Reply(body.encode("utf-8")))
+        # Valid Indic JSON remains accepted, including nested word objects.
+        self.assertEqual(self.call()["words"][0]["word"], "नमस्ते")
+
     def test_upstream_error_redacted(self):
         from urllib.error import URLError
         def sender(req,timeout):
