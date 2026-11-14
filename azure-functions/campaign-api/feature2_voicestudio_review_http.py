@@ -29,7 +29,7 @@ def private_original_review_response(*, request, shop_id, campaign_id, request_i
         # Malformed HTTP request wrappers are unauthenticated, not provider outages.
         try:
             authorization = request.headers.get("Authorization")
-        except (AttributeError, TypeError, ValueError):
+        except (AttributeError, TypeError, ValueError, KeyError, IndexError):
             return 401, headers, b""
         if type(authorization) is not str:
             return 401, headers, b""
