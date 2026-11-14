@@ -110,3 +110,13 @@ def test_private_wav_http_security_headers_on_success_and_denial(monkeypatch):
         assert headers["Vary"] == "Authorization"
         assert headers["Referrer-Policy"] == "no-referrer"
         assert headers["Cache-Control"] == "no-store, private"
+
+
+def test_empty_private_audio_is_denied_without_audio_headers(monkeypatch):
+    # Even a buggy backend reader must not return a successful empty WAV.
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: b"")
+    status, headers, body = _call()
+    assert status == 404 and body == b""
+    assert headers["Cache-Control"] == "no-store, private"
+    assert "Content-Type" not in headers
+    assert "Content-Length" not in headers
