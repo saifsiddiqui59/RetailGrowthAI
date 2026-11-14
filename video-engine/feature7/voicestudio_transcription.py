@@ -185,6 +185,10 @@ def transcribe_private_voice(
             raw = response.read(MAX_JSON + 1)
     except (HTTPError, URLError, OSError, TimeoutError):
         raise VoiceStudioTranscriptionDenied("Private VoiceStudio ASR request failed") from None
+    # A private transport must return bounded wire bytes, never a decoded or
+    # attacker-supplied Python object that bypasses the HTTP JSON byte contract.
+    if type(raw) is not bytes:
+        raise VoiceStudioTranscriptionDenied("ASR response must be raw JSON bytes")
     if len(raw) > MAX_JSON:
         raise VoiceStudioTranscriptionDenied("ASR response exceeds limit")
     # Reject ambiguous JSON keys at every depth. Different JSON consumers may
