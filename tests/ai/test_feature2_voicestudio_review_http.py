@@ -129,7 +129,7 @@ def test_empty_private_audio_is_denied_without_audio_headers(monkeypatch):
 
 def test_http_boundary_rejects_malformed_or_oversized_reader_bytes(monkeypatch):
     good = _valid_wav_envelope()
-    invalid = (good + b"hidden", good[:4] + b"\\x00\\x00\\x00\\x00" + good[8:],
+    invalid = (good + b"hidden", good[:4] + bytes(4) + good[8:],
                b"NOTW" + good[4:], good[:8] + b"NOPE" + good[12:],
                b"RIFF" + (8 * 1024 * 1024).to_bytes(4, "little") + b"WAVE" + b"x" * (8 * 1024 * 1024))
     for payload in invalid:
