@@ -303,6 +303,23 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
                                      "approved", "license_name", "rights_source",
                                      "rights_evidence"))):
             raise CreativeContractError("Compiled narration changed reviewed asset rights or origin")
+    # The worker consumes the manifest, not the bundle. A compiler must not
+    # retain an approved bundle while rewriting another asset's tenant, kind,
+    # license or approval in the FFmpeg handoff.
+    for selected_id, worker_row in output["manifest"]["assets"].items():
+        trusted_row = frozen_snapshot["assets"].get(selected_id)
+        if (type(worker_row) is not dict or type(trusted_row) is not dict
+                or worker_row.get("shop_id") != trusted_row.get("shop_id")
+                or worker_row.get("kind") != trusted_row.get("kind")
+                or worker_row.get("source_feature") != trusted_row.get("source_feature")
+                or worker_row.get("approved") is not trusted_row.get("approved")
+                or worker_row.get("rights") != {
+                    "license": trusted_row.get("license_name"),
+                    "commercial_use": True,
+                    "source": trusted_row.get("rights_source"),
+                    "evidence": trusted_row.get("rights_evidence"),
+                }):
+            raise CreativeContractError("Compiled narration changed reviewed worker media rights")
     # Every selected reviewed asset must survive the compiler-to-worker handoff.
     # The subset check above prevents injection but cannot detect a compiler
     # silently dropping music, an overlay, or a scene asset from both maps.
