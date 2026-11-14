@@ -197,6 +197,28 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                 with self.assertRaisesRegex(CreativeContractError, "manifest changed"):
                     self.call(draft, snapshot, receipt, data)
 
+    def test_private_object_equivalent_alias_rejected_before_wav_read(self):
+        for transform in (
+            lambda key: key.replace("/", chr(92)),
+            lambda key: key.replace("/render.wav", "/./render.wav"),
+            lambda key: key.replace("/render.wav", "/temp/../render.wav"),
+            lambda key: key + ".",
+        ):
+            draft, snapshot, receipt, data = self.setup_case()
+            voice_id = draft["voiceover_asset_id"]
+            other_id = draft["music_asset_id"]
+            snapshot["assets"][other_id]["storage_bucket"] = "retailgrowth-media"
+            snapshot["assets"][other_id]["object_path"] = transform(
+                snapshot["assets"][voice_id]["object_path"])
+            reads = []
+            with self.subTest(transform=transform), self.assertRaisesRegex(
+                    CreativeContractError, "object aliases another media asset"):
+                compile_voicestudio_narrated_reel(
+                    draft=draft, snapshot=snapshot,
+                    read_current_receipt=lambda *_: reads.append("receipt") or dict(receipt),
+                    read_current_private_wav=lambda *_: reads.append("wav") or data)
+            self.assertNotIn("wav", reads)
+
     def test_compiler_cannot_alias_private_voice_object_as_other_media(self):
         # Distinct asset IDs and staging filenames must not share one private
         # VoiceStudio object key, even when the worker paths differ.
