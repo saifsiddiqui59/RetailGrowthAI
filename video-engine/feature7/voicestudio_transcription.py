@@ -92,7 +92,7 @@ def _checked_wav(wav_bytes):
             # Match the trusted signed-media PCM gate exactly: Python's wave
             # decoder does not validate every declared byte-rate/alignment field.
             # A digest of inconsistent fmt bytes must never reach private ASR.
-            if length not in (16, 18) or (length == 18 and wav_bytes[offset + 24:offset + 26] != b"\\x00\\x00"):
+            if length not in (16, 18) or (length == 18 and wav_bytes[offset + 24:offset + 26] != bytes(2)):
                 raise VoiceStudioTranscriptionDenied("Unsupported PCM format metadata")
             fmt = wav_bytes[offset + 8:offset + 24]
             codec = int.from_bytes(fmt[0:2], "little")
