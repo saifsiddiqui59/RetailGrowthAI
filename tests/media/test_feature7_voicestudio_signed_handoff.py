@@ -35,6 +35,17 @@ const reject=(patch)=>assert.throws(()=>bindVoiceStudioReview({...input,...patch
 reject({shop_id:'shopB'});
 reject({original_video_sha256:'c'.repeat(64)});
 reject({original_audio_sha256:'c'.repeat(64)});
+// Hash validation must not coerce attacker-controlled objects or run toString.
+for (const field of ['original_video_sha256','original_audio_sha256']) {
+  let coercions=0;
+  const hostile={toString(){coercions++;throw Error('hash coercion executed');}};
+  reject({[field]:hostile});
+  assert.equal(coercions,0,field);
+  reject({[field]:new String(field==='original_video_sha256'?video:audio)});
+  reject({[field]:42});
+  reject({[field]:null});
+}
+
 reject({model_id:'other'});
 reject({now_ms:now+60001});
 // Never permit negative or overflowing clocks to produce signed lease evidence.
