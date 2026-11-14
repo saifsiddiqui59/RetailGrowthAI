@@ -311,6 +311,25 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
         self.payload["text"] = "नमस्ते दुनिया"
         self.assertEqual(self.call()["words"][0]["word"], "नमस्ते")
 
+    def test_invisible_unicode_and_c1_controls_denied_in_word_and_text(self):
+        # C1/DEL controls, line separators and BOM can hide or visually split
+        # Indic captions even though they are not ASCII control characters.
+        # Legitimate Devanagari combining marks remain permitted.
+        for control in ("\\u007f", "\\u0085", "\\u009f", "\\u2028", "\\u2029", "\\ufeff"):
+            for field in ("word", "text"):
+                self.payload["words"] = [{"start": 0.1, "end": 0.7, "word": "नमस्ते"}]
+                self.payload["text"] = "नमस्ते"
+                if field == "word":
+                    self.payload["words"][0]["word"] += control
+                else:
+                    self.payload["text"] += control
+                with self.subTest(field=field, codepoint=hex(ord(control))):
+                    with self.assertRaises(VoiceStudioTranscriptionDenied):
+                        self.call()
+        self.payload["words"] = [{"start": 0.1, "end": 0.7, "word": "नमस्ते"}]
+        self.payload["text"] = "नमस्ते"
+        self.assertEqual(self.call()["words"][0]["word"], "नमस्ते")
+
     def test_upstream_status_url_and_mime_are_verified(self):
         for conf in [{"status":202},{"url":"https://evil.test/"},{"mime":"text/html"}]:
             def sender(req,timeout):
