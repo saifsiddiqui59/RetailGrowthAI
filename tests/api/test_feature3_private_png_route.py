@@ -3,6 +3,8 @@ import sys
 import unittest
 from pathlib import Path
 from uuid import uuid4
+from hashlib import sha256
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "azure-functions" / "campaign-api"))
 from feature3_private_png_route import handle_private_png_request
@@ -285,6 +287,49 @@ class RouteAdapterTests(unittest.TestCase):
         response = self.call("", request=request)
         self.assertEqual(response.status_code, 503)
         self.assertEqual(self.calls, 1)
+
+    def test_backend_success_requires_complete_security_envelope(self):
+        # Synthetic inner-adapter injection, not a signed hosted grant.
+        from test_feature3_private_png_http import PNG
+
+        token = "Bearer " + "x" * 30
+        headers = {
+            "Content-Type": "image/png",
+            "Cache-Control": "no-store, private, max-age=0",
+            "Content-Length": str(len(PNG)),
+            "X-Feature3-Shop-Id": self.shop,
+            "X-Feature3-Job-Id": self.job,
+            "X-Feature3-Media-Asset-Id": str(uuid4()),
+            "X-Feature3-Image-Sha256": sha256(PNG).hexdigest(),
+            "Content-Disposition": f'attachment; filename="feature3-{self.job}.png"',
+            "Pragma": "no-cache",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'",
+            "Vary": "Authorization",
+        }
+        request = Request(self.shop, self.job, token)
+        with patch("feature3_private_png_route.private_png_http",
+                   return_value=type("Reply", (), {
+                       "status": 200, "body": PNG, "headers": headers})()):
+            success = self.call("", request=request)
+        self.assertEqual(success.status_code, 200)
+        self.assertEqual(success.body, PNG)
+        self.assertNotIn("X-Feature3-Shop-Id", success.headers)
+
+        # A faulty adapter must not omit any attestation/security header,
+        # even if the PNG and digest are otherwise valid.
+        for missing in tuple(headers):
+            with self.subTest(missing=missing):
+                incomplete = dict(headers)
+                del incomplete[missing]
+                with patch("feature3_private_png_route.private_png_http",
+                           return_value=type("Reply", (), {
+                               "status": 200, "body": PNG,
+                               "headers": incomplete})()):
+                    reply = self.call("", request=request)
+                self.assertEqual(reply.status_code, 503)
+                self.assertEqual(reply.body, b"")
+                self.assertEqual(reply.headers["Content-Length"], "0")
 
     def test_malformed_headers_denied(self):
         request = Request(self.shop, self.job, "Bearer " + "x" * 30)
