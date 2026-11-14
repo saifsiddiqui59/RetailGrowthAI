@@ -73,20 +73,20 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     # Fail before private narration I/O if the reviewed reel references an
     # absent, cross-tenant or revoked secondary media row. The downstream
     # compiler remains authoritative for detailed type/rights validation.
-    selected = {asset_id}
+    selected = [asset_id]
     if draft.get("music_asset_id") is not None:
-        selected.add(draft["music_asset_id"])
+        selected.append(draft["music_asset_id"])
     if type(scenes) is not list or any(type(scene) is not dict for scene in scenes):
         raise CreativeContractError("Reviewed narration scenes required")
     for scene in scenes:
         for key in ("asset_id", "sfx_asset_id", "poster_overlay_asset_id"):
             if scene.get(key) is not None:
-                selected.add(scene[key])
+                selected.append(scene[key])
     brand = snapshot.get("brand")
     if type(brand) is not dict:
         raise CreativeContractError("Trusted narration brand required")
     if brand.get("logo_asset_id") is not None:
-        selected.add(brand["logo_asset_id"])
+        selected.append(brand["logo_asset_id"])
     assets = snapshot.get("assets")
     if type(assets) is not dict:
         raise CreativeContractError("Trusted private media manifest required")
