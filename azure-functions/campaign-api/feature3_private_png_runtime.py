@@ -166,6 +166,17 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                         any(ch in user_token for ch in (",", ";", '"', "\\"))):
                     raise PrivateGeneratedDownloadDenied(
                         "Private generated output unavailable")
+                # Only the live route accepts compact, three-part JWS tokens.
+                # Synthetic fixture stores retain their isolated dummy tokens;
+                # this framing check is not a substitute for JWT verification.
+                if tenant_store is None:
+                    parts = user_token.split(".")
+                    if (len(parts) != 3 or any(not part for part in parts) or
+                            any(any(not (ch.isascii() and
+                                         (ch.isalnum() or ch in "-_"))
+                                    for ch in part) for part in parts)):
+                        raise PrivateGeneratedDownloadDenied(
+                            "Private generated output unavailable")
                 # Revalidate at use time as well as construction time: a
                 # cached scoped reader may outlive a rotated/mutated store.
                 # Deny before invoking JWT verification or any RLS/byte read.
