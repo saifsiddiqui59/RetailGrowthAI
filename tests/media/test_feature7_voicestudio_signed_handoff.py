@@ -127,6 +127,23 @@ for (const word of [
   }));
   reject({review:{...review,words:tooMany}});
 }
+// Exercise the maximum accepted 2,000-word review at the exact ten-segment
+// boundary; the 2,001-word rejection above must not cause a 2,000-word
+// truncation or an 11th empty segment. This is synthetic CPU-only timing data.
+{
+  const words=Array.from({length:2000},(_,i)=>({
+    word:'शब्द',start:i*.0008,end:i*.0008+.0006
+  }));
+  const signed=bindVoiceStudioReview({...input,review:{...review,words}});
+  assert.equal(signed.transcript.words.length,2000);
+  assert.equal(signed.whisperx_json.segments.length,10);
+  assert.ok(signed.whisperx_json.segments.every(s=>s.words.length===200));
+  assert.equal(signed.transcript.words[1999].word,'शब्द');
+  assert.equal(signed.transcript.words[1999].startMs,Math.round(words[1999].start*1000));
+  assert.equal(signed.transcript.words[1999].endMs,Math.round(words[1999].end*1000));
+  assert.equal(signed.evidence.source_sha256,video);
+  assert.equal(signed.renderable,false);
+}
 // Array index accessors must not run even if they are own properties.
 // An index getter could exfiltrate tenant identifiers or mutate lease state.
 {
