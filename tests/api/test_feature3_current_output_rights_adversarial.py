@@ -88,6 +88,31 @@ class AdversarialRightsTests(unittest.TestCase):
                     self.assertIs(rights(*scope), False)
         self.assertEqual(self.calls, 0)
 
+    def test_authority_rejects_equal_hash_spoofed_field_key(self):
+        # A fake mapping key must never stand in for a required protocol
+        # field even if it hashes and compares equal to that field.
+        class ForgedKey:
+            def __hash__(self):
+                return hash("rights_revoked")
+
+            def __eq__(self, other):
+                return other == "rights_revoked"
+
+        forged = dict(self.row)
+        revoked = forged.pop("rights_revoked")
+        forged[ForgedKey()] = revoked
+        self.assertFalse(self.check(lambda *_: forged))
+        self.assertTrue(self.check())
+
+    def test_authority_rejects_non_string_and_unexpected_keys(self):
+        for bad in (42, None, ("rights_revoked",), b"rights_revoked"):
+            with self.subTest(key=repr(bad)):
+                forged = dict(self.row)
+                forged.pop("rights_revoked")
+                forged[bad] = False
+                self.assertFalse(self.check(lambda *_: forged))
+        self.assertTrue(self.check())
+
     def test_backend_pinned_digest_rejects_substituted_output(self):
         rights = Feature3CurrentOutputRights(
             authoritative_read=self.authority, expected_output_sha256="a" * 64)
