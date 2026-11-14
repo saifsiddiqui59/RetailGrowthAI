@@ -41,6 +41,23 @@ for (const override of [
   readOriginalVideo:noRead,readExtractedWav:noRead,readCurrentLease:noRead}));
  assert.equal(reads,0,'invalid scope or HMAC key must not read private media');
 }
+// Source digests must be primitive strings: RegExp.test coerces objects and
+// can execute attacker-controlled toString before any private authorization.
+for (const field of ['original_video_sha256','original_audio_sha256']) {
+ for (const invalid of [null,42,new String(field==='original_video_sha256'?v:a),
+   {toString(){throw Error('untrusted digest coercion');}}]) {
+  let reads=0,coercions=0;
+  const value=typeof invalid==='object' && invalid!==null &&
+    ! (invalid instanceof String) && invalid.toString
+    ? {toString(){coercions++;throw Error('untrusted digest coercion');}} : invalid;
+  const reader=async()=>{reads++;throw Error('unexpected private read');};
+  await assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,
+    [field]:value,readOriginalVideo:reader,readExtractedWav:reader,
+    readCurrentLease:reader}));
+  assert.equal(reads,0);
+  assert.equal(coercions,0);
+ }
+}
 // A review with invalid language, audio binding or transcript text is not a
 // reason to read tenant-private video or WAV bytes. The signer rejects these
 // too, but the worker must reject them BEFORE any private reader is called.
