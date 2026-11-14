@@ -7,6 +7,8 @@ claims are accepted as dependencies. Hosted integration remains gated.
 from __future__ import annotations
 
 from uuid import UUID
+from base64 import urlsafe_b64decode, urlsafe_b64encode
+from binascii import Error as Base64Error
 
 from feature3_current_output_rights import Feature3CurrentOutputRights
 from feature3_private_png_reader import Feature3RevocablePNGReader
@@ -186,6 +188,18 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                                     for ch in part) for part in parts)):
                         raise PrivateGeneratedDownloadDenied(
                             "Private generated output unavailable")
+                if tenant_store is None:
+                    # Noncanonical base64url can have ignored padding bits or
+                    # invalid encodings. Reject before any JWT/RLS/Storage IO;
+                    # cryptographic signature verification still happens below.
+                    try:
+                        for segment in parts:
+                            decoded = urlsafe_b64decode(segment + "=" * (-len(segment) % 4))
+                            if urlsafe_b64encode(decoded).decode("ascii").rstrip("=") != segment:
+                                raise ValueError("Noncanonical compact JWS")
+                    except (ValueError, Base64Error):
+                        raise PrivateGeneratedDownloadDenied(
+                            "Private generated output unavailable") from None
                 # Revalidate at use time as well as construction time: a
                 # cached scoped reader may outlive a rotated/mutated store.
                 # Deny before invoking JWT verification or any RLS/byte read.
