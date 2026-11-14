@@ -37,6 +37,13 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
         supabase_origin)
     if not callable(verifier):
         raise ValueError("Trusted JWT verifier required")
+    # A preconstructed verifier must never authenticate tokens issued by a
+    # different Supabase project. Synthetic test callables intentionally have
+    # no issuer; real verifier instances always expose the pinned issuer.
+    if isinstance(verifier, SupabaseJWTVerifier) and (
+            type(verifier.issuer) is not str or
+            verifier.issuer != supabase_origin.rstrip("/") + "/auth/v1"):
+        raise ValueError("JWT verifier must match configured project")
     # Do not permit equality-overloaded objects or string subclasses to
     # impersonate the configured project or public key at this trust boundary.
     store_origin = getattr(store, "origin", None)
