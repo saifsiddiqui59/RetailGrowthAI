@@ -59,11 +59,13 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     scenes = draft.get("scenes")
     if draft.get("music_asset_id") == asset_id or (
         type(scenes) is list and any(
-            type(scene) is dict and (scene.get("sfx_asset_id") == asset_id or scene.get("asset_id") == asset_id)
+            type(scene) is dict and (scene.get("sfx_asset_id") == asset_id or scene.get("asset_id") == asset_id or scene.get("poster_overlay_asset_id") == asset_id)
             for scene in scenes
         )
     ):
         raise CreativeContractError("Approved narration cannot be reused as music, SFX or footage")
+    if snapshot.get("brand", {}).get("logo_asset_id") == asset_id:
+        raise CreativeContractError("Approved narration cannot be reused as brand logo")
     duration = draft.get("duration_seconds")
     if type(duration) is not int or duration not in (15, 30, 60):
         raise CreativeContractError("Invalid approved narration timeline")
@@ -226,11 +228,13 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     if request.get("music_asset_id") == asset_id or (
         type(compiled_scenes) is list and any(
             type(scene) is dict and
-            (scene.get("sfx_asset_id") == asset_id or scene.get("asset_id") == asset_id)
+            (scene.get("sfx_asset_id") == asset_id or scene.get("asset_id") == asset_id or scene.get("poster_overlay_asset_id") == asset_id)
             for scene in compiled_scenes
         )
     ):
         raise CreativeContractError("Compiled narration cannot be reused as music, SFX or footage")
+    if output.get("bundle", {}).get("brand", {}).get("logo_asset_id") == asset_id or request.get("logo_asset_id") == asset_id:
+        raise CreativeContractError("Compiled narration cannot be reused as brand logo")
     # A compiler must not substitute a different already-trusted media ID:
     # approval of a private narration does not authorize changing the music
     # or footage selected by the reviewed storyboard.
@@ -250,7 +254,7 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     compiled_scenes = request.get("scenes")
     if request.get("music_asset_id") == asset_id or (
         type(compiled_scenes) is list and any(
-            type(scene) is dict and (scene.get("sfx_asset_id") == asset_id or scene.get("asset_id") == asset_id)
+            type(scene) is dict and (scene.get("sfx_asset_id") == asset_id or scene.get("asset_id") == asset_id or scene.get("poster_overlay_asset_id") == asset_id)
             for scene in compiled_scenes
         )
     ):
