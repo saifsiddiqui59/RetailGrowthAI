@@ -70,7 +70,10 @@ def private_png_http(*, authorization, shop_id, job_id, reader_factory):
             def read(self, *, user_token, shop_id, job_id):
                 receipt = reader.read(user_token=user_token,
                                       shop_id=shop_id, job_id=job_id)
+                # Reject non-string keys before lookup: custom mapping keys
+                # may spoof protocol names via __hash__ and __eq__.
                 if (type(receipt) is not dict or
+                        any(type(key) is not str for key in receipt) or
                         type(receipt.get("shop_id")) is not str or
                         type(receipt.get("job_id")) is not str or
                         receipt["shop_id"] != shop_id or
