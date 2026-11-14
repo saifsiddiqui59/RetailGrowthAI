@@ -117,7 +117,11 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
             scoped = compose(jwt_verifier=verifier)(shop, job)
             for token in ("synthetic-test-token", "abc.def", "abc..def",
                           ".abc.def", "abc.def.", "abc.def.ghi.jkl",
-                          "abc.def.ghi=", "abc.def.ghi+", "abc.def.ghi/"):
+                          "abc.def.ghi=", "abc.def.ghi+", "abc.def.ghi/",
+                          "a.def.ghi", "abc.d.ghi", "abc.def.g",
+                          "a" * 2049 + ".def.ghi",
+                          "abc." + "b" * 6145 + ".ghi",
+                          "abc.def." + "c" * 2049):
                 with self.subTest(token=token):
                     with self.assertRaises(PrivateGeneratedDownloadDenied):
                         scoped.read(user_token=token, shop_id=shop, job_id=job)
