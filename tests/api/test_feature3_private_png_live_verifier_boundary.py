@@ -25,6 +25,13 @@ def compose(**kwargs):
 
 
 class LiveVerifierBoundaryTests(unittest.TestCase):
+    def test_runtime_module_compiles_before_security_tests(self):
+        # Guard against malformed source escaping in generated security fixes.
+        import ast
+        source = (Path(__file__).resolve().parents[2] / "azure-functions" /
+                  "campaign-api" / "feature3_private_png_runtime.py").read_text()
+        ast.parse(source, filename="feature3_private_png_runtime.py")
+
     def test_live_path_rejects_callable_fixture_without_reading_rights(self):
         calls = []
         with patch("feature3_private_png_runtime.TenantStore") as store:
