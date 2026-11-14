@@ -252,6 +252,14 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
         if (other.get("storage_bucket") == before_asset["storage_bucket"]
                 and other.get("object_path") == before_asset["object_path"]):
             raise CreativeContractError("Compiled private narration object aliases another asset")
+    # Only assets selected from the trusted snapshot may enter the worker.
+    # A compromised compiler cannot append an unreviewed media row under a
+    # fresh ID, even if the private narration row itself is unchanged.
+    trusted_ids = set(snapshot["assets"])
+    if (set(output["bundle"]["assets"]) - trusted_ids
+            or set(output["manifest"]["assets"]) - trusted_ids
+            or set(output["bundle"]["assets"]) != set(output["manifest"]["assets"])):
+        raise CreativeContractError("Compiled narration introduced unapproved media asset")
     manifest_asset = output.get("manifest", {}).get("assets", {}).get(asset_id)
     if (type(manifest_asset) is not dict
             or manifest_asset.get("shop_id") != shop
