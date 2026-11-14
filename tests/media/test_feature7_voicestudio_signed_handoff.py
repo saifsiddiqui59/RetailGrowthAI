@@ -88,6 +88,25 @@ for (const word of [
   {word:'ok',start:.1,end:2.1},
   {word:'ok',start:.1,end:null}
 ]) reject({review:{...review,words:[word]}});
+// Array index accessors must not run even if they are own properties.
+// An index getter could exfiltrate tenant identifiers or mutate lease state.
+{
+  let calls=0;
+  const words=[...review.words];
+  Object.defineProperty(words,'0',{configurable:true,enumerable:true,
+    get(){calls++;throw Error('word slot getter executed');}});
+  reject({review:{...review,words}});
+  assert.equal(calls,0);
+}
+// A prototype-only array slot is sparse and cannot be trusted.
+{
+  const words=[...review.words];
+  delete words[0];
+  const inherited=Object.create(Array.prototype);
+  Object.setPrototypeOf(words,inherited);
+  inherited[0]=review.words[0];
+  reject({review:{...review,words}});
+}
 // A hostile word getter must not run while building signed evidence.
 for (const field of ['word','start','end']) {
   let calls=0;
