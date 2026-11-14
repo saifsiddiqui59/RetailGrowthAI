@@ -55,3 +55,8 @@ On child #942, reject accessor-backed or inherited `review.words` before any arr
 - Regression commit `48cca4a9`: deterministic adversarial word Proxy cases mutate lease active/shop/expiry while normalizer reads the word; all must reject before signing.
 - Offline checkout `git ls-remote` failed with `Could not resolve host: github.com`; targeted Node/Python tests cannot be claimed passed. Exact-head four-job CI still requires verification. No main merge.
 - **NEXT CODE ACTION:** execute `python -m unittest tests/media/test_feature7_voicestudio_signed_handoff.py`, inspect exact-head 4-job CI and repair any owner-scope failure; reconcile #513 with current main via serialized integration writer. #911/#926 merged to parent; F4 dependency #910 linked. No GPU/paid/PROD/cloud/WineShopPOS.
+
+## 2026-11-14 — signed WhisperX export segmentation
+- Parent #513 code commit `0d869e97`, regression commit `a2b99762`: the signed bridge now exports canonical `whisperx_json.segments` in <=200-word chunks, matching the existing normalizer ceiling rather than creating an invalid 201–2000-word export segment. Hindi 201-word regression checks the 200+1 boundary and original normalized millisecond timing.
+- Verification: local Git checkout DNS resolution failed; exact-head four-job CI and targeted offline tests are **not verified**. No main merge or model inference.
+- **NEXT CODE ACTION:** run `python -m unittest tests/media/test_feature7_voicestudio_signed_handoff.py` in a full checkout, inspect exact-head four-job CI on parent #513, repair owner-scoped failures; then reconcile parent against current main through serialized integration. Child #911/#926 already merged to parent; F4 dependency #910 remains F4-parent-only. GPU/paid/cloud/PROD/WineShopPOS OFF.
