@@ -117,7 +117,10 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                 # A caller-provided token must be a primitive string. Reject
                 # objects with side-effecting string/equality behavior before
                 # JWT, RLS, rights or private Storage access.
-                if type(user_token) is not str or not user_token:
+                if (type(user_token) is not str or not 12 <= len(user_token) <= 8192 or
+                        any(ord(ch) < 33 or ord(ch) > 126 for ch in user_token) or
+                        user_token.startswith(("sb_secret_", "sb_publishable_", "Bearer ")) or
+                        any(ch in user_token for ch in (",", ";", '"', "\\"))):
                     raise PrivateGeneratedDownloadDenied(
                         "Private generated output unavailable")
                 # Revalidate at use time as well as construction time: a
