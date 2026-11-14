@@ -54,6 +54,21 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
             factory = compose(jwt_verifier=verifier)
         self.assertTrue(callable(factory))
 
+    def test_live_reader_rejects_jwks_client_replaced_after_composition(self):
+        from types import SimpleNamespace
+        from uuid import uuid4
+        verifier = SupabaseJWTVerifier(ORIGIN)
+        with patch("feature3_private_png_runtime.TenantStore") as store:
+            store.return_value.origin = ORIGIN
+            store.return_value.key = KEY
+            factory = compose(jwt_verifier=verifier)
+            verifier.client = SimpleNamespace(
+                uri=ORIGIN + "/auth/v1/.well-known/jwks.json")
+            with self.assertRaisesRegex(ValueError, "project changed"):
+                factory(str(uuid4()), str(uuid4()))
+            store.return_value.member.assert_not_called()
+            store.return_value.feature3_gpu_job.assert_not_called()
+
     def test_injected_isolated_store_retains_synthetic_fixture_support(self):
         class Store:
             origin = ORIGIN
