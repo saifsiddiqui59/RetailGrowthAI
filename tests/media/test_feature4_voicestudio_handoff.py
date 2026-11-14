@@ -125,6 +125,29 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                     read_current_private_wav=lambda *_: reads.append("wav") or data)
             self.assertEqual(reads, [])
 
+    def test_compiler_cannot_rewrite_other_worker_media_rights(self):
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original_compiler = adapter.compile_approved_storyboard
+        for field, forged in (
+            ("shop_id", str(uuid4())),
+            ("kind", "video"),
+            ("source_feature", "unreviewed"),
+            ("approved", False),
+            ("rights", {"license": "unreviewed", "commercial_use": False}),
+        ):
+            draft, snapshot, receipt, data = self.setup_case()
+            music_id = draft["music_asset_id"]
+            def altered_compiler(*args):
+                output = original_compiler(*args)
+                output["manifest"]["assets"][music_id][field] = forged
+                return output
+            with self.subTest(field=field), patch.object(
+                    adapter, "compile_approved_storyboard", side_effect=altered_compiler):
+                with self.assertRaisesRegex(
+                        CreativeContractError, "reviewed worker media rights"):
+                    self.call(draft, snapshot, receipt, data)
+
     def test_modified_pcm_never_reaches_compiler_even_with_valid_wav_header(self):
         from unittest.mock import patch
         import feature4_voicestudio_handoff as adapter
