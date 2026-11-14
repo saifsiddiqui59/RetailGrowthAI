@@ -22,6 +22,8 @@ def private_original_review_response(*, request, shop_id, campaign_id, request_i
     headers = {
         "Cache-Control": "no-store, private",
         "Pragma": "no-cache",
+        "Vary": "Authorization",
+        "Referrer-Policy": "no-referrer",
         "X-Content-Type-Options": "nosniff",
         "Content-Security-Policy": "default-src 'none'",
     }
