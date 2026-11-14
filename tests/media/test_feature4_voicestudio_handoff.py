@@ -315,6 +315,27 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                 with self.assertRaisesRegex(CreativeContractError, "unapproved media asset"):
                     self.call(draft, snapshot, receipt, data)
 
+    def test_compiler_rejects_collision_between_non_voice_worker_assets(self):
+        # Two independently reviewed assets must never overwrite one another
+        # in the FFmpeg staging directory, even if narration itself is safe.
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original = adapter.compile_approved_storyboard
+        draft, snapshot, receipt, data = self.setup_case()
+        voice_id = draft["voiceover_asset_id"]
+
+        def aliased(*args):
+            output = original(*args)
+            others = [key for key in output["manifest"]["assets"] if key != voice_id]
+            assert len(others) >= 2
+            source_path = output["manifest"]["assets"][others[0]]["path"]
+            output["manifest"]["assets"][others[1]]["path"] = source_path
+            return output
+
+        with patch.object(adapter, "compile_approved_storyboard", side_effect=aliased):
+            with self.assertRaisesRegex(CreativeContractError, "reviewed media worker paths alias"):
+                self.call(draft, snapshot, receipt, data)
+
     def test_compiler_cannot_alias_private_voice_worker_path_with_other_media(self):
         from unittest.mock import patch
         import feature4_voicestudio_handoff as adapter
