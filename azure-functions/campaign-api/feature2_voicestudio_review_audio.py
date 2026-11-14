@@ -54,7 +54,11 @@ def _receipt(sql_reader, shop, campaign, request):
         raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
     # Snapshot the SQL receipt: adapters may reuse/mutate the same dict during I/O.
     # A live reference would make post-read revocation comparisons ineffective.
-    return dict(result)
+    return {key: result[key] for key in (
+        "audio_asset_id", "shop_id", "campaign_id", "request_id",
+        "private", "review_status", "commercial_rights_confirmed",
+        "publish_approved", "original_sha256", "render_sha256", "plan_sha256",
+    )}
 
 
 def _canonical_pcm_chunks(content):
