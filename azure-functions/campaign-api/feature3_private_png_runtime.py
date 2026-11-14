@@ -78,10 +78,15 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
     def factory(shop_id, job_id):
         if type(shop_id) is not str or type(job_id) is not str:
             raise ValueError("Canonical scoped route IDs required")
+        # Bound hostile identifiers before UUID parsing. Reject noncanonical
+        # versions/spellings without doing a second parse or backend IO.
+        if len(shop_id) != 36 or len(job_id) != 36:
+            raise ValueError("Canonical scoped route IDs required")
         try:
-            if any(UUID(value).version != 4 or str(UUID(value)) != value
-                   for value in (shop_id, job_id)):
-                raise ValueError("Canonical scoped route IDs required")
+            for value in (shop_id, job_id):
+                parsed = UUID(value)
+                if parsed.version != 4 or str(parsed) != value:
+                    raise ValueError("Canonical scoped route IDs required")
         except (ValueError, AttributeError, TypeError) as exc:
             raise ValueError("Canonical scoped route IDs required") from exc
         # A long-lived server factory must not accept a store whose project
