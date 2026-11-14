@@ -392,6 +392,22 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
         for other_id, other in output["manifest"]["assets"].items()
     ):
         raise CreativeContractError("Compiled private narration worker path aliases another asset")
+    # All selected media must stage to distinct worker filenames, not only
+    # narration. A music/footage collision can overwrite reviewed bytes before
+    # FFmpeg opens them even though both IDs retain valid license metadata.
+    staged_paths = set()
+    for worker_row in output["manifest"]["assets"].values():
+        worker_path = worker_row.get("path")
+        if type(worker_path) is not str:
+            raise CreativeContractError("Compiled media worker path missing")
+        normalized = posixpath.normpath("/".join(
+            part if part in (".", "..") else part.rstrip(" .")
+            for part in unicodedata.normalize("NFKC", worker_path)
+                .replace("\\", "/").split("/")
+        )).casefold()
+        if normalized in staged_paths:
+            raise CreativeContractError("Compiled reviewed media worker paths alias")
+        staged_paths.add(normalized)
     # The compiler may perform additional trusted reads. Do not return a reel
     # compiled from narration whose approval was revoked during that work.
     if authoritative() != before or snapshot["assets"].get(asset_id) != before_asset:
