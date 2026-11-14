@@ -81,7 +81,8 @@ export async function bindVerifiedVoiceStudioMedia({
   source_duration_seconds,now_ms=Date.now(),readNowMs
 }={}) {
   deny([readOriginalVideo,readExtractedWav,readCurrentLease].every(f=>typeof f==='function') &&
-    SHA.test(original_video_sha256??'') && SHA.test(original_audio_sha256??'') &&
+    typeof original_video_sha256==='string' && SHA.test(original_video_sha256) &&
+    typeof original_audio_sha256==='string' && SHA.test(original_audio_sha256) &&
     // Reject invalid tenant/source scope and missing HMAC secret before invoking
     // private readers. Downstream signing validation alone happens too late.
     [shop_id,asset_id,job_id,model_id].every(id=>
