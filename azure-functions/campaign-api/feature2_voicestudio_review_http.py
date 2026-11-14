@@ -41,7 +41,11 @@ def private_original_review_response(*, request, shop_id, campaign_id, request_i
             tenant_store=tenant_store, sql_store_factory=sql_store_factory,
             private_storage=private_storage,
         )
-        if type(content) is not bytes or not content:
+        # Defense in depth: a faulty injected reader cannot stream an oversized
+        # or non-RIFF response through this unregistered HTTP boundary.
+        if (type(content) is not bytes or not 44 <= len(content) <= 8 * 1024 * 1024
+                or content[:4] != b"RIFF" or content[8:12] != b"WAVE"
+                or int.from_bytes(content[4:8], "little") != len(content) - 8):
             raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
         return 200, {**headers, "Content-Type": "audio/wav",
                      "Content-Length": str(len(content))}, content
