@@ -285,6 +285,19 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
             or set(output["manifest"]["assets"]) - trusted_ids
             or set(output["bundle"]["assets"]) != set(output["manifest"]["assets"])):
         raise CreativeContractError("Compiled narration introduced unapproved media asset")
+    # The narration receipt cannot authorize rewriting the rights or private
+    # origin of OTHER reviewed media. The compiler may stage local paths in
+    # its worker manifest, but the immutable bundle must retain each trusted
+    # source row's tenant, object identity and license evidence.
+    for selected_id, compiled_row in output["bundle"]["assets"].items():
+        trusted_row = frozen_snapshot["assets"].get(selected_id)
+        if (type(compiled_row) is not dict or type(trusted_row) is not dict
+                or any(compiled_row.get(field) != trusted_row.get(field)
+                       for field in ("shop_id", "storage_bucket", "object_path",
+                                     "mime_type", "kind", "source_feature",
+                                     "approved", "license_name", "rights_source",
+                                     "rights_evidence"))):
+            raise CreativeContractError("Compiled narration changed reviewed asset rights or origin")
     # Every selected reviewed asset must survive the compiler-to-worker handoff.
     # The subset check above prevents injection but cannot detect a compiler
     # silently dropping music, an overlay, or a scene asset from both maps.
