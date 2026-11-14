@@ -314,9 +314,19 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     for other_id, other in output["bundle"]["assets"].items():
         if other_id == asset_id or type(other) is not dict:
             continue
-        if (other.get("storage_bucket") == before_asset["storage_bucket"]
-                and other.get("object_path") == before_asset["object_path"]):
-            raise CreativeContractError("Compiled private narration object aliases another asset")
+        if other.get("storage_bucket") == before_asset["storage_bucket"]:
+            other_path = other.get("object_path")
+            if type(other_path) is str:
+                # A compromised compiler can introduce an equivalent key using
+                # dot segments, Windows separators or case-insensitive aliases.
+                # Check the same equivalence already enforced before WAV I/O.
+                normalized = posixpath.normpath("/".join(
+                    part if part in (".", "..") else part.rstrip(" .")
+                    for part in unicodedata.normalize("NFKC", other_path)
+                        .replace(chr(92), "/").split("/")
+                )).casefold()
+                if normalized == before_asset["object_path"].casefold():
+                    raise CreativeContractError("Compiled private narration object aliases another asset")
     # Only assets selected from the trusted snapshot may enter the worker.
     # A compromised compiler cannot append an unreviewed media row under a
     # fresh ID, even if the private narration row itself is unchanged.
