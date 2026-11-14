@@ -151,6 +151,37 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
                       source_sha256=sha256(oversized).hexdigest())
         self.assertEqual(self.calls, [])
 
+    def test_pcm_format_parity_denies_inconsistent_headers_before_egress(self):
+        # The signed-media verifier requires strict 16-bit PCM, valid byte rate,
+        # block alignment, 8-48 kHz sample rate and canonical fmt length.
+        # Each case has a self-consistent RIFF length and SHA256.
+        variants = []
+        for offset, value, width in (
+            (20, 3, 2),       # non-PCM codec
+            (22, 3, 2),       # three channels
+            (24, 96000, 4),  # outside signed-media sample-rate ceiling
+            (28, 1, 4),      # inconsistent byte rate
+            (32, 8, 2),      # inconsistent block alignment
+            (34, 24, 2),     # unsupported bits per sample
+        ):
+            changed = bytearray(self.original)
+            changed[offset:offset + width] = value.to_bytes(width, "little")
+            variants.append(bytes(changed))
+        # A fmt chunk with extra opaque bytes must also fail even when the
+        # downstream WAV decoder might ignore the extension.
+        extended = bytearray(self.original[:36] + b"XX" + self.original[36:])
+        extended[16:20] = (18).to_bytes(4, "little")
+        extended[4:8] = (len(extended) - 8).to_bytes(4, "little")
+        variants.append(bytes(extended))
+        for malformed in variants:
+            with self.subTest(header=malformed[20:36]):
+                self.calls.clear()
+                with self.assertRaises(VoiceStudioTranscriptionDenied):
+                    self.call(original_wav=malformed,
+                              source_sha256=sha256(malformed).hexdigest())
+                self.assertEqual(self.calls, [])
+        self.assertEqual(self.call()["language"], "hi")
+
     def test_zero_sample_rate_wav_fails_closed_without_egress(self):
         # RIFF header may be structurally readable while PCM rate is zero.
         # The worker must raise its domain denial, never ZeroDivisionError.
