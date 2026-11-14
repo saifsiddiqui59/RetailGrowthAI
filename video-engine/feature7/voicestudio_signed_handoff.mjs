@@ -104,10 +104,10 @@ export function bindVoiceStudioReview({
     source_duration_seconds,
     // The existing normalizer caps each segment at 200 words; preserve all
     // 2000 accepted VoiceStudio words in bounded consecutive segments.
-    // Normalize immutable descriptor snapshots, never untrusted Proxy getters.
+    // Preserve existing post-normalization mutation checks for hostile inputs.
     transcript:{segments:Array.from(
-      {length:Math.ceil(wordSnapshots.length/200)},(_,i)=>({
-        words:wordSnapshots.slice(i*200,(i+1)*200)
+      {length:Math.ceil(reviewSnapshot.words.length/200)},(_,i)=>({
+        words:Array.prototype.slice.call(reviewSnapshot.words,i*200,(i+1)*200)
       }))}
 
   });
