@@ -109,7 +109,7 @@ export function bindVoiceStudioReview({
     // Preserve existing post-normalization mutation checks for hostile inputs.
     transcript:{segments:Array.from(
       {length:Math.ceil(reviewSnapshot.words.length/200)},(_,i)=>({
-        words:Array.prototype.slice.call(reviewSnapshot.words,i*200,(i+1)*200)
+        words:wordSnapshots.slice(i*200,(i+1)*200)
       }))}
 
   });
