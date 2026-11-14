@@ -182,6 +182,38 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
                 self.assertEqual(self.calls, [])
         self.assertEqual(self.call()["language"], "hi")
 
+    def test_partial_pcm_frame_denied_before_private_asr_egress(self):
+        # Python's wave reader floors a partial PCM frame; the signed source
+        # must not include a dangling byte that the ASR decoder may interpret
+        # differently. Exercise both mono and stereo block alignment.
+        for channels in (1, 2):
+            output = io.BytesIO()
+            with wave.open(output, "wb") as writer:
+                writer.setnchannels(channels)
+                writer.setsampwidth(2)
+                writer.setframerate(16000)
+                writer.writeframes(b"\\x00" * (channels * 2 * 16000))
+            canonical = output.getvalue()
+            self.calls.clear()
+            self.assertEqual(self.call(original_wav=canonical,
+                source_sha256=sha256(canonical).hexdigest())["language"], "hi")
+            self.assertEqual(len(self.calls), 1)
+            for remainder in range(1, channels * 2):
+                # Preserve valid RIFF size and original-byte SHA; only the
+                # declared data length is inconsistent with PCM sample frames.
+                malformed = bytearray(canonical + b"\\x00" * remainder)
+                malformed[4:8] = (len(malformed) - 8).to_bytes(4, "little")
+                malformed[40:44] = (len(malformed) - 44).to_bytes(4, "little")
+                if remainder % 2:
+                    malformed.append(0)  # canonical odd RIFF padding
+                    malformed[4:8] = (len(malformed) - 8).to_bytes(4, "little")
+                self.calls.clear()
+                with self.subTest(channels=channels, remainder=remainder):
+                    with self.assertRaises(VoiceStudioTranscriptionDenied):
+                        self.call(original_wav=bytes(malformed),
+                            source_sha256=sha256(malformed).hexdigest())
+                    self.assertEqual(self.calls, [])
+
     def test_zero_sample_rate_wav_fails_closed_without_egress(self):
         # RIFF header may be structurally readable while PCM rate is zero.
         # The worker must raise its domain denial, never ZeroDivisionError.
