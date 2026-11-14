@@ -89,6 +89,22 @@ def _checked_wav(wav_bytes):
         if ident == b"fmt ":
             if seen_fmt or seen_data:
                 raise VoiceStudioTranscriptionDenied("Duplicate WAV format")
+            # Match the trusted signed-media PCM gate exactly: Python's wave
+            # decoder does not validate every declared byte-rate/alignment field.
+            # A digest of inconsistent fmt bytes must never reach private ASR.
+            if length not in (16, 18) or (length == 18 and wav_bytes[offset + 24:offset + 26] != b"\\x00\\x00"):
+                raise VoiceStudioTranscriptionDenied("Unsupported PCM format metadata")
+            fmt = wav_bytes[offset + 8:offset + 24]
+            codec = int.from_bytes(fmt[0:2], "little")
+            channels = int.from_bytes(fmt[2:4], "little")
+            rate = int.from_bytes(fmt[4:8], "little")
+            byte_rate = int.from_bytes(fmt[8:12], "little")
+            block_align = int.from_bytes(fmt[12:14], "little")
+            bits = int.from_bytes(fmt[14:16], "little")
+            if (codec != 1 or channels not in (1, 2) or not 8000 <= rate <= 48000
+                    or bits != 16 or block_align != channels * 2
+                    or byte_rate != rate * block_align):
+                raise VoiceStudioTranscriptionDenied("Inconsistent original PCM format")
             seen_fmt = True
         elif ident == b"data":
             if not seen_fmt or length == 0:
