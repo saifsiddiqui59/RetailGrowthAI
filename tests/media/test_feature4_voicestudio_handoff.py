@@ -265,6 +265,39 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             with self.assertRaisesRegex(CreativeContractError, "object aliases another asset"):
                 self.call(draft, snapshot, receipt, data)
 
+    def test_compiler_rejects_equivalent_private_object_aliases(self):
+        # A compromised compiler must not reintroduce a differently spelled
+        # private WAV key after the trusted snapshot passed pre-read checks.
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original = adapter.compile_approved_storyboard
+        for alias in ("backslash", "dot", "parent", "trailing-dot", "uppercase"):
+            draft, snapshot, receipt, data = self.setup_case()
+            voice_id = draft["voiceover_asset_id"]
+
+            def forged(*args):
+                output = original(*args)
+                other_id = next(key for key in output["bundle"]["assets"]
+                                if key != voice_id)
+                voice = output["bundle"]["assets"][voice_id]
+                key = voice["object_path"]
+                variants = {
+                    "backslash": key.replace("/", chr(92)),
+                    "dot": key.replace("/render.wav", "/./render.wav"),
+                    "parent": key.replace("/render.wav", "/temp/../render.wav"),
+                    "trailing-dot": key + ".",
+                    "uppercase": key.upper(),
+                }
+                output["bundle"]["assets"][other_id]["storage_bucket"] = voice["storage_bucket"]
+                output["bundle"]["assets"][other_id]["object_path"] = variants[alias]
+                return output
+
+            with self.subTest(alias=alias), patch.object(
+                    adapter, "compile_approved_storyboard", side_effect=forged):
+                with self.assertRaisesRegex(
+                        CreativeContractError, "object aliases another asset"):
+                    self.call(draft, snapshot, receipt, data)
+
     def test_compiler_cannot_relicense_other_reviewed_media(self):
         # A trusted voice receipt must not permit a compiler to rewrite the
         # selected music/footage tenant, storage origin or license evidence.
