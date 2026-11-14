@@ -68,6 +68,7 @@ def _checked_wav(wav_bytes):
     # to VoiceStudio as well. Do not interpret a second fmt/data as audio.
     offset = 12
     seen_fmt = seen_data = False
+    pcm_block_align = None
     chunks = 0
     metadata_bytes = 0
     while offset + 8 <= len(wav_bytes):
@@ -105,9 +106,10 @@ def _checked_wav(wav_bytes):
                     or bits != 16 or block_align != channels * 2
                     or byte_rate != rate * block_align):
                 raise VoiceStudioTranscriptionDenied("Inconsistent original PCM format")
+            pcm_block_align = block_align
             seen_fmt = True
         elif ident == b"data":
-            if not seen_fmt or length == 0:
+            if not seen_fmt or length == 0 or length % pcm_block_align:
                 raise VoiceStudioTranscriptionDenied("Missing WAV format or samples")
             seen_data = True
         offset = end + length % 2
