@@ -33,7 +33,7 @@ def private_original_review_response(*, request, shop_id, campaign_id, request_i
             authorization = request.headers.get("Authorization")
         except (AttributeError, TypeError, ValueError, KeyError, IndexError):
             return 401, headers, b""
-        if type(authorization) is not str:
+        if type(authorization) is not str or not authorization.strip():
             return 401, headers, b""
         content = read_current_voiceover_for_review(
             shop_id=shop_id, campaign_id=campaign_id, request_id=request_id,
