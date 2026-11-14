@@ -400,6 +400,15 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
         worker_path = worker_row.get("path")
         if type(worker_path) is not str:
             raise CreativeContractError("Compiled media worker path missing")
+        # Every worker input, not only narration, must be a safe sandbox path.
+        if (not re.fullmatch(r"[A-Za-z0-9_./-]+", worker_path)
+                or worker_path.startswith(("/", "-"))
+                or any(part in ("", ".", "..") or part.endswith(".")
+                       or part.upper().split(".")[0] in
+                       {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)),
+                        *(f"LPT{i}" for i in range(1, 10))}
+                       for part in worker_path.split("/"))):
+            raise CreativeContractError("Unsafe compiled reviewed media worker path")
         normalized = posixpath.normpath("/".join(
             part if part in (".", "..") else part.rstrip(" .")
             for part in unicodedata.normalize("NFKC", worker_path)
