@@ -107,6 +107,24 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         self.assertEqual(receipt_reads, [])
         self.assertEqual(wav_reads, [])
 
+    def test_private_voice_cannot_be_reused_as_overlay_or_logo_before_read(self):
+        # A voice-only approval never authorizes image overlays or brand logos.
+        for placement in ("overlay", "logo"):
+            draft, snapshot, receipt, data = self.setup_case()
+            voice_id = draft["voiceover_asset_id"]
+            if placement == "overlay":
+                draft["scenes"][0]["poster_overlay_asset_id"] = voice_id
+            else:
+                snapshot.setdefault("brand", {})["logo_asset_id"] = voice_id
+            reads = []
+            with self.subTest(placement=placement), self.assertRaisesRegex(
+                    CreativeContractError, "reused as"):
+                compile_voicestudio_narrated_reel(
+                    draft=draft, snapshot=snapshot,
+                    read_current_receipt=lambda *_: reads.append("receipt") or dict(receipt),
+                    read_current_private_wav=lambda *_: reads.append("wav") or data)
+            self.assertEqual(reads, [])
+
     def test_modified_pcm_never_reaches_compiler_even_with_valid_wav_header(self):
         from unittest.mock import patch
         import feature4_voicestudio_handoff as adapter
