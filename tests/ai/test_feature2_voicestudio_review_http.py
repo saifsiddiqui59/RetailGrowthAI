@@ -100,3 +100,13 @@ def test_malformed_request_headers_fail_closed_without_service(monkeypatch):
         assert headers["Cache-Control"] == "no-store, private"
         assert "Content-Type" not in headers
     assert not calls
+
+
+def test_private_wav_http_security_headers_on_success_and_denial(monkeypatch):
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: b"RIFF" + b"x" * 48)
+    for auth, expected in (("Bearer valid-test-token-do-not-use", 200), (None, 401)):
+        status, headers, _ = _call(auth)
+        assert status == expected
+        assert headers["Vary"] == "Authorization"
+        assert headers["Referrer-Policy"] == "no-referrer"
+        assert headers["Cache-Control"] == "no-store, private"
