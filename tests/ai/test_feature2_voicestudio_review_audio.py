@@ -1108,9 +1108,9 @@ def test_mutable_storage_payload_denied_without_post_read_disclosure():
 
 
 @pytest.mark.parametrize("offset,replacement", [
-    (20, b"\\x03\\x00"),  # IEEE float is not PCM16
-    (34, b"\\x08\\x00"),  # 8-bit sample declaration on 16-bit PCM
-    (32, b"\\x01\\x00"),  # invalid mono PCM16 block alignment
+    (20, b"\x03\x00"),  # IEEE float is not PCM16
+    (34, b"\x08\x00"),  # 8-bit sample declaration on 16-bit PCM
+    (32, b"\x01\x00"),  # invalid mono PCM16 block alignment
 ])
 def test_digest_matching_noncanonical_pcm_format_denied_before_second_authorization(
     offset, replacement,
@@ -1210,7 +1210,7 @@ def test_matching_digest_non_pcm16_format_denied_before_second_sql_read(field_of
 def test_private_reader_rejects_oversized_audio_before_postread_authorization():
     """A matching SQL digest must not bypass the bounded private byte contract."""
     args, tenant, sql, storage, _ = harness()
-    oversized = b"RIFF" + b"\\x00" * (8 * 1024 * 1024)
+    oversized = b"RIFF" + b"\x00" * (8 * 1024 * 1024)
     original = sql.read_private_receipt
 
     def receipt(*ids):
