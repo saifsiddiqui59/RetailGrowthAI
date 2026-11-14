@@ -75,13 +75,21 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
         # A real verifier can rotate after composition or during backend IO.
         # Deny both cases before private bytes can leave this boundary.
         try:
-            issuer_matches = (
-                not isinstance(verifier, SupabaseJWTVerifier) or
-                (type(verifier.issuer) is str and
-                 verifier.issuer == supabase_origin.rstrip("/") + "/auth/v1" and
-                 type(getattr(getattr(verifier, "client", None), "uri", None)) is str and
-                 verifier.client.uri == supabase_origin.rstrip("/") + "/auth/v1/.well-known/jwks.json")
-            )
+            issuer_matches = True
+            if isinstance(verifier, SupabaseJWTVerifier):
+                # Snapshot both verifier trust anchors twice. Stateful or
+                # swapped JWKS clients must not authenticate a foreign project.
+                issuer_a, client_a = verifier.issuer, verifier.client
+                jwks_a = getattr(client_a, "uri", None)
+                issuer_b, client_b = verifier.issuer, verifier.client
+                jwks_b = getattr(client_b, "uri", None)
+                issuer_matches = (
+                    type(issuer_a) is str and type(issuer_b) is str and
+                    type(jwks_a) is str and type(jwks_b) is str and
+                    issuer_a == issuer_b == supabase_origin.rstrip("/") + "/auth/v1" and
+                    client_a is client_b and
+                    jwks_a == jwks_b == supabase_origin.rstrip("/") + "/auth/v1/.well-known/jwks.json"
+                )
         except Exception:
             return False
         return (issuer_matches and
