@@ -67,3 +67,10 @@ On child #942, reject accessor-backed or inherited `review.words` before any arr
 - Verified GitHub parent head `b15edeb8204ddc6c7ab7de1a6e554d6e62ea3149`; parent #513 OPEN, mergeable=false; #911/#926 already merged into parent and F4 dependency #910 merged into its own parent. Current main `ce068fff8bb21dd0ab1fa8477dd5f822b881884b`.
 - **Tests/CI not verified:** local `git ls-remote` failed DNS; GitHub exact-head PR workflow lookup returned zero runs. Do not claim 4/4 or merge to main.
 - **NEXT CODE ACTION:** run `python -m unittest tests.media.test_feature7_voicestudio_signed_handoff` and `node --check video-engine/feature7/voicestudio_signed_handoff.mjs` in a checkout, repair owner-scoped failures, verify exact-final-head four-job PR CI; then reconcile #513 with main through serialized integration writer. GPU, paid models, cloud/PROD, shared auth/schema and WineShopPOS OFF.
+
+
+## 2026-11-14 — C1/invisible ASR review-text hardening
+- Source `5dc699ecf0a89ca6c0a99fe7ae95dcb573f6f758` rejects DEL/C1, Unicode line/paragraph separators and BOM in upstream word and transcript text, in addition to existing bidi and surrogate checks. Existing VoiceStudio endpoint only; no model or network inference.
+- Regression `2b0e5f97a93c2bd020abe54616ceb7ca374095db` tests every rejected codepoint in Hindi word and transcript fields, plus valid Hindi control. Feature7-owned paths only.
+- Exact test-head GitHub returned no PR-triggered workflow runs or combined statuses: 0/4 verified. Local git checkout still blocked by github.com DNS, so offline tests not executed; parent #513 remains OPEN and unmerged, with #911/#926 already integrated into parent. F4 dependency #910 remains F4-parent-only.
+- NEXT CODE ACTION: execute `python -m unittest discover -s tests/media -p 'test_feature7_voicestudio*.py'` in a reachable checkout, repair scoped failures, verify exact-final-head four-job CI, and reconcile parent #513 against latest main under serialized Integration Sprint review. Then test original-video/WAV provenance and lease-clock races. No GPU/paid/cloud/PROD/WineShopPOS changes.
