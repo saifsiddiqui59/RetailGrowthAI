@@ -263,6 +263,39 @@ class HttpTests(unittest.TestCase):
         self.reader.tamper = None
         self.assertEqual(self.call().status, 200)
 
+    def test_spoofed_mapping_keys_never_release_private_bytes(self):
+        # A backend adapter may return a real dict with hostile key objects.
+        # No equality/hash spoof may substitute for literal protocol keys.
+        class SpoofedKey:
+            def __init__(self, name):
+                self.name = name
+
+            def __hash__(self):
+                return hash(self.name)
+
+            def __eq__(self, other):
+                return other == self.name
+
+        class SpoofingReader:
+            def read(self, **kwargs):
+                return {
+                    SpoofedKey("shop_id"): self_shop,
+                    SpoofedKey("job_id"): self_job,
+                    "media_asset_id": str(uuid4()),
+                    "image_sha256": sha256(PNG).hexdigest(),
+                    "image_bytes": PNG,
+                    "mime_type": "image/png",
+                    "private": True,
+                    "signed_url_issued": False,
+                    "approved_model": False,
+                    "publish_approved": False,
+                }
+
+        self_shop, self_job = self.shop, self.job
+        reply = self.call(reader_factory=lambda shop, job: SpoofingReader())
+        self.assertEqual(reply.status, 404)
+        self.assertEqual(reply.body, b"")
+
     def test_non_dictionary_reader_result_never_releases_bytes(self):
         class InvalidReader:
             def read(self, **kwargs):
