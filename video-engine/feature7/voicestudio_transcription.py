@@ -160,7 +160,8 @@ def transcribe_private_voice(
         raise VoiceStudioTranscriptionDenied("VoiceStudio ASR model not enabled/verified")
     if language is not None and (type(language) is not str or language not in _ALLOWED_LANGUAGES):
         raise VoiceStudioTranscriptionDenied("Unsupported ASR locale")
-    if type(api_key) is not str or len(api_key) < 16:
+    if (type(api_key) is not str or not 16 <= len(api_key) <= 4096
+            or not api_key.isascii() or any(ord(ch) <= 32 or ord(ch) >= 127 for ch in api_key)):
         raise VoiceStudioTranscriptionDenied("Private ASR credential required")
     if type(source_sha256) is not str or not _SHA.fullmatch(source_sha256):
         raise VoiceStudioTranscriptionDenied("Trusted original audio digest required")
