@@ -1308,3 +1308,47 @@ def test_changed_audio_asset_identity_after_private_get_denies_bytes():
         read_current_voiceover_for_review(**args)
     assert len(storage.calls) == 1
     assert len(sql.calls) == 2
+
+
+def test_receipt_asset_swap_after_private_get_denied():
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+    def changed(*ids):
+        receipt = original(*ids)
+        if len(sql.calls) == 2:
+            receipt["audio_asset_id"] = str(uuid4())
+        return receipt
+    sql.read_private_receipt = changed
+    with pytest.raises(VoiceStudioReviewDenied, match="access denied"):
+        read_current_voiceover_for_review(**args)
+    assert len(storage.calls) == 1 and len(sql.calls) == 2
+
+
+def test_receipt_rights_revoked_after_private_get_denied():
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+    def changed(*ids):
+        receipt = original(*ids)
+        if len(sql.calls) == 2:
+            receipt["commercial_rights_confirmed"] = False
+        return receipt
+    sql.read_private_receipt = changed
+    with pytest.raises(VoiceStudioReviewDenied, match="access denied"):
+        read_current_voiceover_for_review(**args)
+    assert len(storage.calls) == 1 and len(sql.calls) == 2
+
+
+def test_jwt_revoked_after_private_get_denies_bytes():
+    args, tenant, sql, storage, _ = harness()
+    calls = []
+    def verifier(token):
+        calls.append(token)
+        if len(calls) == 2:
+            raise ValueError("revoked JWT")
+        return USER
+    args["verify_token"] = verifier
+    with pytest.raises(VoiceStudioReviewDenied, match="access denied") as error:
+        read_current_voiceover_for_review(**args)
+    assert "JWT" not in str(error.value)
+    assert len(storage.calls) == 1 and len(sql.calls) == 2
+    assert len(calls) == 2 and len(tenant.calls) == 1
