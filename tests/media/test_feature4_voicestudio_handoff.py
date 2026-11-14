@@ -76,6 +76,21 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         })
         self.assertNotIn("voiceover_source",draft)
 
+    def test_malformed_trusted_brand_denied_before_private_read(self):
+        # A corrupt trusted snapshot must never escape as AttributeError or
+        # access private WAV/receipt bytes before its shape is validated.
+        for malformed in (None, [], "brand", False):
+            draft, snapshot, receipt, data = self.setup_case()
+            snapshot["brand"] = malformed
+            reads = []
+            with self.subTest(brand=malformed), self.assertRaisesRegex(
+                    CreativeContractError, "Trusted narration brand required"):
+                compile_voicestudio_narrated_reel(
+                    draft=draft, snapshot=snapshot,
+                    read_current_receipt=lambda *_: reads.append("receipt") or dict(receipt),
+                    read_current_private_wav=lambda *_: reads.append("wav") or data)
+            self.assertEqual(reads, [])
+
     def test_other_reviewed_media_denied_before_private_wav_read(self):
         # The narration approval cannot authorize reading a private WAV when
         # the accompanying music/footage has been removed or revoked.
