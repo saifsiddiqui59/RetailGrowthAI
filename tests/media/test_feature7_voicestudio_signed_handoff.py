@@ -163,6 +163,24 @@ for (const word of [
   inherited[0]=review.words[0];
   reject({review:{...review,words}});
 }
+// A Proxy over the word ARRAY may intercept indexed reads even when every
+// element has a safe own-data descriptor. Signing must never invoke get traps.
+{
+  let reads=0;
+  const words=new Proxy([...review.words],{
+    get(target,property,receiver) {
+      if (property==='0' || property==='1') {
+        reads++;
+        throw Error('untrusted array index get trap');
+      }
+      return Reflect.get(target,property,receiver);
+    }
+  });
+  const signed=bindVoiceStudioReview({...input,review:{...review,words}});
+  assert.equal(reads,0);
+  assert.equal(signed.transcript.words.length,2);
+  assert.equal(signed.evidence.source_sha256,video);
+}
 // A hostile word getter must not run while building signed evidence.
 for (const field of ['word','start','end']) {
   let calls=0;
