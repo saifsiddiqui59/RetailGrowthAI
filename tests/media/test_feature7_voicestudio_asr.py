@@ -78,6 +78,28 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
         self.assertIn(b'timestamp_granularities[]',req.data)
         self.assertIn(self.original,req.data)
 
+    def test_nonbyte_transport_response_never_enters_signed_review(self):
+        # A mocked or compromised transport may violate HTTPResponse.read's
+        # bytes contract. Only raw JSON wire bytes may be parsed as ASR evidence.
+        payload = json.dumps(self.payload, ensure_ascii=False).encode("utf-8")
+        for value in (payload.decode("utf-8"), bytearray(payload),
+                      memoryview(payload), None, {"words": []}):
+            class MalformedReply(Reply):
+                def read(self, size=-1):
+                    return value
+
+            def sender(req, timeout):
+                self.calls.append((req, timeout))
+                return MalformedReply(b"")
+
+            with self.subTest(response_type=type(value).__name__):
+                self.calls.clear()
+                with self.assertRaises(VoiceStudioTranscriptionDenied):
+                    self.call(transport=sender)
+                self.assertEqual(len(self.calls), 1)
+        self.calls.clear()
+        self.assertEqual(self.call()["language"], "hi")
+
     def test_none_of_the_denied_requests_egress(self):
         examples=[
             {"enabled":False},
