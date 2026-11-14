@@ -103,6 +103,13 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
         if (type(media) is not dict or media.get("shop_id") != shop
                 or media.get("approved") is not True):
             raise CreativeContractError("Reviewed media missing, foreign or revoked")
+        if selected_id != asset_id and (
+                media.get("license_name") not in ("owned", "commercial")
+                or type(media.get("rights_source")) is not str
+                or not media["rights_source"].strip()
+                or type(media.get("rights_evidence")) is not str
+                or not media["rights_evidence"].strip()):
+            raise CreativeContractError("Reviewed companion media rights missing")
 
     def authoritative():
         record = read_current_receipt(shop, campaign, asset_id)
