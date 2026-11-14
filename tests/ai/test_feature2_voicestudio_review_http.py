@@ -137,3 +137,14 @@ def test_http_boundary_rejects_malformed_or_oversized_reader_bytes(monkeypatch):
         status, headers, body = _call()
         assert status == 404 and body == b""
         assert "Content-Type" not in headers and "Content-Length" not in headers
+
+
+def test_blank_authorization_never_reaches_private_audio_service(monkeypatch):
+    calls = []
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: calls.append(1))
+    for auth in ("", " ", "\\t", "\\r\\n", "  \\t  "):
+        status, headers, body = _call(auth)
+        assert status == 401 and body == b""
+        assert headers["Cache-Control"] == "no-store, private"
+        assert "Content-Type" not in headers
+    assert calls == []
