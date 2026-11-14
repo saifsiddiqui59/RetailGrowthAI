@@ -102,7 +102,14 @@ export function bindVoiceStudioReview({
   const normalized=normalizeWhisperx({
     shop_id,asset_id,source_sha256:original_video_sha256,
     source_duration_seconds,
-    // The existing normalizer caps each segment at 200 words, while the\n    // VoiceStudio handoff allows 2000. Split into bounded consecutive chunks\n    // without changing word order, timings, or the canonical transcript hash.\n    transcript:{segments:Array.from(\n      {length:Math.ceil(reviewSnapshot.words.length/200)},(_,i)=>({\n        words:Array.prototype.slice.call(reviewSnapshot.words,i*200,(i+1)*200)\n      }))}
+    // The existing normalizer caps each segment at 200 words; preserve all
+    // 2000 accepted VoiceStudio words in bounded consecutive segments.
+    // Normalize immutable descriptor snapshots, never untrusted Proxy getters.
+    transcript:{segments:Array.from(
+      {length:Math.ceil(wordSnapshots.length/200)},(_,i)=>({
+        words:wordSnapshots.slice(i*200,(i+1)*200)
+      }))}
+
   });
   // Recheck every word field: a Proxy may mutate a sibling word's timing or
   // text while the normalizer reads an earlier word without replacing slots.
