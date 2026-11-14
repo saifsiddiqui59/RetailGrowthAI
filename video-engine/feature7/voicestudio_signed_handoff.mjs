@@ -50,8 +50,10 @@ export function bindVoiceStudioReview({
     reviewSnapshot.word_timings_present===true &&
     reviewSnapshot.model_revision_verified_by_worker===false &&
     ['en','hi','mr'].includes(reviewSnapshot.language) &&
-    SHA.test(original_video_sha256??'') &&
-    SHA.test(original_audio_sha256??'') &&
+    typeof original_video_sha256==='string' &&
+    typeof original_audio_sha256==='string' &&
+    SHA.test(original_video_sha256) &&
+    SHA.test(original_audio_sha256) &&
     reviewSnapshot.audio_sha256===original_audio_sha256 &&
     [shop_id,asset_id,job_id,model_id].every(v=>typeof v==='string'&&ID.test(v)) &&
     Number.isFinite(source_duration_seconds) &&
