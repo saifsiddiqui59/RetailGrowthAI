@@ -49,3 +49,34 @@ def test_provider_exception_does_not_leak_message_or_private_bytes(monkeypatch):
     status, headers, body = _call()
     assert status == 503 and body == b""
     assert "sensitive" not in repr((headers, body))
+
+
+def test_nonbytes_service_result_is_never_disclosed(monkeypatch):
+    # Reject str, bytearray and memoryview: only immutable, checked WAV bytes pass.
+    for result in ("RIFFprivate", bytearray(b"RIFFprivate"), memoryview(b"RIFFprivate")):
+        monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: result)
+        status, headers, body = _call()
+        assert status == 404 and body == b""
+        assert "Content-Type" not in headers
+        assert "Content-Length" not in headers
+
+
+def test_missing_authorization_does_not_invoke_service(monkeypatch):
+    calls = []
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: calls.append(1))
+    for auth in (None, b"Bearer secret", ["Bearer secret"], 123):
+        status, headers, body = _call(auth)
+        assert status == 401 and body == b""
+        assert headers["Cache-Control"] == "no-store, private"
+    assert calls == []
+
+
+def test_review_denial_does_not_expose_private_response(monkeypatch):
+    def denied(**_):
+        raise http.VoiceStudioReviewDenied("private original key and token")
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", denied)
+    status, headers, body = _call()
+    assert status == 404 and body == b""
+    assert "Content-Type" not in headers
+    assert "Content-Length" not in headers
+    assert "private original key" not in repr((headers, body))
