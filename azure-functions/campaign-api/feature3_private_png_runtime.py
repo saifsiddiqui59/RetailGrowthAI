@@ -37,6 +37,15 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
         supabase_origin)
     if not callable(verifier):
         raise ValueError("Trusted JWT verifier required")
+    # The live composition path must use the concrete asymmetric verifier and
+    # its real JWKS client. Callable fixtures and inert clients are permitted
+    # only when an isolated test store is explicitly injected. An attacker-
+    # controlled callable or fake JWKS client must not become live authority.
+    if tenant_store is None:
+        from jwt import PyJWKClient
+        if (type(verifier) is not SupabaseJWTVerifier or
+                type(getattr(verifier, "client", None)) is not PyJWKClient):
+            raise ValueError("Live private PNG requires trusted JWT/JWKS verifier")
     # A preconstructed verifier must never authenticate tokens issued by a
     # different Supabase project. Synthetic test callables intentionally have
     # no issuer; real verifier instances always expose the pinned issuer.
