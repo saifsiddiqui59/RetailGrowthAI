@@ -1352,3 +1352,22 @@ def test_jwt_revoked_after_private_get_denies_bytes():
     assert "JWT" not in str(error.value)
     assert len(storage.calls) == 1 and len(sql.calls) == 2
     assert len(calls) == 2 and len(tenant.calls) == 1
+
+
+def test_untrusted_extra_receipt_fields_cannot_affect_postread_authorization():
+    """Provider-only fields are not part of the trusted SQL receipt contract."""
+    args, tenant, sql, storage, _ = harness()
+    original = sql.read_private_receipt
+
+    class PoisonEquality:
+        def __eq__(self, other):
+            raise RuntimeError("untrusted SQL metadata equality executed")
+
+    def receipt(*ids):
+        row = original(*ids)
+        row["untrusted_provider_metadata"] = PoisonEquality()
+        return row
+
+    sql.read_private_receipt = receipt
+    assert read_current_voiceover_for_review(**args) == pcm()
+    assert len(storage.calls) == 1 and len(sql.calls) == 2
