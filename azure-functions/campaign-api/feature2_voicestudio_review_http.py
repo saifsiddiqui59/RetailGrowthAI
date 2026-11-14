@@ -26,7 +26,11 @@ def private_original_review_response(*, request, shop_id, campaign_id, request_i
         "Content-Security-Policy": "default-src 'none'",
     }
     try:
-        authorization = request.headers.get("Authorization")
+        # Malformed HTTP request wrappers are unauthenticated, not provider outages.
+        try:
+            authorization = request.headers.get("Authorization")
+        except (AttributeError, TypeError, ValueError):
+            return 401, headers, b""
         if type(authorization) is not str:
             return 401, headers, b""
         content = read_current_voiceover_for_review(
