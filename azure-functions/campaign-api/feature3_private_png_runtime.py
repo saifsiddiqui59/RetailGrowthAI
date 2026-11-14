@@ -37,6 +37,27 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
         supabase_origin)
     if not callable(verifier):
         raise ValueError("Trusted JWT verifier required")
+    # The live composition path must use the concrete asymmetric verifier and
+    # its real JWKS client. Callable fixtures and inert clients are permitted
+    # only when an isolated test store is explicitly injected. An attacker-
+    # controlled callable or fake JWKS client must not become live authority.
+    if tenant_store is None:
+        from jwt import PyJWKClient
+        if (type(verifier) is not SupabaseJWTVerifier or
+                type(getattr(verifier, "client", None)) is not PyJWKClient):
+            raise ValueError("Live private PNG requires trusted JWT/JWKS verifier")
+    # A preconstructed verifier must never authenticate tokens issued by a
+    # different Supabase project. Synthetic test callables intentionally have
+    # no issuer; real verifier instances always expose the pinned issuer.
+    if isinstance(verifier, SupabaseJWTVerifier) and (
+            type(verifier.issuer) is not str or
+            verifier.issuer != supabase_origin.rstrip("/") + "/auth/v1" or
+            type(getattr(getattr(verifier, "client", None), "uri", None)) is not str or
+            verifier.client.uri != supabase_origin.rstrip("/") + "/auth/v1/.well-known/jwks.json"):
+        raise ValueError("JWT verifier must match configured project")
+    # Pin the exact JWKS client object; replacing it with a same-URI client 
+    # must not silently rotate the trust authority of a cached reader.
+    pinned_jwks_client = verifier.client if isinstance(verifier, SupabaseJWTVerifier) else None
     # Do not permit equality-overloaded objects or string subclasses to
     # impersonate the configured project or public key at this trust boundary.
     store_origin = getattr(store, "origin", None)
@@ -63,7 +84,32 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
             post_key_origin = store.origin
         except Exception:
             return False
-        return (type(first_origin) is str and type(first_key) is str and
+        # A real verifier can rotate after composition or during backend IO.
+        # Deny both cases before private bytes can leave this boundary.
+        try:
+            issuer_matches = True
+            if isinstance(verifier, SupabaseJWTVerifier):
+                # Snapshot both verifier trust anchors twice. Stateful or
+                # swapped JWKS clients must not authenticate a foreign project.
+                issuer_a, client_a = verifier.issuer, verifier.client
+                jwks_a = getattr(client_a, "uri", None)
+                issuer_b, client_b = verifier.issuer, verifier.client
+                jwks_b = getattr(client_b, "uri", None)
+                from jwt import PyJWKClient
+                issuer_matches = (
+                    type(verifier) is SupabaseJWTVerifier and
+                    (tenant_store is not None or
+                     (type(client_a) is PyJWKClient and type(client_b) is PyJWKClient)) and
+                    type(issuer_a) is str and type(issuer_b) is str and
+                    type(jwks_a) is str and type(jwks_b) is str and
+                    issuer_a == issuer_b == supabase_origin.rstrip("/") + "/auth/v1" and
+                    client_a is client_b and client_a is pinned_jwks_client and
+                    jwks_a == jwks_b == supabase_origin.rstrip("/") + "/auth/v1/.well-known/jwks.json"
+                )
+        except Exception:
+            return False
+        return (issuer_matches and
+                type(first_origin) is str and type(first_key) is str and
                 type(second_origin) is str and type(second_key) is str and
                 type(last_origin) is str and type(last_key) is str and
                 type(post_key_origin) is str and
@@ -123,6 +169,17 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                         any(ch in user_token for ch in (",", ";", '"', "\\"))):
                     raise PrivateGeneratedDownloadDenied(
                         "Private generated output unavailable")
+                # Only the live route accepts compact, three-part JWS tokens.
+                # Synthetic fixture stores retain their isolated dummy tokens;
+                # this framing check is not a substitute for JWT verification.
+                if tenant_store is None:
+                    parts = user_token.split(".")
+                    if (len(parts) != 3 or any(not part for part in parts) or
+                            any(any(not (ch.isascii() and
+                                         (ch.isalnum() or ch in "-_"))
+                                    for ch in part) for part in parts)):
+                        raise PrivateGeneratedDownloadDenied(
+                            "Private generated output unavailable")
                 # Revalidate at use time as well as construction time: a
                 # cached scoped reader may outlive a rotated/mutated store.
                 # Deny before invoking JWT verification or any RLS/byte read.
