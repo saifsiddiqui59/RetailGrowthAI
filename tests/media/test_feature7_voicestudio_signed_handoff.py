@@ -115,7 +115,12 @@ for (const word of [
     assert.equal(signed.transcript.words[i].endMs,Math.round(words[i].end*1000));
   }
 
-  assert.equal(signed.whisperx_json.segments[0].words.length,201);
+  assert.equal(signed.whisperx_json.segments.length,2);
+  assert.equal(signed.whisperx_json.segments[0].words.length,200);
+  assert.equal(signed.whisperx_json.segments[1].words.length,1);
+  assert.equal(signed.whisperx_json.segments[1].words[0].word,'शब्द');
+  assert.equal(signed.whisperx_json.segments[1].words[0].start,
+    signed.transcript.words[200].startMs/1000);
   assert.equal(signed.transcript.words[200].word,'शब्द');
   const tooMany=Array.from({length:2001},(_,i)=>({
     word:'शब्द',start:i*.0005,end:i*.0005+.0004
