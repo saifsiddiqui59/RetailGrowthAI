@@ -294,6 +294,18 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
                           Reply(body.encode("utf-8")))
         self.assertEqual(self.call()["language"], "hi")
 
+    def test_excessive_json_nesting_fails_closed_with_domain_denial(self):
+        # A small, deeply nested unknown field can exceed Python's JSON
+        # recursion limit even when the HTTP response is below MAX_JSON.
+        # Never leak RecursionError or pass an ambiguous review downstream.
+        base = json.dumps(self.payload, ensure_ascii=False)
+        deeply_nested = "[" * 1500 + "0" + "]" * 1500
+        body = base[:-1] + ', "ignored": ' + deeply_nested + "}"
+        with self.assertRaises(VoiceStudioTranscriptionDenied):
+            self.call(transport=lambda req, timeout: Reply(body.encode("utf-8")))
+        # A normal Indic response still reaches the review-only adapter.
+        self.assertEqual(self.call()["words"][0]["word"], "नमस्ते")
+
     def test_upstream_error_redacted(self):
         from urllib.error import URLError
         def sender(req,timeout):
