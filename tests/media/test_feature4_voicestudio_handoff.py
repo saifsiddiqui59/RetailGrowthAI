@@ -315,6 +315,30 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                 with self.assertRaisesRegex(CreativeContractError, "unapproved media asset"):
                     self.call(draft, snapshot, receipt, data)
 
+
+    def test_compiler_rejects_unsafe_non_voice_worker_paths(self):
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original = adapter.compile_approved_storyboard
+        for unsafe in ("../foreign.mp3", "/etc/passwd", "assets/../foreign.mp3",
+                       "https://evil.test/a.mp3", "assets/CON.mp3",
+                       "assets/foreign.mp3.", "assets/foreign\\\\clip.mp3"):
+            draft, snapshot, receipt, data = self.setup_case()
+            voice_id = draft["voiceover_asset_id"]
+
+            def forged(*args):
+                output = original(*args)
+                other_id = next(key for key in output["manifest"]["assets"]
+                                if key != voice_id)
+                output["manifest"]["assets"][other_id]["path"] = unsafe
+                return output
+
+            with self.subTest(path=unsafe), patch.object(
+                    adapter, "compile_approved_storyboard", side_effect=forged):
+                with self.assertRaisesRegex(
+                        CreativeContractError, "Unsafe compiled reviewed media worker path"):
+                    self.call(draft, snapshot, receipt, data)
+
     def test_compiler_rejects_collision_between_non_voice_worker_assets(self):
         # Two independently reviewed assets must never overwrite one another
         # in the FFmpeg staging directory, even if narration itself is safe.
