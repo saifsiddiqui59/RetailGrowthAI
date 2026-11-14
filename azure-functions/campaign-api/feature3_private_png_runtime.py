@@ -42,7 +42,9 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
     # no issuer; real verifier instances always expose the pinned issuer.
     if isinstance(verifier, SupabaseJWTVerifier) and (
             type(verifier.issuer) is not str or
-            verifier.issuer != supabase_origin.rstrip("/") + "/auth/v1"):
+            verifier.issuer != supabase_origin.rstrip("/") + "/auth/v1" or
+            type(getattr(getattr(verifier, "client", None), "uri", None)) is not str or
+            verifier.client.uri != supabase_origin.rstrip("/") + "/auth/v1/.well-known/jwks.json"):
         raise ValueError("JWT verifier must match configured project")
     # Do not permit equality-overloaded objects or string subclasses to
     # impersonate the configured project or public key at this trust boundary.
@@ -76,7 +78,9 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
             issuer_matches = (
                 not isinstance(verifier, SupabaseJWTVerifier) or
                 (type(verifier.issuer) is str and
-                 verifier.issuer == supabase_origin.rstrip("/") + "/auth/v1")
+                 verifier.issuer == supabase_origin.rstrip("/") + "/auth/v1" and
+                 type(getattr(getattr(verifier, "client", None), "uri", None)) is str and
+                 verifier.client.uri == supabase_origin.rstrip("/") + "/auth/v1/.well-known/jwks.json")
             )
         except Exception:
             return False
