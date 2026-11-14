@@ -247,6 +247,7 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
             or any(type(before_scene) is not dict or type(after_scene) is not dict
                    or before_scene.get("asset_id") != after_scene.get("asset_id")
                    or before_scene.get("sfx_asset_id") != after_scene.get("sfx_asset_id")
+                   or before_scene.get("poster_overlay_asset_id") != after_scene.get("poster_overlay_asset_id")
                    for before_scene, after_scene in zip(source_scenes, rendered_scenes))):
         raise CreativeContractError("Compiled narration changed reviewed media selection")
     # Recheck purpose at the compiled boundary: a future compiler revision must
