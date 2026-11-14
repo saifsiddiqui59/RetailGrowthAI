@@ -93,6 +93,37 @@ class RevocableReaderTests(unittest.TestCase):
         self.on_read=None
         self.reader=self.build()
 
+    def test_hostile_backend_mapping_keys_denied_before_rights_or_bytes(self):
+        """Synthetic malicious SQL adapter keys cannot spoof trusted fields."""
+        class SpoofKey:
+            def __hash__(self):
+                return hash("id")
+            def __eq__(self, other):
+                return other == "id"
+
+        for stage in ("job", "asset"):
+            with self.subTest(stage=stage):
+                self.tenant.calls.clear()
+                self.calls.clear()
+                self.rights_called = 0
+                original = getattr(self.tenant, "feature3_gpu_job" if stage == "job"
+                                   else "feature3_generated_asset")
+
+                def hostile(*args, **kwargs):
+                    row = original(*args, **kwargs)
+                    row[SpoofKey()] = "synthetic-hostile-value"
+                    return row
+
+                from unittest.mock import patch
+                method = ("feature3_gpu_job" if stage == "job"
+                          else "feature3_generated_asset")
+                with patch.object(self.tenant, method, side_effect=hostile):
+                    with self.assertRaises(PrivateGeneratedDownloadDenied):
+                        self.reader.read(user_token="fake-signed-retailer-token",
+                                         shop_id=self.shop, job_id=self.job)
+                self.assertEqual(self.rights_called, 0)
+                self.assertNotIn("get", self.calls)
+
     def verify(self,token):
         self.calls.append("verify")
         if token!="fake-signed-retailer-token":
