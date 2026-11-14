@@ -88,6 +88,10 @@ class Feature3RevocablePNGReader:
         except Exception:
             raise PrivateGeneratedDownloadDenied(
                 "Private generated output unavailable") from None
+        # Reject hostile mapping keys before any lookup: custom __hash__/__eq__
+        # methods could impersonate a trusted field or execute during get().
+        if type(row) is not dict or any(type(key) is not str for key in row):
+            raise PrivateGeneratedDownloadDenied("Private generated output unavailable")
         # Injected tenant adapters must not impersonate identities via __eq__.
         if (type(row) is not dict or
                 type(row.get("id")) is not str or row["id"] != job or
@@ -105,6 +109,8 @@ class Feature3RevocablePNGReader:
         except Exception:
             raise PrivateGeneratedDownloadDenied(
                 "Private generated output unavailable") from None
+        if type(asset) is not dict or any(type(field) is not str for field in asset):
+            raise PrivateGeneratedDownloadDenied("Private generated output unavailable")
         key = asset.get("object_path") if isinstance(asset, dict) else None
         prefix = f"{shop}/feature3/gpu/{job}/"
         # The TenantStore currently validates these fields, but this is
