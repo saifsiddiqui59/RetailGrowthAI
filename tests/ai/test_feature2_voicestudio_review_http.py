@@ -32,8 +32,13 @@ def test_missing_authorization_fails_without_calling_dependencies():
     assert headers["Pragma"] == "no-cache"
 
 
+def _valid_wav_envelope():
+    payload = b"WAVEfmt " + (16).to_bytes(4, "little") + b"\x01\x00\x01\x00" + (8000).to_bytes(4, "little") + (16000).to_bytes(4, "little") + b"\x02\x00\x10\x00" + b"data" + (2).to_bytes(4, "little") + b"\x00\x00"
+    return b"RIFF" + (len(payload) + 4).to_bytes(4, "little") + payload
+
+
 def test_private_wav_success_has_exact_length_and_no_storage_identifier(monkeypatch):
-    payload = b"RIFF" + b"x" * 48
+    payload = _valid_wav_envelope()
     monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: payload)
     status, headers, body = _call()
     assert status == 200 and body == payload
@@ -103,7 +108,7 @@ def test_malformed_request_headers_fail_closed_without_service(monkeypatch):
 
 
 def test_private_wav_http_security_headers_on_success_and_denial(monkeypatch):
-    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: b"RIFF" + b"x" * 48)
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: _valid_wav_envelope())
     for auth, expected in (("Bearer valid-test-token-do-not-use", 200), (None, 401)):
         status, headers, _ = _call(auth)
         assert status == expected
@@ -120,3 +125,15 @@ def test_empty_private_audio_is_denied_without_audio_headers(monkeypatch):
     assert headers["Cache-Control"] == "no-store, private"
     assert "Content-Type" not in headers
     assert "Content-Length" not in headers
+
+
+def test_http_boundary_rejects_malformed_or_oversized_reader_bytes(monkeypatch):
+    good = _valid_wav_envelope()
+    invalid = (good + b"hidden", good[:4] + b"\\x00\\x00\\x00\\x00" + good[8:],
+               b"NOTW" + good[4:], good[:8] + b"NOPE" + good[12:],
+               b"RIFF" + (8 * 1024 * 1024).to_bytes(4, "little") + b"WAVE" + b"x" * (8 * 1024 * 1024))
+    for payload in invalid:
+        monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: payload)
+        status, headers, body = _call()
+        assert status == 404 and body == b""
+        assert "Content-Type" not in headers and "Content-Length" not in headers
