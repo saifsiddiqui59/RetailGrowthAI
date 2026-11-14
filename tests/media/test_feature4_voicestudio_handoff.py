@@ -225,6 +225,29 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                         CreativeContractError, "reviewed asset rights or origin"):
                     self.call(draft, snapshot, receipt, data)
 
+    def test_compiler_cannot_swap_reviewed_poster_overlay(self):
+        # Existing approved IDs are not interchangeable: the editor reviewed
+        # the exact overlay on this scene, not any other licensed media.
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original = adapter.compile_approved_storyboard
+        draft, snapshot, receipt, data = self.setup_case()
+        scene = draft["scenes"][0]
+        original_overlay = scene.get("poster_overlay_asset_id")
+        other_id = next(key for key in snapshot["assets"]
+                        if key not in (draft["voiceover_asset_id"], original_overlay))
+        scene["poster_overlay_asset_id"] = other_id
+
+        def forged(*args):
+            result = original(*args)
+            result["request"]["scenes"][0]["poster_overlay_asset_id"] = original_overlay
+            return result
+
+        with patch.object(adapter, "compile_approved_storyboard", side_effect=forged):
+            with self.assertRaisesRegex(
+                    CreativeContractError, "changed reviewed media selection"):
+                self.call(draft, snapshot, receipt, data)
+
     def test_compiler_cannot_drop_reviewed_media_from_both_worker_maps(self):
         # A subset-only asset check misses omissions when both maps agree.
         from unittest.mock import patch
