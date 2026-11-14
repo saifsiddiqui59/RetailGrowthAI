@@ -281,7 +281,10 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
         )
     ):
         raise CreativeContractError("Compiled narration cannot be reused as music, SFX or footage")
-    if output.get("bundle", {}).get("brand", {}).get("logo_asset_id") == asset_id or request.get("logo_asset_id") == asset_id:
+    compiled_brand = output["bundle"].get("brand")
+    if type(compiled_brand) is not dict:
+        raise CreativeContractError("Malformed compiled narration brand")
+    if compiled_brand.get("logo_asset_id") == asset_id or request.get("logo_asset_id") == asset_id:
         raise CreativeContractError("Compiled narration cannot be reused as brand logo")
     # A compiler must not substitute a different already-trusted media ID:
     # approval of a private narration does not authorize changing the music
