@@ -119,6 +119,24 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
                     self.call(**case)
                 self.assertEqual(self.calls,[])
 
+    def test_noncanonical_endpoint_characters_denied_without_egress(self):
+        # urlsplit can strip CR/LF/TAB and some controls before validation.
+        # Reject the original endpoint spelling rather than the sanitized URL.
+        for base in (
+            "http://127.0.0.1:3900\n",
+            "\thttp://127.0.0.1:3900",
+            "http://127.0.0.1:3900\r",
+            "http://127.0.0.1:3900\\\\evil.test",
+            "http://127.0.0.1:3900 ",
+            "http://127.0.0.1:3900/é",
+        ):
+            with self.subTest(endpoint=repr(base)):
+                self.calls.clear()
+                with self.assertRaises(VoiceStudioTranscriptionDenied):
+                    self.call(base_url=base)
+                self.assertEqual(self.calls, [])
+        self.assertEqual(self.call()["language"], "hi")
+
     def test_private_bearer_token_header_injection_denied_before_egress(self):
         # Reject malformed credentials before urllib constructs a request.
         # This must not leak secrets or invoke even a mocked private transport.
