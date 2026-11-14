@@ -8,6 +8,7 @@ each private Storage read. A synthetic reader is NOT a deployment grant.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from hashlib import sha256
 from uuid import UUID
 
 from feature3_private_binary_http import Feature3PrivateBinaryHTTP
@@ -94,4 +95,32 @@ def private_png_http(*, authorization, shop_id, job_id, reader_factory):
         # Preserve the inner denial reason/status without exposing any bytes,
         # object keys, Authorization tokens or source-specific headers.
         return _opaque(status)
+    # Defense in depth: reject accidental changes to the canonical adapter's
+    # success contract before bytes leave this outer Azure HTTP boundary.
+    # In particular, never forward arbitrary Location/Set-Cookie/cache headers.
+    allowed = {
+        "Content-Type", "Content-Length", "X-Feature3-Shop-Id",
+        "X-Feature3-Job-Id", "X-Feature3-Media-Asset-Id",
+        "X-Feature3-Image-Sha256", "Content-Disposition",
+        "Cache-Control", "Pragma", "X-Content-Type-Options",
+        "Content-Security-Policy", "Vary",
+    }
+    if (type(body) is not bytes or type(headers) is not dict or
+            set(headers) != allowed or
+            any(type(k) is not str or type(v) is not str
+                for k, v in headers.items()) or
+            headers["Content-Type"] != "image/png" or
+            headers["Content-Length"] != str(len(body)) or
+            headers["X-Feature3-Shop-Id"] != shop_id or
+            headers["X-Feature3-Job-Id"] != job_id or
+            headers["X-Feature3-Image-Sha256"] != sha256(body).hexdigest() or
+            not _canonical(headers["X-Feature3-Media-Asset-Id"]) or
+            headers["Content-Disposition"] !=
+                f'attachment; filename="feature3-{job_id}.png"' or
+            headers["Cache-Control"] != "no-store, private, max-age=0" or
+            headers["Pragma"] != "no-cache" or
+            headers["X-Content-Type-Options"] != "nosniff" or
+            headers["Content-Security-Policy"] != "default-src 'none'" or
+            headers["Vary"] != "Authorization"):
+        return _opaque(503)
     return BinaryReply(status, body, headers)
