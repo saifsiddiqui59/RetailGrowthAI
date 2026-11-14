@@ -148,3 +148,15 @@ def test_blank_authorization_never_reaches_private_audio_service(monkeypatch):
         assert headers["Cache-Control"] == "no-store, private"
         assert "Content-Type" not in headers
     assert calls == []
+
+
+def test_control_characters_in_authorization_never_reach_service(monkeypatch):
+    calls = []
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: calls.append(1))
+    for auth in ("Bearer token\\r\\nX-Injected: yes", "Bearer token\\x00",
+                 "Bearer token\\x7f", "Bearer token\\n", "Bearer token\\t"):
+        status, headers, body = _call(auth)
+        assert status == 401 and body == b""
+        assert headers["Cache-Control"] == "no-store, private"
+        assert "Content-Type" not in headers
+    assert calls == []
