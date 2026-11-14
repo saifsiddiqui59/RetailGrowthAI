@@ -76,6 +76,28 @@ class VoiceStudioHandoffTests(unittest.TestCase):
         })
         self.assertNotIn("voiceover_source",draft)
 
+    def test_other_reviewed_media_denied_before_private_wav_read(self):
+        # The narration approval cannot authorize reading a private WAV when
+        # the accompanying music/footage has been removed or revoked.
+        for defect in ("missing", "foreign", "revoked"):
+            draft, snapshot, receipt, data = self.setup_case()
+            music_id = draft["music_asset_id"]
+            if defect == "missing":
+                del snapshot["assets"][music_id]
+            elif defect == "foreign":
+                snapshot["assets"][music_id]["shop_id"] = str(uuid4())
+            else:
+                snapshot["assets"][music_id]["approved"] = False
+            receipt_reads, wav_reads = [], []
+            with self.subTest(defect=defect), self.assertRaisesRegex(
+                    CreativeContractError, "Reviewed media missing, foreign or revoked"):
+                compile_voicestudio_narrated_reel(
+                    draft=draft, snapshot=snapshot,
+                    read_current_receipt=lambda *_: receipt_reads.append(True) or dict(receipt),
+                    read_current_private_wav=lambda *_: wav_reads.append(True) or data)
+            self.assertEqual(receipt_reads, [])
+            self.assertEqual(wav_reads, [])
+
     def test_private_object_alias_rejected_before_wav_reader(self):
         # A second media ID may not reuse the approved VoiceStudio object,
         # even when the unrelated media row claims separate rights.
