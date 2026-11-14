@@ -158,6 +158,39 @@ class RuntimeCompositionTests(unittest.TestCase):
         scoped = self.build(jwt_verifier=verifier)(shop, job)
         self.assertTrue(callable(scoped.read))
 
+    def test_real_verifier_issuer_rotation_denies_before_and_after_io(self):
+        """Synthetic mutation tests; not hosted JWT authorization."""
+        from unittest.mock import patch
+        from security import SupabaseJWTVerifier
+
+        verifier = object.__new__(SupabaseJWTVerifier)
+        verifier.issuer = ORIGIN + "/auth/v1"
+        calls = []
+
+        class CountingReader:
+            def __init__(self, **kwargs):
+                pass
+
+            def read(self, **kwargs):
+                calls.append("backend")
+                verifier.issuer = "https://foreign-project.supabase.co/auth/v1"
+                return b"synthetic-private-bytes"
+
+        shop, job = str(uuid4()), str(uuid4())
+        with patch("feature3_private_png_runtime.Feature3RevocablePNGReader",
+                   CountingReader):
+            scoped = self.build(jwt_verifier=verifier)(shop, job)
+            verifier.issuer = "https://foreign-project.supabase.co/auth/v1"
+            with self.assertRaises(PrivateGeneratedDownloadDenied):
+                scoped.read(user_token="synthetic-test-token-123",
+                            shop_id=shop, job_id=job)
+            self.assertEqual(calls, [])
+            verifier.issuer = ORIGIN + "/auth/v1"
+            with self.assertRaises(PrivateGeneratedDownloadDenied):
+                scoped.read(user_token="synthetic-test-token-123",
+                            shop_id=shop, job_id=job)
+            self.assertEqual(calls, ["backend"])
+
     def test_no_authoritative_rights_provider_is_never_allowed(self):
         for provider in (None, False, {}, "approved"):
             with self.subTest(provider=provider):
