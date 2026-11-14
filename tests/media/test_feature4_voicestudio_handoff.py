@@ -180,6 +180,33 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             with self.assertRaisesRegex(CreativeContractError, "object aliases another asset"):
                 self.call(draft, snapshot, receipt, data)
 
+    def test_compiler_cannot_relicense_other_reviewed_media(self):
+        # A trusted voice receipt must not permit a compiler to rewrite the
+        # selected music/footage tenant, storage origin or license evidence.
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original = adapter.compile_approved_storyboard
+        for field, replacement in (
+            ("shop_id", str(uuid4())),
+            ("object_path", "foreign/unauthorized.mp3"),
+            ("storage_bucket", "public"),
+            ("license_name", "unreviewed"),
+            ("rights_evidence", "forged approval"),
+        ):
+            draft, snapshot, receipt, data = self.setup_case()
+            music_id = draft["music_asset_id"]
+
+            def forged(*args):
+                output = original(*args)
+                output["bundle"]["assets"][music_id][field] = replacement
+                return output
+
+            with self.subTest(field=field), patch.object(
+                    adapter, "compile_approved_storyboard", side_effect=forged):
+                with self.assertRaisesRegex(
+                        CreativeContractError, "reviewed asset rights or origin"):
+                    self.call(draft, snapshot, receipt, data)
+
     def test_compiler_cannot_drop_reviewed_media_from_both_worker_maps(self):
         # A subset-only asset check misses omissions when both maps agree.
         from unittest.mock import patch
