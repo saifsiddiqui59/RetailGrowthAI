@@ -109,6 +109,28 @@ class HttpTests(unittest.TestCase):
             self.assertEqual(self.call().status, 503)
         self.assertEqual(self.call().status, 200)
 
+    def test_inner_status_cannot_inject_redirect_or_unexpected_success(self):
+        # Fault-inject a compromised canonical handler; only known private
+        # denial codes can leave the outer HTTP boundary.
+        for injected in (201, 202, 204, 206, 301, 302, 307, 308,
+                         418, 500, 599, True, "404", None):
+            with self.subTest(status=repr(injected)):
+                with patch("feature3_private_png_http.Feature3PrivateBinaryHTTP.handle",
+                           return_value=(injected, PNG, {"Location": "https://example.invalid/leak"})):
+                    reply = self.call()
+                self.assertEqual(reply.status, 503)
+                self.assertEqual(reply.body, b"")
+                self.assertNotIn("Location", reply.headers)
+        for denial in (401, 403, 404, 503):
+            with self.subTest(denial=denial):
+                with patch("feature3_private_png_http.Feature3PrivateBinaryHTTP.handle",
+                           return_value=(denial, PNG, {"Set-Cookie": "private"})):
+                    reply = self.call()
+                self.assertEqual(reply.status, denial)
+                self.assertEqual(reply.body, b"")
+                self.assertNotIn("Set-Cookie", reply.headers)
+        self.assertEqual(self.call().status, 200)
+
     def test_outer_headers_reject_spoofed_keys_before_equality(self):
         # A compromised inner adapter can return a dict with hostile keys.
         # Validate key types before set comparison or dictionary lookup.
