@@ -18,10 +18,11 @@ _FIELDS = frozenset({
 
 
 def _uuid4(value):
-    if type(value) is not str:
+    if type(value) is not str or len(value) != 36:
         return False
     try:
-        return UUID(value).version == 4 and str(UUID(value)) == value
+        parsed = UUID(value)
+        return parsed.version == 4 and str(parsed) == value
     except (ValueError, AttributeError):
         return False
 
