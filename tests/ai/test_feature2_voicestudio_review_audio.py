@@ -1234,3 +1234,51 @@ def test_private_reader_rejects_bytearray_even_with_matching_digest():
         read_current_voiceover_for_review(**args)
     assert len(sql.calls) == 1
     assert len(tenant.calls) == 1
+
+
+@pytest.mark.parametrize("invalid_rate", [0, 7999, 96001, 0xFFFFFFFF])
+def test_matching_digest_out_of_bounds_pcm_sample_rate_denied(invalid_rate):
+    """Reject forged WAV rates despite a matching SQL receipt digest."""
+    args, tenant, sql, storage, _ = harness()
+    modified = bytearray(pcm())
+    modified[24:28] = invalid_rate.to_bytes(4, "little")
+    # Keep byte-rate arithmetically consistent so only the range gate rejects.
+    modified[28:32] = ((invalid_rate * 2) & 0xFFFFFFFF).to_bytes(4, "little")
+    payload = bytes(modified)
+    original = sql.read_private_receipt
+
+    def matching_receipt(*ids):
+        receipt = original(*ids)
+        receipt["original_sha256"] = sha256(payload).hexdigest()
+        return receipt
+
+    sql.read_private_receipt = matching_receipt
+    storage.read_verified_original = lambda *ids: payload
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1 and len(tenant.calls) == 1
+
+
+def test_matching_digest_stereo_pcm_with_half_frame_denied():
+    """A two-byte tail is not a complete stereo PCM16 frame."""
+    args, tenant, sql, storage, _ = harness()
+    modified = bytearray(pcm())
+    modified[22:24] = (2).to_bytes(2, "little")
+    modified[32:34] = (4).to_bytes(2, "little")
+    modified[28:32] = (16000 * 4).to_bytes(4, "little")
+    modified[40:44] = (len(modified) - 44 + 2).to_bytes(4, "little")
+    modified.extend(bytes([0, 0]))
+    modified[4:8] = (len(modified) - 8).to_bytes(4, "little")
+    payload = bytes(modified)
+    original = sql.read_private_receipt
+
+    def matching_receipt(*ids):
+        receipt = original(*ids)
+        receipt["original_sha256"] = sha256(payload).hexdigest()
+        return receipt
+
+    sql.read_private_receipt = matching_receipt
+    storage.read_verified_original = lambda *ids: payload
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1 and len(tenant.calls) == 1
