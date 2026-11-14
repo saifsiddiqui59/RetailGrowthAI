@@ -147,6 +147,8 @@ class RuntimeCompositionTests(unittest.TestCase):
 
         # Construct an inert verifier without a network JWKS client.
         verifier = object.__new__(SupabaseJWTVerifier)
+        from types import SimpleNamespace
+        verifier.client = SimpleNamespace(uri=ORIGIN + "/auth/v1/.well-known/jwks.json")
         verifier.issuer = "https://foreign-project.supabase.co/auth/v1"
         with self.assertRaisesRegex(ValueError, "JWT verifier must match"):
             self.build(jwt_verifier=verifier)
@@ -158,6 +160,58 @@ class RuntimeCompositionTests(unittest.TestCase):
         scoped = self.build(jwt_verifier=verifier)(shop, job)
         self.assertTrue(callable(scoped.read))
 
+    def test_real_verifier_foreign_jwks_is_denied_before_and_after_io(self):
+        """A matching issuer cannot mask a foreign signing-key endpoint."""
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        from security import SupabaseJWTVerifier
+
+        verifier = object.__new__(SupabaseJWTVerifier)
+        verifier.issuer = ORIGIN + "/auth/v1"
+        verifier.client = SimpleNamespace(
+            uri="https://foreign-project.supabase.co/auth/v1/.well-known/jwks.json")
+        with self.assertRaisesRegex(ValueError, "JWT verifier must match"):
+            self.build(jwt_verifier=verifier)
+
+        verifier.client.uri = ORIGIN + "/auth/v1/.well-known/jwks.json"
+        calls = []
+
+        class CountingReader:
+            def __init__(self, **kwargs):
+                pass
+
+            def read(self, **kwargs):
+                calls.append("private-io")
+                return b"synthetic-only"
+
+        shop, job = str(uuid4()), str(uuid4())
+        with patch("feature3_private_png_runtime.Feature3RevocablePNGReader",
+                   CountingReader):
+            scoped = self.build(jwt_verifier=verifier)(shop, job)
+            verifier.client.uri = "https://foreign-project.supabase.co/auth/v1/.well-known/jwks.json"
+            with self.assertRaises(PrivateGeneratedDownloadDenied):
+                scoped.read(user_token="synthetic-test-token-123",
+                            shop_id=shop, job_id=job)
+            self.assertEqual(calls, [])
+            verifier.client.uri = ORIGIN + "/auth/v1/.well-known/jwks.json"
+
+            class RotatingReader:
+                def __init__(self, **kwargs):
+                    pass
+
+                def read(self, **kwargs):
+                    calls.append("private-io")
+                    verifier.client.uri = "https://foreign-project.supabase.co/auth/v1/.well-known/jwks.json"
+                    return b"synthetic-private-bytes"
+
+            with patch("feature3_private_png_runtime.Feature3RevocablePNGReader",
+                       RotatingReader):
+                scoped = self.build(jwt_verifier=verifier)(shop, job)
+                with self.assertRaises(PrivateGeneratedDownloadDenied):
+                    scoped.read(user_token="synthetic-test-token-123",
+                                shop_id=shop, job_id=job)
+            self.assertEqual(calls, ["private-io"])
+
     def test_real_verifier_issuer_rotation_denies_before_and_after_io(self):
         """Synthetic mutation tests; not hosted JWT authorization."""
         from unittest.mock import patch
@@ -165,6 +219,8 @@ class RuntimeCompositionTests(unittest.TestCase):
 
         verifier = object.__new__(SupabaseJWTVerifier)
         verifier.issuer = ORIGIN + "/auth/v1"
+        from types import SimpleNamespace
+        verifier.client = SimpleNamespace(uri=ORIGIN + "/auth/v1/.well-known/jwks.json")
         calls = []
 
         class CountingReader:
