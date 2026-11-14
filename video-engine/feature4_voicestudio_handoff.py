@@ -59,11 +59,11 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     scenes = draft.get("scenes")
     if draft.get("music_asset_id") == asset_id or (
         type(scenes) is list and any(
-            type(scene) is dict and scene.get("sfx_asset_id") == asset_id
+            type(scene) is dict and (scene.get("sfx_asset_id") == asset_id or scene.get("asset_id") == asset_id)
             for scene in scenes
         )
     ):
-        raise CreativeContractError("Approved narration cannot be reused as music or SFX")
+        raise CreativeContractError("Approved narration cannot be reused as music, SFX or footage")
     duration = draft.get("duration_seconds")
     if type(duration) is not int or duration not in (15, 30, 60):
         raise CreativeContractError("Invalid approved narration timeline")
@@ -225,11 +225,11 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     compiled_scenes = request.get("scenes")
     if request.get("music_asset_id") == asset_id or (
         type(compiled_scenes) is list and any(
-            type(scene) is dict and scene.get("sfx_asset_id") == asset_id
+            type(scene) is dict and (scene.get("sfx_asset_id") == asset_id or scene.get("asset_id") == asset_id)
             for scene in compiled_scenes
         )
     ):
-        raise CreativeContractError("Compiled narration cannot be reused as music or SFX")
+        raise CreativeContractError("Compiled narration cannot be reused as music, SFX or footage")
     # The worker manifest intentionally replaces private object keys with
     # sandbox-local paths; verify its rights and identity separately from
     # the authoritative bundle, which must preserve the private object key.
