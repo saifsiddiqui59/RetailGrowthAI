@@ -87,7 +87,9 @@ def test_malformed_request_headers_fail_closed_without_service(monkeypatch):
     monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: calls.append(1))
     for request in (None, object(), SimpleNamespace(headers=None),
                     SimpleNamespace(headers=[]),
-                    SimpleNamespace(headers=SimpleNamespace(get=lambda _: (_ for _ in ()).throw(ValueError("bad header"))))):
+                    SimpleNamespace(headers=SimpleNamespace(get=lambda _: (_ for _ in ()).throw(ValueError("bad header")))),
+                    SimpleNamespace(headers=SimpleNamespace(get=lambda _: (_ for _ in ()).throw(KeyError("Authorization")))),
+                    SimpleNamespace(headers=SimpleNamespace(get=lambda _: (_ for _ in ()).throw(IndexError("Authorization"))))):
         status, headers, body = http.private_original_review_response(
             request=request, shop_id=str(uuid4()), campaign_id=str(uuid4()),
             request_id=str(uuid4()), verify_token=lambda _: str(uuid4()),
