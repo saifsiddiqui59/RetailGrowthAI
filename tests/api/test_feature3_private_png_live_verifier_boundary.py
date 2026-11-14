@@ -76,6 +76,24 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
             store.return_value.member.assert_not_called()
             store.return_value.feature3_gpu_job.assert_not_called()
 
+    def test_live_reader_rejects_same_uri_jwks_client_replacement(self):
+        from jwt import PyJWKClient
+        from uuid import uuid4
+        from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+        verifier = SupabaseJWTVerifier(ORIGIN)
+        with patch("feature3_private_png_runtime.TenantStore") as store:
+            store.return_value.origin = ORIGIN
+            store.return_value.key = KEY
+            factory = compose(jwt_verifier=verifier)
+            shop, job = str(uuid4()), str(uuid4())
+            scoped = factory(shop, job)
+            verifier.client = PyJWKClient(
+                ORIGIN + "/auth/v1/.well-known/jwks.json")
+            with self.assertRaises(PrivateGeneratedDownloadDenied):
+                scoped.read(user_token="abc.def.ghi", shop_id=shop, job_id=job)
+            store.return_value.member.assert_not_called()
+            store.return_value.feature3_gpu_job.assert_not_called()
+
     def test_live_route_rejects_malformed_compact_jws_before_backend_io(self):
         from uuid import uuid4
         from feature3_private_png_reader import PrivateGeneratedDownloadDenied
