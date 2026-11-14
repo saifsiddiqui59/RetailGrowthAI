@@ -1,0 +1,140 @@
+# Feature #4 — 31-work-item concurrent execution tracker (29 October 2026)
+
+PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Review against CURRENT HEAD / merged-base CI; no cross-branch direct writes, paid GPU/cloud/PROD, WineShopPOS edits or unreviewed customer media. This is an **honest backlog**, not 31 completed tasks.
+
+## Independent Feature #4 — work may proceed concurrently within owned paths
+
+| # | P | Required deliverable | Current source/evidence | Remaining gate |
+|---|---|---|---|---|
+| 1 | P0 | Standalone revised native 60s render + caption/visibility/endcard | Runner now calls mandatory v2 visibility and encoded 55s endcard QA, plus FFmpeg subtitles | **NEW native 60s exact-head render still needed** |
+| 2 | P0 | Hash-linked final 60s quality receipt | Source now FAILS CLOSED if any caption, v2 visibility or real encoded endcard proof missing; negative tests added | Full updated media+SHA+report chain not rerun |
+| 3 | P0 | 15/30/60 actual export regression matrix | Existing 15/30 CI & separate 60s stock artifact | One unified exact-code acceptance record |
+| 4 | P0 | Encoded editor action parity after split/reorder/duplicate | Trusted JS/Python compiler tests; synthetic edit MP4 | Encoded visual tests for every supported edit |
+| 5 | P0 | Renderer-supported transitions/fades/effects | Existing reviewed HyperFrames subset | Remaining effect/render parity and UI |
+| 6 | P0 | Multi-track independent audio levels | Disabled unsupported controls in UI | Implement only matching actual renderer semantics |
+| 7 | P0 | Actual audio fades/ducking and final QA | Private audio mastering, AAC, SHA tests | Spoken audio and more real mix profiles |
+| 8 | P0 | Accurate timeline frame scrub/playback | Focusable keyboard video region supports 1/10-frame seek without editing draft, new mobile Playwright | Actual visual decoded-preview parity remains |
+| 9 | P1 | Deep OpenReel adopted capabilities | Split/trim/reorder/snap/zoom/undo/repeat implemented | Unsupported advanced controls remain disabled |
+| 10 | P1 | Mobile touch/keyboard/a11y/browser | New keyboard jog, approved readonly navigation, keyboard conflict avoidance, Playwright tests | Comprehensive manual accessibility/device usability |
+| 11 | P0 | Near-black/repeat/motion/overlay detection | Added encoded 53/57.5/59.3s endcard proof (old rack repeated); mutation/forged receipts denied; F4-62 60 scene samples remain | Actual new Full-HD minute and human quality review pending |
+| 12 | P0 | Typography/endcard/caption and shot composition | New distinct 55–60s disclaimer storyboard + encoded endcard QA; actual libass reviewer captions | **New native 60s footage + text legibility and human review pending** |
+| 13 | P1 | Private input/license/dependency integrity | SHA-pinned source, npm audit, F4-63 mutation guard | Commercial attribution and transitive notices approval |
+| 14 | P1 | CPU/RSS/latency budgets 15/30/60 | Prior CPU 30s benchmarks; local 60s five-probe QA took ~25.44s/136844 KiB max RSS | Real revised runner Azure budget |
+| 15 | P1 | Worker retry/cancel/race/cleanup tests | Existing feature-owned source tests | Real v2 worker/RLS and hosted concurrency |
+
+## Parallel cross-feature contracts — send handoffs, do not bypass owners
+
+| # | Owner | Expected input | Status |
+|---|---|---|---|
+| 16 | F2 | Independently approved creative_direction/script/offer revision | Handoff to draft PR #551 |
+| 17 | F2 | Licensed audio and actual voiced word-timed captions | Handoff to draft PR #551; test editorial captions are NOT speech |
+| 18 | F3 | Tenant-granted original product/model bytes and identity/license | Synthetic test-byte #630 MERGED; actual approved retailer handoff absent |
+| 19 | F5 | Approved encoded garment-matched real motion | Draft PR #465 source; GPU OFF, actual inference unavailable |
+| 20 | F7 | Human-reviewed semantic trims/captions/cuts | Draft PR #513; only supported contiguous trims compile |
+| 21 | F2/F3/F5/F7/F4 | End-to-end real approved integrated media | Mock/stock technical handoffs pass only, no true retailer Reel signoff |
+
+## Coordinator-owned integration/production gates — cannot self-merge
+
+| # | Owner | Expected action | Current blocker |
+|---|---|---|---|
+| 22 | Coordinator | Runtime-only deterministic Functions ZIP manifest preserving license, rollback, ELF, member guards | PR merged-base Python tests fail ZIP >120 entries; documented in FEATURE4_AZURE_HANDOFF.md |
+| 23 | Coordinator | Rebase/reconcile main, 4/4 PR and postmerge 4/4, merge only after review | PR #322 remains draft |
+| 24 | Coordinator | V2 JWT/tenant-approved snapshot & RLS | Feature4 HTTP adapter source-only, not live |
+| 25 | Coordinator | Atomic lease/outbox/quota/accounting one-charge | Cannot bypass existing jobs/billing |
+| 26 | Coordinator | Expiring same-shop private signed output & revocation | Private preview source-only |
+| 27 | Coordinator | Queue retry/poison/cancel/cleanup hosted checks | Offline tests not Azure proof |
+| 28 | Coordinator | Node22/Chromium/FFmpeg v2 worker package, lease/memory/cold-start | Local runtime preflight only |
+| 29 | Coordinator/#249 | Repair/verify Azure HTTP timeout issue | Independent Azure canary required |
+| 30 | Coordinator QA | Signed-in DEV 15/30/60 E2E + negative cross-tenant | Not run; no user/customer media in public CI |
+| 31 | Retailer owner + coordinator | Exact finished MP4 license/visual/audio approval, canonical project docs and launch | NO commercial release approval |
+
+## Evidence and immediate next work
+
+- Owned source changes: `3cb13517`, `d1c7021e`, `80b54465`, `52bd614b`, `3bd94dd6`, `b6acbcc3`; F4 docs and shared-owner handoffs.
+- Earlier 60s original Pexels source artifact was independently decoded in 60 interior samples (5 per each of 12 provenance-derived scenes); none almost all black, minimum sampled mean luma 34.69. 25.44s wall and 136844 KiB peak Python-process RSS. This is **not** the updated standalone current-head runner and not a commercial acceptance or video quality guarantee.
+- PR merge-base Python/uv failure reproduced in logs at `scripts/deploy/package.py:134`; do not increase member cap or disable tests to make PR green.
+- F2/F5/F7 PRs #551/#465/#513 and F3 merged PR #630 received direct source/rights/approval handoffs.
+- Latest branch/PR CI runs require observation at the actual terminal commit; logs, not assumptions, determine status. Coordinator alone updates `docs/{PROJECT_STATE,NEXT_TASK,DECISIONS,WORK_LOG}.md` after integration.
+
+
+## 2026-10-29 afternoon continued independent sprint — source checkpoints, no false closure
+
+- CI on preceding exact branch head `50e700966f`: push [#40869461422](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40869461422) **4/4 SUCCESS**. Pull-request merged-base [#40869468107](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40869468107) **3/4**, with coordinator-owned Python ZIP >120 member count failure. PR remains draft and unmerged; latest main has advanced since baseline.
+- F4-65: final `feature4_minute_quality_receipt.py` cannot issue `NATIVE_60S_TECHNICAL_EVIDENCE_ONLY` if any actual private captioned MP4/SRT/VTT/burn report, v2 scene visibility proof, or 55–60s encoded endcard QA proof is absent. Tests assert incomplete chains are rejected **before** media scanning and retain real garbage-media, oversized source and symlink negatives.
+- F4-66: new `feature4_endcard_qa.py` performs actual FFmpeg 53/57.5/59.3s source-frame comparison and binds SHA/timestamps to final accepted receipt. Unit tests physically encode synthetic 60s red/blue and red/red H264/AAC scenes and reject old held shot, wrong 58s start, source mutation, forged approval. Local FFmpeg sanity red/blue change 46.83, internal stability 0.0; archived rack hold at 52.5→57.5 changed only 16.397. **Updated 60s HyperFrames media pipeline not yet rerun; do not claim visual acceptance.**
+- F4-67: TimelineStudio video-track keyboard focus and preview-only frame jogging, one or ten frames, including approved direction but never editing assets/rights/copy; Playwright mobile negatives. Source+docs pushed to F4 branch, exact-head CI must be inspected. No WineShopPOS, GPUs, paid APIs, production cloud, coordinator-owned workflows/contracts or shared docs changed.
+
+## 2026-10-29 — MVP-first Batch 1 / 30-second encoded edit parity
+
+- **Implemented, source+local archive evidence:** The existing exact Timeline Studio JS split/reorder `[0,4,14,20]` → trusted Python compiler → 30s 540p HyperFrames **encoded mock** now runs `feature4_edited_export_qa.py` in the same existing media CI job; no second render. It verifies 30s H264/AAC, hashes source before/after four actual FFmpeg decoded scenes (2/7/16/24s), rejects gross swapped/missing shots and identical second video replay, and emits fail-closed technical-only report. Importantly this is a **synthetic owner-rejected technical fixture**, not garment/product visual quality or exact-frame inpoint proof.
+- **Actual archived prior 30s edited MP4**, SHA-256 `1c69ede47eac07a2dba118ceca59beca118f337d67e801b7eecc4bbe94b57153`, 30.000s/540x960, passed the same local four-frame decoder/proof: video-pair delta 3.53; photo-pair 19.017; minimum video/photo 21.095. Four focused negative/positive Python tests pass locally, covering forged order, false replay, source mutation, wrong duration, and symlinks.
+- **Status against 31 tasks**: progress on **#4**, with the 30s split/reorder encoded mock *technical regression slice* complete locally; duplication encoded pixels and real customer 30s footage remain open, so DO NOT relabel the full #4 (or MVP) as commercially complete. First run exact-head branch 4/4 and merged-base PR CI; shared ZIP issue #22 remains coordinator-owned. This batch touches only Feature4-owned CI harness, source, tests and docs. No GPU, cloud, WineShopPOS or production change.
+
+## 2026-11-06 — F4-04 source identity safeguard (IN PROGRESS)
+
+- Existing 30s synthetic encoded split/reorder/trim QA now checks one bounded no-follow MP4 fingerprint including inode/device/size/mtime/ctime around ffprobe and decoded samples. Same-byte atomic source-file replacements fail closed even when SHA256 alone would match.
+- Three new negative tests: identical bytes replaced while probing, while decoding, and oversize rejection before FFmpeg. No output-licensing, real source rights, tenant authorization or commercial quality claims.
+- Source increment only; inspect new exact-head four-job CI and PR #322 merged-base CI. F4-04 remains **IN PROGRESS**, #23 main integration and signed hosted acceptance separately pending. GPU/paid provider/PROD/WineShopPOS unchanged.
+
+## 2026-11-08 — F4-04 pinned render-to-QA SHA boundary (source increment)
+
+- Continuation of original F4-04 on draft PR #322: encoded 30s HyperFrames edit QA now **requires** an independently captured lowercase 64-character SHA256 from its trusted render caller. Normal media CI captures the completed MP4's digest before starting the separate decoder QA process. A swapped output file, forged/missing digest, or SHA mismatch fails before ffprobe/FFmpeg. Previously the checker only self-hashed whatever path it received.
+- Two deterministic negative test methods cover malformed/incorrect SHA and replacement by a different same-profile MP4 before QA; earlier same-byte atomic inode/metadata race tests remain. This is NOT a live job/tenant/rights or visual QA proof.
+- F4-04 remains IN PROGRESS until final-head four-job PR and accepted main integration/hosted gate. Azure packaging issue #650 remains a shared blocker; do not raise the 120-entry ZIP limit. GPU/paid AI/PROD/WineShopPOS unchanged.
+
+## 2026-11-08 — F4-13 same-byte preview source swap denial (source-only)
+
+- Private 540p reviewer preview now reads an O_NOFOLLOW regular-file MP4 fingerprint (device/inode/size/mtime/ctime/SHA256) before ffprobe, after probing and after full FFmpeg encoding. Identical-byte atomic swaps fail closed even when the original SHA matches. Added actual synthetic H264/AAC source tests for same-byte swaps at both critical seams, plus oversized sparse input rejected before probe.
+- Continues original F4-13; source **IN PROGRESS**, not a signed hosted download/retailer rights approval. Verifier cannot guarantee remote immutable object or live JWT/RLS; those remain separate acceptance gates. Exact final-head CI still required. No GPU, paid provider, cloud/PROD/WineShopPOS changes.
+
+## 2026-11-08 — F4-07 source-identity continuity for private AAC mastering
+
+- Continued original F4-07 using the **same** no-follow, bounded regular MP4 inode/mtime/ctime/SHA fingerprint helper now owned by F4-13, with no duplicate hash implementation. The audio master fingerprints the source before codec verification, after ffprobe and after actual AAC loudnorm/FFmpeg stream-copy; a same-byte atomic input swap invalidates the mastered output provenance and cleans temporary outputs. H264 packet preservation and no-clobber output remain unchanged.
+- Two synthetic 15s H264/AAC real-source negatives cover same-byte MP4 replacement during probing and after mastering, without making provider or hosted rights claims. Original F4-07 remains **IN PROGRESS** pending real audio mix/quality/hosted checks, while F4-13 remains source partial. Verify exact-head media and merged-base CI. No GPU, paid APIs, DEV/PROD mutation or WineShopPOS changes.
+
+## 2026-11-08 — F4-15 pre-render lease/authorization gate (source-only)
+
+- The existing Feature4 claimed v2 worker now checks **both** current lease fencing and current authorization immediately after each private media download, and again before entering CPU rendering (including zero-media plans). If a claim expires or access is revoked mid-stage, it exits `STALE` without fetching remaining tenant bytes, invoking FFmpeg, uploading output, triggering completion, or marking an invalid-input failure. The existing post-render preupload check and CAS finalize remain authoritative.
+- New synthetic fake-admin tests revoke authorization or lease after the first staged download, assert renderer is never invoked, and verify a two-media case does not download the second object. This reduces wasted compute without inventing new Azure queue/accounting behavior. **F4-15 IN PROGRESS** pending actual hosted RLS/outbox/race acceptance; exact-head CI and main integration still required. No cloud/GPU/paid AI/PROD/WineShopPOS mutation.
+
+## 2026-11-09 — F4-04 actual encoded duplicate action QA (source checkpoint)
+
+- Continue original F4-04 rather than creating a new task. Existing frozen JS Timeline Studio duplicate operation `duplicated_draft()` now feeds the SAME trusted storyboard compiler and full HyperFrames 30s/540p FFmpeg CI encode as prior split/reorder; one approved SFX remains on the original clip, and both 5s video scenes explicitly restart their source at 0s. No GPU/provider/customer media.
+- New `feature4_duplicate_export_qa.py` verifies actual decoded duplicate MP4 center pixels at two matched relative offsets, nonfrozen temporal change, distinct intro/outro scenes, bounded H264/AAC 30s profile, file SHA+inode stability across decode, and noncommercial output receipt. Five CPU-only negative/positive regression methods cover wrong inpoint, missing or frozen duplicate, modified MP4, invalid SHA, invalid profile or symlink.
+- CI adds a second REAL synthetic 30s encoded Timeline Studio duplicate through existing `hyperframes/ci-smoke.sh`, not a mock plan or silent opt-in acceptance. Original F4-04 remains **IN PROGRESS** for exact original frame inpoint proof, general editor action parity, signed/hosted integration and owner quality. Inspect exact new-head CI; existing review-gated shared PR #885 is separately green and previous combined canary was 4/4. Do not mark task DONE or change owner rejection after a codec-only pass.
+
+
+## 2026-11-09 — F4-09 original tested history guard integrated into Feature4 parent (not main)
+
+- Reconciled unmerged original [PR #769](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/769), whose head `038172da61317f8331a207e42ff5a1088d1d2915` passed all four own-branch CI jobs in [#41020176379](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/41020176379). The previous parent #322 lacked both its bounded-history source and regression test; direct stacked PR merge was conflict-blocked. This changes Feature4-owned paths only; no shared deployment, auth, lease or tenant paths.
+- Reused **exact original verified Git blobs**, not reconstructed or reimplemented code: `frontend/src/features/video/vendor/editorHistoryCore.mjs` blob `92addcbef5e8060664457f7f2f022bbab8e8fd1f`, `tests/frontend/feature4-history-bounds.test.mjs` blob `1e2b0ada2efa49f91b5894d1bca9b9c6768c9dca`, and its original handoff doc blob `4160baf9434cd19d3d640c2908e8fe3dfd452749`.
+- Fix clamps invalid/nonfinite history limits to bounded default 50 and any custom valid limit to [1,50], preserves the adapted MIT editor's undo/redo and same-reference branching contract, tests 150 edits, invalid limits and redo clearing. **F4-09 remains IN PROGRESS** because this is only feature-branch source integration, not cross-feature/main acceptance or hosted editor QA. No image/video sample, GPU, paid inference or PROD.
+- **Expected CI distinction:** #322 direct head push previously passed its four jobs at `305249a22c69d049fc689d60f4574583cb7e2672` ([#42571272697](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/42571272697)); its **PR merge-ref** Python [#42571278635](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/42571278635) failed 4 protected tests on `Duplicate or excessive ZIP members` (1087 other Python tests passed). Do not weaken the fixed 120 ZIP-member limit; coordinator-owned #650 [PR #885](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/885) awaits independent review and exact integration acceptance. New exact-head CI must be verified separately before source acceptance.
+- Next: check the current F4 source head/test CI; reconcile old #769 as superseded only when code and tests are confirmed present and final source CI passes; fix independent Feature4-owned missing paths in existing batch, not duplicate PRs. Do not close F4-09 original task until accepted main merge/postmerge CI and required commercial visual QA.
+
+
+## 2026-11-09 — F4-08 original 30fps mobile frame-jog regression integrated into #322 source branch
+- Reconciled existing draft [#774](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/774) against current Feature4 parent after the F4-09 history fix. Source head `1b39c39688a48d10db89b910a0b9e424ee76c8d8` already passed its own [four-job Actions #41020945220](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/41020945220).
+- Rather than overwriting the more recent parent browser tests, ported only its exact original reviewed 30fps Playwright test block into current `frontend/e2e/timeline-studio.spec.mjs` and the two exact FPS-parameter edits into `frontend/e2e/fixtures/timeline-studio-harness.jsx`. Regression covers 390px read-only view, 14:29 → 15:00 quantization, end/zero clamp, backward 1/10 frames and disabled editing controls; no signed/hosted users or rendered client media are claimed.
+- This is existing F4-08 partial source progress, **NOT original F4-08 accepted DONE**. Require new exact-head CI (including Playwright), human/affected code review before any shared integration, separate #650 protected package fix and main postmerge 4/4. No hosted Azure/PROD, paid GPU/provider or WineShopPOS.
+
+## 2026-11-10 — F4-05 / F4-07 original-child source consolidation (review proposed)
+- Reused the exact original source/test deltas of pre-existing #711 (F4-05 approved footage transition parity, actual video-track CSS animation, 15s fixture checks) and #732 (F4-07 encoded AAC start/end window and bounded sampled PCM inspection); merged their compatible nonoverlapping code hunks against the **current** F4 #322 parent instead of overwriting newer Feature4 code.
+- Preserved original #732 synthetic AAC 15s test and both original dedicated source handoff documents verbatim; retained existing 30s FFmpeg/hyperframes test gates and protected #650 120-member ZIP packaging ceiling.
+- This is a single Feature4 source-review branch for those ORIGINAL F4 IDs, not a new task ID. Original #711/#732 should remain open until final-head four-job CI and parent integration, then close as superseded with exact receipts. Neither F4-05 nor F4-07 is accepted main-integrated/hosted/commercial DONE. Other PRs (#710/#715/#716 etc.) still have unique code and must NOT be closed as duplicates.
+- No cloud deploy, new Azure resources, paid models, GPU, real customer footage, PROD, shared schema or WineShopPOS actions.
+
+### 2026-11-10 F4-15 original #710 source reconciliation
+- Existing parent already rejects stale rights/lease immediately after every private download and before CPU rendering, with negative tests. Old #710 uniquely fenced rights/lease revocation while loading the trusted DB bundle. The current parent-derived PR ports only that missing guard and original synthetic race test, plus original feature handoff. No new task ID or source reset.
+- F4-15 remains IN PROGRESS; final-source 4/4, feature-parent merge and fresh parent 4/4 are required before source supersession; final main/hosted acceptance additionally needs independent review, #650 package integrity and real authorization. No GPU, paid models, Azure/SQL/PROD or WineShopPOS change.
+
+### 2026-11-11 — F4-07/F4-13 + F4-12 source consolidation from conflicting drafts
+- Reconciled previously unmerged draft #898 (original #716) and draft #899 (original #770) onto **current** Feature4 parent `5d858bc18d1974a11fcca0e628f66f09fd4a1001`; no previous parent commits or newer safety guards were overwritten. Source/test blobs of each of the four code/test paths exactly match the already reviewed candidate branches; original caption handoff preserved. This is one coherent private QA/security batch, not two new workstreams.
+- Private AAC receipt proof now preflights exclusive local .json path **before** FFmpeg work, uses exclusive creation and removes only an unreceipted new output if concurrent receipt write fails. Caption export adds conservative metadata-only 36-character/mobile-line/20-chars-per-second warnings, without changing approved subtitle words/timecodes or asserting visual/copyright acceptance.
+- Three original audio proof tests and four original caption readability tests restored. Source acceptance requires this branch final-head four-job CI, compatible feature-parent merge, fresh parent four-job CI; originals #716/#770 and replacements #898/#899 cannot be retired until verified. F4-07/12/13 remain IN PROGRESS, and hosted/main/rights/release checks remain separate.
+- No GPU/paid model, Azure/SQL, PROD, human approval bypass, WineShopPOS or physical media mutation.
+
+### 2026-11-11 — F4-13 original #815 structured approved copy guard
+- Copied original #815 exact code, test and source-only handoff blobs onto latest existing Feature4 parent `ab49bb94308dfd66227ceec1a02799ecc1fa513a`. Current parent source/test were a strict subset of the original patch and had no newer unique lines, so preserving these originals does not drop other F4 safety changes.
+- Fix closes a trusted input mismatch where an `approved_text` scalar string allowed substring membership, wrongly accepting a shorter unreviewed headline. Require nonempty list of nonempty exact strings and a dictionary trusted script; retain negative tests for string, tuple, dict, empty list, invalid entries and shortened headline.
+- Still **source F4-13 IN PROGRESS**, not hosted/main DONE. Exact new source 4/4, safe F4-parent merge, fresh parent 4/4 and licensed/verified current tenant approvals are distinct gates. Old #815 must remain until verified source preservation and parent CI. No GPU/paid models/Azure/SQL/PROD/WineShopPOS effects.
