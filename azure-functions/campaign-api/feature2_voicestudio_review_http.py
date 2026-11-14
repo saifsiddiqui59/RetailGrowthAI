@@ -41,7 +41,7 @@ def private_original_review_response(*, request, shop_id, campaign_id, request_i
             tenant_store=tenant_store, sql_store_factory=sql_store_factory,
             private_storage=private_storage,
         )
-        if type(content) is not bytes:
+        if type(content) is not bytes or not content:
             raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
         return 200, {**headers, "Content-Type": "audio/wav",
                      "Content-Length": str(len(content))}, content
