@@ -160,7 +160,10 @@ class Feature3PrivateBinaryHTTP:
             # is not evidence that an asset is missing or safe to serve.
             return self._deny(503)
         try:
-            if (type(receipt) is not dict or set(receipt)!=_KEYS or
+            if (type(receipt) is not dict or
+                    len(receipt) != len(_KEYS) or
+                    any(type(key) is not str for key in receipt) or
+                    set(receipt) != _KEYS or
                     type(receipt.get("shop_id")) is not str or receipt["shop_id"]!=shop or
                     type(receipt.get("job_id")) is not str or receipt["job_id"]!=job or
                     type(receipt.get("mime_type")) is not str or receipt["mime_type"]!="image/png" or
