@@ -274,6 +274,22 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
             or set(output["manifest"]["assets"]) - trusted_ids
             or set(output["bundle"]["assets"]) != set(output["manifest"]["assets"])):
         raise CreativeContractError("Compiled narration introduced unapproved media asset")
+    # Every selected reviewed asset must survive the compiler-to-worker handoff.
+    # The subset check above prevents injection but cannot detect a compiler
+    # silently dropping music, an overlay, or a scene asset from both maps.
+    selected_ids = {asset_id}
+    if frozen_draft.get("music_asset_id") is not None:
+        selected_ids.add(frozen_draft["music_asset_id"])
+    for scene in frozen_draft["scenes"]:
+        for key in ("asset_id", "sfx_asset_id", "poster_overlay_asset_id"):
+            if scene.get(key) is not None:
+                selected_ids.add(scene[key])
+    logo_id = frozen_snapshot.get("brand", {}).get("logo_asset_id")
+    if logo_id is not None:
+        selected_ids.add(logo_id)
+    if (set(output["bundle"]["assets"]) != selected_ids
+            or set(output["manifest"]["assets"]) != selected_ids):
+        raise CreativeContractError("Compiled narration omitted reviewed media asset")
     manifest_asset = output.get("manifest", {}).get("assets", {}).get(asset_id)
     if (type(manifest_asset) is not dict
             or manifest_asset.get("shop_id") != shop
