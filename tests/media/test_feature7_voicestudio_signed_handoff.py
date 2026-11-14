@@ -155,95 +155,46 @@ for (const field of ['word','start','end']) {
   assert.equal(calls,0,field);
 }
 reject({review:{...review,words:[,review.words[1]]}});
-// A lease revoked while a word is normalized cannot be signed. A Proxy can
-// mutate the authoritative lease without exposing an accessor descriptor.
-for (const field of ['active','shop_id','expires_at_ms']) {
-  const mutable={...lease};
-  let changed=false;
-  const word=new Proxy({...review.words[0]},{
-    get(target,property,receiver) {
-      if (property==='word' && !changed) {
-        changed=true;
-        mutable[field]=field==='active'?false:
-          field==='shop_id'?'foreign':now-1;
-      }
-      return Reflect.get(target,property,receiver);
-    }
-  });
-  reject({lease:mutable,review:{...review,words:[word,review.words[1]]}});
-  assert.equal(changed,true,field);
-}
-
-// Word normalization must not allow review flags or source identity to drift.
-for (const field of ['approved','renderable','language','audio_sha256','words','text']) {
-  const mutable={...review};
-  let changed=false;
-  const first=new Proxy({...review.words[0]},{
-    get(target,property,receiver) {
-      if (property==='word' && !changed) {
-        changed=true;
-        mutable[field]=field==='approved'||field==='renderable'?true:
-          field==='language'?'mr':field==='audio_sha256'?'c'.repeat(64):
-          field==='words'?[...review.words]:review.text+' changed';
-      }
-      return Reflect.get(target,property,receiver);
-    }
-  });
-  mutable.words=[first,review.words[1]];
-  reject({review:mutable});
-  assert.equal(changed,true,field);
-}
-// In-place array slot replacement must fail even when the review retains
-// the same words-array reference and all top-level approval flags stay fixed.
+// Normalization must use validated own-data snapshots, never Proxy get traps.
+// A hostile word may attempt to revoke a lease or rewrite another word on
+// ordinary property access; no such access is permitted during signing.
 {
-  const mutable={...review,words:[...review.words]};
-  let swapped=false;
-  const first=new Proxy({...review.words[0]},{
-    get(target,field,receiver) {
-      if(field==='word' && !swapped) {
-        swapped=true;
-        mutable.words[1]={word:'forged',start:.7,end:1.2};
-      }
-      return Reflect.get(target,field,receiver);
-    }
-  });
-  mutable.words[0]=first;
-  reject({review:mutable});
-  assert.equal(swapped,true);
-}
-// A word may mutate another word's values without replacing the array slot.
-// The signed normalized transcript must reject this in-place TOCTOU change.
-for (const field of ['word','start','end']) {
-  const words=review.words.map(w=>({...w}));
-  let changed=false;
-  words[0]=new Proxy(words[0],{
+  const mutableLease={...lease};
+  const mutableReview={...review};
+  let gets=0;
+  const first=new Proxy({...review.words[0]}, {
     get(target,property,receiver) {
-      if(property==='word' && !changed) {
-        changed=true;
-        words[1][field]=field==='word'?'forged':field==='start'?.8:1.1;
+      if (['word','start','end'].includes(property)) {
+        gets++;
+        mutableLease.active=false;
+        mutableReview.language='mr';
       }
       return Reflect.get(target,property,receiver);
     }
   });
-  reject({review:{...review,words}});
-  assert.equal(changed,true,field);
+  mutableReview.words=[first,review.words[1]];
+  const signed=bindVoiceStudioReview({...input,lease:mutableLease,review:mutableReview});
+  assert.equal(gets,0);
+  assert.equal(mutableLease.active,true);
+  assert.equal(mutableReview.language,'hi');
+  assert.equal(signed.transcript.words[0].word,'नमस्ते');
 }
-// A mid-normalization replacement with an accessor must not execute it.
+// A descriptor trap can still mutate the authoritative lease while the
+// snapshot is collected; the post-normalization lease recheck must deny it.
 {
-  const mutable={...review};
-  let getterCalls=0;
-  const first=new Proxy({...review.words[0]},{
-    get(target,property,receiver) {
-      if(property==='word') {
-        Object.defineProperty(mutable,'language',{configurable:true,
-          get(){getterCalls++;throw Error('unsafe review getter');}});
+  const mutableLease={...lease};
+  let changed=false;
+  const first=new Proxy({...review.words[0]}, {
+    getOwnPropertyDescriptor(target,field) {
+      if (field==='word' && !changed) {
+        changed=true;
+        mutableLease.active=false;
       }
-      return Reflect.get(target,property,receiver);
+      return Reflect.getOwnPropertyDescriptor(target,field);
     }
   });
-  mutable.words=[first,review.words[1]];
-  reject({review:mutable});
-  assert.equal(getterCalls,0);
+  reject({lease:mutableLease,review:{...review,words:[first,review.words[1]]}});
+  assert.equal(changed,true);
 }
 // A Proxy's ordinary get trap must not override own-data review snapshots.
 // All fields used for signing come from descriptors, not arbitrary reads.
