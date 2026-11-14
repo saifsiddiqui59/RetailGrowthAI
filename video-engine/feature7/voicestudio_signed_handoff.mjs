@@ -167,9 +167,15 @@ export function bindVoiceStudioReview({
     language:reviewSnapshot.language,transcript:normalized,evidence,
     // Export only canonical, validated words; never re-emit arbitrary ASR object
     // properties (including attacker-supplied metadata) as trusted evidence.
-    whisperx_json:{segments:[{words:normalized.words.map(w=>({
-      word:w.word,start:w.startMs/1000,end:w.endMs/1000
-    }))}]},
+    // Preserve the normalizer's 200-word segment ceiling in the exported
+    // WhisperX-compatible review payload too. A single 2,000-word segment
+    // would be rejected by consumers revalidating the canonical contract.
+    whisperx_json:{segments:Array.from(
+      {length:Math.ceil(normalized.words.length/200)},(_,i)=>({
+        words:normalized.words.slice(i*200,(i+1)*200).map(w=>({
+          word:w.word,start:w.startMs/1000,end:w.endMs/1000
+        }))
+      }))},
     captions,feature4_edit_advice:Object.freeze({
       source_asset_id:asset_id,source_sha256:original_video_sha256,
       caption_cues_review_only:true,original_audio_preserved:true,
