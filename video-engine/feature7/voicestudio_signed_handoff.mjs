@@ -78,8 +78,12 @@ export function bindVoiceStudioReview({
   // Validate each word's own data descriptors before the normalizer reads it.
   // Accessor-backed timestamps or text must not execute inside a signing path.
   for (let i=0;i<reviewSnapshot.words.length;i++) {
-    deny(Object.hasOwn(reviewSnapshot.words,i),'Sparse VoiceStudio word list');
-    requireOwnDataFields(reviewSnapshot.words[i],['word','start','end']);
+    // An own array slot can still be an accessor. Reject it by descriptor
+    // before reading the slot, so untrusted index getters never execute.
+    const slot=Object.getOwnPropertyDescriptor(reviewSnapshot.words,String(i));
+    deny(slot && Object.hasOwn(slot,'value'),
+      'Unsafe VoiceStudio word-list slot');
+    requireOwnDataFields(slot.value,['word','start','end']);
     // Fail closed before entering the normalizer. Never invoke arbitrary word
     // getters merely to discover malformed timestamp or text fields.
     const word=reviewSnapshot.words[i];
