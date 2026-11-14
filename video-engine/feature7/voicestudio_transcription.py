@@ -164,8 +164,17 @@ def transcribe_private_voice(
         raise VoiceStudioTranscriptionDenied("Private VoiceStudio ASR request failed") from None
     if len(raw) > MAX_JSON:
         raise VoiceStudioTranscriptionDenied("ASR response exceeds limit")
+    # Reject ambiguous JSON keys at every depth. Different JSON consumers may
+    # choose first/last values for duplicate timing, word or tenant fields.
+    def unique_object(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise VoiceStudioTranscriptionDenied("Duplicate ASR JSON field")
+            result[key] = value
+        return result
     try:
-        parsed = json.loads(raw)
+        parsed = json.loads(raw, object_pairs_hook=unique_object)
     except (UnicodeError, ValueError, TypeError) as exc:
         raise VoiceStudioTranscriptionDenied("Malformed ASR result") from exc
     if type(parsed) is not dict or parsed.get("task") != "transcribe":
