@@ -109,6 +109,28 @@ class HttpTests(unittest.TestCase):
             self.assertEqual(self.call().status, 503)
         self.assertEqual(self.call().status, 200)
 
+    def test_outer_headers_reject_spoofed_keys_before_equality(self):
+        # A compromised inner adapter can return a dict with hostile keys.
+        # Validate key types before set comparison or dictionary lookup.
+        class SpoofedKey:
+            def __hash__(self):
+                return hash("Content-Type")
+
+            def __eq__(self, other):
+                raise AssertionError("untrusted header equality executed")
+
+        good = self.call()
+        self.assertEqual(good.status, 200)
+        headers = dict(good.headers)
+        headers.pop("Content-Type")
+        headers[SpoofedKey()] = "image/png"
+        with patch("feature3_private_png_http.Feature3PrivateBinaryHTTP.handle",
+                   return_value=(200, PNG, headers)):
+            reply = self.call()
+        self.assertEqual(reply.status, 503)
+        self.assertEqual(reply.body, b"")
+        self.assertNotIn("Content-Type", reply.headers)
+
     def test_invalid_scope_and_credentials_never_construct_reader(self):
         for changes in (dict(shop_id=str(uuid4()).upper()),
                         dict(job_id="not-uuid"),
