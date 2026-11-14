@@ -1,0 +1,51 @@
+"""Source-only HTTP response contract; no Azure route or cloud credentials."""
+from pathlib import Path
+import sys
+from types import SimpleNamespace
+from uuid import uuid4
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "azure-functions" / "campaign-api"))
+import feature2_voicestudio_review_http as http  # noqa: E402
+
+
+def _call(auth="Bearer valid-test-token-do-not-use"):
+    return http.private_original_review_response(
+        request=SimpleNamespace(headers={"Authorization": auth}),
+        shop_id=str(uuid4()), campaign_id=str(uuid4()), request_id=str(uuid4()),
+        verify_token=lambda _: str(uuid4()), tenant_store=object(),
+        sql_store_factory=lambda _: object(), private_storage=object(),
+    )
+
+
+def test_private_audio_response_never_cacheable_on_denial():
+    status, headers, body = _call()
+    assert status == 404 and body == b""
+    assert headers["Cache-Control"] == "no-store, private"
+    assert headers["X-Content-Type-Options"] == "nosniff"
+    assert "Content-Type" not in headers
+
+
+def test_missing_authorization_fails_without_calling_dependencies():
+    status, headers, body = _call(None)
+    assert status == 401 and body == b""
+    assert headers["Pragma"] == "no-cache"
+
+
+def test_private_wav_success_has_exact_length_and_no_storage_identifier(monkeypatch):
+    payload = b"RIFF" + b"x" * 48
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: payload)
+    status, headers, body = _call()
+    assert status == 200 and body == payload
+    assert headers["Content-Type"] == "audio/wav"
+    assert headers["Content-Length"] == str(len(payload))
+    assert headers["Cache-Control"] == "no-store, private"
+
+
+def test_provider_exception_does_not_leak_message_or_private_bytes(monkeypatch):
+    def broken(**_):
+        raise RuntimeError("sensitive backend SQL diagnostic")
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", broken)
+    status, headers, body = _call()
+    assert status == 503 and body == b""
+    assert "sensitive" not in repr((headers, body))
