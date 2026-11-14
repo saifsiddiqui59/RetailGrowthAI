@@ -97,6 +97,23 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
                     self.call(**case)
                 self.assertEqual(self.calls,[])
 
+    def test_private_bearer_token_header_injection_denied_before_egress(self):
+        # Reject malformed credentials before urllib constructs a request.
+        # This must not leak secrets or invoke even a mocked private transport.
+        for token in (
+            "valid-looking-key\\r\\nX-Forged: yes",
+            "valid-looking-key\\n",
+            "valid-looking-key with space",
+            "valid-looking-key\\t",
+            "valid-looking-keyé",
+            "x" * 4097,
+        ):
+            with self.subTest(token_length=len(token)):
+                self.calls.clear()
+                with self.assertRaises(VoiceStudioTranscriptionDenied):
+                    self.call(api_key=token)
+                self.assertEqual(self.calls, [])
+
     def test_riff_declared_length_mismatch_denied_without_egress(self):
         # A valid WAV decoder may ignore trailing bytes or RIFF size tampering.
         # Never send those noncanonical original bytes to the ASR endpoint.
