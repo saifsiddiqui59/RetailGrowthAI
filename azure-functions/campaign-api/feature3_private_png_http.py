@@ -91,8 +91,13 @@ def private_png_http(*, authorization, shop_id, job_id, reader_factory):
             shop_id=shop_id, job_id=job_id)
     except Exception:
         return _opaque(503)
+    if type(status) is not int or status not in (200, 401, 403, 404, 503):
+        # A compromised or incompatible inner adapter must never turn a
+        # private download into a redirect, cacheable 2xx, or arbitrary HTTP
+        # response. Only explicit denial/outage codes may cross this boundary.
+        return _opaque(503)
     if status != 200:
-        # Preserve the inner denial reason/status without exposing any bytes,
+        # Preserve only known-safe denial codes; never forward private bytes,
         # object keys, Authorization tokens or source-specific headers.
         return _opaque(status)
     # Defense in depth: reject accidental changes to the canonical adapter's
