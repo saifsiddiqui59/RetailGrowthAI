@@ -120,6 +120,25 @@ export async function bindVerifiedVoiceStudioMedia({
     fieldValue('audio_sha256')===original_audio_sha256 &&
     typeof fieldValue('text')==='string' &&
     fieldValue('text').length<=20000 && fieldValue('text').trim().length>0);
+  // Preflight every untrusted word BEFORE private video/WAV reads. A malformed
+  // review must not trigger costly tenant media I/O merely to fail at signing.
+  // Inspect own descriptors only; never invoke user-supplied getters or map.
+  for (let index=0;index<earlyWords.value.length;index++) {
+    const slot=Object.getOwnPropertyDescriptor(earlyWords.value,String(index));
+    deny(slot && Object.hasOwn(slot,'value') && slot.value!==null &&
+      typeof slot.value==='object' && !Array.isArray(slot.value));
+    const word=Object.create(null);
+    for (const field of ['word','start','end']) {
+      const descriptor=Object.getOwnPropertyDescriptor(slot.value,field);
+      deny(descriptor && Object.hasOwn(descriptor,'value'));
+      word[field]=descriptor.value;
+    }
+    deny(typeof word.word==='string' && word.word.trim().length>0 &&
+      word.word.length<=120 && typeof word.start==='number' &&
+      typeof word.end==='number' && Number.isFinite(word.start) &&
+      Number.isFinite(word.end) && word.start>=0 &&
+      word.end>word.start && word.end<=source_duration_seconds);
+  }
   // Track elapsed time across asynchronous media reads; a lease can expire
   // even if its snapshot is unchanged. An injected clock is for offline tests.
   const started=performance.now();
