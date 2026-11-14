@@ -176,7 +176,9 @@ def transcribe_private_voice(
             result[key] = value
         return result
     try:
-        parsed = json.loads(raw, object_pairs_hook=unique_object)
+        parsed = json.loads(raw, object_pairs_hook=unique_object,
+                            parse_constant=lambda value: (_ for _ in ()).throw(
+                                VoiceStudioTranscriptionDenied("Non-finite ASR JSON number")))
     except (UnicodeError, ValueError, TypeError) as exc:
         raise VoiceStudioTranscriptionDenied("Malformed ASR result") from exc
     if type(parsed) is not dict or parsed.get("task") != "transcribe":
