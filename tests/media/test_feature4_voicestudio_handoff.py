@@ -170,6 +170,26 @@ class VoiceStudioHandoffTests(unittest.TestCase):
                         CreativeContractError, "reviewed worker media rights"):
                     self.call(draft, snapshot, receipt, data)
 
+    def test_revoked_other_media_during_compilation_fails_closed(self):
+        # A soundtrack can be revoked after its initial validation but while
+        # the existing compiler is building the worker manifest.
+        from unittest.mock import patch
+        import feature4_voicestudio_handoff as adapter
+        original = adapter.compile_approved_storyboard
+        draft, snapshot, receipt, data = self.setup_case()
+        music_id = draft["music_asset_id"]
+
+        def concurrent_revocation(*args):
+            result = original(*args)
+            snapshot["assets"][music_id]["approved"] = False
+            return result
+
+        with patch.object(adapter, "compile_approved_storyboard",
+                          side_effect=concurrent_revocation):
+            with self.assertRaisesRegex(
+                    CreativeContractError, "reviewed media changed during compilation"):
+                self.call(draft, snapshot, receipt, data)
+
     def test_modified_pcm_never_reaches_compiler_even_with_valid_wav_header(self):
         from unittest.mock import patch
         import feature4_voicestudio_handoff as adapter
