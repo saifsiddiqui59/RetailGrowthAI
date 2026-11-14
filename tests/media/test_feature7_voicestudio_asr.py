@@ -422,6 +422,18 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
         # Valid Indic JSON remains accepted, including nested word objects.
         self.assertEqual(self.call()["words"][0]["word"], "नमस्ते")
 
+    def test_asr_json_requires_utf8_without_bom(self):
+        # The upstream wire contract is UTF-8 JSON; Python's json.loads(bytes)
+        # would otherwise silently accept UTF-16/32 or a UTF-8 BOM.
+        payload = json.dumps(self.payload, ensure_ascii=False)
+        for wire in (payload.encode("utf-16"), payload.encode("utf-32"),
+                     b"\\xef\\xbb\\xbf" + payload.encode("utf-8"),
+                     b"\\xff" + payload.encode("utf-8")):
+            with self.subTest(prefix=repr(wire[:8])):
+                with self.assertRaises(VoiceStudioTranscriptionDenied):
+                    self.call(transport=lambda req, timeout, wire=wire: Reply(wire))
+        self.assertEqual(self.call()["words"][0]["word"], "नमस्ते")
+
     def test_nonstandard_json_constants_denied_even_in_ignored_metadata(self):
         # Python's JSON decoder otherwise accepts NaN/Infinity as extensions.
         # A signed review must originate from standards-compliant JSON only.
