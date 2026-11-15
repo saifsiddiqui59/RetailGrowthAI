@@ -1408,3 +1408,22 @@ def test_matching_digest_invalid_pcm_channel_count_denied_before_second_auth(cha
     with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
         read_current_voiceover_for_review(**args)
     assert len(sql.calls) == 1 and len(tenant.calls) == 1
+
+
+@pytest.mark.parametrize("field", ["campaign_id", "request_id"])
+def test_foreign_campaign_or_request_receipt_denied_before_private_get(field):
+    """Same-shop editor must not read audio from a mismatched SQL resource."""
+    args, tenant, sql, storage, tokens = harness()
+    original = sql.read_private_receipt
+
+    def foreign_receipt(*ids):
+        receipt = original(*ids)
+        receipt[field] = str(uuid4())
+        return receipt
+
+    sql.read_private_receipt = foreign_receipt
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert tokens == [TOKEN]
+    assert len(tenant.calls) == 1 and len(sql.calls) == 1
+    assert storage.calls == []
