@@ -34,8 +34,33 @@ def test_pinned_creative_director_original_node_assertions(relative_path: str) -
     assert node is not None, "Node must be installed for the pinned MIT source gate"
     path = DIRECTOR / relative_path
     assert path.is_file(), f"Missing Creative Director test: {relative_path}"
+    # This original integration assertion consumes an already compiled JSON
+    # bundle on stdin. Generate it from the SAME pinned director and its
+    # completely synthetic, source-only brief; never silently pass empty stdin.
+    payload = None
+    if relative_path == "tests/test-unified-output.js":
+        make_payload = (
+            "const {verifiedBrief,authoredCandidate}="
+            "require('./tests/fixtures/diwali-premium-fixture');"
+            "const {compile}=require('./director');"
+            "const request=verifiedBrief(30);"
+            "const bundle=compile(request,authoredCandidate(30));"
+            "process.stdout.write(JSON.stringify({bundle,verified_brief:request,"
+            "reviewer_id:'11111111-1111-4111-8111-111111111111'}));"
+        )
+        generated = subprocess.run(
+            [node, "-e", make_payload],
+            cwd=DIRECTOR, capture_output=True, text=True, timeout=45,
+            check=False, env={"PATH": __import__("os").environ.get("PATH", "")},
+        )
+        assert generated.returncode == 0, (
+            f"Synthetic pinned compiler failed: {generated.stderr[-2000:]}"
+        )
+        assert generated.stdout.strip(), "Synthetic compiler emitted no JSON"
+        payload = generated.stdout
     output = subprocess.run(
         [node, str(path)],
+        input=payload,
         cwd=DIRECTOR,
         capture_output=True,
         text=True,
