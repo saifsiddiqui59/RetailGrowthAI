@@ -150,15 +150,21 @@
       "base_branch": "feat/feature2-voicestudio-private-wav-reader-20261111",
       "work_owner": "schedule-f2",
       "priority": "P0",
-      "phase": "draft",
-      "claim": {
+      "phase": "blocked",
+      "claim": null,
+      "checkpoint": {
         "owner": "schedule-f2",
-        "head_sha": "7f899415e3a20c12ea8b14d7c095623291ca5f9a",
-        "claimed_at": "2026-11-15T14:23:35Z",
-        "expires_at": "2026-11-15T15:53:35Z",
-        "next_action": "Inspect current F2 review gate and run targeted security tests; implement only verified missing source behavior"
+        "at": "2026-11-15T14:23:35Z",
+        "head_before": "7f899415e3a20c12ea8b14d7c095623291ca5f9a",
+        "head_after": "7f899415e3a20c12ea8b14d7c095623291ca5f9a",
+        "commits": 0,
+        "tests": "NOT RUN: no executable repository checkout; reviewed HTTP/PCM source and existing regression tests only",
+        "ci": "exact-head workflow runs 0, commit statuses 0; 0/4 verified",
+        "reviews": "0 independent reviews",
+        "blockers": "protected review pending; no exact-head CI; local targeted pytest unavailable",
+        "next_action": "Run pytest tests/ai/test_feature2_voicestudio_review_http.py tests/ai/test_feature2_voicestudio_review_audio.py tests/ai/test_feature2_voicestudio_riff_envelope.py on exact PR #937 head, fix real failures only; obtain four CI checks and independent review; manual integration owns main merge",
+        "status": "worker-reported; NOT DONE"
       },
-      "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/937"
     },
     {
