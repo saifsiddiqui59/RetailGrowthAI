@@ -172,6 +172,67 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
                 b"synthetic-only")
         self.assertEqual(len(calls), 7)
 
+    def test_live_reader_denies_bytes_if_store_rotates_during_backend_read(self):
+        # Even a successfully returned immutable payload must be discarded if
+        # tenant authority changes while the private reader is performing IO.
+        from uuid import uuid4
+        from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+        verifier = SupabaseJWTVerifier(ORIGIN)
+        calls = []
+
+        class MutableStore:
+            origin = ORIGIN
+            key = KEY
+
+        store = MutableStore()
+
+        class MutatingReader:
+            def __init__(self, **kwargs):
+                calls.append("construct")
+
+            def read(self, **kwargs):
+                calls.append("read")
+                store.origin = "https://foreign-project.supabase.co"
+                return b"synthetic-private-png-bytes"
+
+        with patch("feature3_private_png_runtime.TenantStore", return_value=store), patch(
+                "feature3_private_png_runtime.Feature3RevocablePNGReader",
+                MutatingReader):
+            shop, job = str(uuid4()), str(uuid4())
+            scoped = compose(jwt_verifier=verifier)(shop, job)
+            with self.assertRaises(PrivateGeneratedDownloadDenied):
+                scoped.read(user_token="abc.deQ.ghg", shop_id=shop, job_id=job)
+        self.assertEqual(calls, ["construct", "read"])
+
+    def test_live_reader_denies_when_jwks_client_rotates_during_backend_read(self):
+        # A same-URL replacement during IO cannot authorize returned bytes.
+        from uuid import uuid4
+        from jwt import PyJWKClient
+        from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+        verifier = SupabaseJWTVerifier(ORIGIN)
+        calls = []
+
+        class CountingReader:
+            def __init__(self, **kwargs):
+                pass
+
+            def read(self, **kwargs):
+                calls.append("read")
+                verifier.client = PyJWKClient(
+                    ORIGIN + "/auth/v1/.well-known/jwks.json")
+                return b"synthetic-private-png-bytes"
+
+        with patch("feature3_private_png_runtime.TenantStore") as store, patch(
+                "feature3_private_png_runtime.Feature3RevocablePNGReader",
+                CountingReader):
+            store.return_value.origin = ORIGIN
+            store.return_value.key = KEY
+            shop, job = str(uuid4()), str(uuid4())
+            scoped = compose(jwt_verifier=verifier)(shop, job)
+            with self.assertRaises(PrivateGeneratedDownloadDenied):
+                scoped.read(user_token="abc.deQ.ghg", shop_id=shop, job_id=job)
+        self.assertEqual(calls, ["read"])
+
     def test_injected_isolated_store_retains_synthetic_fixture_support(self):
         class Store:
             origin = ORIGIN
