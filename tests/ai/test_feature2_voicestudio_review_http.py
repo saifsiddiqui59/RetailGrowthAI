@@ -216,3 +216,19 @@ def test_oversized_authorization_is_denied_before_private_service(monkeypatch):
         assert headers["Cache-Control"] == "no-store, private"
         assert "Content-Type" not in headers
     assert calls == []
+
+
+def test_authorization_string_subclass_is_rejected_before_private_read(monkeypatch):
+    # Header wrappers must not smuggle an overridden string representation
+    # through the HTTP boundary into JWT or tenant checks.
+    class UntrustedHeader(str):
+        def __str__(self):
+            raise RuntimeError("untrusted header conversion")
+
+    calls = []
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: calls.append(1))
+    status, headers, body = _call(UntrustedHeader("Bearer valid-test-token-do-not-use"))
+    assert status == 401 and body == b""
+    assert headers["Cache-Control"] == "no-store, private"
+    assert "Content-Type" not in headers and "Content-Length" not in headers
+    assert calls == []
