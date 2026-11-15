@@ -172,7 +172,11 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
         # evidence signing must not disagree with upstream ASR input validity.
         original = self.original
         extra = b"JUNK" + (0).to_bytes(4, "little")
-        duplicate_data = b"data" + (2).to_bytes(4, "little") + b"\\x00\\x00"
+        duplicate_data = b"data" + (2).to_bytes(4, "little") + bytes((0, 0))
+        # Use a real second PCM data chunk, not literal ASCII backslash escapes.
+        # Otherwise the denial could be caused by a malformed chunk boundary.
+        self.assertEqual(duplicate_data[:4], b"data")
+        self.assertEqual(len(duplicate_data), 10)
         duplicate_fmt = original[12:36]
         layouts = [original + extra, original + duplicate_data,
                    original[:36] + duplicate_fmt + original[36:],
