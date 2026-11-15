@@ -49,6 +49,22 @@ class VoiceStudioHandoffTests(unittest.TestCase):
             read_current_private_wav=lambda *args:data,
         )
 
+    def test_15_and_60_second_voice_receipts_cannot_authorize_wrong_timeline(self):
+        # A receipt for a 30s WAV cannot be reused on shorter or longer
+        # approved timelines. Deny before fetching any private audio bytes.
+        for seconds in (15, 60):
+            draft, snapshot, receipt, data = self.setup_case()
+            draft["duration_seconds"] = seconds
+            reads = []
+            with self.subTest(seconds=seconds), self.assertRaisesRegex(
+                    CreativeContractError, "Private VoiceStudio source unapproved or revoked"):
+                compile_voicestudio_narrated_reel(
+                    draft=draft, snapshot=snapshot,
+                    read_current_receipt=lambda *_: reads.append("receipt") or dict(receipt),
+                    read_current_private_wav=lambda *_: reads.append("wav") or data,
+                )
+            self.assertEqual(reads, ["receipt"])
+
     def test_real_feature4_compiler_receives_only_approved_private_audio(self):
         draft,snapshot,receipt,data=self.setup_case()
         result=self.call(draft,snapshot,receipt,data)
