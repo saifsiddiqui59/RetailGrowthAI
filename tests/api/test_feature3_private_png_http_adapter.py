@@ -7,8 +7,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "azure-functions" /
 from feature3_private_png_http_adapter import private_png_http_response
 from feature3_private_png_reader import PrivateGeneratedDownloadDenied
 
-SHOP = "synthetic-shop"
-JOB = "synthetic-job"
+SHOP = "11111111-1111-4111-8111-111111111111"
+JOB = "22222222-2222-4222-8222-222222222222"
 PNG = bytes((137, 80, 78, 71, 13, 10, 26, 10)) + b"synthetic-fixture" * 8
 
 
@@ -88,6 +88,29 @@ class PrivatePNGHttpAdapterTests(unittest.TestCase):
         self.assertEqual((status, body), (404, b""))
         self.assertNotIn("Content-Type", headers)
         self.assertEqual(len(calls), 2)
+
+    def test_noncanonical_scope_is_denied_before_reader_factory(self):
+        calls = []
+        def factory(*args):
+            calls.append(args)
+            raise AssertionError("Untrusted scope reached factory")
+
+        for shop, job in (
+            ("synthetic-shop", JOB),
+            (SHOP, "synthetic-job"),
+            (SHOP.upper(), JOB),
+            ("11111111-1111-1111-8111-111111111111", JOB),
+            (SHOP, "22222222-2222-4222-8222-22222222222z"),
+            (None, JOB),
+            (SHOP, object()),
+        ):
+            with self.subTest(shop=shop, job=job):
+                status, headers, body = private_png_http_response(
+                    reader_factory=factory, shop_id=shop, job_id=job,
+                    bearer_token="Bearer synthetic.jwt.fixture")
+                self.assertEqual((status, body), (404, b""))
+                self.assertNotIn("Content-Type", headers)
+        self.assertEqual(calls, [])
 
     def test_missing_trusted_factory_is_configuration_error(self):
         with self.assertRaises(ValueError):
