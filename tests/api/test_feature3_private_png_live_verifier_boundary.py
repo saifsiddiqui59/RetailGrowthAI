@@ -211,6 +211,39 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
                 shop_id=shop, job_id=job), b"synthetic-only" * 10)
             self.assertEqual(calls, ["read"])
 
+    def test_duplicate_jose_header_fields_fail_before_backend_access(self):
+        import base64
+        from uuid import uuid4
+        from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+
+        calls = []
+
+        class StubReader:
+            def __init__(self, **kwargs):
+                pass
+
+            def read(self, **kwargs):
+                calls.append("read")
+                return b"synthetic-only" * 10
+
+        verifier = SupabaseJWTVerifier(ORIGIN)
+        with patch("feature3_private_png_runtime.TenantStore") as store, patch(
+                "feature3_private_png_runtime.Feature3RevocablePNGReader", StubReader):
+            store.return_value.origin = ORIGIN
+            store.return_value.key = KEY
+            shop, job = str(uuid4()), str(uuid4())
+            scoped = compose(jwt_verifier=verifier)(shop, job)
+            for raw in (
+                b'{"alg":"RS256","alg":"none","kid":"test"}',
+                b'{"alg":"none","alg":"RS256","kid":"test"}',
+                b'{"alg":"RS256","kid":"test","kid":"other"}',
+                b'{"alg":"RS256","kid":"test","nested":{"x":1,"x":2}}',
+            ):
+                segment = base64.urlsafe_b64encode(raw).decode().rstrip("=")
+                with self.subTest(raw=raw), self.assertRaises(PrivateGeneratedDownloadDenied):
+                    scoped.read(user_token=segment + ".e30.c2ln", shop_id=shop, job_id=job)
+            self.assertEqual(calls, [])
+
     def test_live_reader_rejects_lazy_mutable_or_custom_download_bodies(self):
         # A streamed/lazy body could be consumed after the final rights and
         # project checks; only an immutable concrete bytes value may escape.
