@@ -205,3 +205,14 @@ def test_non_ascii_authorization_never_reaches_private_service(monkeypatch):
         assert headers["Cache-Control"] == "no-store, private"
         assert "Content-Type" not in headers and "Content-Length" not in headers
     assert calls == []
+
+
+def test_oversized_authorization_is_denied_before_private_service(monkeypatch):
+    calls = []
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: calls.append(1))
+    for auth in ("Bearer " + "x" * 8192, "Bearer " + "x" * 100000):
+        status, headers, body = _call(auth)
+        assert status == 401 and body == b""
+        assert headers["Cache-Control"] == "no-store, private"
+        assert "Content-Type" not in headers
+    assert calls == []
