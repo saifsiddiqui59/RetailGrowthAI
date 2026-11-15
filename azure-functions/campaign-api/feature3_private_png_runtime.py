@@ -208,6 +208,13 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                         "Private generated output unavailable")
                 result = reader.read(user_token=user_token,
                                      shop_id=bound_shop, job_id=bound_job)
+                # Never hand a response-like object, generator, mutable buffer,
+                # or custom bytes subclass to the HTTP adapter. The private
+                # reader contract returns immutable PNG bytes only; otherwise
+                # a lazy body could execute after the final rights check.
+                if type(result) is not bytes:
+                    raise PrivateGeneratedDownloadDenied(
+                        "Private generated output unavailable")
                 # Deny bytes if the backend changed project during JWT/RLS/IO.
                 if not project_matches():
                     raise PrivateGeneratedDownloadDenied(
