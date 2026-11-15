@@ -219,7 +219,17 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                     try:
                         header_bytes = urlsafe_b64decode(
                             parts[0] + "=" * (-len(parts[0]) % 4))
-                        header = json.loads(header_bytes)
+                        # Reject duplicate JOSE fields before key lookup: different
+                        # JWT parsers may interpret ambiguous headers differently.
+                        def unique_header_pairs(pairs):
+                            result = {}
+                            for key, value in pairs:
+                                if key in result:
+                                    raise ValueError("Duplicate JOSE header field")
+                                result[key] = value
+                            return result
+
+                        header = json.loads(header_bytes, object_pairs_hook=unique_header_pairs)
                         if (type(header) is not dict or
                                 type(header.get("alg")) is not str or
                                 header["alg"] not in ("RS256", "ES256") or
