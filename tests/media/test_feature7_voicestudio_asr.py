@@ -532,6 +532,24 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
                 self.assertNotIn("private token", str(caught.exception))
         self.assertEqual(self.call()["language"], "hi")
 
+    def test_multipart_boundary_collision_denied_before_private_egress(self):
+        # The fixed MIME delimiter must never occur inside verified original
+        # PCM bytes: an upstream multipart parser could truncate the audio
+        # while the signed SHA still describes the full original WAV.
+        delimiter = b"\r\n--RetailGrowthASRWavBoundary"
+        malicious = bytearray(self.original)
+        malicious[100:100 + len(delimiter)] = delimiter
+        original = bytes(malicious)
+        self.assertEqual(original[100:100 + len(delimiter)], delimiter)
+        self.calls.clear()
+        with self.assertRaises(VoiceStudioTranscriptionDenied):
+            self.call(original_wav=original,
+                      source_sha256=sha256(original).hexdigest())
+        self.assertEqual(self.calls, [])
+        # Normal Indic word timings still use the original private WAV.
+        self.assertEqual(self.call()["words"][0]["word"], "नमस्ते")
+        self.assertEqual(len(self.calls), 1)
+
     def test_upstream_error_redacted(self):
         from urllib.error import URLError
         def sender(req,timeout):
