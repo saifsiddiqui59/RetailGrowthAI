@@ -48,6 +48,17 @@ def private_png_http_response(*, reader_factory, shop_id, job_id, bearer_token):
                 any(ord(ch) < 33 or ord(ch) > 126 for ch in token) or
                 any(ch in token for ch in (",", ";", '"', "\\"))):
             raise PrivateGeneratedDownloadDenied("Unavailable")
+        # Reject malformed compact JWS framing before constructing any reader.
+        # This is input hygiene only; the scoped reader MUST still verify the
+        # cryptographic signature, issuer, audience, membership and rights.
+        parts = token.split(".")
+        if (len(parts) != 3 or any(not part for part in parts) or
+                len(parts[0]) > 2048 or len(parts[1]) > 6144 or
+                len(parts[2]) > 2048 or
+                any(len(part) % 4 == 1 for part in parts) or
+                any(any(not (ch.isascii() and (ch.isalnum() or ch in "-_"))
+                        for ch in part) for part in parts)):
+            raise PrivateGeneratedDownloadDenied("Unavailable")
         reader = reader_factory(shop_id, job_id)
         body = reader.read(user_token=token, shop_id=shop_id, job_id=job_id)
         if type(body) is not bytes or not 100 <= len(body) <= _MAX_PNG_BYTES or not body.startswith(bytes((137, 80, 78, 71, 13, 10, 26, 10))):
