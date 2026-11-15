@@ -42,14 +42,14 @@
       "pr": 513,
       "title": "feat(feature7): AutoBroll uploaded-footage semantic edit proposals with tenant fences",
       "feature": "F7",
-      "head_sha": "934700b1b36f4333ccc4d75769bdb10f6d2fd527",
+      "head_sha": "5b1efb96fa80d808a30c0f9a2f5bf4a87c52f8c2",
       "base_branch": "main",
       "work_owner": "schedule-f7",
       "priority": "P0",
       "phase": "blocked",
       "claim": {
         "owner": "schedule-f7",
-        "head_sha": "934700b1b36f4333ccc4d75769bdb10f6d2fd527",
+        "head_sha": "5b1efb96fa80d808a30c0f9a2f5bf4a87c52f8c2",
         "claimed_at": "2026-11-15T17:10:00Z",
         "expires_at": "2026-11-15T18:40:00Z",
         "task": "VoiceStudio response metadata exception negative regression"
