@@ -170,6 +170,12 @@ def transcribe_private_voice(
     if sha256(original_wav).hexdigest() != source_sha256:
         raise VoiceStudioTranscriptionDenied("Original audio digest does not match trusted source")
     endpoint = _endpoint(base_url)
+    # The multipart boundary is fixed for reproducible private requests. PCM
+    # bytes containing a delimiter could terminate the file part early and
+    # make upstream transcribe different audio than the SHA-verified original.
+    # Fail before egress rather than trusting a permissive multipart parser.
+    if b"\r\n--RetailGrowthASRWavBoundary" in original_wav:
+        raise VoiceStudioTranscriptionDenied("Ambiguous multipart WAV payload")
     # The body cannot be influenced by an untrusted filename/path/model id.
     boundary = "RetailGrowthASRWavBoundary"
     req = Request(endpoint, method="POST", data=_body(original_wav, language, boundary), headers={
