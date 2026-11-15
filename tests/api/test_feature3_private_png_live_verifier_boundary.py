@@ -161,9 +161,55 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
             self.assertEqual(calls, ["construct"])
             # Framing alone never authorizes bytes; the real verifier and
             # downstream reader still own cryptographic/tenant checks.
-            self.assertEqual(scoped.read(user_token="abc.deQ.ghg",
+            self.assertEqual(scoped.read(user_token="eyJhbGciOiJSUzI1NiIsImtpZCI6InRlc3QifQ.e30.c2ln",
                                          shop_id=shop, job_id=job), b"synthetic-only" * 10)
             self.assertEqual(calls, ["construct", "read"])
+
+    def test_live_route_rejects_untrusted_jose_header_before_backend_io(self):
+        import base64
+        import json
+        from uuid import uuid4
+        from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+        verifier = SupabaseJWTVerifier(ORIGIN)
+        calls = []
+
+        class StubReader:
+            def __init__(self, **kwargs):
+                pass
+
+            def read(self, **kwargs):
+                calls.append("read")
+                return b"synthetic-only" * 10
+
+        def token(header):
+            raw = json.dumps(header, separators=(",", ":")).encode()
+            segment = base64.urlsafe_b64encode(raw).decode().rstrip("=")
+            return segment + ".e30.c2ln"
+
+        with patch("feature3_private_png_runtime.TenantStore") as store, patch(
+                "feature3_private_png_runtime.Feature3RevocablePNGReader",
+                StubReader):
+            store.return_value.origin = ORIGIN
+            store.return_value.key = KEY
+            shop, job = str(uuid4()), str(uuid4())
+            scoped = compose(jwt_verifier=verifier)(shop, job)
+            for header in (
+                    {"alg": "none", "kid": "test"},
+                    {"alg": "HS256", "kid": "test"},
+                    {"alg": "RS256"},
+                    {"alg": "RS256", "kid": ""},
+                    {"alg": "RS256", "kid": "test", "jku": "https://evil.test"},
+                    {"alg": "RS256", "kid": "test", "crit": ["b64"]},
+                    ["RS256", "test"]):
+                with self.subTest(header=header):
+                    with self.assertRaises(PrivateGeneratedDownloadDenied):
+                        scoped.read(user_token=token(header),
+                                    shop_id=shop, job_id=job)
+            self.assertEqual(calls, [])
+            self.assertEqual(scoped.read(
+                user_token=token({"alg": "RS256", "kid": "test"}),
+                shop_id=shop, job_id=job), b"synthetic-only" * 10)
+            self.assertEqual(calls, ["read"])
 
     def test_live_reader_rejects_lazy_mutable_or_custom_download_bodies(self):
         # A streamed/lazy body could be consumed after the final rights and
@@ -197,11 +243,11 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
                 candidate[0] = value
                 with self.subTest(type=type(value).__name__):
                     with self.assertRaises(PrivateGeneratedDownloadDenied):
-                        scoped.read(user_token="abc.deQ.ghg", shop_id=shop,
+                        scoped.read(user_token="eyJhbGciOiJSUzI1NiIsImtpZCI6InRlc3QifQ.e30.c2ln", shop_id=shop,
                                     job_id=job)
             candidate[0] = b"synthetic-only" * 10
             self.assertEqual(
-                scoped.read(user_token="abc.deQ.ghg", shop_id=shop, job_id=job),
+                scoped.read(user_token="eyJhbGciOiJSUzI1NiIsImtpZCI6InRlc3QifQ.e30.c2ln", shop_id=shop, job_id=job),
                 b"synthetic-only" * 10)
         self.assertEqual(len(calls), 7)
 
@@ -234,7 +280,7 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
             shop, job = str(uuid4()), str(uuid4())
             scoped = compose(jwt_verifier=verifier)(shop, job)
             with self.assertRaises(PrivateGeneratedDownloadDenied):
-                scoped.read(user_token="abc.deQ.ghg", shop_id=shop, job_id=job)
+                scoped.read(user_token="eyJhbGciOiJSUzI1NiIsImtpZCI6InRlc3QifQ.e30.c2ln", shop_id=shop, job_id=job)
         self.assertEqual(calls, ["construct", "read"])
 
     def test_live_reader_denies_when_jwks_client_rotates_during_backend_read(self):
@@ -263,7 +309,7 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
             shop, job = str(uuid4()), str(uuid4())
             scoped = compose(jwt_verifier=verifier)(shop, job)
             with self.assertRaises(PrivateGeneratedDownloadDenied):
-                scoped.read(user_token="abc.deQ.ghg", shop_id=shop, job_id=job)
+                scoped.read(user_token="eyJhbGciOiJSUzI1NiIsImtpZCI6InRlc3QifQ.e30.c2ln", shop_id=shop, job_id=job)
         self.assertEqual(calls, ["read"])
 
     def test_scoped_adapter_rejects_empty_short_and_oversized_private_payloads(self):
@@ -292,13 +338,13 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
                 payload[0] = b"x" * size
                 with self.subTest(size=size):
                     with self.assertRaises(PrivateGeneratedDownloadDenied):
-                        scoped.read(user_token="abc.deQ.ghg",
+                        scoped.read(user_token="eyJhbGciOiJSUzI1NiIsImtpZCI6InRlc3QifQ.e30.c2ln",
                                     shop_id=shop, job_id=job)
             for size in (100, 25 * 1024 * 1024):
                 payload[0] = b"x" * size
                 with self.subTest(size=size):
                     self.assertEqual(
-                        len(scoped.read(user_token="abc.deQ.ghg",
+                        len(scoped.read(user_token="eyJhbGciOiJSUzI1NiIsImtpZCI6InRlc3QifQ.e30.c2ln",
                                         shop_id=shop, job_id=job)), size)
 
     def test_injected_isolated_store_retains_synthetic_fixture_support(self):
