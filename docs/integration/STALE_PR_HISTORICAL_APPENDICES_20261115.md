@@ -303,3 +303,106 @@ Original patch, retained verbatim for reviewer traceability:
 +
 +- 2026-11-11 — Added PR #923 SQL review-only hardening: operator-controlled model weights/tokenizer/dependency/AGPL license evidence registry, explicit service SELECT-only grant, current revocation checked in every plan/claim/register/receipt SQL RPC, static negative contract tests. No DB migration applied, no model approval inserted; four-job exact-head CI to recheck after latest commits.
 ````
+
+## PR #466 — 2026-10-28 original F2 signed DEV trend / Azure 503 evidence (historical, unmerged)
+
+The original reviewed source PR #466 is archived below *verbatim as per-file unified diff hunks* before retiring its stale documentation branch. These are October 28 observations, **not current NEXT_TASK instructions**, and do not establish hosted draft persistence or resolution of Azure issue #249. Its already-integrated runtime code is PR #460, not #466.
+
+### ai-agents/FEATURE2_HANDOFF.md
+
+~~~~~diff
+@@ -178,3 +178,8 @@ React Trends workspace now displays saved 7-day copy for manual review even if t
+ ## 2026-10-28 — Final prompt receipt FOUND and settled; hosted real-trend gap
+ - The prior real canary artifact contains a second actual GPT-4.1-mini completion, 377 prompt / 313 completion tokens, $0.00071676 public-rate cost. Exact one-row hosted reservation settlement now SETTLED USD0.000717; campaign SETTLED USD0.004569; combined USD0.005286 public-rate estimate. No new billable attempt. Prompt model still did **not** produce reviewable improved copy; fix in feature2_llm.py captures valid usage before rejecting text and settles via existing activation finally. Tests cover this and unknown usage no retry.
+ - Oct28 live Google RSS snapshot has no clothing trends, while Google official October 1 thrifting article is background editorial context (not live RSS). New protected no-cost JWT + original owned PNG + real API/tenant DRAFT canary prepared; no claim of hosted success until exact runtime proves it. Full evidence docs/feature2/20261028_PROMPT_RECONCILIATION_TRENDS_AND_HOSTED_TEST.md; no PROD/WineShopPOS.
++
++
++## Feature2 2026-10-28 signed hosted E2E — Azure 503 remains, no new AI spend
++- Genuine GPT text test and prompt receipt reconciliation completed: campaign public-priced SQL SETTLED USD0.004569, prompt USD0.000717, total USD0.005286 (not Azure invoice). PR #452; do not repeat paid inference.
++- [PR #460](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/460) exact 4/4 PR+main CI; live protected [run #40659456731](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40659456731) repeated zero-paid signed original private test image byte read and deterministic preview PASS. First GET trends 503, one bounded GET retry successfully reached exact hosted Supabase `trend_snapshots` HTTP200. No current clothing signal. One invalid-trend draft POST reached Azure but returned gateway 503 after ~60 sec, **no retry**, no relevant Supabase handler rows and no saved drafts. Actor revoked, budget off, one synthetic original asset retained. Share with Azure issue #249; do not claim 409 denial, 201/GET DRAFT persistence, customer imagery, live clothing source or full feature complete. No WineShopPOS/PROD.
+~~~~~
+
+### docs/DECISIONS.md
+
+~~~~~diff
+@@ -626,3 +626,9 @@
+ ## 2026-10-28 — #249 separate polymorphic poster/Reel writer methods
+ - The shared ReelIntentWriter subclass must never overload PosterRpcWriter.requestRender for two different payload contracts. Poster gateway uses dedicated requestPosterRender(token,userId,posterId,empty-object); Reel uses requestRender(token,userId,campaignId,day_id/preset). Avoid broad permission/validation bypasses.
+ - Exact PR #457 source 4/4, actual Free SWA DEV #40658342675 and real signed six-write no-shop denial #40658591300 SUCCESS, missing poster POST now 404 rather than 400 and disposable user deleted. Correct rejection of a missing poster is not proof of successful authorized poster rendering or 30s private video. Keep #249 OPEN until positive two-tenant and repeat HTTP acceptance; no PROD/WineShopPOS or paid resources.
++
++
++## 2026-10-28 Feature2 — no blind POST retries after real Azure 503
++- Distinguish a safe idempotent signed GET retry (proven to recover after one Azure 60-second 503) from a POST that may have committed despite ambiguous gateway 503. The original synthetic PNG upload/metadata registration succeeded and was byte-verified on next protected run; do NOT duplicate it. Signed test OWNER membership must be re-revoked even after an ambiguous activation PATCH. No default-off AI budget was re-enabled.
++- Only source-backed current clothing trends may authorize saved tenant DRAFT; current RSS chart contained none. An invalid-trend POST expected 409 but produced **Azure gateway 503**, with no corresponding Supabase handler reads. This is an **Azure Functions HTTP reliability blocker** (cross-reference #249), not an acceptable 409/no-data success or a justification to fabricate clothing signal.
++- Source-only [#460](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/460) PR 4/4 and exact main 4/4, real protected #40659456731 failed; `shop_content_drafts=0`. The correct state is partial runtime acceptance and pending persisted-draft E2E. No PROD, WineShopPOS, or additional billable AI.
+~~~~~
+
+### docs/NEXT_TASK.md
+
+~~~~~diff
+@@ -867,3 +867,10 @@ NaN
+ - DONE: Dedicated PosterRpcWriter.requestPosterRender prevents ReelIntentWriter.requestRender override from rejecting valid empty poster render body. Source PR #457 4/4, actual existing Free SWA DEV #40658342675, genuine signed six no-shop 403/404 and temporary-account cleanup #40658591300 PASS. The prior 400 INVALID_REQUEST defect is resolved on named DEV preview.
+ - NEXT P0: Complete ROOT-approved real positive OWNER/EDITOR two-disposable-shop authentication against the fixed Free SWA preview. Review existing [open PR #423](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/423) canary and merge only after compatibility/CI gates; test licensed image upload, 7-day DRAFT, real poster PNG and banner selection, Python worker queued 30s H264/AAC MP4, private signed download, VIEWER/cross-shop/revoked JWT denial, quota/outbox idempotency and exact fixture cleanup. Do not impersonate ROOT or bypass approval.
+ - NEXT P0: Repeat real authenticated first/warm/idle HTTP tests with bounded p95/p99 and genuine post-submission job outcomes. Only then evaluate guarded customer API cutover and Issue #249 closure. Current production frontend/Python FFmpeg stay unchanged; no paid Azure upgrade, PROD/WineShopPOS modification.
++
++
++## 2026-10-28 Feature2 — actual signed Azure 503 blocker after verified real-source GET
++1. **Do not repeat** already proven real Azure GPT-4.1-mini seven-day copy, token spending, original signed synthetic private PNG upload, or read-only trend-store check. Exact DEV prompt/campaign reservations are SETTLED, total public-rate USD 0.005286; no new paid model allowance.
++2. Protected no-paid [run #40659456731](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40659456731) still fails 60-second Azure HTTP503 on the **single non-retried invalid-trend POST**; real GET succeeded on retry. Independently correlate application/host/scale logs and deployment status under [Azure issue #249](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/249) for 2026-10-28 08:49:00–08:51:02 UTC. Do not loosen auth, assume negative 409, replay uncertain POST or modify WineShopPOS.
++3. Live Google IN RSS Oct28 snapshot had 10 actual trends and **zero clothing match**; no genuine source-backed clothing campaign can be persisted under current strict source contract. Wait for credible current fashion source or separately design/review an honest date-bound non-RSS source. Do not plant synthetic trending rows; optional official Oct1 thrifting report is NOT live RSS.
++4. After Azure stable and relevant clothing evidence exists, use original approved synthetic tenant and source evidence, original registered media id and signed JWT to verify **one** authenticated DRAFT POST/GET, owner/viewer RLS denials and nonpublishable state. Exact existing synthetic asset must be reused, not reuploaded. Keep budget off, membership revoked in finally, no fee or publishing. `shop_content_drafts=0` as of this handoff.
+~~~~~
+
+### docs/PROJECT_STATE.md
+
+~~~~~diff
+@@ -926,3 +926,9 @@ See docs/NEXT_TASK.md. Live integrations and cloud deployment remain blocked by
+ - [Release PR #459](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/459) CI #40657993480 4/4, existing Free SWA named preview deployment [#40658342675](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40658342675) SUCCESS. Real health 200, no JWT/forged JWT denied and customer frontend not repointed.
+ - [Signed retest PR #461](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/461) CI #40658198464 4/4, actual protected [DEV #40658591300](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40658591300) SUCCESS. Six real signed no-shop writes denied 403/404 including previously broken poster render now 404, hostile Origin and modified JWT denied, disposable Auth user deleted. No shop, media, render job or quota created.
+ - Issue #249 stays OPEN for actual ROOT-approved signed OWNER/EDITOR/VIEWER two-shop media upload, real poster PNG, Python FFmpeg 30-second H264/AAC private MP4 download and repeated first/warm/idle HTTP reliability. No PROD/WineShopPOS or paid infrastructure changes.
++
++
++## 2026-10-28 — Feature #2 genuine hosted DEV rerun: original image and trends proven, draft POST blocked by Azure 503
++- [PR #452](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/452) merged corrected real prompt token settlement: genuine archived prompt Azure response 377 input/313 output; locked one-row hosted prompt ledger SETTLED USD 0.000717 and campaign SETTLED USD 0.004569, combined public rate USD 0.005286, **not actual billing invoice**, zero new paid calls.
++- First protected original signed test [#40655976341](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40655976341) proved signed owned first-party PNG Storage upload/registration and deterministic zero-paid prompt preview. Its trend GET returned Azure HTTP503 after ~60 seconds; revoked test membership and left AI budget disabled. New [PR #460](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/460) added narrowly bounded **GET-only 503 retry**, byte-verifies/reuses exact private PNG, arms membership cleanup before ambiguous PATCH. PR CI [#40658964322](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40658964322) **4/4**, post-merge main [#40659456527](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40659456527) **4/4**.
++- Subsequent protected actual [run #40659456731](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40659456731) **FAILED**, correctly: exact owner signed private PNG GET PASS; zero-paid prompt PASS; first trend GET 503 then bounded safe GET retry succeeded, confirmed actual Supabase `trend_snapshots` HTTP200 at 08:50 UTC, but zero current clothing-relevant signal. One invalid-trend signed draft POST, expected application 409, returned **60-second gateway/unknown HTTP503**, not retried. Supabase edge logs show no relevant handler DB reads/writes during POST. Independent SQL: `shop_content_drafts=0`, original licensed-synthetic image registration=1, test membership inactive, AI budget off, 0 unresolved AI reservations. Do NOT claim actual persisted draft E2E or negative 409. Azure #249 cross-linked; user and PROD/WineShopPOS unaffected.
+~~~~~
+
+### docs/WORK_LOG.md
+
+~~~~~diff
+@@ -458,3 +458,8 @@ Use scripts/checkpoint.sh after completing a task.
+ - 2026-10-28: Retested Azure Issue #249 through connected GitHub. Latest protected rerun of original [#40383050062](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40383050062) job `122701361451` reproduced signed-in missing-poster render HTTP400 (rather than required 404), after three correct write denials + poster GET 404; temporary Auth account deleted. [PR #450](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/450) exact [4/4 CI #40654491856](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40654491856) merged `3a8bb04f`: classify only public allowlisted error type, still fail on 400. Coordinator [PR #451](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/451) [4/4 CI #40654948755](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40654948755) merged `4286908e`, securely triggering current protected DEV [#40655357786](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40655357786). Real DEV returned `P0249_POSTER_RENDER_400_SAFE_ERROR=INVALID_REQUEST`; canary FAILED and confirmed test Auth deletion. Root cause not yet fixed; no PROD/WineShopPOS, paid resource, broader permissions or live customer cutover. #249 remains OPEN.
+ 
+ - 2026-10-28: Fixed actual #249 poster HTTP400 INVALID_REQUEST caused by inherited requestRender method shadowing: ReelIntentWriter overrode PosterRpcWriter in one shared Free SWA instance; poster empty JSON was validated as Reel day_id/preset. [Source PR #457](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/457) merged 406461a4, [4/4 CI #40657437627](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40657437627) with full shared writer / mocked 404/202/poster RPC/VIEWER/lost-ACK. [DEV release #459](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/459) [4/4 CI #40657993480](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40657993480), protected existing Free SWA [#40658342675](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40658342675) SUCCESS. [Signed negative PR #461](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/461) [4/4 CI #40658198464](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40658198464), actual genuine signed temporary DEV user [#40658591300](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40658591300) PASSED all six 403/404 denials including poster 404, cross-Origin/forged token denied, Auth account deleted. Issue #249 broader full 30s MP4 E2E/reliability still OPEN. No PROD/WineShopPOS, paid infra, DB mutation or customer reroute.
++
++
++## 2026-10-28 — Feature2 signed original image + real trends, Azure 503 blocked draft POST
++- Merged [PR #460](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/460) as `7949eefce38ab49c9c568ad72dd20fa5325f5326`, exact [4/4 PR #40658964322](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40658964322) and independent [4/4 main #40659456527](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40659456527). Source-only real host diagnostic recovers preexisting rights-owned test PNG and retries GET 503 at most twice; never retries unsafe draft POST.
++- Protected actual [#40659456731](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40659456731) failed exactly after passing owner private media byte verification and zero-paid signed prompt. First GET trends 503 ~60sec, next safe GET 200 with actual `trend_snapshots` Supabase HTTP200 08:50 UTC and honest zero clothing suggestions. Invalid-trend POST returned gateway-style 503 after ~60sec instead of expected app 409; never retried. Independent Supabase SQL: global drafts 0, one isolated registered private test PNG, synthetic OWNER inactive, budget off, zero outstanding AI reservations. No paid OpenAI calls, social publishing or external customer mutation. Detailed evidence in issue #403 comment 6464730535 and Azure #249 comment 6464738365. **Do not claim hosted E2E persisted**.
+~~~~~
+
+### docs/feature2/20261028_PROMPT_RECONCILIATION_TRENDS_AND_HOSTED_TEST.md
+
+~~~~~diff
+@@ -31,3 +31,18 @@
+ 
+ - Done: genuine prompt consumption reconciliation and no-retry future-usage fix, actual hosted trend feed diagnosis, source-only media + signed E2E harness, genuine seven-day TEXT-ONLY model canary.
+ - Not automatically done: prompt **editorial quality** (still failed model text); relevant **live fashion trend** and real product-photo licensing; actual hosted E2E DRAFT persistence if no relevant source. Do not alter PROD or WineShopPOS. Maintain owner-approved **zero-new-paid-AI** constraint.
++
++
++## 4. Actual protected signed DEV acceptance — two runs, NOT a full saved draft success
++
++### First real hosted run [#40655976341](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40655976341)
++
++Original tenant-only PNG object upload and `register_uploaded_image` signed RPC succeeded; confirmed a single private file registration. Genuine signed deterministic zero-paid prompt preview succeeded. First `GET /api/shops/{shop_id}/trend-recommendations` returned HTTP503 after around 60 seconds, without a corresponding Supabase `trend_snapshots` REST read. The one signed test OWNER was then revoked and AI budget verified disabled. No DRAFT POST attempted; no saved draft.
++
++### Recovery PR and repeat [#40659456731](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40659456731)
++
++- [PR #460](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/460) merged as `7949eefce38ab49c9c568ad72dd20fa5325f5326`; exact [PR CI #40658964322](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40658964322) **4/4 SUCCESS** and independent [main CI #40659456527](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40659456527) **4/4 SUCCESS**. Source code changes only the synthetic no-paid signed DEV test, not production API handlers: exact existing original PNG and registered metadata preflight+byte hash readback, bounded retry for **GET 503 only**, allowed error-code classification and cleanup armed before ambiguous membership PATCH. The workflow remains protected and one-time.
++- Real protected DEV #40659456731: `FEATURE2_HOSTED_SIGNED_EXISTING_ORIGINAL_IMAGE_READBACK=PASS` and `FEATURE2_HOSTED_SIGNED_ZERO_PAID_PROMPT_PREVIEW=PASS`. First genuine signed **GET trends** took roughly 60 seconds and returned HTTP503. `FEATURE2_TRENDS_SAFE_GET_503_RETRY=1`, second GET succeeded, independently confirming hosted Supabase `GET /rest/v1/trend_snapshots` **HTTP200** at `2026-10-28T08:50:00Z`; no verified current clothing trend so `FEATURE2_HOSTED_REAL_FASHION_TREND=NOT_AVAILABLE_FAIL_CLOSED`.
++- The test sent **one** invalid-trend signed POST to the live content-drafts API, expecting a trustworthy application `409 TREND_UNAVAILABLE_OR_STALE`. Instead Azure Functions returned **HTTP503 [GATEWAY_OR_UNKNOWN]** after roughly 60 seconds. No POST retry. Supabase edge logs during the attempt recorded no tenant membership/profile/snapshot/draft reads/writes before the cleanup PATCH. Therefore its application-level rejection **was not verified**, and a persisted DRAFT 201/GET **was not tested**.
++- Independent after-run hosted Supabase SQL confirms **0** draft rows globally and for synthetic shop; **1** original rights-owned test media asset; test OWNER membership `active=false`; budget `enabled=false`; **0** unsettled AI ledger rows. Existing recorded actual public-price settlements total USD0.005286, not an Azure billing invoice. No new model charges or customer modifications.
++- Cross-issue: [#403](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/403) and [#249](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/249) have the exact diagnostic timings and run links. Do not paper over HTTP503 with 409, declare a hosted persisted draft without 201+signed GET, loosen tenant security, fabricate clothing trends or blindly replay a write.
+~~~~~
+
