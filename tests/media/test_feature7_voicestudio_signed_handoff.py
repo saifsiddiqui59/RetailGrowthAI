@@ -259,6 +259,38 @@ reject({review:{...review,words:[,review.words[1]]}});
   reject({lease:mutableLease,review:{...review,words:[first,review.words[1]]}});
   assert.equal(changed,true);
 }
+// The original word slots can remain identical while a descriptor trap
+// appends an unreviewed word during normalization. The final array length
+// must still match the initial bounded snapshot before HMAC sealing.
+{
+  const words=[...review.words];
+  let reads=0;
+  words[0]=new Proxy({...review.words[0]}, {
+    getOwnPropertyDescriptor(target,field) {
+      if (field==='word' && ++reads===2) {
+        words.push({word:'अनधिकृत',start:1.3,end:1.5});
+      }
+      return Reflect.getOwnPropertyDescriptor(target,field);
+    }
+  });
+  reject({review:{...review,words}});
+  assert.equal(words.length,3);
+  assert.ok(reads>=2);
+}
+// Truncation after the initial snapshot is equally invalid even if the
+// original word objects and HMAC input were already captured.
+{
+  const words=[...review.words];
+  let reads=0;
+  words[0]=new Proxy({...review.words[0]}, {
+    getOwnPropertyDescriptor(target,field) {
+      if (field==='word' && ++reads===2) words.length=1;
+      return Reflect.getOwnPropertyDescriptor(target,field);
+    }
+  });
+  reject({review:{...review,words}});
+  assert.equal(words.length,1);
+}
 // A Proxy's ordinary get trap must not override own-data review snapshots.
 // All fields used for signing come from descriptors, not arbitrary reads.
 {
