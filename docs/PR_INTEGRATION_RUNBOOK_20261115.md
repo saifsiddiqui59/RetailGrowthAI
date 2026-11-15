@@ -27,3 +27,5 @@ Record per run: run ID, PR number and head before/after, real code commits, test
 
 ## Limitations
 A queued PR claim is only as effective as the workflows that use it. The scheduled task runtime may not have an authenticated CLI environment; the GitHub connector can perform branch/Contents CAS instead when available. A future approved executor can make this enforcement automatic; the current GitHub Actions advisory 10-slot scheduler does **not** run ten coding agents.
+
+CI discovery: the nine offline PR queue regression tests live in `tests/infra/test_pr_work_queue.py`, which the existing mandatory Python/uv CI job collects automatically. No CI workflow was changed or skipped.
