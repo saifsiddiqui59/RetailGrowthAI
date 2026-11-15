@@ -218,6 +218,14 @@ def transcribe_private_voice(
         raise VoiceStudioTranscriptionDenied("Malformed ASR result") from exc
     if type(parsed) is not dict or parsed.get("task") != "transcribe":
         raise VoiceStudioTranscriptionDenied("Incorrect ASR response type")
+    # The upstream duration is advisory, but when supplied it must describe
+    # the same original WAV clock rather than a different audio source.
+    reported_duration = parsed.get("duration")
+    if reported_duration is not None and (
+            type(reported_duration) not in (int, float)
+            or not math.isfinite(reported_duration)
+            or abs(reported_duration - seconds) > 0.1):
+        raise VoiceStudioTranscriptionDenied("ASR duration disagrees with original WAV")
     words = parsed.get("words")
     if not isinstance(words, list) or not 1 <= len(words) <= 2000:
         raise VoiceStudioTranscriptionDenied("Real word timestamps required")
