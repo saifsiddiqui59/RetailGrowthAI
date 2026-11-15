@@ -42,14 +42,14 @@
       "pr": 513,
       "title": "feat(feature7): AutoBroll uploaded-footage semantic edit proposals with tenant fences",
       "feature": "F7",
-      "head_sha": "b9dc32031e27a4c7aa5853c383bba545f081358d",
+      "head_sha": "418c5bb89583ae6f527a44ad451b69c331fb2286",
       "base_branch": "main",
       "work_owner": "schedule-f7",
       "priority": "P0",
       "phase": "blocked",
       "claim": {
         "owner": "schedule-f7",
-        "head_sha": "b9dc32031e27a4c7aa5853c383bba545f081358d",
+        "head_sha": "418c5bb89583ae6f527a44ad451b69c331fb2286",
         "claimed_at": "2026-11-15T18:10:00Z",
         "expires_at": "2026-11-15T19:40:00Z",
         "purpose": "Fix async ASR review metadata mutation before HMAC signing"
