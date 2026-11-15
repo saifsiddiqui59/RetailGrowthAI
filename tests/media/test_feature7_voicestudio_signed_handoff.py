@@ -324,6 +324,22 @@ reject({review:{...review,words:[,review.words[1]]}});
   assert.equal(mutableLease.active,false);
   assert.ok(schemaChecks>=4);
 }
+// A review word can be replaced after signing but before final artifact release.
+// The fifth indexed descriptor read occurs at the final release gate.
+{
+  const words=[...review.words];
+  let reads=0;
+  const hostileWords=new Proxy(words,{
+    getOwnPropertyDescriptor(target,field) {
+      if (field==='0' && ++reads===5) {
+        target[0]={word:'बदला',start:.1,end:.5};
+      }
+      return Reflect.getOwnPropertyDescriptor(target,field);
+    }
+  });
+  reject({review:{...review,words:hostileWords}});
+  assert.ok(reads>=5);
+}
 // Null-prototype records with explicit own data fields remain compatible.
 assert.equal(bindVoiceStudioReview({...input,review:Object.assign(Object.create(null),review),
   lease:Object.assign(Object.create(null),lease)}).approved,false);
