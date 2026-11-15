@@ -121,6 +121,20 @@ export async function bindVerifiedVoiceStudioMedia({
     fieldValue('audio_sha256')===original_audio_sha256 &&
     typeof fieldValue('text')==='string' &&
     fieldValue('text').length<=20000 && fieldValue('text').trim().length>0);
+  // Pin the entire ASR envelope before awaiting private media readers. The
+  // language, transcript text and review flags must not be swapped after the
+  // initial validation but before HMAC sealing, even if words stay unchanged.
+  const reviewFields=['schema','approved','renderable','language','audio_sha256',
+    'text','word_timings_present','model_revision_verified_by_worker',
+    'requires_feature7_signed_evidence'];
+  const earlyReview=Object.create(null);
+  for (const field of reviewFields)
+    earlyReview[field]=fieldValue(field);
+  const unchangedReview=()=>reviewFields.every(field=>{
+    const descriptor=Object.getOwnPropertyDescriptor(review,field);
+    return descriptor && Object.hasOwn(descriptor,'value') &&
+      Object.is(descriptor.value,earlyReview[field]);
+  });
   // Preflight every untrusted word BEFORE private video/WAV reads. A malformed
   // review must not trigger costly tenant media I/O merely to fail at signing.
   // Inspect own descriptors only; never invoke user-supplied getters or map.
@@ -223,6 +237,7 @@ export async function bindVerifiedVoiceStudioMedia({
     stableReview[field]=descriptor.value;
   }
   stableReview.words=words;
+  deny(unchangedReview());
   const lease=await readCurrentLease({shop_id,asset_id,job_id});
   // Snapshot the first lease: a storage adapter may reuse and mutate its object
   // on the second read. Comparing two aliases would silently accept revocation.
@@ -242,5 +257,6 @@ export async function bindVerifiedVoiceStudioMedia({
     ['shop_id','asset_id','job_id','source_sha256','audio_sha256','model_id','expires_at_ms']
       .every(field=>finalLease[field]===leaseSnapshot[field]) &&
     finalLease.expires_at_ms>checkedTime());
+  deny(unchangedReview());
   return signed;
 }
