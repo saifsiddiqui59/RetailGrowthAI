@@ -145,6 +145,13 @@ class PublicShadowTrialSafetyTests(unittest.TestCase):
         self.assertIn("needs: [preflight, temporary-negative-test]", work)
         self.assertIn("github.ref == 'refs/heads/main'", work)
         self.assertIn("YES-Y1-DEV-PUBLIC-SHADOW-BOUNDED", work)
+        # This workflow writes DEV appsettings. A merge of its PR must NEVER
+        # silently activate the trial; only explicit approved dispatch may do so.
+        self.assertIn("  workflow_dispatch:", work)
+        self.assertIn("github.event_name == 'workflow_dispatch'", work)
+        self.assertNotIn("\\n  push:", work)
+        self.assertNotIn("github.event_name == 'push'", work)
+        self.assertNotIn("github.event.head_commit.message", work)
         self.assertIn("p0249_y1_public_shadow_trial_guard.py preflight", work)
         self.assertIn("p0249_y1_public_shadow_trial_guard.py activate", work)
         self.assertIn("p0249_y1_public_shadow_trial_guard.py rollback", work)
