@@ -8,6 +8,10 @@ import {buildCaptions,EditValidationError} from './autobroll_semantics.mjs';
 
 const SHA=/^[a-f0-9]{64}$/;
 const ID=/^[A-Za-z0-9_-]{1,120}$/;
+// Revalidate the upstream review text at the signing boundary: this function
+// can also receive a forged/mutated handoff object, not only Python output.
+const UNSAFE_TEXT=/[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u2028-\u202e\u2066-\u2069\ud800-\udfff\ufeff]/u;
+const safeReviewText=value=>typeof value==='string' && !UNSAFE_TEXT.test(value);
 const deny=(condition,message)=>{if(!condition)throw new EditValidationError(message);};
 
 // Reject accessor-backed and inherited metadata before reading untrusted review or
@@ -75,7 +79,7 @@ export function bindVoiceStudioReview({
   const wordCount=wordLengthDescriptor && Object.hasOwn(wordLengthDescriptor,'value')
     ? wordLengthDescriptor.value : -1;
   deny(wordCount>=1 && wordCount<=2000 && typeof reviewSnapshot.text==='string' &&
-    reviewSnapshot.text.length<=20000 && reviewSnapshot.text.trim().length>0,'Missing real word timings');
+    reviewSnapshot.text.length<=20000 && reviewSnapshot.text.trim().length>0 && safeReviewText(reviewSnapshot.text),'Missing real word timings');
   // Pin the indexed word identities before normalization. A mutable array can
   // replace an element without changing the review's `words` reference; never
   // sign a transcript derived from a list that changed mid-operation.
@@ -98,7 +102,7 @@ export function bindVoiceStudioReview({
     const value=Object.fromEntries(['word','start','end'].map(field=>
       [field,Object.getOwnPropertyDescriptor(word,field).value]));
     wordSnapshots.push(value);
-    deny(typeof value.word==='string' && value.word.trim().length>0 &&
+    deny(safeReviewText(value.word) && value.word.trim().length>0 &&
       value.word.length<=120 && typeof value.start==='number' &&
       typeof value.end==='number' && Number.isFinite(value.start) &&
       Number.isFinite(value.end) && value.start>=0 &&
