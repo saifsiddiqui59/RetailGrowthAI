@@ -91,6 +91,11 @@ def main():
             samples = struct.unpack("<" + "h" * (len(pcm) // 2), pcm)
             rms = math.sqrt(sum(x * x for x in samples) / len(samples))
             assert rms > 100, "Encoded narration/music unexpectedly silent"
+            # Reject full-scale PCM clipping in the actual decoded AAC mix.
+            # A successful mux or nonzero RMS alone can conceal a broken gain
+            # stage that saturates the licensed soundtrack and narration.
+            assert max(abs(x) for x in samples) < 32767, (
+                "Decoded VoiceStudio AAC mix clips at full-scale PCM")
             # Verify the original narration tone is actually present in decoded
             # AAC, rather than passing because the music bed alone is audible.
             # The synthetic fixture uses 350 Hz narration and 196 Hz music.
