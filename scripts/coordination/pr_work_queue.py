@@ -83,7 +83,7 @@ def claim_entry(state: dict, pr: int, owner: str, expected_head: str,
         raise QueueError("lease must be 10-180 minutes")
     updated = deepcopy(state)
     item = find(updated, pr)
-    if owner not in {item["work_owner"], "manual-integration"}:
+    if owner not in {item["work_owner"], "manual-integration", "schedule-integration"}:
         raise QueueError("claimant is not assigned to this feature/PR")
     if not SHA.fullmatch(expected_head) or item["head_sha"] != expected_head:
         raise QueueError("stale PR head; refresh and reconcile first")
