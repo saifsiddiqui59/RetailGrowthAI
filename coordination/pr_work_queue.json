@@ -13,23 +13,75 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 68,
+    "open_prs": 69,
     "by_feature": {
+      "shared": 3,
+      "F7": 1,
+      "F4": 34,
+      "F2": 13,
       "issue249": 9,
       "F3": 4,
-      "F7": 1,
-      "F2": 13,
-      "F4": 34,
-      "F5": 5,
-      "shared": 2
+      "F5": 5
     }
   },
   "entries": [
     {
+      "pr": 964,
+      "title": "feat(coordination): serialize main merges and use CAS-backed PR queue",
+      "feature": "shared",
+      "head_sha": "f555b162bb89ce09c92025480ecb492f1846d2a5",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P2",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/964"
+    },
+    {
+      "pr": 513,
+      "title": "feat(feature7): AutoBroll uploaded-footage semantic edit proposals with tenant fences",
+      "feature": "F7",
+      "head_sha": "5b83f5f3c004ed4c60b97abecdb1e8e4713ca859",
+      "base_branch": "main",
+      "work_owner": "schedule-f7",
+      "priority": "P0",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/513"
+    },
+    {
+      "pr": 322,
+      "title": "WIP Feature #4 — Timeline Studio engine (illustrated demo rejected; visual QA open)",
+      "feature": "F4",
+      "head_sha": "afe717df34860dbd4795e7d7de6d37a2fa9acfcc",
+      "base_branch": "main",
+      "work_owner": "schedule-f4",
+      "priority": "P0",
+      "phase": "draft",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322"
+    },
+    {
+      "pr": 551,
+      "title": "feat(feature2): unify pinned MIT Creative Director, trusted grants, QA, editorial handoff and GPU-off integration tests",
+      "feature": "F2",
+      "head_sha": "d80d6b50705323290c4b214bf2f006eacef1ef33",
+      "base_branch": "main",
+      "work_owner": "schedule-f2",
+      "priority": "P0",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/551"
+    },
+    {
       "pr": 955,
       "title": "docs(#249): checkpoint manual-only Y1 trial and JWT cache source work",
       "feature": "issue249",
-      "head_sha": "3829633ce229d9263d9adbd554561a34b4cab32c",
+      "head_sha": "b40cc44f6de614f8528525e04838779e17894365",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P0",
@@ -42,7 +94,7 @@
       "pr": 939,
       "title": "ops(#249): bounded DEV Y1 public-only JWT shadow trial with rollback",
       "feature": "issue249",
-      "head_sha": "e8f5e16d3e4344eb1d4d997232e7598bf78ef8f9",
+      "head_sha": "bf182848cf4aeed5f681cdf2374251535b0589cc",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P0",
@@ -78,19 +130,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/944"
     },
     {
-      "pr": 513,
-      "title": "feat(feature7): AutoBroll uploaded-footage semantic edit proposals with tenant fences",
-      "feature": "F7",
-      "head_sha": "2f1e7652ba1e7382041eb59a03145253ccf70ef6",
-      "base_branch": "main",
-      "work_owner": "schedule-f7",
-      "priority": "P0",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/513"
-    },
-    {
       "pr": 848,
       "title": "feat(feature2): consolidate existing Creative Director source PRs for coordinator review",
       "feature": "F2",
@@ -102,32 +141,6 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848"
-    },
-    {
-      "pr": 551,
-      "title": "feat(feature2): unify pinned MIT Creative Director, trusted grants, QA, editorial handoff and GPU-off integration tests",
-      "feature": "F2",
-      "head_sha": "d80d6b50705323290c4b214bf2f006eacef1ef33",
-      "base_branch": "main",
-      "work_owner": "schedule-f2",
-      "priority": "P0",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/551"
-    },
-    {
-      "pr": 322,
-      "title": "WIP Feature #4 — Timeline Studio engine (illustrated demo rejected; visual QA open)",
-      "feature": "F4",
-      "head_sha": "afe717df34860dbd4795e7d7de6d37a2fa9acfcc",
-      "base_branch": "main",
-      "work_owner": "schedule-f4",
-      "priority": "P0",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322"
     },
     {
       "pr": 937,
