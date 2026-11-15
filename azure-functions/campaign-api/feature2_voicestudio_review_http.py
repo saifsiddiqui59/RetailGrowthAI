@@ -36,7 +36,8 @@ def private_original_review_response(*, request, shop_id, campaign_id, request_i
             # Treat any malformed request-header adapter as unauthenticated;
             # never touch JWT, SQL or private storage.
             return 401, headers, b""
-        if (type(authorization) is not str or not authorization.strip()
+        if (type(authorization) is not str or len(authorization) > 8192
+                or not authorization.strip()
                 or any(not 32 <= ord(ch) <= 126 for ch in authorization)):
             return 401, headers, b""
         content = read_current_voiceover_for_review(
