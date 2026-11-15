@@ -309,6 +309,21 @@ reject({review:{...review,words:[,review.words[1]]}});
   assert.equal(signed.language,'hi');
   assert.equal(gets,0);
 }
+// A descriptor trap can revoke the lease only during the final post-HMAC
+// review inspection. The release gate must recheck lease after that inspection.
+{
+  const mutableLease={...lease};
+  let schemaChecks=0;
+  const hostileReview=new Proxy({...review},{
+    getOwnPropertyDescriptor(target,field) {
+      if (field==='schema' && ++schemaChecks===4) mutableLease.active=false;
+      return Reflect.getOwnPropertyDescriptor(target,field);
+    }
+  });
+  reject({lease:mutableLease,review:hostileReview});
+  assert.equal(mutableLease.active,false);
+  assert.ok(schemaChecks>=4);
+}
 // Null-prototype records with explicit own data fields remain compatible.
 assert.equal(bindVoiceStudioReview({...input,review:Object.assign(Object.create(null),review),
   lease:Object.assign(Object.create(null),lease)}).approved,false);
