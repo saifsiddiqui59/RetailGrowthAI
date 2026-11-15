@@ -9,7 +9,7 @@ from feature3_private_png_reader import PrivateGeneratedDownloadDenied
 
 SHOP = "synthetic-shop"
 JOB = "synthetic-job"
-PNG = b"\\x89PNG\\r\\n\\x1a\\n" + b"synthetic-fixture" * 8
+PNG = bytes((137, 80, 78, 71, 13, 10, 26, 10)) + b"synthetic-fixture" * 8
 
 
 class PrivatePNGHttpAdapterTests(unittest.TestCase):
@@ -54,7 +54,7 @@ class PrivatePNGHttpAdapterTests(unittest.TestCase):
                     raise self.result
                 return self.result
         for result in (PrivateGeneratedDownloadDenied("foreign shop"),
-                       bytearray(PNG), b"not a png" * 12, b"", PNG[:8]):
+                       bytearray(PNG), b"not a png" * 12, b"", PNG[:8],\n                       b"\\\\x89PNG\\\\r\\\\n\\\\x1a\\\\n" + b"synthetic-fixture" * 8):
             with self.subTest(result=type(result).__name__):
                 status, headers, body = private_png_http_response(
                     reader_factory=lambda shop, job: Reader(result),
