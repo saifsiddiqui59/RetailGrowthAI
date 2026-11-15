@@ -96,6 +96,20 @@ def main():
             # stage that saturates the licensed soundtrack and narration.
             assert max(abs(x) for x in samples) < 32767, (
                 "Decoded VoiceStudio AAC mix clips at full-scale PCM")
+            # Downmixing to mono can conceal clipping in one AAC channel when
+            # left/right peaks cancel. Inspect both decoded channels before
+            # accepting the existing narration/music mastering result.
+            stereo_pcm = subprocess.check_output(
+                ["ffmpeg", "-nostdin", "-v", "error", "-i", str(output),
+                 "-map", "0:a:0", "-t", "1", "-ac", "2", "-ar", "8000",
+                 "-f", "s16le", "-acodec", "pcm_s16le", "-"],
+                timeout=45)
+            assert len(stereo_pcm) >= 8000 * 2 * 2, (
+                "Decoded stereo AAC mix is truncated")
+            stereo_samples = struct.unpack(
+                "<" + "h" * (len(stereo_pcm) // 2), stereo_pcm)
+            assert max(abs(x) for x in stereo_samples) < 32767, (
+                "Decoded VoiceStudio AAC channel clips at full-scale PCM")
             # Verify the original narration tone is actually present in decoded
             # AAC, rather than passing because the music bed alone is audible.
             # The synthetic fixture uses 350 Hz narration and 196 Hz music.
