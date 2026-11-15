@@ -6,6 +6,8 @@ server-owned scoped reader factory. No browser-supplied rights are accepted.
 """
 from __future__ import annotations
 
+from uuid import UUID
+
 from feature3_private_png_reader import PrivateGeneratedDownloadDenied
 
 _MAX_PNG_BYTES = 25 * 1024 * 1024
@@ -32,6 +34,13 @@ def private_png_http_response(*, reader_factory, shop_id, job_id, bearer_token):
     if not callable(reader_factory):
         raise ValueError("Trusted scoped reader factory required")
     try:
+        # Reject malformed route scope before invoking any tenant reader.
+        for scope in (shop_id, job_id):
+            if type(scope) is not str or len(scope) != 36:
+                raise PrivateGeneratedDownloadDenied("Unavailable")
+            parsed = UUID(scope)
+            if parsed.version != 4 or str(parsed) != scope:
+                raise PrivateGeneratedDownloadDenied("Unavailable")
         if type(bearer_token) is not str or not bearer_token.startswith("Bearer "):
             raise PrivateGeneratedDownloadDenied("Unavailable")
         token = bearer_token[7:]
