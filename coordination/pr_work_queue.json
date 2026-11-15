@@ -42,35 +42,29 @@
       "pr": 513,
       "title": "feat(feature7): AutoBroll uploaded-footage semantic edit proposals with tenant fences",
       "feature": "F7",
-      "head_sha": "418c5bb89583ae6f527a44ad451b69c331fb2286",
+      "head_sha": "5be0dd259066fa3c902e4ace0dfb0b7afa2778c0",
       "base_branch": "main",
       "work_owner": "schedule-f7",
       "priority": "P0",
       "phase": "blocked",
-      "claim": {
-        "owner": "schedule-f7",
-        "head_sha": "418c5bb89583ae6f527a44ad451b69c331fb2286",
-        "claimed_at": "2026-11-15T18:10:00Z",
-        "expires_at": "2026-11-15T19:40:00Z",
-        "purpose": "Fix async ASR review metadata mutation before HMAC signing"
-      },
+      "claim": null,
       "checkpoint": {
         "owner": "schedule-f7",
-        "at": "2026-11-15T17:15:00Z",
-        "head_before": "934700b1b36f4333ccc4d75769bdb10f6d2fd527",
-        "head_after": "b9dc32031e27a4c7aa5853c383bba545f081358d",
+        "at": "2026-11-15T18:15:00Z",
+        "head_before": "b9dc32031e27a4c7aa5853c383bba545f081358d",
+        "head_after": "5be0dd259066fa3c902e4ace0dfb0b7afa2778c0",
         "commits": [
-          "5b1efb96fa80d808a30c0f9a2f5bf4a87c52f8c2",
-          "b9dc32031e27a4c7aa5853c383bba545f081358d"
+          "418c5bb89583ae6f527a44ad451b69c331fb2286",
+          "5be0dd259066fa3c902e4ace0dfb0b7afa2778c0"
         ],
         "files_changed": [
-          "video-engine/feature7/voicestudio_transcription.py",
-          "tests/media/test_feature7_voicestudio_asr.py"
+          "video-engine/feature7/voicestudio_verified_media.mjs",
+          "tests/media/test_feature7_voicestudio_verified_media.py"
         ],
-        "tests": "NOT RUN: GitHub connector source edits; local checkout unavailable",
-        "ci": "Exact-head workflow runs and combined statuses empty; 0/4 verified",
-        "blockers": "No CPU test execution, no four-job CI, parent nonmergeable and independent review outstanding",
-        "next_action": "Run python -m unittest tests/media/test_feature7_voicestudio_asr.py on b9dc320; inspect exact-head four mandatory CI jobs; repair failures in F7 scope before manual integration",
+        "tests": "NOT RUN: local checkout unavailable; deterministic regression added for ASR metadata changes during async source and lease reads",
+        "ci": "Exact-final-head 0 PR workflow runs found; 0/4 mandatory jobs verified",
+        "blockers": "Targeted offline CPU test and final-head CI pending; parent nonmergeable; independent review required",
+        "next_action": "Run python -m unittest tests/media/test_feature7_voicestudio_verified_media.py on 5be0dd259066fa3c902e4ace0dfb0b7afa2778c0; fix any regressions, then verify exact-head four-job Actions and manual integration review",
         "status": "worker-reported; NOT DONE"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/513"
