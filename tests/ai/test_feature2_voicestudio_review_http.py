@@ -167,10 +167,10 @@ def test_http_boundary_rejects_structurally_invalid_pcm_even_from_injected_reade
     # All samples retain a valid RIFF size and WAVE signature; the injected
     # reader must not bypass the service's canonical PCM16 envelope policy.
     invalid = (
-        good[:20] + b"\\x03\\x00" + good[22:],  # IEEE float format, not PCM
-        good[:34] + b"\\x08\\x00" + good[36:],  # 8-bit samples, not PCM16
+        good[:20] + bytes((3, 0)) + good[22:],  # IEEE float format, not PCM
+        good[:34] + bytes((8, 0)) + good[36:],  # 8-bit samples, not PCM16
         good[:36] + b"JUNK" + good[40:],  # noncanonical data chunk
-        good[:40] + b"\\x00\\x00\\x00\\x00" + good[44:],  # empty data
+        good[:40] + bytes(4) + good[44:],  # empty data
     )
     for payload in invalid:
         monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: payload)
