@@ -53,7 +53,7 @@ def request(url, method="GET", data=None, headers=None, expected=(200,), timeout
 
 
 def admin_headers(key):
-    # Modern sb_secret_ keys are opaque API keys, NOT signed JWTs.
+    # Modern opaque admin keys are API keys, NOT signed JWTs.
     # Only legacy JWT service_role keys may be forwarded as a Bearer token.
     if key.startswith("sb_secret_"):
         return {"apikey": key}
