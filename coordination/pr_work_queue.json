@@ -47,7 +47,12 @@
       "work_owner": "schedule-f7",
       "priority": "P0",
       "phase": "needs-triage",
-      "claim": null,
+      "claim": {
+        "owner": "schedule-f7",
+        "head_sha": "5b83f5f3c004ed4c60b97abecdb1e8e4713ca859",
+        "claimed_at": "2026-11-15T15:06:41Z",
+        "expires_at": "2026-11-15T16:36:41Z"
+      },
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/513"
     },
