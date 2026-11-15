@@ -172,6 +172,18 @@ export function bindVoiceStudioReview({
     shop_id,asset_id,job_id,source_sha256:original_video_sha256,
     transcript_sha256:normalized.transcript_sha256,model_id
   }});
+  // Recheck current in-memory authority after sealing and verification too.
+  // A reentrant signer/verifier or hostile descriptor trap must not revoke the
+  // lease or replace the reviewed word list and still receive signed output.
+  requireOwnDataFields(lease,Object.keys(leaseSnapshot));
+  deny(Object.entries(leaseSnapshot).every(([field,value])=>
+    Object.is(Object.getOwnPropertyDescriptor(lease,field).value,value)) &&
+    leaseSnapshot.active===true && leaseSnapshot.expires_at_ms>now_ms,
+    'ASR lease changed while sealing transcript');
+  requireOwnDataFields(review,reviewFields);
+  deny(Object.entries(reviewSnapshot).every(([field,value])=>
+    Object.is(Object.getOwnPropertyDescriptor(review,field).value,value)),
+    'VoiceStudio review changed while sealing transcript');
   const captions=buildCaptions(normalized.words,asset_id);
   return Object.freeze({
     schema:'retailgrowth.feature7-voicestudio-signed-review.v1',
