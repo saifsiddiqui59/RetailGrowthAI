@@ -1502,3 +1502,9 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 4. For each missing old feature patch, inspect archived diff and latest same-module code, port only missing behavior into **reviewable current-main feature-owned changes**, keep existing newer sources, run exact-head four jobs and fresh main four jobs. Shared JWT/RLS/storage/F4/F7/Functions routes require independent affected-lead review. Do not turn disabled Kokoro/Azure-only voice drafts into active model calls: favor approved VoiceStudio CPU-only. Azure #249 and #650 remain OPEN.
 5. Continue other independent non-GPU Feature2 source jobs while private hosted test identities/licenses/editor rights are unavailable. No paid provider, Azure SQL/PROD, new GPU or WineShopPOS mutation.
 
+
+
+## 2026-11-15 — Next integration control steps (owner requested)
+1. Review and merge PR execution queue/runbook proposal after its exact-head four-job CI and independent shared-coordination review; verify fresh postmerge `main` 4/4. The separate live queue branch is an operational snapshot; refresh its GitHub heads before claiming.
+2. Have every manual and hourly ChatGPT worker claim/release its PR via the GitHub Contents SHA precondition. Feature schedules own code/child PRs; one manual merge chat exclusively serializes `main` merges. On unavailable claim tooling, perform read-only triage, not an unverified exclusive edit.
+3. Focus on F2 #551/#848 and F4 #322 remaining unique source and conflicts, then F7 #513 and F3 #880/#944. Smaller current-main PRs with proven unique code and passing CI are preferred to blind merge of old branches. Preserve reviews and original task IDs; lower PR count does not imply feature DONE.

@@ -1493,3 +1493,7 @@ Feature3 verified source-integration checkpoint:
 - New [#962](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/962) surgically ports original #796 invisible/bidi Unicode prompt-safety restrictions onto **current-main** `prompt_improver.py`, with new tests; legitimate Hindi virama conjuncts preserved, mock LLM only. Exact-head [CI #43713860334](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/43713860334) **4/4 PASS**, merged `e9610ffd32e27b9c9dc02aac5770c0dec45fe080`; fresh main [CI #43714482943](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/43714482943) **COMPLETED SUCCESS 4/4**. Original reviewed prompt CAS and stored script review are **NOT** integrated or accepted.
 - No Azure or Supabase deployment/migration, paid AI inference, model weights, GPU, PROD or WineShopPOS mutation. Feature2 38 original IDs remain unchanged.
 
+
+
+## 2026-11-15 — PR execution control proposal (review pending)
+A live `coordination/pr-execution-ledger` branch now contains a 68-open-PR inventory at creation (not a claim of completed work). Reviewable source introduces optimistic CAS PR ownership, per-PR exact-head checkpointing, and manual-only serialized `main` merge routing in `docs/PR_INTEGRATION_RUNBOOK_20261115.md`. This is coordination source, not merged product functionality, acceptance, or cloud deployment; all previously open product/security/hosted gates remain open.

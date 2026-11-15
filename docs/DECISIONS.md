@@ -1125,3 +1125,7 @@ Owner direction to reuse original VoiceStudio code implemented with unchanged pi
 - Accept **source-only** recovery of old #767 private trace generation/scope fence into #960; no backend authorization implied. Accept compatible #796 Unicode/bidi control checks into newest main under #962, retaining valid Devanagari virama conjunct behavior and mock-only provider tests, **not** old signed CAS/editor approval. Separate reviewer/security approval remains needed for hosted tenant/JWT/RLS/VoiceStudio/F4/F7 changes, original F2-03/F2-12/F2-17 task status not automatically DONE.
 - Archive-only source preservation and source-level mock CI never grant rights for real media, commercial voice inference, paid provider, GPU, PROD or WineShopPOS.
 
+
+
+## 2026-11-15 — Use single-main-writer and CAS PR queue instead of overlapping merge agents
+Owner-approved integration efficiency change: use one manual `main` merge writer, feature-scoped coding schedules, and integration automation scoped to review/deduplication. Maintain a dedicated branch `coordination/pr-execution-ledger` for short-lived PR claims with GitHub Contents SHA optimistic concurrency and head-SHA validation. Do not claim Github labels/comments are atomic locks. The queue is operational tracking, separate from immutable 159 task IDs and evidence-backed task progress. Adopt bounded 1–3 PR integration batches, no automatic release or review bypass, GPU OFF, PROD/WineShopPOS untouched. The policy is reviewable on a current-main branch before integration.

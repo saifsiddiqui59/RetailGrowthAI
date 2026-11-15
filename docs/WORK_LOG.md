@@ -910,3 +910,9 @@ Work completed: #859 merged & postmerge 4/4, #866 merged (postmerge running), #8
 - [#962](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/962): surgical current-main port of #796 Unicode/invisible/bidi prompt control checks plus new negative tests and Hindi conjunct positive fixture, no model execution. Exact PR [#43713860334](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/43713860334) **4/4 PASS**; merged `e9610ffd32e27b9c9dc02aac5770c0dec45fe080`; fresh main [#43714482943](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/43714482943) **COMPLETED SUCCESS 4/4**. Old signed prompt CAS not ported.
 - Original #551 has 171 changed paths, previously 58 exact main blobs / 105 absent / 8 different, and stacked #848 has 82 changed filenames (66 absent, 16 different at earlier checkpoint); these are **file counts**, not feature completion. Recompare against moving main before next batch. GPU/provider/paid AI, Azure/SQL, PROD and WineShopPOS unchanged by this run.
 
+
+
+## 2026-11-15 — PR scheduler ownership/control implementation (review branch)
+- Created separate `coordination/pr-execution-ledger` branch with `coordination/pr_work_queue.json`, seeded from 68 open GitHub PRs and their observed live heads at creation; no existing PR was closed or merged by this change.
+- Proposed pure-Python fail-closed PR claim/CAS client and offline negative tests, feature ownership/runbook and short-run metrics in review branch `chore/pr-integration-control-20261115`. Claim mutations target only ledger branch, not product source or main; no lease claimed yet. Open proposal requires independent coordination review and exact-head/full main CI.
+- No GPU, paid AI, Azure/Supabase hosted writes, PROD or WineShopPOS modifications.
