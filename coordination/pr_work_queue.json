@@ -42,35 +42,29 @@
       "pr": 513,
       "title": "feat(feature7): AutoBroll uploaded-footage semantic edit proposals with tenant fences",
       "feature": "F7",
-      "head_sha": "5b1efb96fa80d808a30c0f9a2f5bf4a87c52f8c2",
+      "head_sha": "b9dc32031e27a4c7aa5853c383bba545f081358d",
       "base_branch": "main",
       "work_owner": "schedule-f7",
       "priority": "P0",
       "phase": "blocked",
-      "claim": {
-        "owner": "schedule-f7",
-        "head_sha": "5b1efb96fa80d808a30c0f9a2f5bf4a87c52f8c2",
-        "claimed_at": "2026-11-15T17:10:00Z",
-        "expires_at": "2026-11-15T18:40:00Z",
-        "task": "VoiceStudio response metadata exception negative regression"
-      },
+      "claim": null,
       "checkpoint": {
         "owner": "schedule-f7",
-        "at": "2026-11-15T16:12:00Z",
-        "head_before": "5b83f5f3c004ed4c60b97abecdb1e8e4713ca859",
-        "head_after": "934700b1b36f4333ccc4d75769bdb10f6d2fd527",
+        "at": "2026-11-15T17:15:00Z",
+        "head_before": "934700b1b36f4333ccc4d75769bdb10f6d2fd527",
+        "head_after": "b9dc32031e27a4c7aa5853c383bba545f081358d",
         "commits": [
-          "bf966036098d9a652c748f61ebec1379531e0d5d",
-          "934700b1b36f4333ccc4d75769bdb10f6d2fd527"
+          "5b1efb96fa80d808a30c0f9a2f5bf4a87c52f8c2",
+          "b9dc32031e27a4c7aa5853c383bba545f081358d"
         ],
         "files_changed": [
           "video-engine/feature7/voicestudio_transcription.py",
           "tests/media/test_feature7_voicestudio_asr.py"
         ],
-        "tests": "NOT RUN: GitHub-only edits; no local checkout; deterministic bearer injection cases added",
-        "ci": "Exact final-head combined statuses empty; 0/4 verified",
-        "blockers": "No CPU execution or exact-head four-job CI; parent nonmergeable; independent review/main integration pending",
-        "next_action": "Run python -m unittest tests/media/test_feature7_voicestudio_asr.py and signed handoff suites on 934700b1; inspect exact-head 4 CI jobs, repair any failures, hand off parent #513 for serialized main integration",
+        "tests": "NOT RUN: GitHub connector source edits; local checkout unavailable",
+        "ci": "Exact-head workflow runs and combined statuses empty; 0/4 verified",
+        "blockers": "No CPU test execution, no four-job CI, parent nonmergeable and independent review outstanding",
+        "next_action": "Run python -m unittest tests/media/test_feature7_voicestudio_asr.py on b9dc320; inspect exact-head four mandatory CI jobs; repair failures in F7 scope before manual integration",
         "status": "worker-reported; NOT DONE"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/513"
