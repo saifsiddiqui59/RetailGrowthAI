@@ -1371,3 +1371,18 @@ def test_untrusted_extra_receipt_fields_cannot_affect_postread_authorization():
     sql.read_private_receipt = receipt
     assert read_current_voiceover_for_review(**args) == pcm()
     assert len(storage.calls) == 1 and len(sql.calls) == 2
+
+
+def test_jwt_subject_switch_after_private_get_denies_bytes():
+    """A valid but different JWT subject after I/O must never disclose audio."""
+    args, tenant, sql, storage, _ = harness()
+    calls = []
+    def verifier(token):
+        calls.append(token)
+        return USER if len(calls) == 1 else str(uuid4())
+    args["verify_token"] = verifier
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(calls) == 2
+    assert len(storage.calls) == 1 and len(sql.calls) == 2
+    assert len(tenant.calls) == 1
