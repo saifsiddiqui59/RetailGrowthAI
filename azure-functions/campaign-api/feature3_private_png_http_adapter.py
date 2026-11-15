@@ -34,7 +34,7 @@ def private_png_http_response(*, reader_factory, shop_id, job_id, bearer_token):
             raise PrivateGeneratedDownloadDenied("Unavailable")
         reader = reader_factory(shop_id, job_id)
         body = reader.read(user_token=token, shop_id=shop_id, job_id=job_id)
-        if type(body) is not bytes or len(body) < 100 or not body.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+        if type(body) is not bytes or len(body) < 100 or not body.startswith(bytes((137, 80, 78, 71, 13, 10, 26, 10))):
             raise PrivateGeneratedDownloadDenied("Unavailable")
         return 200, dict(_PNG_HEADERS), body
     except (PrivateGeneratedDownloadDenied, ValueError, TypeError, AttributeError):
