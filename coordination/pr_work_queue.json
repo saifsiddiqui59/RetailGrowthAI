@@ -16,11 +16,11 @@
     "open_prs": 68,
     "by_feature": {
       "issue249": 9,
-      "F3": 5,
+      "F3": 4,
       "F7": 1,
       "F2": 13,
       "F4": 34,
-      "F5": 4,
+      "F5": 5,
       "shared": 2
     }
   },
@@ -236,10 +236,10 @@
     {
       "pr": 465,
       "title": "Feature #5 GPU-OFF Wan2.2: real Feature3 producer integration, private imports and 4/4 CI",
-      "feature": "F3",
+      "feature": "F5",
       "head_sha": "2106caa6563f952a6db2942f08bd6701d5f4f9c8",
       "base_branch": "feat/feature5-premium-ai-motion",
-      "work_owner": "schedule-f3",
+      "work_owner": "manual-integration",
       "priority": "P0",
       "phase": "draft",
       "claim": null,
