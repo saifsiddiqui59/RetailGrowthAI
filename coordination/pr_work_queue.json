@@ -124,8 +124,13 @@
       "base_branch": "feat/feature3-f3-08-current-rights-attestation-20261106",
       "work_owner": "schedule-f3",
       "priority": "P0",
-      "phase": "needs-triage",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "schedule-f3",
+        "head_sha": "738b127bee1ec8f71b620f11585412b5e8f30ead",
+        "claimed_at": "2026-11-15T14:38:00Z",
+        "expires_at": "2026-11-15T16:08:00Z"
+      },
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/944"
     },
