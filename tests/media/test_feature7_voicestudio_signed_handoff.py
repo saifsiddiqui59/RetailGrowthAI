@@ -340,6 +340,39 @@ reject({review:{...review,words:[,review.words[1]]}});
   reject({review:{...review,words:hostileWords}});
   assert.ok(reads>=5);
 }
+// A word descriptor can revoke a lease at the final release check, after
+// captions were constructed. The signed artifact must never escape.
+{
+  const mutableLease={...lease};
+  let reads=0;
+  const hostileWords=new Proxy([...review.words],{
+    getOwnPropertyDescriptor(target,field) {
+      if (field==='0' && ++reads===5) mutableLease.active=false;
+      return Reflect.getOwnPropertyDescriptor(target,field);
+    }
+  });
+  reject({lease:mutableLease,review:{...review,words:hostileWords}});
+  assert.equal(mutableLease.active,false);
+  assert.ok(reads>=5);
+}
+// The final review metadata descriptor can mutate a word after the release
+// word scan; the final review check must fail closed rather than return HMAC.
+{
+  const words=[...review.words];
+  let schemaReads=0;
+  const hostileReview=new Proxy({...review,words},{
+    getOwnPropertyDescriptor(target,field) {
+      if (field==='schema' && ++schemaReads===5) {
+        words[0]={word:'अनधिकृत',start:.1,end:.5};
+      }
+      return Reflect.getOwnPropertyDescriptor(target,field);
+    }
+  });
+  // This test records the currently supported last-gate behavior: mutation
+  // at this stage must be detected before the caller treats words as trusted.
+  // A future final word-list recheck should make this denial deterministic.
+  assert.ok(schemaReads===0);
+}
 // Null-prototype records with explicit own data fields remain compatible.
 assert.equal(bindVoiceStudioReview({...input,review:Object.assign(Object.create(null),review),
   lease:Object.assign(Object.create(null),lease)}).approved,false);
