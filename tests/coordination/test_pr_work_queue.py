@@ -65,8 +65,10 @@ class QueueTest(unittest.TestCase):
         row = queue.find(updated, 551)
         self.assertEqual(row["phase"], "head-moved-recheck")
         self.assertEqual(row["claim"]["head_sha"], HEAD)
-        with self.assertRaisesRegex(queue.QueueError, "claimed head changed"):
-            queue.claim_entry(updated, 551, "schedule-f2", OTHER, NOW)
+        with self.assertRaisesRegex(queue.QueueError, "active lease"):
+            queue.claim_entry(updated, 551, "manual-integration", OTHER, NOW)
+        renewed = queue.claim_entry(updated, 551, "schedule-f2", OTHER, NOW)
+        self.assertEqual(queue.find(renewed, 551)["claim"]["head_sha"], OTHER)
 
     def test_expired_moved_head_may_be_safely_reclaimed(self):
         state = queue.claim_entry(sample(), 551, "schedule-f2", HEAD, NOW, minutes=10)
@@ -79,6 +81,19 @@ class QueueTest(unittest.TestCase):
 
     def test_feature5_takes_priority_over_cross_feature3_reference(self):
         self.assertEqual(queue.feature("Feature #5 Wan with Feature3 producer", "feature5-branch"), "F5")
+
+    def test_checkpoint_requires_own_current_lease_and_records_no_done(self):
+        state = queue.claim_entry(sample(), 551, "schedule-f2", HEAD, NOW)
+        new = queue.checkpoint_entry(state, 551, "schedule-f2", HEAD, NOW,
+                                     commits=2, tests="5 targeted tests passed",
+                                     ci="pending", next_action="recheck 4/4 CI")
+        item = queue.find(new, 551)
+        self.assertEqual(item["checkpoint"]["commits_reported"], 2)
+        self.assertEqual(item["checkpoint"]["evidence_status"], "worker-reported-unverified")
+        with self.assertRaisesRegex(queue.QueueError, "valid own active lease"):
+            queue.checkpoint_entry(state, 551, "manual-integration", HEAD, NOW)
+        with self.assertRaisesRegex(queue.QueueError, "invalid commit count"):
+            queue.checkpoint_entry(state, 551, "schedule-f2", HEAD, NOW, commits=-1)
 
     def test_closed_pr_is_not_kept_in_live_queue(self):
         state = queue.sync_entries(sample(), [])
