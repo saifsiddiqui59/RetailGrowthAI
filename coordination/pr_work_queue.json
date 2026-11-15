@@ -42,35 +42,29 @@
       "pr": 513,
       "title": "feat(feature7): AutoBroll uploaded-footage semantic edit proposals with tenant fences",
       "feature": "F7",
-      "head_sha": "1eb7c255e1d2bc1cbdd9fbb1f9bf62db75cec792",
+      "head_sha": "ae1c42099930ae4f4ed6eb3167ecf4898aa43be9",
       "base_branch": "main",
       "work_owner": "schedule-f7",
       "priority": "P0",
       "phase": "blocked",
-      "claim": {
-        "owner": "schedule-f7",
-        "head_sha": "1eb7c255e1d2bc1cbdd9fbb1f9bf62db75cec792",
-        "claimed_at": "2026-11-15T21:11:00Z",
-        "expires_at": "2026-11-15T22:41:00Z",
-        "task": "Guard verified video/WAV buffers against mutation across async reads"
-      },
+      "claim": null,
       "checkpoint": {
         "owner": "schedule-f7",
-        "at": "2026-11-15T18:15:00Z",
-        "head_before": "b9dc32031e27a4c7aa5853c383bba545f081358d",
-        "head_after": "5be0dd259066fa3c902e4ace0dfb0b7afa2778c0",
+        "at": "2026-11-15T21:15:00Z",
+        "head_before": "5be0dd259066fa3c902e4ace0dfb0b7afa2778c0",
+        "head_after": "ae1c42099930ae4f4ed6eb3167ecf4898aa43be9",
         "commits": [
-          "418c5bb89583ae6f527a44ad451b69c331fb2286",
-          "5be0dd259066fa3c902e4ace0dfb0b7afa2778c0"
+          "1eb7c255e1d2bc1cbdd9fbb1f9bf62db75cec792",
+          "ae1c42099930ae4f4ed6eb3167ecf4898aa43be9"
         ],
         "files_changed": [
           "video-engine/feature7/voicestudio_verified_media.mjs",
           "tests/media/test_feature7_voicestudio_verified_media.py"
         ],
-        "tests": "NOT RUN: local checkout unavailable; deterministic regression added for ASR metadata changes during async source and lease reads",
-        "ci": "Exact-final-head 0 PR workflow runs found; 0/4 mandatory jobs verified",
-        "blockers": "Targeted offline CPU test and final-head CI pending; parent nonmergeable; independent review required",
-        "next_action": "Run python -m unittest tests/media/test_feature7_voicestudio_verified_media.py on 5be0dd259066fa3c902e4ace0dfb0b7afa2778c0; fix any regressions, then verify exact-head four-job Actions and manual integration review",
+        "tests": "NOT RUN: GitHub connector source edits; no executable checkout",
+        "ci": "Exact-head PR workflow runs 0; 0/4 verified",
+        "blockers": "CPU regression execution, exact-head CI, independent review, parent mergeability",
+        "next_action": "Execute python -m unittest tests/media/test_feature7_voicestudio_verified_media.py at ae1c4209; fix failing test/source, trigger and verify exact-head 4/4 CI; manual integration handles main",
         "status": "worker-reported; NOT DONE"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/513"
