@@ -25,6 +25,39 @@ def compose(**kwargs):
 
 
 class LiveVerifierBoundaryTests(unittest.TestCase):
+    def test_rejects_malformed_project_config_before_any_adapter_creation(self):
+        # No JWT/JWKS client or TenantStore may be constructed from a
+        # caller-supplied project URL or privileged/invalid API key.
+        origins = (
+            "http://synthetic-dev-project.supabase.co",
+            "https://synthetic-dev-project.supabase.co.evil.test",
+            "https://synthetic-dev-project.supabase.co/path",
+            "https://synthetic-dev-project.supabase.co\\n",
+            "https://user@synthetic-dev-project.supabase.co",
+            "https://synthetic-dev-project.supabase.co:444",
+        )
+        with patch("feature3_private_png_runtime.TenantStore") as store, patch(
+                "feature3_private_png_runtime.SupabaseJWTVerifier") as verifier:
+            for origin in origins:
+                with self.subTest(origin=repr(origin)):
+                    with self.assertRaisesRegex(ValueError, "project configuration"):
+                        build_private_png_reader_factory(
+                            supabase_origin=origin,
+                            publishable_key=KEY,
+                            authoritative_rights_read=lambda *args: True,
+                        )
+            for key in ("service_role_secret", "sb_secret_test123456",
+                        "sb_publishable_short", KEY + "\\n", ""):
+                with self.subTest(key=repr(key)):
+                    with self.assertRaisesRegex(ValueError, "project configuration"):
+                        build_private_png_reader_factory(
+                            supabase_origin=ORIGIN,
+                            publishable_key=key,
+                            authoritative_rights_read=lambda *args: True,
+                        )
+            store.assert_not_called()
+            verifier.assert_not_called()
+
     def test_runtime_module_compiles_before_security_tests(self):
         # Guard against malformed source escaping in generated security fixes.
         import ast
