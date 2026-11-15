@@ -87,6 +87,32 @@ class RealSignedY1SafetyTests(unittest.TestCase):
             with self.subTest(bad=bad), self.assertRaises(RuntimeError):
                 trial.helper.admin_headers(bad)
 
+    def test_uncertain_auth_create_cleanup_reads_second_page_before_deleting(self):
+        marker = trial.helper.CANARY_PREFIX + "fixture123"
+        uid = "11111111-1111-4111-8111-111111111111"
+        values = [
+            (200, {"users": [{"email": "unrelated@example.invalid"}], "next_page": 2}, None, 0.1),
+            (200, {"users": [{"email": marker + "@example.invalid", "id": uid}], "next_page": 0}, None, 0.1),
+            (204, {}, None, 0.1),
+        ]
+        with patch.object(trial.helper, "request", side_effect=values) as req:
+            trial.helper.owner_only_cleanup("sb_secret_" + "x" * 42, marker, None)
+        self.assertEqual(req.call_count, 3)
+        self.assertIn("page=1", req.call_args_list[0].args[0])
+        self.assertIn("page=2", req.call_args_list[1].args[0])
+        self.assertTrue(req.call_args_list[2].args[0].endswith("/auth/v1/admin/users/" + uid))
+        self.assertEqual(req.call_args_list[2].kwargs["method"], "DELETE")
+        self.assertEqual(req.call_args_list[2].kwargs["headers"], {"apikey": "sb_secret_" + "x" * 42})
+
+    def test_unknown_auth_inventory_fails_closed_without_deletion(self):
+        marker = trial.helper.CANARY_PREFIX + "fixture456"
+        with patch.object(trial.helper, "request", return_value=(
+            200, {"users": [], "next_page": 7}, None, 0.1
+        )) as req, self.assertRaises(RuntimeError):
+            trial.helper.owner_only_cleanup("sb_secret_" + "x" * 42, marker, None)
+        self.assertEqual(req.call_count, 1)
+        self.assertNotIn("method", req.call_args.kwargs)
+
     def test_workflow_never_passes_admin_key_as_azure_appsetting(self):
         workflow = (ROOT / ".github/workflows/p0249-dev-y1-public-shadow-bounded-once.yml").read_text()
         self.assertIn("RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}", workflow)
