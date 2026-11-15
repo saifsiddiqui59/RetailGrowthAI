@@ -119,6 +119,25 @@ for (const invalidNow of [-1,1.5,Number.NaN,Number.MAX_SAFE_INTEGER-599999]) {
  }));
  assert.equal(reads,0,'invalid signing clock must not read tenant media');
 }
+// A valid original-video SHA and unchanged word array cannot authorize a
+// different language, transcript text or approval state after async I/O.
+// Reject mutation before signing and again after the final lease recheck.
+for (const field of ['language','text','approved','renderable','audio_sha256']) {
+ const mutable={...review,words:review.words.map(w=>({...w}))};
+ const replacement={language:'hi',text:'बदला हुआ पाठ',approved:true,
+   renderable:true,audio_sha256:'0'.repeat(64)}[field];
+ await assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,
+  review:mutable,readOriginalVideo:async()=>{
+    mutable[field]=replacement;return video;
+  }}),undefined,'ASR metadata changed during source read must be denied');
+ const mutableAfterLease={...review,words:review.words.map(w=>({...w}))};
+ let leaseReads=0;
+ await assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,
+  review:mutableAfterLease,readCurrentLease:async()=>{
+    if (++leaseReads===2) mutableAfterLease[field]=replacement;
+    return {...lease};
+  }}),undefined,'ASR metadata changed during lease recheck must be denied');
+}
 const result=await bindVerifiedVoiceStudioMedia(base);
 assert.equal(result.evidence.source_sha256,v);
 assert.equal(result.captions[0].words[0].text,'नमस्कार');
