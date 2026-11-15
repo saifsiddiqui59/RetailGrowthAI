@@ -120,18 +120,31 @@
       "pr": 944,
       "title": "fix(feature3 F3-08): pin injected Supabase JWT verifier to configured project",
       "feature": "F3",
-      "head_sha": "b61ceeb69eca62b6f94adc14206893d3e6b2f55c",
+      "head_sha": "40741ff1038affb2257159695c3888c77073ca60",
       "base_branch": "feat/feature3-f3-08-current-rights-attestation-20261106",
       "work_owner": "schedule-f3",
       "priority": "P0",
-      "phase": "in-progress",
-      "claim": {
+      "phase": "blocked",
+      "claim": null,
+      "checkpoint": {
         "owner": "schedule-f3",
-        "head_sha": "b61ceeb69eca62b6f94adc14206893d3e6b2f55c",
-        "claimed_at": "2026-11-15T14:38:00Z",
-        "expires_at": "2026-11-15T16:08:00Z"
+        "at": "2026-11-15T14:42:00Z",
+        "head_before": "738b127bee1ec8f71b620f11585412b5e8f30ead",
+        "head_after": "40741ff1038affb2257159695c3888c77073ca60",
+        "commits": [
+          "b61ceeb69eca62b6f94adc14206893d3e6b2f55c",
+          "40741ff1038affb2257159695c3888c77073ca60"
+        ],
+        "files": [
+          "azure-functions/campaign-api/feature3_private_png_http_adapter.py",
+          "tests/api/test_feature3_private_png_http_adapter.py"
+        ],
+        "tests": "NOT RUN: no executable repository checkout; deterministic synthetic API-key rejection test added",
+        "ci": "Exact final-head PR workflow runs: 0; 0/4 verified",
+        "blockers": "Exact-head 4-job CI, targeted test execution, independent security review; secure hosted route still disabled pending authoritative rights composition",
+        "next_action": "Run python -m pytest tests/api/test_feature3_private_png_http_adapter.py at exact PR #944 head; repair failures, wire reviewed server-owned current-rights provider without bypassing JWT/RLS, obtain 4/4 CI and independent security review; manual integration owns main merge",
+        "status": "worker-reported; NOT DONE"
       },
-      "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/944"
     },
     {
