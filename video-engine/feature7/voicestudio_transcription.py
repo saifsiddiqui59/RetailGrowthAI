@@ -184,7 +184,7 @@ def transcribe_private_voice(
                     response.headers.get("Content-Type", "").split(";", 1)[0].lower() != "application/json"):
                 raise VoiceStudioTranscriptionDenied("Untrusted ASR response")
             raw = response.read(MAX_JSON + 1)
-    except (HTTPError, URLError, OSError, TimeoutError, ValueError, TypeError):
+    except (HTTPError, URLError, OSError, TimeoutError, ValueError, TypeError, RuntimeError):
         # A broken private HTTP transport can raise while reading its body or
         # validating response metadata. Never leak transport details or create
         # review evidence from a partially read response.
