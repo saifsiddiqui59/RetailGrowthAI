@@ -177,3 +177,20 @@ def test_http_boundary_rejects_structurally_invalid_pcm_even_from_injected_reade
         status, headers, body = _call()
         assert status == 404 and body == b""
         assert "Content-Type" not in headers and "Content-Length" not in headers
+
+
+def test_unexpected_header_accessor_error_denied_without_private_service(monkeypatch):
+    calls = []
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: calls.append(1))
+    def broken(_):
+        raise RuntimeError("untrusted header wrapper")
+    status, headers, body = http.private_original_review_response(
+        request=SimpleNamespace(headers=SimpleNamespace(get=broken)),
+        shop_id=str(uuid4()), campaign_id=str(uuid4()), request_id=str(uuid4()),
+        verify_token=lambda _: str(uuid4()), tenant_store=object(),
+        sql_store_factory=lambda _: object(), private_storage=object(),
+    )
+    assert status == 401 and body == b""
+    assert headers["Cache-Control"] == "no-store, private"
+    assert "Content-Type" not in headers and "Content-Length" not in headers
+    assert calls == []
