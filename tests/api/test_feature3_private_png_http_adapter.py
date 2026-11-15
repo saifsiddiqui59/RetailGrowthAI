@@ -6,6 +6,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "azure-functions" / "campaign-api"))
 from feature3_private_png_http_adapter import private_png_http_response
 from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+from tenant_store import StorageUnavailable
 
 SHOP = "11111111-1111-4111-8111-111111111111"
 JOB = "22222222-2222-4222-8222-222222222222"
@@ -152,6 +153,25 @@ class PrivatePNGHttpAdapterTests(unittest.TestCase):
                 self.assertEqual((status, body), (404, b""))
                 self.assertIn("no-store", headers["Cache-Control"])
         self.assertEqual(calls, [])
+
+    def test_backend_outage_returns_opaque_noncacheable_503(self):
+        class Reader:
+            def __init__(self, failure):
+                self.failure = failure
+
+            def read(self, **kwargs):
+                raise self.failure
+
+        for failure in (StorageUnavailable("synthetic backend secret"), OSError("synthetic network path")):
+            with self.subTest(failure=type(failure).__name__):
+                status, headers, body = private_png_http_response(
+                    reader_factory=lambda shop, job: Reader(failure),
+                    shop_id=SHOP, job_id=JOB,
+                    bearer_token="Bearer synthetic0.jwt.fixture")
+                self.assertEqual((status, body), (503, b""))
+                self.assertEqual(headers["Retry-After"], "5")
+                self.assertIn("no-store", headers["Cache-Control"])
+                self.assertNotIn("Content-Type", headers)
 
     def test_missing_trusted_factory_is_configuration_error(self):
         with self.assertRaises(ValueError):
