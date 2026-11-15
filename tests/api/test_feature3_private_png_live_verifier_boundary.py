@@ -380,6 +380,53 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
                         len(scoped.read(user_token="eyJhbGciOiJSUzI1NiIsImtpZCI6InRlc3QifQ.e30.c2ln",
                                         shop_id=shop, job_id=job)), size)
 
+    def test_ambiguous_or_nonobject_jwt_claims_denied_before_private_read(self):
+        # Synthetic JWS framing only: the real verifier still owns signature,
+        # issuer, audience, expiration and tenant authorization.
+        import base64
+        from uuid import uuid4
+        from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+        calls = []
+
+        class StubReader:
+            def __init__(self, **kwargs):
+                pass
+
+            def read(self, **kwargs):
+                calls.append("read")
+                return b"synthetic-only" * 10
+
+        def segment(raw):
+            return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+        header = segment(b'{"alg":"RS256","kid":"synthetic"}')
+        verifier = SupabaseJWTVerifier(ORIGIN)
+        with patch("feature3_private_png_runtime.TenantStore") as store, patch(
+                "feature3_private_png_runtime.Feature3RevocablePNGReader",
+                StubReader):
+            store.return_value.origin = ORIGIN
+            store.return_value.key = KEY
+            shop, job = str(uuid4()), str(uuid4())
+            scoped = compose(jwt_verifier=verifier)(shop, job)
+            for raw in (
+                    b'{"sub":"shop-a","sub":"shop-b"}',
+                    b'{"nested":{"role":"viewer","role":"owner"}}',
+                    b'["not","claims"]',
+                    b'null',
+                    b'{"sub":',
+                    b'{"sub":"\\xff"}'):
+                with self.subTest(payload=raw):
+                    with self.assertRaises(PrivateGeneratedDownloadDenied):
+                        scoped.read(
+                            user_token=header + "." + segment(raw) + ".c2ln",
+                            shop_id=shop, job_id=job)
+            self.assertEqual(calls, [])
+            result = scoped.read(
+                user_token=header + "." + segment(b'{"sub":"synthetic"}') + ".c2ln",
+                shop_id=shop, job_id=job)
+            self.assertEqual(result, b"synthetic-only" * 10)
+            self.assertEqual(calls, ["read"])
+
     def test_injected_isolated_store_retains_synthetic_fixture_support(self):
         class Store:
             origin = ORIGIN
