@@ -31,6 +31,11 @@ class QueueTest(unittest.TestCase):
             queue.claim_entry(new, 551, "manual-integration", HEAD, NOW)
         self.assertEqual(queue.find(new, 551)["claim"]["owner"], "schedule-f2")
 
+    def test_integration_schedule_lease_blocks_manual_collision(self):
+        state = queue.claim_entry(sample(), 551, "schedule-integration", HEAD, NOW)
+        with self.assertRaisesRegex(queue.QueueError, "active lease"):
+            queue.claim_entry(state, 551, "manual-integration", HEAD, NOW)
+
     def test_expired_lease_can_be_reclaimed(self):
         state = queue.claim_entry(sample(), 551, "schedule-f2", HEAD, NOW, minutes=10)
         changed = queue.claim_entry(state, 551, "manual-integration", HEAD,
