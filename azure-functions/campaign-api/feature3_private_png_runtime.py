@@ -9,6 +9,7 @@ from __future__ import annotations
 from uuid import UUID
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from binascii import Error as Base64Error
+import json
 import re
 
 from feature3_current_output_rights import Feature3CurrentOutputRights
@@ -208,6 +209,28 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                             if urlsafe_b64encode(decoded).decode("ascii").rstrip("=") != segment:
                                 raise ValueError("Noncanonical compact JWS")
                     except (ValueError, Base64Error):
+                        raise PrivateGeneratedDownloadDenied(
+                            "Private generated output unavailable") from None
+                if tenant_store is None:
+                    # Reject unsigned, symmetric or malformed JOSE headers
+                    # before requesting any remote signing keys. The real
+                    # verifier still checks signature, issuer, audience and
+                    # claims; header inspection is never authorization.
+                    try:
+                        header_bytes = urlsafe_b64decode(
+                            parts[0] + "=" * (-len(parts[0]) % 4))
+                        header = json.loads(header_bytes)
+                        if (type(header) is not dict or
+                                type(header.get("alg")) is not str or
+                                header["alg"] not in ("RS256", "ES256") or
+                                type(header.get("kid")) is not str or
+                                not 1 <= len(header["kid"]) <= 256 or
+                                any(ord(ch) < 33 or ord(ch) > 126
+                                    for ch in header["kid"]) or
+                                any(field in header for field in
+                                    ("jku", "jwk", "x5u", "x5c", "crit"))):
+                            raise ValueError("Untrusted JOSE header")
+                    except (ValueError, UnicodeError, TypeError, Base64Error):
                         raise PrivateGeneratedDownloadDenied(
                             "Private generated output unavailable") from None
                 # Revalidate at use time as well as construction time: a
