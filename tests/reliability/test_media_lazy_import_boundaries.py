@@ -59,4 +59,8 @@ def test_public_http_adapter_still_declared_and_jwt_path_not_removed():
     assert {"build_api","dispatch","create_campaign","read_campaign",
             "request_poster_render","select_poster_banner",
             "render_campaign_reel","render_campaign_poster","dispatch_pending_posters"} <= names
-    assert "SupabaseJWTVerifier" in SOURCE.read_text(encoding="utf-8")
+    security_imports={alias.asname or alias.name
+                      for node in TREE.body if isinstance(node,ast.ImportFrom)
+                      and node.module=="security" for alias in node.names}
+    assert "cached_supabase_verifier" in security_imports
+
