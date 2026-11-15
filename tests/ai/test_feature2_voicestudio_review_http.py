@@ -34,7 +34,7 @@ def test_missing_authorization_fails_without_calling_dependencies():
 
 def _valid_wav_envelope():
     payload = b"WAVEfmt " + (16).to_bytes(4, "little") + b"\x01\x00\x01\x00" + (8000).to_bytes(4, "little") + (16000).to_bytes(4, "little") + b"\x02\x00\x10\x00" + b"data" + (2).to_bytes(4, "little") + b"\x00\x00"
-    return b"RIFF" + (len(payload) + 4).to_bytes(4, "little") + payload
+    return b"RIFF" + len(payload).to_bytes(4, "little") + payload
 
 
 def test_private_wav_success_has_exact_length_and_no_storage_identifier(monkeypatch):
