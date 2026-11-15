@@ -200,6 +200,30 @@ export function bindVoiceStudioReview({
     Object.is(Object.getOwnPropertyDescriptor(lease,field).value,value)) &&
     leaseSnapshot.active===true && leaseSnapshot.expires_at_ms>now_ms,
     'ASR lease changed before signed review release');
+  // Caption construction occurs after the earlier HMAC/review checks. A
+  // reentrant descriptor trap may still replace reviewed words or change
+  // the review/lease while captions are prepared; fail closed at release.
+  const releaseLength=Object.getOwnPropertyDescriptor(reviewSnapshot.words,'length');
+  deny(releaseLength && Object.hasOwn(releaseLength,'value') &&
+    releaseLength.value===wordCount && wordIdentities.every((identity,i)=>{
+      const slot=Object.getOwnPropertyDescriptor(reviewSnapshot.words,String(i));
+      if (!slot || !Object.hasOwn(slot,'value') || !Object.is(slot.value,identity))
+        return false;
+      return ['word','start','end'].every(field=>{
+        const descriptor=Object.getOwnPropertyDescriptor(identity,field);
+        return descriptor && Object.hasOwn(descriptor,'value') &&
+          Object.is(descriptor.value,wordSnapshots[i][field]);
+      });
+    }), 'VoiceStudio word list changed before signed review release');
+  requireOwnDataFields(review,reviewFields);
+  deny(Object.entries(reviewSnapshot).every(([field,value])=>
+    Object.is(Object.getOwnPropertyDescriptor(review,field).value,value)),
+    'VoiceStudio review changed before signed review release');
+  requireOwnDataFields(lease,Object.keys(leaseSnapshot));
+  deny(Object.entries(leaseSnapshot).every(([field,value])=>
+    Object.is(Object.getOwnPropertyDescriptor(lease,field).value,value)) &&
+    leaseSnapshot.active===true && leaseSnapshot.expires_at_ms>now_ms,
+    'ASR lease changed before signed review release');
   return Object.freeze({
     schema:'retailgrowth.feature7-voicestudio-signed-review.v1',
     shop_id,asset_id,job_id,original_video_sha256,original_audio_sha256,
