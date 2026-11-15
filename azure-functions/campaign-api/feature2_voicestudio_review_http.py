@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from feature2_voicestudio_review_audio import (
     VoiceStudioReviewDenied,
+    _canonical_pcm_chunks,
     read_current_voiceover_for_review,
 )
 
@@ -48,6 +49,7 @@ def private_original_review_response(*, request, shop_id, campaign_id, request_i
                 or content[:4] != b"RIFF" or content[8:12] != b"WAVE"
                 or int.from_bytes(content[4:8], "little") != len(content) - 8):
             raise VoiceStudioReviewDenied("Private VoiceStudio review access denied")
+        _canonical_pcm_chunks(content)
         return 200, {**headers, "Content-Type": "audio/wav",
                      "Content-Length": str(len(content))}, content
     except VoiceStudioReviewDenied:
