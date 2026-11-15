@@ -1,10 +1,8 @@
 name: "RetailGrowthAI #249 bounded Y1 public-only JWT shadow activation (DEV)"
 # Explicitly owner-approved DEV temporary READ-ONLY config; no service_role, queues or private customer media.
+# Never activate temporary DEV appsettings from a push or PR merge.
+# A human must deliberately dispatch the protected, gated DEV experiment.
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/p0249-dev-y1-public-shadow-bounded-once.yml'
   workflow_dispatch:
     inputs:
       confirm:
@@ -22,11 +20,8 @@ jobs:
     if: >-
       github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
       github.ref == 'refs/heads/main' &&
-      ((github.event_name == 'workflow_dispatch' &&
-        inputs.confirm == 'YES-Y1-DEV-PUBLIC-SHADOW-BOUNDED') ||
-       (github.event_name == 'push' &&
-        startsWith(github.event.head_commit.message,
-        'ops(#249): bounded DEV Y1 public-only JWT shadow trial')))
+      github.event_name == 'workflow_dispatch' &&
+      inputs.confirm == 'YES-Y1-DEV-PUBLIC-SHADOW-BOUNDED'
     environment: dev
     runs-on: ubuntu-24.04
     timeout-minutes: 7
