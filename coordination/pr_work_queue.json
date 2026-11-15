@@ -201,7 +201,13 @@
       "work_owner": "schedule-f2",
       "priority": "P0",
       "phase": "blocked",
-      "claim": null,
+      "claim": {
+        "owner": "schedule-f2",
+        "head_sha": "7f899415e3a20c12ea8b14d7c095623291ca5f9a",
+        "claimed_at": "2026-11-15T15:22:00Z",
+        "expires_at": "2026-11-15T16:52:00Z",
+        "next_action": "Review exact-head F2-19/20 source for a concrete regression, then execute targeted tests where available"
+      },
       "checkpoint": {
         "owner": "schedule-f2",
         "at": "2026-11-15T14:23:35Z",
