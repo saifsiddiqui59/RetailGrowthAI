@@ -661,6 +661,32 @@ await denied({readExtractedWav:async()=>overLimit,
  review:{...review,audio_sha256:overLimitHash},
  readCurrentLease:async()=>{overLimitLeaseReads++;return {...lease,audio_sha256:overLimitHash};}});
 assert.equal(overLimitLeaseReads,0);
+// Trusted adapters can return a mutable Buffer and later overwrite it while
+// another private reader is awaited. A digest verified before that await is
+// not proof that the signed source bytes are still the same at return.
+for (const target of ['video','wav']) {
+ const mutableVideo=Buffer.from(video),mutableWav=Buffer.from(wav);
+ const changed=target==='video'?mutableVideo:mutableWav;
+ const videoDigest=digest(mutableVideo),audioDigest=digest(mutableWav);
+ let mutated=false;
+ await assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,
+  original_video_sha256:videoDigest,original_audio_sha256:audioDigest,
+  review:{...review,audio_sha256:audioDigest},
+  readOriginalVideo:async()=>mutableVideo,
+  readExtractedWav:async()=>mutableWav,
+  readCurrentLease:async()=>{
+   if (!mutated) {changed[changed.length-1]^=1;mutated=true;}
+   return {...lease,source_sha256:videoDigest,audio_sha256:audioDigest};
+  }
+ }));
+ assert.equal(mutated,true,'must reach awaited lease reader');
+}
+// Non-mutating copies must remain valid for offline CPU signing.
+const copiedVideo=Buffer.from(video),copiedWav=Buffer.from(wav);
+const copiedSigned=await bindVerifiedVoiceStudioMedia({...base,
+ readOriginalVideo:async()=>copiedVideo,
+ readExtractedWav:async()=>copiedWav});
+assert.equal(copiedSigned.evidence.source_sha256,v);
 console.log('original bytes, Marathi captions and lease revocation denials passed');
 
 // A review can be mutated during an awaited private read. Do not sign words
