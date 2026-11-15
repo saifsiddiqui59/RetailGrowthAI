@@ -553,6 +553,25 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
         self.assertEqual(self.call()["words"][0]["word"], "नमस्ते")
         self.assertEqual(len(self.calls), 1)
 
+    def test_malformed_response_metadata_attribute_errors_fail_closed(self):
+        # A malformed transport object must not leak implementation errors or
+        # produce trusted word evidence when HTTP metadata is missing.
+        class MissingMetadata:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self, *args):
+                return json.dumps(self_payload).encode("utf-8")
+
+        self_payload = self.payload
+        with self.assertRaises(VoiceStudioTranscriptionDenied):
+            self.call(transport=lambda req, timeout: MissingMetadata())
+        # Valid Indic word timings remain available through the private stub.
+        self.assertEqual(self.call()["words"][0]["word"], "नमस्ते")
+
     def test_upstream_error_redacted(self):
         from urllib.error import URLError
         def sender(req,timeout):
