@@ -243,6 +243,29 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                     except (ValueError, UnicodeError, TypeError, Base64Error):
                         raise PrivateGeneratedDownloadDenied(
                             "Private generated output unavailable") from None
+                if tenant_store is None:
+                    # Reject ambiguous JSON claims before the cryptographic
+                    # verifier parses them. Duplicate claims can cause two
+                    # parsers to authorize different subjects or tenants.
+                    # This is framing only; signature and claims validation
+                    # remain exclusively the responsibility of the verifier.
+                    try:
+                        payload_bytes = urlsafe_b64decode(
+                            parts[1] + "=" * (-len(parts[1]) % 4))
+                        def unique_claim_pairs(pairs):
+                            claims = {}
+                            for key, value in pairs:
+                                if key in claims:
+                                    raise ValueError("Duplicate JWT claim")
+                                claims[key] = value
+                            return claims
+                        payload = json.loads(
+                            payload_bytes, object_pairs_hook=unique_claim_pairs)
+                        if type(payload) is not dict:
+                            raise ValueError("JWT claims must be an object")
+                    except (ValueError, UnicodeError, TypeError, Base64Error):
+                        raise PrivateGeneratedDownloadDenied(
+                            "Private generated output unavailable") from None
                 # Revalidate at use time as well as construction time: a
                 # cached scoped reader may outlive a rotated/mutated store.
                 # Deny before invoking JWT verification or any RLS/byte read.
