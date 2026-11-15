@@ -42,14 +42,14 @@
       "pr": 513,
       "title": "feat(feature7): AutoBroll uploaded-footage semantic edit proposals with tenant fences",
       "feature": "F7",
-      "head_sha": "5be0dd259066fa3c902e4ace0dfb0b7afa2778c0",
+      "head_sha": "1eb7c255e1d2bc1cbdd9fbb1f9bf62db75cec792",
       "base_branch": "main",
       "work_owner": "schedule-f7",
       "priority": "P0",
       "phase": "blocked",
       "claim": {
         "owner": "schedule-f7",
-        "head_sha": "5be0dd259066fa3c902e4ace0dfb0b7afa2778c0",
+        "head_sha": "1eb7c255e1d2bc1cbdd9fbb1f9bf62db75cec792",
         "claimed_at": "2026-11-15T21:11:00Z",
         "expires_at": "2026-11-15T22:41:00Z",
         "task": "Guard verified video/WAV buffers against mutation across async reads"
