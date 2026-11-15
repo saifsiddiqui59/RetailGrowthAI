@@ -160,3 +160,20 @@ def test_control_characters_in_authorization_never_reach_service(monkeypatch):
         assert headers["Cache-Control"] == "no-store, private"
         assert "Content-Type" not in headers
     assert calls == []
+
+
+def test_http_boundary_rejects_structurally_invalid_pcm_even_from_injected_reader(monkeypatch):
+    good = _valid_wav_envelope()
+    # All samples retain a valid RIFF size and WAVE signature; the injected
+    # reader must not bypass the service's canonical PCM16 envelope policy.
+    invalid = (
+        good[:20] + b"\\x03\\x00" + good[22:],  # IEEE float format, not PCM
+        good[:34] + b"\\x08\\x00" + good[36:],  # 8-bit samples, not PCM16
+        good[:36] + b"JUNK" + good[40:],  # noncanonical data chunk
+        good[:40] + b"\\x00\\x00\\x00\\x00" + good[44:],  # empty data
+    )
+    for payload in invalid:
+        monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: payload)
+        status, headers, body = _call()
+        assert status == 404 and body == b""
+        assert "Content-Type" not in headers and "Content-Length" not in headers
