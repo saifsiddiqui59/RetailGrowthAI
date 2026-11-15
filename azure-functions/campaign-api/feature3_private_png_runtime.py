@@ -229,7 +229,12 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                                 result[key] = value
                             return result
 
-                        header = json.loads(header_bytes, object_pairs_hook=unique_header_pairs)
+                        def reject_nonfinite_constant(value):
+                            raise ValueError("Non-JSON numeric constant in JWT")
+
+                        header = json.loads(
+                            header_bytes, object_pairs_hook=unique_header_pairs,
+                            parse_constant=reject_nonfinite_constant)
                         if (type(header) is not dict or
                                 type(header.get("alg")) is not str or
                                 header["alg"] not in ("RS256", "ES256") or
@@ -260,7 +265,8 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                                 claims[key] = value
                             return claims
                         payload = json.loads(
-                            payload_bytes, object_pairs_hook=unique_claim_pairs)
+                            payload_bytes, object_pairs_hook=unique_claim_pairs,
+                            parse_constant=reject_nonfinite_constant)
                         if type(payload) is not dict:
                             raise ValueError("JWT claims must be an object")
                     except (ValueError, UnicodeError, TypeError, Base64Error):
