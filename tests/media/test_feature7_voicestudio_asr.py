@@ -100,6 +100,20 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
         self.calls.clear()
         self.assertEqual(self.call()["language"], "hi")
 
+    def test_upstream_duration_must_match_original_wav_clock(self):
+        # A valid word list cannot be associated with a contradictory audio
+        # duration; reject before creating any review-only transcript.
+        for duration in (0, -1, 1.5, 2.2, 200, True, "2.0",
+                         float("nan"), float("inf")):
+            with self.subTest(duration=duration):
+                self.payload["duration"] = duration
+                with self.assertRaises(VoiceStudioTranscriptionDenied):
+                    self.call()
+        self.payload["duration"] = 2.05
+        self.assertEqual(self.call()["language"], "hi")
+        self.payload.pop("duration")
+        self.assertEqual(self.call()["language"], "hi")
+
     def test_none_of_the_denied_requests_egress(self):
         examples=[
             {"enabled":False},
