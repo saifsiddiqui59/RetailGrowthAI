@@ -643,6 +643,29 @@ await denied({readExtractedWav:async()=>overLimit,
  readCurrentLease:async()=>{overLimitLeaseReads++;return {...lease,audio_sha256:overLimitHash};}});
 assert.equal(overLimitLeaseReads,0);
 console.log('original bytes, Marathi captions and lease revocation denials passed');
+
+// A review can be mutated during an awaited private read. Do not sign words
+// that differ from the exact word list validated before private I/O.
+for (const field of ['word','start','end']) {
+ const mutable={...review,words:[{word:'नमस्कार',start:.1,end:.7}]};
+ const original=mutable.words[0][field];
+ let reads=0;
+ await assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,review:mutable,
+  readOriginalVideo:async()=>{reads++;mutable.words[0][field]=
+   field==='word'?'बदल':field==='start'?.2:.8;return video;}}));
+ assert.equal(reads,1);
+ mutable.words[0][field]=original;
+}
+// Replacing the entire word list during asynchronous media I/O must also fail.
+const swapped={...review,words:[{word:'नमस्कार',start:.1,end:.7}]};
+await assert.rejects(()=>bindVerifiedVoiceStudioMedia({...base,review:swapped,
+ readExtractedWav:async()=>{swapped.words=[{word:'बदल',start:.1,end:.7}];return wav;}}));
+// Stable immutable input still signs normally.
+const stableReview=Object.freeze({...review,words:Object.freeze([
+ Object.freeze({word:'नमस्कार',start:.1,end:.7})])});
+assert.equal((await bindVerifiedVoiceStudioMedia({...base,review:stableReview}))
+ .evidence.source_sha256,v);
+
 """
 class VerifiedMediaTests(unittest.TestCase):
     def test_trusted_worker_byte_gate(self):
