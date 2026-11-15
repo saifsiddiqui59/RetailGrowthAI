@@ -53,7 +53,13 @@ def request(url, method="GET", data=None, headers=None, expected=(200,), timeout
 
 
 def admin_headers(key):
-    return {"apikey": key, "Authorization": "Bearer " + key}
+    # Modern sb_secret_ keys are opaque API keys, NOT signed JWTs.
+    # Only legacy JWT service_role keys may be forwarded as a Bearer token.
+    if key.startswith("sb_secret_"):
+        return {"apikey": key}
+    if key.startswith("eyJ") and key.count(".") == 2:
+        return {"apikey": key, "Authorization": "Bearer " + key}
+    raise RuntimeError("INVALID_DEV_ADMIN_KEY_CLASS")
 
 
 def jwt_claims_for_local_shape_only(jwt):
