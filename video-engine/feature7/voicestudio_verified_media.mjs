@@ -257,6 +257,9 @@ export async function bindVerifiedVoiceStudioMedia({
     ['shop_id','asset_id','job_id','source_sha256','audio_sha256','model_id','expires_at_ms']
       .every(field=>finalLease[field]===leaseSnapshot[field]) &&
     finalLease.expires_at_ms>checkedTime());
+  // Private adapters may reuse mutable Buffers. Recheck both byte identities
+  // after awaited lease reads; a pre-I/O digest is not a final-source proof.
+  deny(sha(video)===original_video_sha256 && sha(wav)===original_audio_sha256);
   deny(unchangedReview());
   return signed;
 }
