@@ -427,7 +427,7 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
         # would otherwise silently accept UTF-16/32 or a UTF-8 BOM.
         payload = json.dumps(self.payload, ensure_ascii=False)
         for wire in (payload.encode("utf-16"), payload.encode("utf-32"),
-                     b"\\xef\\xbb\\xbf" + payload.encode("utf-8"),
+                     bytes((0xef, 0xbb, 0xbf)) + payload.encode("utf-8"),
                      b"\\xff" + payload.encode("utf-8")):
             with self.subTest(prefix=repr(wire[:8])):
                 with self.assertRaises(VoiceStudioTranscriptionDenied):
