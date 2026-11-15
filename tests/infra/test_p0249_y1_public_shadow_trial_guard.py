@@ -149,7 +149,7 @@ class PublicShadowTrialSafetyTests(unittest.TestCase):
         # silently activate the trial; only explicit approved dispatch may do so.
         self.assertIn("  workflow_dispatch:", work)
         self.assertIn("github.event_name == 'workflow_dispatch'", work)
-        self.assertNotIn("\\n  push:", work)
+        self.assertNotIn("  push:", work)
         self.assertNotIn("github.event_name == 'push'", work)
         self.assertNotIn("github.event.head_commit.message", work)
         self.assertIn("p0249_y1_public_shadow_trial_guard.py preflight", work)
