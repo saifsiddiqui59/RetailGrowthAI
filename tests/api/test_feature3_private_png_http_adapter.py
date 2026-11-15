@@ -63,6 +63,32 @@ class PrivatePNGHttpAdapterTests(unittest.TestCase):
                 self.assertEqual((status, body), (404, b""))
                 self.assertNotIn("Content-Type", headers)
 
+    def test_oversized_png_and_untrusted_bearer_are_denied_before_delivery(self):
+        calls = []
+        class Reader:
+            def read(self, **kwargs):
+                calls.append(kwargs)
+                return PNG[:8] + b"x" * (25 * 1024 * 1024)
+        def factory(shop, job):
+            calls.append((shop, job))
+            return Reader()
+
+        for token in ("Bearer synthetic.jwt.fixture\\n", "Bearer synthetic,jwt.fixture",
+                      "Bearer synthetic;jwt.fixture", "Bearer " + "x" * 8193,
+                      "Bearer synthetic\\tjwt.fixture"):
+            with self.subTest(token=token[:30]):
+                status, headers, body = private_png_http_response(
+                    reader_factory=factory, shop_id=SHOP, job_id=JOB, bearer_token=token)
+                self.assertEqual((status, body), (404, b""))
+                self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(calls, [])
+        status, headers, body = private_png_http_response(
+            reader_factory=factory, shop_id=SHOP, job_id=JOB,
+            bearer_token="Bearer synthetic.jwt.fixture")
+        self.assertEqual((status, body), (404, b""))
+        self.assertNotIn("Content-Type", headers)
+        self.assertEqual(len(calls), 2)
+
     def test_missing_trusted_factory_is_configuration_error(self):
         with self.assertRaises(ValueError):
             private_png_http_response(reader_factory=None, shop_id=SHOP,
