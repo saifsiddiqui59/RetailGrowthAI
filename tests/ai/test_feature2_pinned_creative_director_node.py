@@ -44,9 +44,19 @@ def test_pinned_creative_director_original_node_assertions(relative_path: str) -
             "require('./tests/fixtures/diwali-premium-fixture');"
             "const {compile}=require('./director');"
             "const request=verifiedBrief(30);"
-            "const bundle=compile(request,authoredCandidate(30));"
+            "const candidate=authoredCandidate(30);"
+            "const shop='11111111-1111-4111-8111-111111111111';"
+            "const media='33333333-3333-4333-8333-333333333333';"
+            "request.shop_id=shop;"
+            "request.campaign_id='22222222-2222-4222-8222-222222222222';"
+            "request.approved_offers[0].shop_id=shop;"
+            "request.media_grants[0].shop_id=shop;"
+            "request.media_grants[0].id=media;"
+            "candidate.scenes.forEach(s=>s.shots.forEach(shot=>{"
+            "shot.reference_asset_id=media;}));"
+            "const bundle=compile(request,candidate);"
             "process.stdout.write(JSON.stringify({bundle,verified_brief:request,"
-            "reviewer_id:'11111111-1111-4111-8111-111111111111'}));"
+            "reviewer_id:'44444444-4444-4444-8444-444444444444'}));"
         )
         generated = subprocess.run(
             [node, "-e", make_payload],
