@@ -45,6 +45,7 @@ def private_png_http_response(*, reader_factory, shop_id, job_id, bearer_token):
             raise PrivateGeneratedDownloadDenied("Unavailable")
         token = bearer_token[7:]
         if (not 12 <= len(token) <= 8192 or
+                token.startswith(("sb_secret_", "sb_publishable_")) or
                 any(ord(ch) < 33 or ord(ch) > 126 for ch in token) or
                 any(ch in token for ch in (",", ";", '"', "\\"))):
             raise PrivateGeneratedDownloadDenied("Unavailable")
