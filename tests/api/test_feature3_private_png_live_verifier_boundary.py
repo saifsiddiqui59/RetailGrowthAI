@@ -106,7 +106,7 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
 
             def read(self, **kwargs):
                 calls.append("read")
-                return b"synthetic-only"
+                return b"synthetic-only" * 10
 
         with patch("feature3_private_png_runtime.TenantStore") as store, patch(
                 "feature3_private_png_runtime.Feature3RevocablePNGReader",
@@ -129,7 +129,7 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
             # Framing alone never authorizes bytes; the real verifier and
             # downstream reader still own cryptographic/tenant checks.
             self.assertEqual(scoped.read(user_token="abc.deQ.ghg",
-                                         shop_id=shop, job_id=job), b"synthetic-only")
+                                         shop_id=shop, job_id=job), b"synthetic-only" * 10)
             self.assertEqual(calls, ["construct", "read"])
 
     def test_live_reader_rejects_lazy_mutable_or_custom_download_bodies(self):
@@ -166,10 +166,10 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
                     with self.assertRaises(PrivateGeneratedDownloadDenied):
                         scoped.read(user_token="abc.deQ.ghg", shop_id=shop,
                                     job_id=job)
-            candidate[0] = b"synthetic-only"
+            candidate[0] = b"synthetic-only" * 10
             self.assertEqual(
                 scoped.read(user_token="abc.deQ.ghg", shop_id=shop, job_id=job),
-                b"synthetic-only")
+                b"synthetic-only" * 10)
         self.assertEqual(len(calls), 7)
 
     def test_live_reader_denies_bytes_if_store_rotates_during_backend_read(self):
@@ -193,7 +193,7 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
             def read(self, **kwargs):
                 calls.append("read")
                 store.origin = "https://foreign-project.supabase.co"
-                return b"synthetic-private-png-bytes"
+                return b"synthetic-private-png-bytes" * 5
 
         with patch("feature3_private_png_runtime.TenantStore", return_value=store), patch(
                 "feature3_private_png_runtime.Feature3RevocablePNGReader",
@@ -232,6 +232,41 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
             with self.assertRaises(PrivateGeneratedDownloadDenied):
                 scoped.read(user_token="abc.deQ.ghg", shop_id=shop, job_id=job)
         self.assertEqual(calls, ["read"])
+
+    def test_scoped_adapter_rejects_empty_short_and_oversized_private_payloads(self):
+        # The scoped HTTP-facing adapter must enforce the same byte bounds as
+        # the private Storage reader even if an injected backend misbehaves.
+        from uuid import uuid4
+        from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+        verifier = SupabaseJWTVerifier(ORIGIN)
+        payload = [b""]
+
+        class StubReader:
+            def __init__(self, **kwargs):
+                pass
+
+            def read(self, **kwargs):
+                return payload[0]
+
+        with patch("feature3_private_png_runtime.TenantStore") as store, patch(
+                "feature3_private_png_runtime.Feature3RevocablePNGReader",
+                StubReader):
+            store.return_value.origin = ORIGIN
+            store.return_value.key = KEY
+            shop, job = str(uuid4()), str(uuid4())
+            scoped = compose(jwt_verifier=verifier)(shop, job)
+            for size in (0, 1, 99, 25 * 1024 * 1024 + 1):
+                payload[0] = b"x" * size
+                with self.subTest(size=size):
+                    with self.assertRaises(PrivateGeneratedDownloadDenied):
+                        scoped.read(user_token="abc.deQ.ghg",
+                                    shop_id=shop, job_id=job)
+            for size in (100, 25 * 1024 * 1024):
+                payload[0] = b"x" * size
+                with self.subTest(size=size):
+                    self.assertEqual(
+                        len(scoped.read(user_token="abc.deQ.ghg",
+                                        shop_id=shop, job_id=job)), size)
 
     def test_injected_isolated_store_retains_synthetic_fixture_support(self):
         class Store:
