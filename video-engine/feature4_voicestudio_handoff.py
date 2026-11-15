@@ -284,7 +284,7 @@ def compile_voicestudio_narrated_reel(*, draft, snapshot,
     compiled_brand = output["bundle"].get("brand")
     # The existing compiler may omit the optional brand in its output bundle.
     # Reject malformed values only when the compiler actually supplies one.
-    if compiled_brand is not None and type(compiled_brand) is not dict:
+    if "brand" in output["bundle"] and type(compiled_brand) is not dict:
         raise CreativeContractError("Malformed compiled narration brand")
     if (type(compiled_brand) is dict and compiled_brand.get("logo_asset_id") == asset_id) or request.get("logo_asset_id") == asset_id:
         raise CreativeContractError("Compiled narration cannot be reused as brand logo")
