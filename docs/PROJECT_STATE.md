@@ -1496,4 +1496,4 @@ Feature3 verified source-integration checkpoint:
 
 
 ## 2026-11-15 — PR execution control proposal (review pending)
-A live `coordination/pr-execution-ledger` branch now contains a 68-open-PR inventory at creation (not a claim of completed work). Reviewable source introduces optimistic CAS PR ownership, per-PR exact-head checkpointing, and manual-only serialized `main` merge routing in `docs/PR_INTEGRATION_RUNBOOK_20261115.md`. This is coordination source, not merged product functionality, acceptance, or cloud deployment; all previously open product/security/hosted gates remain open.
+A live `coordination/pr-execution-ledger` branch now contains a 68-open-PR inventory at creation (not a claim of completed work). Reviewable source introduces optimistic CAS PR ownership (including a distinct `schedule-integration` reviewer owner), per-PR exact-head checkpointing, and manual-only serialized `main` merge routing in `docs/PR_INTEGRATION_RUNBOOK_20261115.md`. This is coordination source, not merged product functionality, acceptance, or cloud deployment; all previously open product/security/hosted gates remain open.
