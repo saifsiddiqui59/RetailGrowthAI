@@ -76,6 +76,17 @@ class RealSignedY1SafetyTests(unittest.TestCase):
              self.assertRaises(RuntimeError):
             trial.main()
 
+    def test_modern_supabase_secret_admin_header_is_apikey_only(self):
+        key = "sb_secret_" + "x" * 42
+        self.assertEqual(trial.helper.admin_headers(key), {"apikey": key})
+        self.assertNotIn("Authorization", trial.helper.admin_headers(key))
+        jwt = "eyJabc.def.ghi"
+        self.assertEqual(trial.helper.admin_headers(jwt),
+                         {"apikey": jwt, "Authorization": "Bearer " + jwt})
+        for bad in ("", "sb_publishable_not_privileged", "random-value", "eyJnot_a_jwt"):
+            with self.subTest(bad=bad), self.assertRaises(RuntimeError):
+                trial.helper.admin_headers(bad)
+
     def test_workflow_never_passes_admin_key_as_azure_appsetting(self):
         workflow = (ROOT / ".github/workflows/p0249-dev-y1-public-shadow-bounded-once.yml").read_text()
         self.assertIn("RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}", workflow)
