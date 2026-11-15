@@ -100,6 +100,30 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
         self.calls.clear()
         self.assertEqual(self.call()["language"], "hi")
 
+    def test_broken_private_response_read_fails_closed(self):
+        # A private HTTP client can fail while reading a response after a
+        # successful 200 status. Never leak exceptions or return partial words.
+        for failure in (ValueError("secret decoder detail"),
+                        TypeError("secret transport detail"),
+                        TimeoutError("secret timeout detail"),
+                        OSError("secret socket detail")):
+            class BrokenReply(Reply):
+                def read(self, size=-1):
+                    raise failure
+
+            def sender(req, timeout):
+                self.calls.append((req, timeout))
+                return BrokenReply(b"")
+
+            with self.subTest(error=type(failure).__name__):
+                self.calls.clear()
+                with self.assertRaises(VoiceStudioTranscriptionDenied) as caught:
+                    self.call(transport=sender)
+                self.assertNotIn("secret", str(caught.exception))
+                self.assertEqual(len(self.calls), 1)
+        self.calls.clear()
+        self.assertEqual(self.call()["words"][0]["word"], "नमस्ते")
+
     def test_upstream_duration_must_match_original_wav_clock(self):
         # A valid word list cannot be associated with a contradictory audio
         # duration; reject before creating any review-only transcript.
