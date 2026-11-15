@@ -428,7 +428,7 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
         payload = json.dumps(self.payload, ensure_ascii=False)
         for wire in (payload.encode("utf-16"), payload.encode("utf-32"),
                      bytes((0xef, 0xbb, 0xbf)) + payload.encode("utf-8"),
-                     b"\\xff" + payload.encode("utf-8")):
+                     bytes((0xff,)) + payload.encode("utf-8")):
             with self.subTest(prefix=repr(wire[:8])):
                 with self.assertRaises(VoiceStudioTranscriptionDenied):
                     self.call(transport=lambda req, timeout, wire=wire: Reply(wire))
