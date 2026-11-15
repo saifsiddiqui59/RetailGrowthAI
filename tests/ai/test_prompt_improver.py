@@ -127,3 +127,46 @@ def test_length_fallback_does_not_destroy_original():
     assert got["original_prompt"] == original
     assert got["improved_prompt"] == original.strip()
     assert got["can_publish"] is False
+
+
+# F2-03: port the source-only Unicode spoof checks from stacked PR #796 onto
+# current-main prompt builder. Mock provider is local only; no inference.
+@pytest.mark.parametrize("hidden", [
+    "\u202e",  # right-to-left override
+    "\u2066",  # directional isolate
+    "\u200b",  # zero-width space
+    "\u200d",  # ZWJ outside a genuine Indic conjunct
+    "\u2028",  # Unicode line separator
+    "\x00",    # NUL
+])
+def test_f2_unicode_prompt_controls_rejected_before_review(hidden):
+    with pytest.raises(ValueError, match="unsafe control"):
+        improve_prompt(
+            "Create a kurti post " + hidden + " with a human review.",
+            profile(), output_formats=["instagram_caption"],
+        )
+
+
+def test_f2_indic_conjunct_joiner_preserved_and_still_review_only():
+    original = "कृपया क्\u200dष अक्षर के साथ साड़ी का विवरण लिखें।"
+    result = improve_prompt(
+        original, profile(), output_formats=["poster_brief"], language="hi-IN",
+    )
+    assert original in result["improved_prompt"]
+    assert result["can_publish"] is False
+
+
+def test_f2_mock_approved_provider_cannot_insert_bidi_override():
+    flags = dict(
+        output_formats=["poster_brief"], provider_mode="approved_llm",
+        explicit_cost_approval=True, subscription_quota_ok=True,
+        approved_cost_limit_usd=0.03,
+        environ={"RETAIL_PROMPT_LLM_ENABLED": "true"},
+    )
+    with pytest.raises(ValueError, match="unreviewable or unsafe"):
+        improve_prompt(
+            "Create an original boutique poster.",
+            profile(),
+            provider=lambda prompt: prompt + "\u202e",
+            **flags,
+        )
