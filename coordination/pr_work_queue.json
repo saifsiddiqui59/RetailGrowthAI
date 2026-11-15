@@ -76,7 +76,12 @@
       "work_owner": "schedule-f4",
       "priority": "P0",
       "phase": "draft",
-      "claim": null,
+      "claim": {
+        "owner": "schedule-f4",
+        "head_sha": "afe717df34860dbd4795e7d7de6d37a2fa9acfcc",
+        "claimed_at": "2026-11-15T15:48:15Z",
+        "expires_at": "2026-11-15T17:18:15Z"
+      },
       "checkpoint": {
         "owner": "schedule-f4",
         "at": "2026-11-15T14:42:05Z",
