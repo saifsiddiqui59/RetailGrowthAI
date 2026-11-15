@@ -243,7 +243,8 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                                 any(ord(ch) < 33 or ord(ch) > 126
                                     for ch in header["kid"]) or
                                 any(field in header for field in
-                                    ("jku", "jwk", "x5u", "x5c", "crit"))):
+                                    ("jku", "jwk", "x5u", "x5c", "crit", "b64")) or
+                                ("typ" in header and header["typ"] != "JWT")):
                             raise ValueError("Untrusted JOSE header")
                     except (ValueError, UnicodeError, TypeError, Base64Error):
                         raise PrivateGeneratedDownloadDenied(
