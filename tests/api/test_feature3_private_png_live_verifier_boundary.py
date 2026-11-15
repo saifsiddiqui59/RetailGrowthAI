@@ -427,6 +427,54 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
             self.assertEqual(result, b"synthetic-only" * 10)
             self.assertEqual(calls, ["read"])
 
+    def test_nonfinite_json_constants_denied_before_private_backend(self):
+        # Python's JSON decoder accepts NaN/Infinity by default even though
+        # these are not valid JSON; fail closed before the JWT verifier or IO.
+        import base64
+        from uuid import uuid4
+        from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+        calls = []
+
+        class StubReader:
+            def __init__(self, **kwargs):
+                pass
+
+            def read(self, **kwargs):
+                calls.append("read")
+                return b"synthetic-only" * 10
+
+        def segment(raw):
+            return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+        verifier = SupabaseJWTVerifier(ORIGIN)
+        with patch("feature3_private_png_runtime.TenantStore") as store, patch(
+                "feature3_private_png_runtime.Feature3RevocablePNGReader", StubReader):
+            store.return_value.origin = ORIGIN
+            store.return_value.key = KEY
+            shop, job = str(uuid4()), str(uuid4())
+            scoped = compose(jwt_verifier=verifier)(shop, job)
+            valid_header = b'{"alg":"RS256","kid":"synthetic"}'
+            valid_payload = b'{"sub":"synthetic"}'
+            for raw_header, raw_payload in (
+                    (b'{"alg":"RS256","kid":"synthetic","extra":NaN}', valid_payload),
+                    (b'{"alg":"RS256","kid":"synthetic","extra":[Infinity]}', valid_payload),
+                    (valid_header, b'{"sub":"synthetic","iat":NaN}'),
+                    (valid_header, b'{"sub":"synthetic","nested":{"exp":-Infinity}}')):
+                with self.subTest(header=raw_header, payload=raw_payload):
+                    with self.assertRaises(PrivateGeneratedDownloadDenied):
+                        scoped.read(
+                            user_token=segment(raw_header) + "." +
+                                       segment(raw_payload) + ".c2ln",
+                            shop_id=shop, job_id=job)
+            self.assertEqual(calls, [])
+            self.assertEqual(
+                scoped.read(
+                    user_token=segment(valid_header) + "." +
+                               segment(valid_payload) + ".c2ln",
+                    shop_id=shop, job_id=job),
+                b"synthetic-only" * 10)
+            self.assertEqual(calls, ["read"])
+
     def test_injected_isolated_store_retains_synthetic_fixture_support(self):
         class Store:
             origin = ORIGIN
