@@ -914,5 +914,5 @@ Work completed: #859 merged & postmerge 4/4, #866 merged (postmerge running), #8
 
 ## 2026-11-15 — PR scheduler ownership/control implementation (review branch)
 - Created separate `coordination/pr-execution-ledger` branch with `coordination/pr_work_queue.json`, seeded from 68 open GitHub PRs and their observed live heads at creation; no existing PR was closed or merged by this change.
-- Proposed pure-Python fail-closed PR claim/CAS client and offline negative tests (nine planned cases), feature ownership/runbook and short-run metrics in review branch `chore/pr-integration-control-20261115`. Claim mutations target only ledger branch, not product source or main; no lease claimed yet. Open proposal requires independent coordination review and exact-head/full main CI.
+- Proposed pure-Python fail-closed PR claim/CAS client, moved-head same-owner renewal, worker-reported run checkpoints and offline negative tests, feature ownership/runbook and short-run metrics in review branch `chore/pr-integration-control-20261115`. Claim mutations target only ledger branch, not product source or main; no lease claimed yet. Open proposal requires independent coordination review and exact-head/full main CI.
 - No GPU, paid AI, Azure/Supabase hosted writes, PROD or WineShopPOS modifications.
