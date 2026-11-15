@@ -124,6 +124,7 @@ export async function bindVerifiedVoiceStudioMedia({
   // Preflight every untrusted word BEFORE private video/WAV reads. A malformed
   // review must not trigger costly tenant media I/O merely to fail at signing.
   // Inspect own descriptors only; never invoke user-supplied getters or map.
+  const preflightWords=[];
   for (let index=0;index<earlyWords.value.length;index++) {
     const slot=Object.getOwnPropertyDescriptor(earlyWords.value,String(index));
     deny(slot && Object.hasOwn(slot,'value') && slot.value!==null &&
@@ -139,6 +140,7 @@ export async function bindVerifiedVoiceStudioMedia({
       typeof word.end==='number' && Number.isFinite(word.start) &&
       Number.isFinite(word.end) && word.start>=0 &&
       word.end>word.start && word.end<=source_duration_seconds);
+    preflightWords.push(word);
   }
   // Track elapsed time across asynchronous media reads; a lease can expire
   // even if its snapshot is unchanged. An injected clock is for offline tests.
@@ -203,6 +205,10 @@ export async function bindVerifiedVoiceStudioMedia({
     }
     return values;
   });
+  // Reject a review mutated while asynchronous private readers were running.
+  // Signing different words from those validated before I/O is a TOCTOU bypass.
+  deny(words.length===preflightWords.length && words.every((w,i)=>
+    ['word','start','end'].every(field=>w[field]===preflightWords[i][field])));
   deny(words.every(w=>Number.isFinite(w.end) &&
     w.end<=wavDuration.seconds+1/wavDuration.sampleRate));
   // Snapshot only the upstream review contract's own data properties. Object
