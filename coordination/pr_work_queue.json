@@ -73,32 +73,27 @@
       "pr": 322,
       "title": "WIP Feature #4 — Timeline Studio engine (illustrated demo rejected; visual QA open)",
       "feature": "F4",
-      "head_sha": "afe717df34860dbd4795e7d7de6d37a2fa9acfcc",
+      "head_sha": "e26658f844328171342b56241450b29821b33d5f",
       "base_branch": "main",
       "work_owner": "schedule-f4",
       "priority": "P0",
       "phase": "draft",
-      "claim": {
-        "owner": "schedule-f4",
-        "head_sha": "afe717df34860dbd4795e7d7de6d37a2fa9acfcc",
-        "claimed_at": "2026-11-15T17:45:00Z",
-        "expires_at": "2026-11-15T19:15:00Z"
-      },
+      "claim": null,
       "checkpoint": {
         "owner": "schedule-f4",
-        "at": "2026-11-15T15:48:15Z",
+        "at": "2026-11-15T17:47:00Z",
         "head_before": "afe717df34860dbd4795e7d7de6d37a2fa9acfcc",
-        "head_after": "afe717df34860dbd4795e7d7de6d37a2fa9acfcc",
-        "commits": [],
-        "files_reviewed": [
-          "video-engine/feature4_voicestudio_handoff.py",
-          "tests/media/test_feature4_voicestudio_handoff.py",
-          "video-engine/FEATURE4_VOICESTUDIO_HANDOFF_20261111.md"
+        "head_after": "e26658f844328171342b56241450b29821b33d5f",
+        "commits": [
+          "e26658f844328171342b56241450b29821b33d5f"
         ],
-        "tests": "NOT EXECUTED: no local checkout; inspected existing trusted receipt and synthetic compiler tests",
-        "ci": "Previously verified 4/4 at afe717d run 43700660734; not independently refreshed in this execution",
-        "blockers": "Large diverged draft; main lacks reviewed private WAV adapter; current-main parity extraction and independent review needed; owner-rejected visual QA remains open",
-        "next_action": "Under fresh CAS claim, compare unique F4 WAV adapter against current main and open F4 children; extract narrowly reviewed code into existing suitable F4 branch; run unittest test_feature4_voicestudio_handoff and real 15/30/60 CPU FFmpeg tests, then exact-head 4/4 CI; manual integration handles main",
+        "files_changed": [
+          "tests/media/test_feature4_voicestudio_handoff.py"
+        ],
+        "tests": "NOT RUN: local GitHub DNS failure; targeted unittest requires checkout",
+        "ci": "0/4 verified at new head; old head 4/4 does not count",
+        "blockers": "Independent review; owner-rejected visual QA; local test execution unavailable",
+        "next_action": "Run python -m unittest tests/media/test_feature4_voicestudio_handoff.py against e26658f; inspect exact-head 4-job CI and fix any F4 test failure; manual integration only for main",
         "status": "worker-reported; NOT DONE"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322"
