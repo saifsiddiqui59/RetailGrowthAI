@@ -96,20 +96,28 @@ def main():
             # stage that saturates the licensed soundtrack and narration.
             assert max(abs(x) for x in samples) < 32767, (
                 "Decoded VoiceStudio AAC mix clips at full-scale PCM")
-            # Downmixing to mono can conceal clipping in one AAC channel when
-            # left/right peaks cancel. Inspect both decoded channels before
-            # accepting the existing narration/music mastering result.
-            stereo_pcm = subprocess.check_output(
-                ["ffmpeg", "-nostdin", "-v", "error", "-i", str(output),
-                 "-map", "0:a:0", "-t", "1", "-ac", "2", "-ar", "8000",
-                 "-f", "s16le", "-acodec", "pcm_s16le", "-"],
-                timeout=45)
-            assert len(stereo_pcm) >= 8000 * 2 * 2, (
-                "Decoded stereo AAC mix is truncated")
-            stereo_samples = struct.unpack(
-                "<" + "h" * (len(stereo_pcm) // 2), stereo_pcm)
-            assert max(abs(x) for x in stereo_samples) < 32767, (
-                "Decoded VoiceStudio AAC channel clips at full-scale PCM")
+            # A mono downmix can hide opposite-polarity peaks in one AAC
+            # channel. Probe the native channel count, not an upmixed mono
+            # stream, at the beginning, caption cues, late voice and tail.
+            # A one-second opening-only check misses later mixer saturation.
+            native_channels = int(audio[0]["channels"])
+            for second, duration in ((0, 1), (5, 1), (14, 1),
+                                     (20, 1), (29, 0.8)):
+                channel_pcm = subprocess.check_output(
+                    ["ffmpeg", "-nostdin", "-v", "error", "-ss", str(second),
+                     "-i", str(output), "-map", "0:a:0", "-t", str(duration),
+                     "-ac", str(native_channels), "-ar", "8000",
+                     "-f", "s16le", "-acodec", "pcm_s16le", "-"],
+                    timeout=45)
+                expected_samples = int(8000 * duration) * native_channels
+                assert len(channel_pcm) >= expected_samples * 2, (
+                    f"Decoded native-channel AAC truncated at {second}s")
+                channel_samples = struct.unpack(
+                    "<" + "h" * (len(channel_pcm) // 2), channel_pcm)
+                for channel in range(native_channels):
+                    assert max(abs(x) for x in
+                               channel_samples[channel::native_channels]) < 32767, (
+                        f"Decoded AAC channel {channel} clips at {second}s")
             # Verify the original narration tone is actually present in decoded
             # AAC, rather than passing because the music bed alone is audible.
             # The synthetic fixture uses 350 Hz narration and 196 Hz music.
