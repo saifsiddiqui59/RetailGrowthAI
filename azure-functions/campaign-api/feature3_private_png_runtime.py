@@ -15,6 +15,9 @@ from feature3_private_png_reader import Feature3RevocablePNGReader
 from security import SupabaseJWTVerifier
 from tenant_store import TenantStore
 
+# Match the authenticated Storage reader's bounded private PNG contract.
+_MAX_PRIVATE_PNG_BYTES = 25 * 1024 * 1024
+
 
 def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                                      authoritative_rights_read,
@@ -212,7 +215,8 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                 # or custom bytes subclass to the HTTP adapter. The private
                 # reader contract returns immutable PNG bytes only; otherwise
                 # a lazy body could execute after the final rights check.
-                if type(result) is not bytes:
+                if (type(result) is not bytes or
+                        not 100 <= len(result) <= _MAX_PRIVATE_PNG_BYTES):
                     raise PrivateGeneratedDownloadDenied(
                         "Private generated output unavailable")
                 # Deny bytes if the backend changed project during JWT/RLS/IO.
