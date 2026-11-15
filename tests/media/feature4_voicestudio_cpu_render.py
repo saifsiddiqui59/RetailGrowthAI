@@ -127,6 +127,8 @@ def main():
                     f"Approved narration AAC truncated at {second}s")
                 cue_samples = struct.unpack(
                     "<" + "h" * (len(cue_pcm) // 2), cue_pcm)
+                assert max(abs(x) for x in cue_samples) < 32767, (
+                    f"Decoded AAC clips during approved narration at {second}s")
                 assert tone_magnitude(cue_samples, 350) > 100, (
                     f"Approved narration missing at {second}s")
                 assert tone_magnitude(cue_samples, 350) > tone_magnitude(cue_samples, 196), (
@@ -143,6 +145,7 @@ def main():
             late_samples = struct.unpack("<" + "h" * (len(late_pcm) // 2), late_pcm)
             late_rms = math.sqrt(sum(x * x for x in late_samples) / len(late_samples))
             assert late_rms > 100, "Encoded narration/music silent at 20 seconds"
+            assert max(abs(x) for x in late_samples) < 32767, (\n                "Decoded AAC clips during late approved narration")
             late_narration = tone_magnitude(late_samples, 350)
             late_bed = tone_magnitude(late_samples, 196)
             assert late_narration > 100, "Approved narration disappeared before 20 seconds"
@@ -158,6 +161,7 @@ def main():
                  "-acodec", "pcm_s16le", "-"], timeout=45)
             assert len(tail_pcm) >= 6000 * 2, "Final AAC narration is truncated"
             tail_samples = struct.unpack("<" + "h" * (len(tail_pcm) // 2), tail_pcm)
+            assert max(abs(x) for x in tail_samples) < 32767, (\n                "Decoded AAC clips near final Reel frame")
             assert tone_magnitude(tail_samples, 350) > 100, "Approved narration missing at Reel end"
             assert tone_magnitude(tail_samples, 196) > 5, "Music bed missing at Reel end"
             assert tone_magnitude(tail_samples, 350) > tone_magnitude(tail_samples, 196), "End music masks narration"
