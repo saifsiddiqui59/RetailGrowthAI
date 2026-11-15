@@ -58,6 +58,17 @@ reject({lease:{...lease,job_id:'foreign'}});
 reject({review:{...review,approved:true}});
 reject({review:{...review,schema:'retailgrowth.feature7-voicestudio-asr-reviewSnapshot.v1'}});
 reject({review:{...review,schema:'unexpected-review-v1'}});
+// Signing must independently reject forged review-only Unicode controls,
+// even if a caller bypasses the upstream Python ASR validation.
+for (const bad of ['\\u0000','\\u001f','\\u0085','\\u061c','\\u200e',
+  '\\u202e','\\u2066','\\u2028','\\u2029','\\ufeff','\\ud800']) {
+  const unsafe=JSON.parse('"'+bad+'"');
+  reject({review:{...review,text:'नमस्ते'+unsafe+'दुनिया'}});
+  reject({review:{...review,words:[{word:'नम'+unsafe+'स्ते',start:.1,end:.5}]}});
+}
+assert.equal(bindVoiceStudioReview({...input,review:{...review,
+  text:'नमस्ते दुनिया।',words:[{word:'नमस्ते',start:.1,end:.5},
+    {word:'दुनिया',start:.7,end:1.2}]}}).approved,false);
 // Bound untrusted upstream text independently of the word-count limit.
 reject({review:{...review,text:'x'.repeat(20001)}});
 assert.equal(bindVoiceStudioReview({...input,review:{...review,text:'x'.repeat(20000)}}).approved,false);
