@@ -89,11 +89,10 @@ def claim_entry(state: dict, pr: int, owner: str, expected_head: str,
         raise QueueError("stale PR head; refresh and reconcile first")
     existing = item.get("claim")
     if existing:
-        if timestamp(existing["expires_at"]) > now:
-            if existing["head_sha"] != expected_head:
-                raise QueueError("claimed head changed; owner must reconcile")
-            if existing["owner"] != owner:
-                raise QueueError(f"active lease held by {existing['owner']}")
+        if timestamp(existing["expires_at"]) > now and existing["owner"] != owner:
+            raise QueueError(f"active lease held by {existing['owner']}")
+        # The same owner may rebind after independently verifying the new live PR
+        # head; a different owner cannot bypass an active lease on a moved head.
     item["claim"] = {"owner": owner, "head_sha": expected_head,
                      "claimed_at": iso(now), "expires_at": iso(now + timedelta(minutes=minutes))}
     item["phase"] = "in-progress"
@@ -114,6 +113,30 @@ def release_entry(state: dict, pr: int, owner: str,
         raise QueueError("only current claim owner can release")
     item["claim"] = None
     item["phase"] = outcome
+    return updated
+
+
+
+def checkpoint_entry(state: dict, pr: int, owner: str, expected_head: str,
+                     now: datetime, commits: int = 0, tests: str = "",
+                     ci: str = "", next_action: str = "") -> dict:
+    """Record evidence *reported* by a worker; never convert it to task DONE."""
+    validate(state)
+    if not isinstance(commits, int) or isinstance(commits, bool) or commits < 0:
+        raise QueueError("invalid commit count")
+    updated = deepcopy(state)
+    item = find(updated, pr)
+    claim = item.get("claim")
+    if not claim or claim["owner"] != owner or timestamp(claim["expires_at"]) <= now:
+        raise QueueError("valid own active lease required for checkpoint")
+    if item["head_sha"] != expected_head or claim["head_sha"] != expected_head:
+        raise QueueError("reclaim with exact current PR head before checkpoint")
+    item["checkpoint"] = {
+        "recorded_at": iso(now), "owner": owner, "head_sha": expected_head,
+        "commits_reported": commits, "tests_reported": tests[:500],
+        "ci_reported": ci[:80], "next_action": next_action[:500],
+        "evidence_status": "worker-reported-unverified"
+    }
     return updated
 
 
@@ -214,11 +237,14 @@ def list_live(token: str) -> list[dict]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("status", "refresh", "claim", "release"))
+    parser.add_argument("action", choices=("status", "refresh", "claim", "release", "checkpoint"))
     parser.add_argument("--pr", type=int)
     parser.add_argument("--owner")
     parser.add_argument("--head", help="exact current PR head SHA; required to claim")
     parser.add_argument("--minutes", type=int, default=90)
+    parser.add_argument("--commits", type=int, default=0)
+    parser.add_argument("--tests", default="")
+    parser.add_argument("--ci", default="")
     parser.add_argument("--next-action", default="")
     parser.add_argument("--outcome", default="needs-triage")
     args = parser.parse_args(argv)
@@ -240,6 +266,15 @@ def main(argv: list[str] | None = None) -> int:
             raise QueueError("PR closed or moved; no stale claim")
         state = claim_entry(state, args.pr, args.owner, args.head,
                             datetime.now(timezone.utc), args.minutes, args.next_action)
+    elif args.action == "checkpoint":
+        if not args.pr or not args.owner or not args.head:
+            raise QueueError("--pr, --owner and --head are required")
+        live = api("GET", API + f"/pulls/{args.pr}", token)
+        if live["state"] != "open" or live["head"]["sha"] != args.head:
+            raise QueueError("PR closed or moved; checkpoint refused")
+        state = checkpoint_entry(state, args.pr, args.owner, args.head,
+                                 datetime.now(timezone.utc), args.commits,
+                                 args.tests, args.ci, args.next_action)
     elif args.action == "release":
         if not args.pr or not args.owner:
             raise QueueError("--pr and --owner are required")
