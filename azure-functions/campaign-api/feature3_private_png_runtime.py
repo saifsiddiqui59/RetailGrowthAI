@@ -9,6 +9,7 @@ from __future__ import annotations
 from uuid import UUID
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 from binascii import Error as Base64Error
+import re
 
 from feature3_current_output_rights import Feature3CurrentOutputRights
 from feature3_private_png_reader import Feature3RevocablePNGReader
@@ -17,6 +18,9 @@ from tenant_store import TenantStore
 
 # Match the authenticated Storage reader's bounded private PNG contract.
 _MAX_PRIVATE_PNG_BYTES = 25 * 1024 * 1024
+# Validate server configuration before constructing any network-capable adapter.
+_PROJECT_ORIGIN = re.compile(r"https://[a-z0-9][a-z0-9-]{0,62}\.supabase\.co(?::443)?/?")
+_PUBLIC_KEY = re.compile(r"sb_publishable_[A-Za-z0-9_-]{6,4090}")
 
 
 def build_private_png_reader_factory(*, supabase_origin, publishable_key,
@@ -32,7 +36,10 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
     """
     if not callable(authoritative_rights_read):
         raise ValueError("Trusted current output-rights provider required")
-    if type(supabase_origin) is not str or type(publishable_key) is not str:
+    if (type(supabase_origin) is not str or
+            _PROJECT_ORIGIN.fullmatch(supabase_origin) is None or
+            type(publishable_key) is not str or
+            _PUBLIC_KEY.fullmatch(publishable_key) is None):
         raise ValueError("Trusted Supabase project configuration required")
     # Validate the actual project origin and public key before returning a
     # callable. No service-role key or HTTP client-provided credentials.
