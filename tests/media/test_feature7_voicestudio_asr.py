@@ -499,6 +499,39 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
         # A normal Indic response still reaches the review-only adapter.
         self.assertEqual(self.call()["words"][0]["word"], "नमस्ते")
 
+    def test_private_transport_runtime_failures_are_redacted(self):
+        # Third-party HTTP transports may fail during status inspection,
+        # body reads or context-manager cleanup. None may leak credentials or
+        # produce partially trusted transcript evidence.
+        class BrokenReply(Reply):
+            def __init__(self, stage):
+                super().__init__(json.dumps(self_payload).encode("utf-8"))
+                self.stage = stage
+
+            def __enter__(self):
+                if self.stage == "enter":
+                    raise RuntimeError("private token leaked on enter")
+                return super().__enter__()
+
+            def read(self, *args, **kwargs):
+                if self.stage == "read":
+                    raise RuntimeError("private token leaked on read")
+                return super().read(*args, **kwargs)
+
+            def __exit__(self, *args):
+                if self.stage == "exit":
+                    raise RuntimeError("private token leaked on exit")
+                return super().__exit__(*args)
+
+        self_payload = self.payload
+        for stage in ("enter", "read", "exit"):
+            with self.subTest(stage=stage):
+                with self.assertRaises(VoiceStudioTranscriptionDenied) as caught:
+                    self.call(transport=lambda req, timeout, stage=stage:
+                              BrokenReply(stage))
+                self.assertNotIn("private token", str(caught.exception))
+        self.assertEqual(self.call()["language"], "hi")
+
     def test_upstream_error_redacted(self):
         from urllib.error import URLError
         def sender(req,timeout):
