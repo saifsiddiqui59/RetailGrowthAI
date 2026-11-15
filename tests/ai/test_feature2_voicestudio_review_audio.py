@@ -1386,3 +1386,25 @@ def test_jwt_subject_switch_after_private_get_denies_bytes():
     assert len(calls) == 2
     assert len(storage.calls) == 1 and len(sql.calls) == 2
     assert len(tenant.calls) == 1
+
+
+@pytest.mark.parametrize("channels", [0, 3, 65535])
+def test_matching_digest_invalid_pcm_channel_count_denied_before_second_auth(channels):
+    """A signed SHA cannot authorize zero-channel or multichannel PCM review."""
+    args, tenant, sql, storage, _ = harness()
+    malformed = bytearray(pcm())
+    malformed[22:24] = channels.to_bytes(2, "little")
+    # Preserve the original frame alignment: this isolates the channel gate.
+    payload = bytes(malformed)
+    original = sql.read_private_receipt
+
+    def matching_receipt(*ids):
+        receipt = original(*ids)
+        receipt["original_sha256"] = sha256(payload).hexdigest()
+        return receipt
+
+    sql.read_private_receipt = matching_receipt
+    storage.read_verified_original = lambda *ids: payload
+    with pytest.raises(VoiceStudioReviewDenied, match="^Private VoiceStudio review access denied$"):
+        read_current_voiceover_for_review(**args)
+    assert len(sql.calls) == 1 and len(tenant.calls) == 1
