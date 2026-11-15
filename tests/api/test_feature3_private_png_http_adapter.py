@@ -45,6 +45,20 @@ class PrivatePNGHttpAdapterTests(unittest.TestCase):
                 self.assertIn("no-store", headers["Cache-Control"])
         self.assertEqual(calls, [])
 
+    def test_supabase_api_keys_never_construct_private_reader(self):
+        calls = []
+        def factory(*args):
+            calls.append(args)
+            raise AssertionError("API key must never become a user JWT")
+        for prefix in ("sb_secret_", "sb_publishable_"):
+            with self.subTest(prefix=prefix):
+                status, headers, body = private_png_http_response(
+                    reader_factory=factory, shop_id=SHOP, job_id=JOB,
+                    bearer_token="Bearer " + prefix + "synthetic.jwt.fixture")
+                self.assertEqual((status, body), (404, b""))
+                self.assertIn("no-store", headers["Cache-Control"])
+        self.assertEqual(calls, [])
+
     def test_rights_denial_and_bad_bytes_never_escape(self):
         class Reader:
             def __init__(self, result):
