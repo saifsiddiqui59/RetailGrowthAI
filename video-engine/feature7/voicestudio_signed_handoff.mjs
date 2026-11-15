@@ -144,6 +144,13 @@ export function bindVoiceStudioReview({
         Object.is(descriptor.value,snapshot[field]);
     });
   }), 'VoiceStudio word fields changed during normalization');
+  // A descriptor trap can append/truncate words during normalization while
+  // preserving all originally captured slots. Revalidate the native array
+  // length before sealing so no unreviewed suffix can accompany the digest.
+  const finalLength=Object.getOwnPropertyDescriptor(reviewSnapshot.words,'length');
+  deny(finalLength && Object.hasOwn(finalLength,'value') &&
+    finalLength.value===wordCount,
+    'VoiceStudio word list length changed during normalization');
   deny(wordCount===wordIdentities.length &&
     wordIdentities.every((word,i)=>{
       const descriptor=Object.getOwnPropertyDescriptor(reviewSnapshot.words,String(i));
