@@ -200,6 +200,9 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
                     {"alg": "RS256", "kid": ""},
                     {"alg": "RS256", "kid": "test", "jku": "https://evil.test"},
                     {"alg": "RS256", "kid": "test", "crit": ["b64"]},
+                    {"alg": "RS256", "kid": "test", "b64": False},
+                    {"alg": "RS256", "kid": "test", "b64": True},
+                    {"alg": "RS256", "kid": "test", "typ": "application/other"},
                     ["RS256", "test"]):
                 with self.subTest(header=header):
                     with self.assertRaises(PrivateGeneratedDownloadDenied):
