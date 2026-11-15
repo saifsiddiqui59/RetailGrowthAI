@@ -76,3 +76,9 @@ Source-only, model OFF, no GPU/paid provider, hosted DEV/PROD or WineShopPOS cha
 ## 2026-11-15 F2-19/F2-20 control-byte fixture correction
 - Commit `aade9ab71bfd90ea1085705604e1c704005788c3` fixes negative Authorization fixtures to pass actual CR/LF, NUL, DEL and tab characters rather than literal backslash escape text. No runtime, cloud, SQL, model or other feature mutation.
 - **NEXT CODE ACTION:** execute `python -m pytest -q tests/ai/test_feature2_voicestudio_review_http.py tests/ai/test_feature2_voicestudio_review_audio.py tests/ai/test_feature2_voicestudio_riff_envelope.py` on latest PR #937 head. Verify four exact-head CI jobs, inspect failures and fix F2-owned paths. Recheck fresh main, protected #920/#923/#925/#937 and independent review before any merge; postmerge main must pass 4/4. No deployment.
+
+
+## 2026-11-15 F2-19 hourly source checkpoint
+- Source commits `7eb59c5f` and `5ceb2f11` on PR #937: reject Authorization values longer than 8192 characters before calling the private review service; regression asserts oversized bearer values return empty 401 and never invoke private dependencies.
+- New exact-head CI on `5ceb2f1196a87e11d7421120b2aebecdbf6b1947`: not verified (workflow lookup returned no runs, combined status pending). Targeted pytest not executed in this connector runtime. No merge/deployment, no protected review bypass.
+- NEXT CODE ACTION: run `python -m pytest -q tests/ai/test_feature2_voicestudio_review_http.py tests/ai/test_feature2_voicestudio_review_audio.py tests/ai/test_feature2_voicestudio_riff_envelope.py`; repair any failures, verify four exact-head PR jobs, then request independent protected review. Continue F2-19/F2-20 cross-shop revocation tests without modifying F4/F7 or cloud resources.
