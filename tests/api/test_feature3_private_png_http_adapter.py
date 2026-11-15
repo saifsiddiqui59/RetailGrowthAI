@@ -23,20 +23,20 @@ class PrivatePNGHttpAdapterTests(unittest.TestCase):
 
         status, headers, body = private_png_http_response(
             reader_factory=lambda shop, job: Reader(), shop_id=SHOP,
-            job_id=JOB, bearer_token="Bearer synthetic.jwt.fixture")
+            job_id=JOB, bearer_token="Bearer synthetic0.jwt.fixture")
         self.assertEqual(status, 200)
         self.assertEqual(body, PNG)
         self.assertEqual(headers["Content-Type"], "image/png")
         self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
         self.assertIn("no-store", headers["Cache-Control"])
-        self.assertEqual(calls, [{"user_token": "synthetic.jwt.fixture", "shop_id": SHOP, "job_id": JOB}])
+        self.assertEqual(calls, [{"user_token": "synthetic0.jwt.fixture", "shop_id": SHOP, "job_id": JOB}])
 
     def test_missing_or_malformed_bearer_never_calls_reader(self):
         calls = []
         def factory(*args):
             calls.append(args)
             raise AssertionError("Must not construct reader")
-        for bearer in (None, "", "synthetic.jwt.fixture", "Bearer ",
+        for bearer in (None, "", "synthetic0.jwt.fixture", "Bearer ",
                        "Bearer  token", "Bearer token ", "bearer token"):
             with self.subTest(bearer=bearer):
                 status, headers, body = private_png_http_response(
@@ -59,7 +59,7 @@ class PrivatePNGHttpAdapterTests(unittest.TestCase):
             with self.subTest(result=type(result).__name__):
                 status, headers, body = private_png_http_response(
                     reader_factory=lambda shop, job: Reader(result),
-                    shop_id=SHOP, job_id=JOB, bearer_token="Bearer synthetic.jwt.fixture")
+                    shop_id=SHOP, job_id=JOB, bearer_token="Bearer synthetic0.jwt.fixture")
                 self.assertEqual((status, body), (404, b""))
                 self.assertNotIn("Content-Type", headers)
 
@@ -73,7 +73,7 @@ class PrivatePNGHttpAdapterTests(unittest.TestCase):
             calls.append((shop, job))
             return Reader()
 
-        for token in ("Bearer synthetic.jwt.fixture\\n", "Bearer synthetic,jwt.fixture",
+        for token in ("Bearer synthetic0.jwt.fixture\\n", "Bearer synthetic,jwt.fixture",
                       "Bearer synthetic;jwt.fixture", "Bearer " + "x" * 8193,
                       "Bearer synthetic\\tjwt.fixture"):
             with self.subTest(token=token[:30]):
@@ -84,7 +84,7 @@ class PrivatePNGHttpAdapterTests(unittest.TestCase):
         self.assertEqual(calls, [])
         status, headers, body = private_png_http_response(
             reader_factory=factory, shop_id=SHOP, job_id=JOB,
-            bearer_token="Bearer synthetic.jwt.fixture")
+            bearer_token="Bearer synthetic0.jwt.fixture")
         self.assertEqual((status, body), (404, b""))
         self.assertNotIn("Content-Type", headers)
         self.assertEqual(len(calls), 2)
@@ -107,9 +107,36 @@ class PrivatePNGHttpAdapterTests(unittest.TestCase):
             with self.subTest(shop=shop, job=job):
                 status, headers, body = private_png_http_response(
                     reader_factory=factory, shop_id=shop, job_id=job,
-                    bearer_token="Bearer synthetic.jwt.fixture")
+                    bearer_token="Bearer synthetic0.jwt.fixture")
                 self.assertEqual((status, body), (404, b""))
                 self.assertNotIn("Content-Type", headers)
+        self.assertEqual(calls, [])
+
+    def test_invalid_compact_jws_never_constructs_private_reader(self):
+        calls = []
+        def factory(*args):
+            calls.append(args)
+            raise AssertionError("Malformed JWS must not reach scoped reader")
+
+        for token in (
+            "opaque-token-value",
+            "a.b",
+            "a.b.c.d",
+            ".payload.signature",
+            "header..signature",
+            "header.payload.",
+            "a.payload.signature",  # invalid base64url segment length
+            "header.payload.sign+ature",
+            "header.payload.sign/ature",
+            "header.payload.sign=ature",
+            "header.payload." + "x" * 2049,
+        ):
+            with self.subTest(token=token[:40]):
+                status, headers, body = private_png_http_response(
+                    reader_factory=factory, shop_id=SHOP, job_id=JOB,
+                    bearer_token="Bearer " + token)
+                self.assertEqual((status, body), (404, b""))
+                self.assertIn("no-store", headers["Cache-Control"])
         self.assertEqual(calls, [])
 
     def test_missing_trusted_factory_is_configuration_error(self):
