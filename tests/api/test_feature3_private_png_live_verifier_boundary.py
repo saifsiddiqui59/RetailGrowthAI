@@ -132,6 +132,46 @@ class LiveVerifierBoundaryTests(unittest.TestCase):
                                          shop_id=shop, job_id=job), b"synthetic-only")
             self.assertEqual(calls, ["construct", "read"])
 
+    def test_live_reader_rejects_lazy_mutable_or_custom_download_bodies(self):
+        # A streamed/lazy body could be consumed after the final rights and
+        # project checks; only an immutable concrete bytes value may escape.
+        from uuid import uuid4
+        from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+        verifier = SupabaseJWTVerifier(ORIGIN)
+        calls = []
+
+        class CountingReader:
+            def __init__(self, **kwargs):
+                pass
+
+            def read(self, **kwargs):
+                calls.append("read")
+                return candidate[0]
+
+        class BytesSubclass(bytes):
+            pass
+
+        with patch("feature3_private_png_runtime.TenantStore") as store, patch(
+                "feature3_private_png_runtime.Feature3RevocablePNGReader",
+                CountingReader):
+            store.return_value.origin = ORIGIN
+            store.return_value.key = KEY
+            shop, job = str(uuid4()), str(uuid4())
+            scoped = compose(jwt_verifier=verifier)(shop, job)
+            candidate = [None]
+            for value in (None, bytearray(b"png"), memoryview(b"png"),
+                          BytesSubclass(b"png"), iter([b"png"]), "png"):
+                candidate[0] = value
+                with self.subTest(type=type(value).__name__):
+                    with self.assertRaises(PrivateGeneratedDownloadDenied):
+                        scoped.read(user_token="abc.deQ.ghg", shop_id=shop,
+                                    job_id=job)
+            candidate[0] = b"synthetic-only"
+            self.assertEqual(
+                scoped.read(user_token="abc.deQ.ghg", shop_id=shop, job_id=job),
+                b"synthetic-only")
+        self.assertEqual(len(calls), 7)
+
     def test_injected_isolated_store_retains_synthetic_fixture_support(self):
         class Store:
             origin = ORIGIN
