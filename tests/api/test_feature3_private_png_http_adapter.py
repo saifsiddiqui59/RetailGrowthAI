@@ -59,7 +59,7 @@ class PrivatePNGHttpAdapterTests(unittest.TestCase):
             with self.subTest(result=type(result).__name__):
                 status, headers, body = private_png_http_response(
                     reader_factory=lambda shop, job: Reader(result),
-                    shop_id=SHOP, job_id=JOB, bearer_token="Bearer synthetic")
+                    shop_id=SHOP, job_id=JOB, bearer_token="Bearer synthetic.jwt.fixture")
                 self.assertEqual((status, body), (404, b""))
                 self.assertNotIn("Content-Type", headers)
 
