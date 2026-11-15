@@ -47,7 +47,13 @@
       "work_owner": "schedule-f7",
       "priority": "P0",
       "phase": "blocked",
-      "claim": null,
+      "claim": {
+        "owner": "schedule-f7",
+        "head_sha": "934700b1b36f4333ccc4d75769bdb10f6d2fd527",
+        "claimed_at": "2026-11-15T17:10:00Z",
+        "expires_at": "2026-11-15T18:40:00Z",
+        "task": "VoiceStudio response metadata exception negative regression"
+      },
       "checkpoint": {
         "owner": "schedule-f7",
         "at": "2026-11-15T16:12:00Z",
