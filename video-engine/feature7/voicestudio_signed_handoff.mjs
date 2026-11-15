@@ -192,6 +192,14 @@ export function bindVoiceStudioReview({
     Object.is(Object.getOwnPropertyDescriptor(review,field).value,value)),
     'VoiceStudio review changed while sealing transcript');
   const captions=buildCaptions(normalized.words,asset_id);
+  // A hostile review descriptor can revoke the lease during the final review
+  // snapshot comparison above. Check the lease again after that comparison
+  // and caption construction, before releasing the signed review artifact.
+  requireOwnDataFields(lease,Object.keys(leaseSnapshot));
+  deny(Object.entries(leaseSnapshot).every(([field,value])=>
+    Object.is(Object.getOwnPropertyDescriptor(lease,field).value,value)) &&
+    leaseSnapshot.active===true && leaseSnapshot.expires_at_ms>now_ms,
+    'ASR lease changed before signed review release');
   return Object.freeze({
     schema:'retailgrowth.feature7-voicestudio-signed-review.v1',
     shop_id,asset_id,job_id,original_video_sha256,original_audio_sha256,
