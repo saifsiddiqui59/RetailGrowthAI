@@ -152,35 +152,29 @@
       "pr": 944,
       "title": "fix(feature3 F3-08): pin injected Supabase JWT verifier to configured project",
       "feature": "F3",
-      "head_sha": "40741ff1038affb2257159695c3888c77073ca60",
+      "head_sha": "3c1135f27f9a89e41e9e68c7909d8fe7c7b19d53",
       "base_branch": "feat/feature3-f3-08-current-rights-attestation-20261106",
       "work_owner": "schedule-f3",
       "priority": "P0",
       "phase": "blocked",
-      "claim": {
-        "owner": "schedule-f3",
-        "head_sha": "40741ff1038affb2257159695c3888c77073ca60",
-        "claimed_at": "2026-11-15T15:31:27.808Z",
-        "expires_at": "2026-11-15T17:01:27.808Z",
-        "next_action": "F3-08 targeted source/test repair"
-      },
+      "claim": null,
       "checkpoint": {
         "owner": "schedule-f3",
-        "at": "2026-11-15T14:42:00Z",
-        "head_before": "738b127bee1ec8f71b620f11585412b5e8f30ead",
-        "head_after": "40741ff1038affb2257159695c3888c77073ca60",
+        "at": "2026-11-15T15:32:14.818Z",
+        "head_before": "40741ff1038affb2257159695c3888c77073ca60",
+        "head_after": "3c1135f27f9a89e41e9e68c7909d8fe7c7b19d53",
         "commits": [
-          "b61ceeb69eca62b6f94adc14206893d3e6b2f55c",
-          "40741ff1038affb2257159695c3888c77073ca60"
+          "02a00856d2fd990aa1804b2ef67a7f985a7e76da",
+          "3c1135f27f9a89e41e9e68c7909d8fe7c7b19d53"
         ],
-        "files": [
+        "files_changed": [
           "azure-functions/campaign-api/feature3_private_png_http_adapter.py",
           "tests/api/test_feature3_private_png_http_adapter.py"
         ],
-        "tests": "NOT RUN: no executable repository checkout; deterministic synthetic API-key rejection test added",
-        "ci": "Exact final-head PR workflow runs: 0; 0/4 verified",
-        "blockers": "Exact-head 4-job CI, targeted test execution, independent security review; secure hosted route still disabled pending authoritative rights composition",
-        "next_action": "Run python -m pytest tests/api/test_feature3_private_png_http_adapter.py at exact PR #944 head; repair failures, wire reviewed server-owned current-rights provider without bypassing JWT/RLS, obtain 4/4 CI and independent security review; manual integration owns main merge",
+        "tests": "Synthetic regression added; targeted tests NOT EXECUTED (no checkout/test runner in this run)",
+        "ci": "Exact-head workflow runs [] and commit statuses []; mandatory 4/4 NOT VERIFIED",
+        "blockers": "Authenticated Azure Functions route and trusted rights integration pending; exact-head CI and independent security review missing",
+        "next_action": "Run python -m unittest tests/api/test_feature3_private_png_http_adapter.py in full checkout; fix failures; wire secure route and verify exact-head 4/4",
         "status": "worker-reported; NOT DONE"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/944"
