@@ -184,6 +184,9 @@ class TestVoiceStudioSpeechReview(unittest.TestCase):
             "valid-looking-key with space",
             "valid-looking-key\\t",
             "valid-looking-keyé",
+            "valid-looking-key" + chr(13) + chr(10) + "X-Forged: yes",
+            "valid-looking-key" + chr(9),
+            "valid-looking-key\\\\literal",
             "x" * 4097,
         ):
             with self.subTest(token_length=len(token)):
