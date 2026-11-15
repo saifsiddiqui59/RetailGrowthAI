@@ -201,24 +201,23 @@
       "work_owner": "schedule-f2",
       "priority": "P0",
       "phase": "blocked",
-      "claim": {
-        "owner": "schedule-f2",
-        "head_sha": "7f899415e3a20c12ea8b14d7c095623291ca5f9a",
-        "claimed_at": "2026-11-15T15:22:00Z",
-        "expires_at": "2026-11-15T16:52:00Z",
-        "next_action": "Review exact-head F2-19/20 source for a concrete regression, then execute targeted tests where available"
-      },
+      "claim": null,
       "checkpoint": {
         "owner": "schedule-f2",
-        "at": "2026-11-15T14:23:35Z",
+        "at": "2026-11-15T15:25:00Z",
         "head_before": "7f899415e3a20c12ea8b14d7c095623291ca5f9a",
         "head_after": "7f899415e3a20c12ea8b14d7c095623291ca5f9a",
-        "commits": 0,
-        "tests": "NOT RUN: no executable repository checkout; reviewed HTTP/PCM source and existing regression tests only",
-        "ci": "exact-head workflow runs 0, commit statuses 0; 0/4 verified",
-        "reviews": "0 independent reviews",
-        "blockers": "protected review pending; no exact-head CI; local targeted pytest unavailable",
-        "next_action": "Run pytest tests/ai/test_feature2_voicestudio_review_http.py tests/ai/test_feature2_voicestudio_review_audio.py tests/ai/test_feature2_voicestudio_riff_envelope.py on exact PR #937 head, fix real failures only; obtain four CI checks and independent review; manual integration owns main merge",
+        "commits": [],
+        "files_reviewed": [
+          "azure-functions/campaign-api/feature2_voicestudio_review_http.py",
+          "azure-functions/campaign-api/feature2_voicestudio_review_audio.py",
+          "tests/ai/test_feature2_voicestudio_review_http.py"
+        ],
+        "tests": "NOT EXECUTED; connector source review only",
+        "ci": "0/4 exact-head jobs independently verified in this run",
+        "reviews": "0 independent approvals observed",
+        "blockers": "Protected PR; source-only review did not establish a new defect; executable checkout and exact-head CI unavailable",
+        "next_action": "Execute python -m pytest tests/ai/test_feature2_voicestudio_review_http.py tests/ai/test_feature2_voicestudio_review_audio.py tests/ai/test_feature2_voicestudio_riff_envelope.py at head 7f899415; fix only demonstrated failures; obtain exact-head CI 4/4 and independent review; manual-integration merges main",
         "status": "worker-reported; NOT DONE"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/937"
