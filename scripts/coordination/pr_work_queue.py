@@ -89,10 +89,11 @@ def claim_entry(state: dict, pr: int, owner: str, expected_head: str,
         raise QueueError("stale PR head; refresh and reconcile first")
     existing = item.get("claim")
     if existing:
-        if existing["head_sha"] != expected_head:
-            raise QueueError("claimed head changed; owner must reconcile")
-        if timestamp(existing["expires_at"]) > now and existing["owner"] != owner:
-            raise QueueError(f"active lease held by {existing['owner']}")
+        if timestamp(existing["expires_at"]) > now:
+            if existing["head_sha"] != expected_head:
+                raise QueueError("claimed head changed; owner must reconcile")
+            if existing["owner"] != owner:
+                raise QueueError(f"active lease held by {existing['owner']}")
     item["claim"] = {"owner": owner, "head_sha": expected_head,
                      "claimed_at": iso(now), "expires_at": iso(now + timedelta(minutes=minutes))}
     item["phase"] = "in-progress"
@@ -123,9 +124,9 @@ def feature(title: str, head_ref: str) -> str:
     for pattern, kind in [
         (r"feature[\s#_-]*4|f4-|timeline", "F4"),
         (r"feature[\s#_-]*2|f2-|voicestudio|creative.director", "F2"),
+        (r"feature[\s#_-]*5|f5-|wan|hunyuan", "F5"),
         (r"feature[\s#_-]*3|f3-|poster", "F3"),
         (r"feature[\s#_-]*7|f7-|autobroll", "F7"),
-        (r"feature[\s#_-]*5|f5-|wan|hunyuan", "F5"),
     ]:
         if re.search(pattern, text):
             return kind
