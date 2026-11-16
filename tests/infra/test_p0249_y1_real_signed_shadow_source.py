@@ -88,30 +88,85 @@ class RealSignedY1SafetyTests(unittest.TestCase):
                 trial.helper.admin_headers(bad)
 
     def test_uncertain_auth_create_cleanup_reads_second_page_before_deleting(self):
-        marker = trial.helper.CANARY_PREFIX + "fixture123"
+        marker = trial.helper.CANARY_PREFIX + "a" * 16
         uid = "11111111-1111-4111-8111-111111111111"
         values = [
             (200, {"users": [{"email": "unrelated@example.invalid"}], "next_page": 2}, None, 0.1),
             (200, {"users": [{"email": marker + "@example.invalid", "id": uid}], "next_page": 0}, None, 0.1),
+            (200, {"id": uid, "email": marker + "@example.invalid"}, None, 0.1),
             (204, {}, None, 0.1),
         ]
         with patch.object(trial.helper, "request", side_effect=values) as req:
             trial.helper.owner_only_cleanup("sb_secret_" + "x" * 42, marker, None)
-        self.assertEqual(req.call_count, 3)
+        self.assertEqual(req.call_count, 4)
         self.assertIn("page=1", req.call_args_list[0].args[0])
         self.assertIn("page=2", req.call_args_list[1].args[0])
         self.assertTrue(req.call_args_list[2].args[0].endswith("/auth/v1/admin/users/" + uid))
-        self.assertEqual(req.call_args_list[2].kwargs["method"], "DELETE")
-        self.assertEqual(req.call_args_list[2].kwargs["headers"], {"apikey": "sb_secret_" + "x" * 42})
+        self.assertNotIn("method", req.call_args_list[2].kwargs)
+        self.assertEqual(req.call_args_list[3].kwargs["method"], "DELETE")
+        self.assertEqual(req.call_args_list[3].kwargs["headers"], {"apikey": "sb_secret_" + "x" * 42})
 
     def test_unknown_auth_inventory_fails_closed_without_deletion(self):
-        marker = trial.helper.CANARY_PREFIX + "fixture456"
+        marker = trial.helper.CANARY_PREFIX + "b" * 16
         with patch.object(trial.helper, "request", return_value=(
             200, {"users": [], "next_page": 7}, None, 0.1
         )) as req, self.assertRaises(RuntimeError):
             trial.helper.owner_only_cleanup("sb_secret_" + "x" * 42, marker, None)
         self.assertEqual(req.call_count, 1)
         self.assertNotIn("method", req.call_args.kwargs)
+
+    def test_known_uid_delete_requires_fresh_email_and_id_match(self):
+        marker = trial.helper.CANARY_PREFIX + "c" * 16
+        uid = "11111111-1111-4111-8111-111111111111"
+        key = "sb_secret_" + "x" * 42
+        for response in (
+            {"id": uid, "email": "real-user@example.com"},
+            {"id": "22222222-2222-4222-8222-222222222222",
+             "email": marker + "@example.invalid"},
+            {"id": uid},
+            {},
+        ):
+            with self.subTest(response=response), \
+                 patch.object(trial.helper, "request", return_value=(
+                     200, response, None, 0.1)) as req, \
+                 self.assertRaisesRegex(RuntimeError, "UNSAFE_SYNTHETIC_AUTH_DELETE_TARGET"):
+                trial.helper.owner_only_cleanup(key, marker, uid)
+            self.assertEqual(req.call_count, 1)
+            self.assertNotIn("method", req.call_args.kwargs)
+
+    def test_known_uid_cleanup_must_verify_get_then_delete(self):
+        marker = trial.helper.CANARY_PREFIX + "d" * 16
+        uid = "11111111-1111-4111-8111-111111111111"
+        fake = [(200, {"id": uid, "email": marker + "@example.invalid"}, None, 0.1),
+                (204, {}, None, 0.1)]
+        with patch.object(trial.helper, "request", side_effect=fake) as req:
+            trial.helper.owner_only_cleanup("sb_secret_" + "x" * 42, marker, uid)
+        self.assertEqual(req.call_count, 2)
+        self.assertEqual(req.call_args_list[0].args[0], req.call_args_list[1].args[0])
+        self.assertNotIn("method", req.call_args_list[0].kwargs)
+        self.assertEqual(req.call_args_list[1].kwargs["method"], "DELETE")
+
+    def test_non_canary_marker_never_deletes_user_even_with_known_uid(self):
+        uid = "11111111-1111-4111-8111-111111111111"
+        key = "sb_secret_" + "x" * 42
+        for marker in ("rgai-p0249-jwt-owner", trial.helper.CANARY_PREFIX + "f" * 15,
+                       trial.helper.CANARY_PREFIX + "z" * 16,
+                       "different-prefix-" + "a" * 16):
+            with self.subTest(marker=marker), \
+                 patch.object(trial.helper, "request",
+                              side_effect=AssertionError("no privileged API call")), \
+                 self.assertRaisesRegex(RuntimeError, "UNSAFE_AUTH_CLEANUP_SCOPE"):
+                trial.helper.owner_only_cleanup(key, marker, uid)
+
+    def test_wrong_created_account_email_does_not_sign_in(self):
+        expected = "11111111-1111-4111-8111-111111111111"
+        responses = [(200, {"id": expected, "email": "someone-real@example.com"}, None, 0.1)]
+        with patch.object(trial.helper, "request", side_effect=responses) as req, \
+             patch.object(trial.helper, "owner_only_cleanup") as cleanup, \
+             self.assertRaisesRegex(RuntimeError, "Synthetic Auth create response identity mismatch"):
+            trial.create_test_user("sb_secret_" + "x" * 42, trial.helper.PUBLIC)
+        self.assertEqual(req.call_count, 1)
+        cleanup.assert_called_once()
 
     def test_workflow_never_passes_admin_key_as_azure_appsetting(self):
         workflow = (ROOT / ".github/workflows/p0249-dev-y1-public-shadow-bounded-once.yml").read_text()
