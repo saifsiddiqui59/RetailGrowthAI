@@ -76,7 +76,11 @@ def jwt_claims_for_local_shape_only(jwt):
 
 
 def owner_only_cleanup(key, marker, created_uid):
-    if not marker.startswith(CANARY_PREFIX) or len(marker) > 64:
+    # Never delete a user outside the exact marker format minted here.
+    # A plausible prefix alone is not proof this is our disposable account.
+    suffix = marker[len(CANARY_PREFIX):] if isinstance(marker, str) else ""
+    if (not isinstance(marker, str) or not marker.startswith(CANARY_PREFIX) or
+            len(suffix) != 16 or any(ch not in "0123456789abcdef" for ch in suffix)):
         raise RuntimeError("UNSAFE_AUTH_CLEANUP_SCOPE")
     if created_uid is None:
         # Reconcile uncertain admin-create ACK by an EXACT synthetic email
@@ -111,10 +115,18 @@ def owner_only_cleanup(key, marker, created_uid):
             print("P0249_DISPOSABLE_AUTH_ACCOUNT_NOT_CREATED=true", flush=True)
             return
         created_uid = matches[0].get("id")
-    request(
-        SUPABASE + "/auth/v1/admin/users/" + str(uuid.UUID(created_uid)),
-        method="DELETE", headers=admin_headers(key), expected=(200, 204), timeout=20
-    )
+    # A privileged API could return a mismatched ID in a create/list response,
+    # or another process may have modified the identity before deletion.
+    # Confirm the exact synthetic email AND UUID from a fresh Admin read.
+    target = str(uuid.UUID(created_uid))
+    url = SUPABASE + "/auth/v1/admin/users/" + target
+    _, user, _, _ = request(url, headers=admin_headers(key),
+                           expected=(200,), timeout=20)
+    if (not isinstance(user, dict) or user.get("id") != target or
+            user.get("email") != marker + "@example.invalid"):
+        raise RuntimeError("UNSAFE_SYNTHETIC_AUTH_DELETE_TARGET")
+    request(url, method="DELETE", headers=admin_headers(key),
+            expected=(200, 204), timeout=20)
     print("P0249_DISPOSABLE_AUTH_ACCOUNT_DELETED=true", flush=True)
 
 
