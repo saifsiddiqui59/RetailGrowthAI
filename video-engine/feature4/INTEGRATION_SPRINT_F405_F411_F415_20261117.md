@@ -11,3 +11,7 @@ Original task IDs are unchanged. This is **Feature4 parent source-in-progress**,
 - CI: exact final parent head 4/4 not yet verified at this checkpoint. One earlier Actions attempt was cancelled on a newer push. Do not represent it as passed; recheck new latest head, then inspect any failed job/test.
 - Next: verify final parent PR four jobs, repair owned code failures, compare #828's remaining docs/source/task history and retire #828 only if preservation and task traceability are confirmed; separately require fresh main code integration and review for original F4 task DONE.
 - GPU OFF, paid provider OFF, no Azure/SQL/DEV/PROD changes or WineShopPOS modifications.
+
+## Additional preserved F4-15 preflight (same source batch)
+- Parent additionally checks the active claim **before** `load_feature4_bundle` (`0e634f8d`), retaining its independent post-bundle and per-download rights/lease rechecks and its stable staged original hashes. Added source-original stale-claim negative test (`25d60c99`). This restores the #828 preflight without regressing more recent protection.
+- The exact-final-parent CI must be checked after this latest documentation commit; older cancelled-in-flight runs do not qualify.
