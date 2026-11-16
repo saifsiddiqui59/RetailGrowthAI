@@ -441,9 +441,19 @@ h1{{font-weight:800;font-size:{width//12}px;line-height:1.06;letter-spacing:-.01
   font-weight:500;font-size:{width//12}px!important}}
 .role-outro .kicker{{margin:0 0 2%}}
 .role-outro .editorial-rule{{display:none}}
+/* Effect presets animate the reviewed text layer; scene transitions and
+   footage-track transition animations remain independent. */
+.anim-subtle_zoom .glass{{animation:presetSubtleZoom var(--span) ease-in-out both}}
+.anim-fade .glass{{animation:presetFade var(--span) ease both}}
+.anim-slide .glass{{animation:presetSlide var(--span) cubic-bezier(.2,.7,.2,1) both}}
 .anim-pop .glass{{animation:promoPop var(--span) ease-in-out both}}
+.anim-glow .glass{{animation:presetGlow var(--span) ease-in-out both}}
 .anim-glow .offer{{text-shadow:0 0 15px {accent},0 0 30px {accent}75}}
 .anim-slide .photo-wrap{{animation:editorialDrift var(--span) ease both}}
+@keyframes presetSubtleZoom{{0%{{opacity:.72;transform:scale(.975)}}30%{{opacity:1}}100%{{opacity:1;transform:scale(1.03)}}}}
+@keyframes presetFade{{0%{{opacity:0}}20%{{opacity:1}}100%{{opacity:1}}}}
+@keyframes presetSlide{{0%{{opacity:0;transform:translate3d(-10%,0,0)}}25%{{opacity:1;transform:translate3d(0,0,0)}}100%{{opacity:1;transform:translate3d(0,0,0)}}}}
+@keyframes presetGlow{{0%{{opacity:.85;filter:brightness(.82)}}55%{{opacity:1;filter:brightness(1.22)}}100%{{opacity:1;filter:brightness(1)}}}}
 @keyframes editorialFade{{0%{{opacity:0}}7%{{opacity:1}}96%{{opacity:1}}100%{{opacity:.98}}}}
 @keyframes editorialSlide{{0%{{opacity:0;transform:translate3d(7%,0,0)}}14%{{opacity:1;transform:translate3d(0,0,0)}}100%{{opacity:1;transform:translate3d(0,0,0)}}}}
 @keyframes editorialDrift{{0%{{transform:scale(1.025) translate3d(-1%,1%,0)}}100%{{transform:scale(1.12) translate3d(1%,-1%,0)}}}}
