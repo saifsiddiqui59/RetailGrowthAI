@@ -438,5 +438,15 @@ class WorkerHandoffTests(unittest.TestCase):
                 self.assertEqual(self.admin.failures, [("INVALID_RENDER_INPUT", True)])
 
 
+    def test_stale_claim_preflight_denies_private_download_and_render(self):
+        self.admin.current = False
+        def forbidden_render(*args):
+            self.fail("stale claim must never invoke CPU renderer")
+        self.assertEqual(process_feature4_render(
+            JOB, self.admin, self.media, render_fn=forbidden_render), "STALE")
+        self.assertEqual(self.media.downloads, [])
+        self.assertEqual(self.media.uploads, [])
+        self.assertEqual(self.admin.failures, [])
+
 if __name__ == "__main__":
     unittest.main()
