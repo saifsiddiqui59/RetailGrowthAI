@@ -24,6 +24,9 @@ from render import checked_path, validate_rights
 VERSION = "rg_video_v2"
 MODES = {"text", "image", "poster", "media", "music_sync"}
 TEMPLATES = {"streetwear", "cinematic", "festival"}
+# Fixed renderer-authorized vocabulary shared with editor validation.
+SUPPORTED_ANIMATIONS = frozenset({"subtle_zoom", "fade", "slide", "pop", "glow"})
+SUPPORTED_TRANSITIONS = frozenset({"fade", "slide", "cut"})
 UUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F-]{27,36}$")
 ASSET_ID = re.compile(r"^[a-zA-Z0-9_-]{1,100}$")
 IMAGES = {".png", ".jpg", ".jpeg", ".webp"}
@@ -150,9 +153,9 @@ def validate(plan, manifest, asset_root, allow_test_media=False):
         clean_text(scene["headline"], "approved headline", 110)
         if "offer" in scene:
             clean_text(scene["offer"], "approved offer", 70)
-        if scene.get("animation_preset", "subtle_zoom") not in ("subtle_zoom", "pop", "fade", "slide", "glow"):
+        if scene.get("animation_preset", "subtle_zoom") not in SUPPORTED_ANIMATIONS:
             raise VideoPlanError("Unknown approved animation preset")
-        if scene.get("transition", "fade") not in ("fade", "slide", "cut"):
+        if scene.get("transition", "fade") not in SUPPORTED_TRANSITIONS:
             raise VideoPlanError("Unknown reviewed transition")
         sfx_id = scene.get("sfx_asset_id")
         if sfx_id is not None:
