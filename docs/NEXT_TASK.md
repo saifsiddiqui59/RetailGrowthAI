@@ -1506,3 +1506,8 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 1. Keep surviving [#828](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/828) OPEN. Reconcile its 11 preserved original changed-file source/test/handoff blobs into current F4 parent [#322](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322) without overwriting newer code. The three exact-duplicate child PR objects are CLOSED UNMERGED, **not accepted DONE**.
 2. Inspect unique missing code in #735/#745/#753/#773/#784/#799/#803 and verify #808 semantically before any closure. Use [source dedup checkpoint](integration/F4_STACKED_DRAFT_DEDUP_20261115.md). No blanket closure of unported or unproven work.
 3. Run appropriate CPU/FFmpeg/UI negatives, four exact-head CI jobs, authorized review, and four independent fresh-main CI jobs for each eventual merge. Feature4 tasks remain IN PROGRESS pending evidence; GPU/paid AI/DEV/PROD/WineShopPOS unchanged.
+
+## 2026-11-17 — F4 next acceptance after preserving #828 unique source
+1. Check PR #322 exact final head CI for the F4-05/F4-11/F4-15 source hardening. Run/fix targeted CPU/FFmpeg negative tests if failed. Do not count cancelled or superseded heads as passing.
+2. Verify original #828 feature code/tests and four original handoff documents are preserved in the newer F4 parent with **additional** lease/rights and footage fixes; only then close superseded #828 with explicit evidence. Remaining F4 stale drafts #735/#745/#753/#773/#784/#799/#803/#808 require separate reconciliation, not blanket closure.
+3. Parent #322 is still DRAFT, not main accepted. Require eligible review, main-targeted PR exact-head 4/4 and fresh main 4/4 for any accepted task status. No GPU/provider/Azure/SQL/PROD/WineShopPOS activation.
