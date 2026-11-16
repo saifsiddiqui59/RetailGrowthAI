@@ -60,8 +60,10 @@ def create_test_user(key, pub):
             SUPABASE + "/auth/v1/admin/users", method="POST",
             data={"email": email, "password": password, "email_confirm": True},
             headers=helper.admin_headers(key), expected=(200, 201), timeout=25)
-        if not isinstance(account, dict) or not isinstance(account.get("id"), str):
-            raise RuntimeError("Synthetic Auth create response missing ID")
+        if (not isinstance(account, dict) or
+                not isinstance(account.get("id"), str) or
+                account.get("email") != email):
+            raise RuntimeError("Synthetic Auth create response identity mismatch")
         uid = str(uuid.UUID(account["id"]))
         _, auth, _, _ = helper.request(
             SUPABASE + "/auth/v1/token?grant_type=password", method="POST",
