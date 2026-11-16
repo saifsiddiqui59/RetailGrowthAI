@@ -138,3 +138,9 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 - Copied original #815 exact code, test and source-only handoff blobs onto latest existing Feature4 parent `ab49bb94308dfd66227ceec1a02799ecc1fa513a`. Current parent source/test were a strict subset of the original patch and had no newer unique lines, so preserving these originals does not drop other F4 safety changes.
 - Fix closes a trusted input mismatch where an `approved_text` scalar string allowed substring membership, wrongly accepting a shorter unreviewed headline. Require nonempty list of nonempty exact strings and a dictionary trusted script; retain negative tests for string, tuple, dict, empty list, invalid entries and shortened headline.
 - Still **source F4-13 IN PROGRESS**, not hosted/main DONE. Exact new source 4/4, safe F4-parent merge, fresh parent 4/4 and licensed/verified current tenant approvals are distinct gates. Old #815 must remain until verified source preservation and parent CI. No GPU/paid models/Azure/SQL/PROD/WineShopPOS effects.
+
+
+### 2026-11-17 — F4-05/F4-11/F4-15 integration sprint code checkpoint
+- Parent PR #322 now includes F4-11 exact original source/tests plus F4-15 source-integrity and F4-05 effect-vocabulary guards integrated **without overwriting newer footage-transition and per-download lease/rights controls**. Original PR #828 remains OPEN until full source/document preservation, review and CI.
+- Source changes on #322: `e0bc41b4`, `70762243`, `e69cb722`, `f486099a`, `c1b415cb`, `da8870a0`, `31be150d`. Source-only checkpoint: [integration sprint handoff](feature4/INTEGRATION_SPRINT_F405_F411_F415_20261117.md).
+- All F4-05/F4-11/F4-15 original tasks remain **IN PROGRESS** pending exact-final-head CI, source reconciliation, main merge, hosted reviews; neither closing redundant drafts nor source-only tests equal accepted DONE. No GPU/provider/PROD/WineShopPOS.
