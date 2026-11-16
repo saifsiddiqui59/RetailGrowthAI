@@ -15,3 +15,9 @@ Original task IDs are unchanged. This is **Feature4 parent source-in-progress**,
 ## Additional preserved F4-15 preflight (same source batch)
 - Parent additionally checks the active claim **before** `load_feature4_bundle` (`0e634f8d`), retaining its independent post-bundle and per-download rights/lease rechecks and its stable staged original hashes. Added source-original stale-claim negative test (`25d60c99`). This restores the #828 preflight without regressing more recent protection.
 - The exact-final-parent CI must be checked after this latest documentation commit; older cancelled-in-flight runs do not qualify.
+
+## Source reconciliation: originals #690 / #731 / #792 (2026-11-17)
+- #690 head `211312a68061bf5fe605f0e9e44653db4dd2cfcf`: current parent F4-15 staged no-follow SHA+inode/path postrender validation and original negative tests supersede original patch. Original stronger handoff and this checkpoint preserve traceability. PR closure = dedup, NOT original task DONE.
+- #731 head `fdf615bdd09cad80e4129bf6d8527e0112eadd47`: prior streaming double-SHA of encoded media is superseded by stable-source inode/size/mtime + SHA before/after sampling. Ported original after-second-decode mutation regression, in addition to current same-content atomic swap checks. F4-11 IN PROGRESS.
+- #792 head `47db93529edfd50b9ea7b68a610bbc805545ab49`: current parent already retains post-bundle and per-download lease/rights checks, but old source had unique F4-13 storage-key guards. Ported rejects for dot-only segments, trailing slash, ASCII control chars and original negatives. F4-13/F4-15 remain IN PROGRESS, no hosted acceptance.
+- Source-only batch. Require exact-head four-job CI and eventual main integration/independent review for DONE. GPU/paid/cloud/PROD/WineShopPOS OFF.

@@ -89,6 +89,25 @@ class EncodedMotionTests(unittest.TestCase):
             with self.subTest(kwargs=kwargs), self.assertRaises(MotionProofError):
                 verify_moving_scenes(self.movie, **params)
 
+    def test_encoded_source_mutation_after_second_decode_is_rejected(self):
+        # Original draft #731 probes late append after two decoded frames.
+        self.encode(moving=True)
+        real_frame = motion._frame
+        decoded = [0]
+
+        def change_after_last_decoded_frame(path, sec):
+            pixels = real_frame(path, sec)
+            decoded[0] += 1
+            if decoded[0] == 2:
+                with self.movie.open("ab") as output:
+                    output.write(b"mutated-after-ffmpeg-decode")
+            return pixels
+
+        with patch.object(motion, "_frame", side_effect=change_after_last_decoded_frame):
+            with self.assertRaisesRegex(MotionProofError, "source changed during motion sampling"):
+                verify_moving_scenes(self.movie, seconds=15, scene_starts=[0])
+        self.assertEqual(decoded[0], 2)
+
     def test_forged_scene_offsets_rejected(self):
         for starts in ([-1], [20], [5,5], [float("nan")], [],list(range(11))):
             with self.assertRaises(MotionProofError):

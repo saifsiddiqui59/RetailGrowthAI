@@ -144,3 +144,6 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 - Parent PR #322 now includes F4-11 exact original source/tests plus F4-15 source-integrity and F4-05 effect-vocabulary guards integrated **without overwriting newer footage-transition and per-download lease/rights controls**. Original PR #828 remains OPEN until full source/document preservation, review and CI.
 - Source changes on #322: `e0bc41b4`, `70762243`, `e69cb722`, `f486099a`, `c1b415cb`, `da8870a0`, `31be150d`. Source-only checkpoint: [integration sprint handoff](feature4/INTEGRATION_SPRINT_F405_F411_F415_20261117.md).
 - All F4-05/F4-11/F4-15 original tasks remain **IN PROGRESS** pending exact-final-head CI, source reconciliation, main merge, hosted reviews; neither closing redundant drafts nor source-only tests equal accepted DONE. No GPU/provider/PROD/WineShopPOS.
+
+### 2026-11-17 — original #690/#731/#792 source reconciliation
+- Parent #322 hardens F4-15 staged source integrity, F4-11 encoded source late-write detection, and F4-13 tenant-private object-key validation; originals retained in [feature checkpoint](feature4/INTEGRATION_SPRINT_F405_F411_F415_20261117.md). IN PROGRESS until exact-head 4/4, safe source reconciliation and accepted main integration.
