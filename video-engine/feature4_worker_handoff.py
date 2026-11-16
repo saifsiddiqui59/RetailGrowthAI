@@ -221,6 +221,9 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
     if admin.render_authorized(claim) is not True:
         admin.render_failure(claim, "ACCESS_REVOKED", permanent=True)
         return "DENIED"
+    # A stale lease must not even read the private bundle.
+    if admin.feature4_claim_current(claim) is not True:
+        return "STALE"
     try:
         request, manifest, objects, audit = _bundle(claim, admin.load_feature4_bundle(claim))
         # A rights/lease change during the authoritative bundle lookup must
