@@ -2,65 +2,77 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-17T02:11:09.905Z",
-  "last_inventory_count": 44,
-  "last_inventory_checked_at": "2026-11-17T02:11:09.905Z",
+  "last_written_at": "2026-11-17T02:54:04.867Z",
+  "last_inventory_count": 38,
+  "last_inventory_checked_at": "2026-11-17T02:54:04.867Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "45718165-5040-8330-892e-e3fc53cdf40b",
+      "last_run_id": "c646839b-4b98-8330-a43e-4f0dff66210a",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T01:29:28.238298Z",
-      "last_end_utc": "2026-11-17T01:29:42.651494Z",
-      "duration_seconds": 14,
-      "reported_code_commits": 0,
+      "last_start_utc": "2026-11-17T02:23:08.044112Z",
+      "last_end_utc": "2026-11-17T02:23:39.549480Z",
+      "duration_seconds": 32,
+      "reported_code_commits": 1,
       "local_tests_verified": 0,
-      "last_pr": 912,
-      "last_head": "9a818a7dbce5cdf7bddbdc94c6854c7d5c667644",
+      "last_pr": 925,
+      "last_head": "69a4edce42c3e7ed54c6984b9876a7bdd07d41f0",
       "pr_state": "open",
-      "pr_mergeable": true
+      "pr_mergeable": true,
+      "verified_code_commits": 1,
+      "ci_run_id": 44002627409,
+      "ci_status": "PASS"
     },
     "schedule-f3": {
       "automation_id": "6ae731649368819198cd8ceea7a15a60",
-      "last_run_id": "0620c857-d530-832b-a70e-4fdae38de60d",
+      "last_run_id": "7d44da7c-6d68-8322-8419-dbec8796393a",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T01:34:21.381977Z",
-      "last_end_utc": "2026-11-17T01:34:56.770992Z",
-      "duration_seconds": 35,
-      "reported_code_commits": 2,
+      "last_start_utc": "2026-11-17T02:37:27.075772Z",
+      "last_end_utc": "2026-11-17T02:38:24.119854Z",
+      "duration_seconds": 57,
+      "reported_code_commits": 0,
       "local_tests_verified": 0,
       "last_pr": 944,
       "last_head": "7a44c4b0837526f79207c848813cb0206781e9cb",
       "pr_state": "open",
-      "pr_mergeable": true
+      "pr_mergeable": true,
+      "verified_code_commits": 0,
+      "ci_run_id": 43996652354,
+      "ci_status": "PASS"
     },
     "schedule-f4": {
       "automation_id": "6af396f7239481918480cfed86af4b2c",
-      "last_run_id": "11baf527-8894-8322-99f7-ec33f7d0ab17",
+      "last_run_id": "d5a9347f-a724-832d-bebe-2ae00a8676dd",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T01:44:38.437962Z",
-      "last_end_utc": "2026-11-17T01:45:18.527062Z",
-      "duration_seconds": 40,
-      "reported_code_commits": 1,
+      "last_start_utc": "2026-11-17T02:43:55.058762Z",
+      "last_end_utc": "2026-11-17T02:44:08.121221Z",
+      "duration_seconds": 13,
+      "reported_code_commits": 0,
       "local_tests_verified": 0,
-      "last_pr": 845,
-      "last_head": "84b7e1c148a1bb50ffcbfb7f4ad6fcb61b88c2bb",
-      "pr_state": "closed",
-      "pr_mergeable": false
+      "last_pr": 779,
+      "last_head": "c1d66e9b3903c45ae4cc9930ad1362a38b3f8843",
+      "pr_state": "open",
+      "pr_mergeable": false,
+      "verified_code_commits": 0,
+      "ci_run_id": 43999413216,
+      "ci_status": "PASS"
     },
     "schedule-f7": {
       "automation_id": "6af396facd5c8191a5add51a377f199c",
       "last_run_id": "7284f3da-a634-8329-946d-617f25385ba2",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T02:06:26.834375Z",
-      "last_end_utc": "2026-11-17T02:06:45.263499Z",
-      "duration_seconds": 18,
+      "last_start_utc": "2026-11-17T02:11:09.232860Z",
+      "last_end_utc": "2026-11-17T02:11:25.148275Z",
+      "duration_seconds": 16,
       "reported_code_commits": 0,
       "local_tests_verified": 0,
       "last_pr": 513,
       "last_head": "eb9df22f34604f2ac592e9c1620430a7978794b5",
       "pr_state": "open",
-      "pr_mergeable": false
+      "pr_mergeable": false,
+      "verified_code_commits": 0,
+      "ci_run_id": 43985240207,
+      "ci_status": "PASS"
     }
   },
   "history": [
@@ -72,6 +84,53 @@
       "added_new": 2,
       "expired_claims_cleared": 1,
       "verified_sources": "GitHub PR open inventory and automation task metadata"
+    },
+    {
+      "at": "2026-11-17T02:54:04.867Z",
+      "event": "four_worker_current_run_audit",
+      "run_fingerprint": "schedule-f2:c646839b-4b98-8330-a43e-4f0dff66210a|schedule-f3:7d44da7c-6d68-8322-8419-dbec8796393a|schedule-f4:d5a9347f-a724-832d-bebe-2ae00a8676dd|schedule-f7:7284f3da-a634-8329-946d-617f25385ba2",
+      "worker_wallclock_seconds": 118,
+      "code_test_commits_verified": 1,
+      "local_tests_verified": 0,
+      "ci_four_job_pass_count": 4,
+      "per_owner": [
+        {
+          "owner": "schedule-f2",
+          "run_id": "c646839b-4b98-8330-a43e-4f0dff66210a",
+          "duration_seconds": 32,
+          "commits_verified": 1,
+          "pr": 925,
+          "sha": "69a4edce42c3e7ed54c6984b9876a7bdd07d41f0",
+          "ci_run_id": 44002627409
+        },
+        {
+          "owner": "schedule-f3",
+          "run_id": "7d44da7c-6d68-8322-8419-dbec8796393a",
+          "duration_seconds": 57,
+          "commits_verified": 0,
+          "pr": 944,
+          "sha": "7a44c4b0837526f79207c848813cb0206781e9cb",
+          "ci_run_id": 43996652354
+        },
+        {
+          "owner": "schedule-f4",
+          "run_id": "d5a9347f-a724-832d-bebe-2ae00a8676dd",
+          "duration_seconds": 13,
+          "commits_verified": 0,
+          "pr": 779,
+          "sha": "c1d66e9b3903c45ae4cc9930ad1362a38b3f8843",
+          "ci_run_id": 43999413216
+        },
+        {
+          "owner": "schedule-f7",
+          "run_id": "7284f3da-a634-8329-946d-617f25385ba2",
+          "duration_seconds": 16,
+          "commits_verified": 0,
+          "pr": 513,
+          "sha": "eb9df22f34604f2ac592e9c1620430a7978794b5",
+          "ci_run_id": 43985240207
+        }
+      ]
     }
   ]
 }
