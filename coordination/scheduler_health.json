@@ -2,34 +2,34 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-17T02:54:04.867Z",
-  "last_inventory_count": 38,
-  "last_inventory_checked_at": "2026-11-17T02:54:04.867Z",
+  "last_written_at": "2026-11-17T04:02:00Z",
+  "last_inventory_count": 36,
+  "last_inventory_checked_at": "2026-11-17T04:02:00Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "c646839b-4b98-8330-a43e-4f0dff66210a",
+      "last_run_id": "96ccb66d-9210-8330-bee5-8b5b1bcf9f6d",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T02:23:08.044112Z",
-      "last_end_utc": "2026-11-17T02:23:39.549480Z",
-      "duration_seconds": 32,
+      "last_start_utc": "2026-11-17T03:24:33.786879Z",
+      "last_end_utc": "2026-11-17T03:25:09.676491Z",
+      "duration_seconds": 35890,
       "reported_code_commits": 1,
       "local_tests_verified": 0,
-      "last_pr": 925,
-      "last_head": "69a4edce42c3e7ed54c6984b9876a7bdd07d41f0",
+      "last_pr": 917,
+      "last_head": "32cacb8a52b98e83e20afeb18645d2a2ecc54d0a",
       "pr_state": "open",
       "pr_mergeable": true,
       "verified_code_commits": 1,
-      "ci_run_id": 44002627409,
+      "ci_run_id": 44010051857,
       "ci_status": "PASS"
     },
     "schedule-f3": {
       "automation_id": "6ae731649368819198cd8ceea7a15a60",
-      "last_run_id": "7d44da7c-6d68-8322-8419-dbec8796393a",
+      "last_run_id": "43b8d79c-669c-832d-be94-510ae8bada50",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T02:37:27.075772Z",
-      "last_end_utc": "2026-11-17T02:38:24.119854Z",
-      "duration_seconds": 57,
+      "last_start_utc": "2026-11-17T03:35:42.864791Z",
+      "last_end_utc": "2026-11-17T03:36:02.299646Z",
+      "duration_seconds": 19435,
       "reported_code_commits": 0,
       "local_tests_verified": 0,
       "last_pr": 944,
@@ -38,15 +38,15 @@
       "pr_mergeable": true,
       "verified_code_commits": 0,
       "ci_run_id": 43996652354,
-      "ci_status": "PASS"
+      "ci_status": "PREVIOUS_PASS_NOT_REVERIFIED"
     },
     "schedule-f4": {
       "automation_id": "6af396f7239481918480cfed86af4b2c",
-      "last_run_id": "d5a9347f-a724-832d-bebe-2ae00a8676dd",
+      "last_run_id": "36d6688e-93a0-8324-910f-c825c7b3d951",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T02:43:55.058762Z",
-      "last_end_utc": "2026-11-17T02:44:08.121221Z",
-      "duration_seconds": 13,
+      "last_start_utc": "2026-11-17T03:40:25.498852Z",
+      "last_end_utc": "2026-11-17T03:40:45.447174Z",
+      "duration_seconds": 19949,
       "reported_code_commits": 0,
       "local_tests_verified": 0,
       "last_pr": 779,
@@ -55,15 +55,15 @@
       "pr_mergeable": false,
       "verified_code_commits": 0,
       "ci_run_id": 43999413216,
-      "ci_status": "PASS"
+      "ci_status": "PREVIOUS_PASS_NOT_REVERIFIED"
     },
     "schedule-f7": {
       "automation_id": "6af396facd5c8191a5add51a377f199c",
-      "last_run_id": "7284f3da-a634-8329-946d-617f25385ba2",
+      "last_run_id": "228bee85-c894-8320-af77-4baa1611409a",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T02:11:09.232860Z",
-      "last_end_utc": "2026-11-17T02:11:25.148275Z",
-      "duration_seconds": 16,
+      "last_start_utc": "2026-11-17T03:15:02.098986Z",
+      "last_end_utc": "2026-11-17T03:15:21.677628Z",
+      "duration_seconds": 19579,
       "reported_code_commits": 0,
       "local_tests_verified": 0,
       "last_pr": 513,
@@ -72,7 +72,7 @@
       "pr_mergeable": false,
       "verified_code_commits": 0,
       "ci_run_id": 43985240207,
-      "ci_status": "PASS"
+      "ci_status": "PREVIOUS_PASS_NOT_REVERIFIED"
     }
   },
   "history": [
@@ -131,6 +131,46 @@
           "ci_run_id": 43985240207
         }
       ]
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "96ccb66d-9210-8330-bee5-8b5b1bcf9f6d",
+      "started_at": "2026-11-17T03:24:33.786879Z",
+      "completed_at": "2026-11-17T03:25:09.676491Z",
+      "duration_seconds": 35890,
+      "verified_code_test_commits": 1,
+      "ci": "4/4 PASS exact-head push jobs"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f3",
+      "run_id": "43b8d79c-669c-832d-be94-510ae8bada50",
+      "started_at": "2026-11-17T03:35:42.864791Z",
+      "completed_at": "2026-11-17T03:36:02.299646Z",
+      "duration_seconds": 19435,
+      "verified_code_test_commits": 0,
+      "ci": "previous checkpoint; not reverified"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f4",
+      "run_id": "36d6688e-93a0-8324-910f-c825c7b3d951",
+      "started_at": "2026-11-17T03:40:25.498852Z",
+      "completed_at": "2026-11-17T03:40:45.447174Z",
+      "duration_seconds": 19949,
+      "verified_code_test_commits": 0,
+      "ci": "previous checkpoint; not reverified"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f7",
+      "run_id": "228bee85-c894-8320-af77-4baa1611409a",
+      "started_at": "2026-11-17T03:15:02.098986Z",
+      "completed_at": "2026-11-17T03:15:21.677628Z",
+      "duration_seconds": 19579,
+      "verified_code_test_commits": 0,
+      "ci": "previous checkpoint; not reverified"
     }
   ]
 }
