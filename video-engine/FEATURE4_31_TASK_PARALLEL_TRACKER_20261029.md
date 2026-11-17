@@ -88,3 +88,6 @@ Five nonoverlapping technical source drafts have been batched for one final inte
 
 ### 2026-11-17 — original #784 native clip drag cancellation regression
 - Ported the independent F4-10 #784 cancelled-drag fence and Playwright regression into the current consolidated source; retains newer bounded frame seek, caption drag lease/draft checks. Original SHA + tracker lines preserved in [note](feature4/ORIGINAL_784_PROVENANCE_20261117.md). Source-only F4-10 IN PROGRESS until CI and accepted current-main integration.
+
+### 2026-11-17 — original #745/#773 encoded split/reorder QA
+- Integrated #745 frozen moving-clip source (3/17s) and #773 near-cut scene family (5/13/15/21s) checks and two targeted regressions on surviving #779, preserving duplicate-op and source SHA. Details and original HEADs: [handoff](feature4/ORIGINAL_745_773_PROVENANCE_20261117.md). F4-04 IN PROGRESS pending full exact-head CI and accepted current-main source integration.
