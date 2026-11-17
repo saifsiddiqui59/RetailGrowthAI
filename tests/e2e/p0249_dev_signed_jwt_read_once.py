@@ -22,6 +22,15 @@ CANARY_PREFIX = "rgai-p0249-jwt-"
 CAMPAIGN = "11111111-1111-4111-8111-111111111111"
 
 
+class _BlockRedirects(urllib.request.HTTPRedirectHandler):
+    """Never follow HTTP redirects from trusted DEV origins."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+NO_REDIRECT_OPENER = urllib.request.build_opener(_BlockRedirects())
+
+
 def request(url, method="GET", data=None, headers=None, expected=(200,), timeout=20):
     if not (url.startswith(SUPABASE + "/") or url.startswith(PREVIEW + "/")):
         raise RuntimeError("UNTRUSTED_EXTERNAL_HOST")
@@ -33,7 +42,7 @@ def request(url, method="GET", data=None, headers=None, expected=(200,), timeout
     req = urllib.request.Request(url, data=body, method=method, headers=meta)
     started = time.monotonic()
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:
+        with NO_REDIRECT_OPENER.open(req, timeout=timeout) as response:
             status = response.status
             headers_out = response.headers
             body_raw = response.read(32768)
