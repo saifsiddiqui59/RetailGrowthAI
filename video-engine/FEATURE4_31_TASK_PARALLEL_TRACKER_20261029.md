@@ -165,3 +165,6 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 
 ### 2026-11-17 — F4-15 same-byte upload substitution corrected
 - FFmpeg job #44000451010 found source fingerprint returned only size+SHA, permitting same-byte atomic path replacement between pre-upload and post-upload checks. Source now returns size, SHA, device, inode, mtime_ns; existing regression retained, 4/4 exact-head CI pending. Source-only IN PROGRESS; no GPU/provider/cloud/PROD/WineShopPOS.
+
+### 2026-11-17 — original F4-13/F4-15 #852 provenance and last negative test
+- Canonical original #852 storage-key and signed output SHA source is covered by stronger current guards; original same-byte inode replacement **of staged source during CPU** negative test ported into current worker tests, not merely the output-upload check. Original tracker source notes archived at [feature checkpoint](feature4/ORIGINAL_852_PROVENANCE_20261117.md). Still IN PROGRESS pending exact final-head CI and main acceptance.

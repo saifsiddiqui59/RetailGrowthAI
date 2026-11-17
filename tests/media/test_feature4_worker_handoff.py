@@ -525,6 +525,23 @@ class WorkerHandoffTests(unittest.TestCase):
             with self.assertRaisesRegex(Feature4HandoffError, "nonempty bounded"):
                 _staged_fingerprint(path)
 
+    def test_original_input_same_byte_inode_swap_during_cpu_is_denied(self):
+        # Regression: the original _staged_fingerprint returned size+SHA
+        # only, so an identical-byte new inode between checks went unseen.
+        def swapped(request, manifest, staged, output):
+            result = fake_render(request, manifest, staged, output)
+            source = next(staged.iterdir())
+            original = source.read_bytes()
+            replacement = staged / "different-inode.png"
+            replacement.write_bytes(original)
+            os.replace(replacement, source)
+            return result
+        with self.assertRaisesRegex(Feature4HandoffError, "staged media changed"):
+            process_feature4_render(JOB, self.admin, self.media, render_fn=swapped)
+        self.assertEqual(self.media.uploads, [])
+        self.assertEqual(self.admin.completions, [])
+        self.assertEqual(self.admin.failures, [("INVALID_RENDER_INPUT", True)])
+
     def test_local_staged_source_mutation_or_symlink_swap_fails_before_upload(self):
         # Genuine CPU render must consume unchanged original downloaded bytes;
         # a forged probe/result from a renderer is not a waiver.
