@@ -180,3 +180,8 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 
 ### 2026-11-17 — F4-08 original #733 preview jog integration
 - Current F4 parent integrated old #733 verified sourceClipTimeForPlayhead helper, regression tests, Timeline onSeek and muted HTML5 source-video scrub without changing stronger bounded frame handling/tenant authorization. Original handoff preserved verbatim. Exact-head 4-job CI, reviewed main/hosted acceptance PENDING; task IN PROGRESS.
+
+### 2026-11-17 — F4-14 original CPU three-duration evidence aggregator
+- Imported untouched current #779 source blobs `feature4_cpu_matrix.py` (`6e0dbe55`), negative unit tests (`d03ab1da`) and original F4-14 handoff (`5f2d75c1`) to parent #322. Required runtime dependencies `feature4_export_matrix.py`, `hyperframes/benchmark_render.py`, and media export matrix tests were already **byte-identical** between surviving #779 and current parent.
+- This function is OFFLINE AND READ-ONLY: it checks receipts for existing 15/30/60 H264/AAC MP4s and measures reported CPU/RSS, but runs no render, cloud, paid inference, GPU, API or billing. Fixtures use mocked probe and fake bytes; **no measured three-profile real accepted matrix yet**.
+- F4-14 remains IN PROGRESS until actual same-head private encoded media, measured reports, exact parent CI/main integration, independent review. #779 remains open pending other source reconciliation.
