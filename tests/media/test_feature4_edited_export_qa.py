@@ -22,10 +22,17 @@ class EncodedEditorParityTests(unittest.TestCase):
         self.profile = {"width": 540, "height": 960, "seconds": 30.0}
         self.valid = (bytes([20])*9216, bytes([70])*9216,
                       bytes([24])*9216, bytes([120])*9216)
+        self.split_probes = (bytes([21])*9216, bytes([25])*9216,
+                             bytes([70])*9216, bytes([70])*9216,
+                             bytes([24])*9216, bytes([120])*9216)
 
-    def prove(self, frames=None, *, operation="split_reorder"):
+    def prove(self, frames=None, *, operation="split_reorder", motion=None, boundary=None):
+        decoded = list(frames if frames is not None else self.valid)
+        if operation == "split_reorder":
+            decoded += list(motion if motion is not None else self.split_probes[:2])
+            decoded += list(boundary if boundary is not None else self.split_probes[2:])
         with patch.object(qa, "inspect_mp4", return_value=self.profile), \
-             patch.object(qa, "_frame", side_effect=list(frames or self.valid)):
+             patch.object(qa, "_frame", side_effect=decoded):
             return verify_mock_editor_output(self.file, operation=operation)
 
     def test_valid_decoded_pattern_is_source_sha_bound_not_product_approval(self):
@@ -34,6 +41,11 @@ class EncodedEditorParityTests(unittest.TestCase):
         self.assertEqual(proof["source_sha256"],
                          hashlib.sha256(self.file.read_bytes()).hexdigest())
         self.assertFalse(proof["exact_inpoint_frame_verified"])
+        self.assertEqual(proof["first_video_encoded_motion_delta"], 1.0)
+        self.assertEqual(proof["trimmed_video_encoded_motion_delta"], 1.0)
+        self.assertEqual(proof["boundary_probe_times_seconds"], [5, 13, 15, 21])
+        self.assertTrue(proof["boundary_scene_family_verified"])
+        self.assertFalse(proof["exact_transition_frame_verified"])
         self.assertFalse(proof["human_visual_approval"])
         self.assertFalse(proof["commercial_release_eligible"])
 
@@ -85,7 +97,7 @@ class EncodedEditorParityTests(unittest.TestCase):
                 self.prove(frames)
 
     def test_mutated_input_and_wrong_duration_denied(self):
-        frames = list(self.valid)
+        frames = list(self.valid) + list(self.split_probes)
         def decode(src, at):
             if at == 2.0:
                 with self.file.open("ab") as handle:
