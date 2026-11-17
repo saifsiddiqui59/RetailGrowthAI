@@ -66,9 +66,10 @@ def private_png_http_response(*, reader_factory, shop_id, job_id, bearer_token):
         if type(body) is not bytes or not 100 <= len(body) <= _MAX_PNG_BYTES or not body.startswith(bytes((137, 80, 78, 71, 13, 10, 26, 10))):
             raise PrivateGeneratedDownloadDenied("Unavailable")
         return 200, dict(_PNG_HEADERS), body
-    except (StorageUnavailable, OSError):
-        # A backend outage is not a known-missing private asset. Fail closed,
-        # avoid leaking backend details and never cache the transient denial.
-        return 503, {**_DENIED_HEADERS, "Retry-After": "5"}, b""
     except (PrivateGeneratedDownloadDenied, ValueError, TypeError, AttributeError):
+        # PermissionError is an OSError subclass: deny before outage handling.
+        # Never convert a tenant/rights denial into a retryable 503.
         return 404, dict(_DENIED_HEADERS), b""
+    except (StorageUnavailable, OSError):
+        # Only actual backend failures are retryable; never disclose details.
+        return 503, {**_DENIED_HEADERS, "Retry-After": "5"}, b""
