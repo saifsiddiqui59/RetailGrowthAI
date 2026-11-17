@@ -1,5 +1,10 @@
 """Offline source tests for real signed DEV Y1 Auth-only test and cleanup."""
 import importlib.util
+import io
+from email.message import Message
+import urllib.error
+import urllib.request
+import urllib.response
 import os
 from pathlib import Path
 import unittest
@@ -21,6 +26,36 @@ class RealSignedY1SafetyTests(unittest.TestCase):
         })
         env.start()
         self.addCleanup(env.stop)
+
+    def test_http_redirect_refused_for_signed_dev_requests(self):
+        """The initial trusted-origin request never follows a Location header."""
+        sent_to = []
+
+        class RedirectingHTTPS(urllib.request.HTTPSHandler):
+            def https_open(self, request):
+                sent_to.append(request.full_url)
+                headers = Message()
+                headers["Location"] = "https://example.invalid/redirect"
+                response = urllib.response.addinfourl(
+                    io.BytesIO(b""), headers, request.full_url, 302)
+                response.msg = "Found"
+                return response
+
+        opener = urllib.request.build_opener(
+            trial.helper._BlockRedirects(), RedirectingHTTPS())
+        with patch.object(trial.helper, "NO_REDIRECT_OPENER", opener), \
+             self.assertRaisesRegex(RuntimeError, "DEV_TEST_UNEXPECTED_HTTP_302"):
+            trial.helper.request(
+                trial.helper.SUPABASE + "/auth/v1/admin/users",
+                headers={"apikey": "synthetic-only"})
+        self.assertEqual(sent_to, [trial.helper.SUPABASE + "/auth/v1/admin/users"])
+        sent_to.clear()
+        with patch.object(trial.helper, "NO_REDIRECT_OPENER", opener):
+            status, marker, payload, elapsed = trial.y1_read("synthetic.jwt.test")
+        self.assertEqual(status, 302)
+        self.assertFalse(marker)
+        self.assertEqual(sent_to, [trial.Y1 + "/api/campaigns/" + trial.CAMPAIGN])
+        self.assertIn("helper.NO_REDIRECT_OPENER.open", SCRIPT.read_text())
 
     def test_fixed_y1_origin_and_no_data_mutators(self):
         self.assertEqual(trial.Y1, "https://rgai-dev-y1-p0249-d4e5ddbd.azurewebsites.net")
