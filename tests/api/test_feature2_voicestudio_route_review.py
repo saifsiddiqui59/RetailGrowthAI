@@ -128,3 +128,16 @@ def test_malformed_body_returns_400_without_job_inference():
     )
     assert response.status_code == 400
     assert calls == []
+
+
+def test_handler_runtime_failure_is_generic_and_does_not_leak_private_details():
+    """An unexpected one-shot backend failure must not disclose credentials or paths."""
+    namespace = isolated()
+    def fail(*_args):
+        raise RuntimeError("private service key and original WAV path must stay secret")
+    namespace["build_feature2_voicestudio_api"] = lambda: SimpleNamespace(generate=fail)
+    response = namespace["create_private_voicestudio_job"](request())
+    assert response.status_code == 503
+    assert json.loads(response.text) == {"error": "VOICE_STUDIO_UNAVAILABLE"}
+    assert "private service key" not in response.text
+    assert "original WAV path" not in response.text
