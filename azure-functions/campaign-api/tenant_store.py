@@ -47,7 +47,27 @@ _NO_REDIRECT_OPENER = build_opener(_RejectRedirects())
 
 class TenantStore:
     def __init__(self, origin: str, publishable_key: str, transport=None):
-        if not origin.startswith("https://") or not publishable_key:
+        # The no-redirect transport protects *subsequent* hops; reject unsafe
+        # initial origins too, before a verified JWT can be sent over HTTP.
+        if (not isinstance(origin, str) or not isinstance(publishable_key, str)
+                or not publishable_key or
+                any(ord(ch) <= 32 or ord(ch) == 127 for ch in origin) or
+                "\\" in origin):
+            raise ValueError("Supabase HTTPS origin and publishable key required")
+        try:
+            parsed = urlsplit(origin)
+            # Accessing .port also validates malformed port syntax.
+            parsed.port
+            valid = (
+                origin.startswith("https://") and parsed.scheme == "https" and
+                bool(parsed.hostname) and parsed.username is None and
+                parsed.password is None and parsed.path in ("", "/") and
+                not parsed.query and not parsed.fragment and
+                parsed.geturl() == origin
+            )
+        except ValueError:
+            valid = False
+        if not valid:
             raise ValueError("Supabase HTTPS origin and publishable key required")
         self.origin = origin.rstrip("/")
         self.key = publishable_key
