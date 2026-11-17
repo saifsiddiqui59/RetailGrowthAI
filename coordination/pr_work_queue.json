@@ -50,20 +50,25 @@
       "pr": 970,
       "title": "docs(integration): record F2 Pexels source merge and exact main 4/4",
       "feature": "F2",
-      "head_sha": "4dbe3a788e32d580844b1467971300c7d66486e0",
+      "head_sha": "75bac0ef59a99079c1fc8ab4d13ff5fbc22463a2",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "ready-for-review",
-      "claim": null,
-      "checkpoint": {
-        "recorded_at": "2026-11-17T16:57:06.148Z",
+      "phase": "in-progress",
+      "claim": {
         "owner": "manual-integration",
-        "head_sha": "4dbe3a788e32d580844b1467971300c7d66486e0",
-        "commits_reported": 2,
-        "tests_reported": "Exact docs PR four CI jobs passed; main source #969 four PR and fresh-main CI passed",
-        "ci_reported": "success run #44130390020",
-        "next_action": "Independent shared-doc review; reconcile future main with #966 before safe merge, then fresh main 4/4",
+        "head_sha": "75bac0ef59a99079c1fc8ab4d13ff5fbc22463a2",
+        "claimed_at": "2026-11-17T17:07:39.932Z",
+        "expires_at": "2026-11-17T18:37:39.932Z"
+      },
+      "checkpoint": {
+        "recorded_at": "2026-11-17T17:07:39.932Z",
+        "owner": "manual-integration",
+        "head_sha": "75bac0ef59a99079c1fc8ab4d13ff5fbc22463a2",
+        "commits_reported": 3,
+        "tests_reported": "Combined 2 verified F2 source merges (#969/#971) 4/4 PR and main each; docs new CI pending",
+        "ci_reported": "new docs CI pending",
+        "next_action": "Exact docs final-head four CI jobs; independent shared-doc review and main compatibility",
         "evidence_status": "worker-reported-unverified"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/970"
