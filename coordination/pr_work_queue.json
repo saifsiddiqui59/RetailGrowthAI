@@ -123,9 +123,17 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration",
+        "head_sha": "51ece50cf4b9337dbe618c288597c459df756db8",
+        "claimed_at": "2026-11-17T16:30:34.529Z",
+        "expires_at": "2026-11-17T18:00:34.529Z"
+      },
+      "checkpoint": {
+        "next_action": "Refresh stale F4 #828 status and exact 2026-11-17 CI evidence; do not merge unreviewed code",
+        "head_sha": "51ece50cf4b9337dbe618c288597c459df756db8"
+      },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/966"
     },
     {
