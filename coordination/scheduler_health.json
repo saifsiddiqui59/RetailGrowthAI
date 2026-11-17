@@ -8,11 +8,11 @@
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "8f2bd658-8730-8328-9cb4-a447dc2b0ea5",
+      "last_run_id": "3af90a21-fd74-8328-990e-fa1a10002ce3",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T20:28:10.226861Z",
-      "last_end_utc": "2026-11-17T20:28:45.544466Z",
-      "duration_seconds": 35.318,
+      "last_start_utc": "2026-11-17T21:21:41.762161Z",
+      "last_end_utc": "2026-11-17T21:22:22.658272Z",
+      "duration_seconds": 40.896,
       "reported_code_commits": 0,
       "local_tests_verified": null,
       "last_pr": 917,
