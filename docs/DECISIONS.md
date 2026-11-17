@@ -1161,3 +1161,7 @@ Owner direction to reuse original VoiceStudio code implemented with unchanged pi
 
 ### 2026-11-17 — #249 distinguish marked handler dependency 503 from unmarked gateway 503
 - The original Y1 shadow `campaign_read.main` preserves safe `X-Request-ID` for a true JWKS connection outage classified by the original verifier+HTTPAPI as dependency 503. Add actual handler-level synthetic fixture, asserting no tenant reads and no secret leakage. This is an offline observability distinction, **not** the historical original Flex Azure ingress outage resolution or permission to enable Y1.
+
+## 2026-11-17 — #249 recheck real hosting contrast without enabling signed shadow
+- Previously merged protected **read-only** diagnostic jobs are allowed to measure current Y1 and original Flex anonymous/synthetic GET status, latency and handler marker without Azure writes. A successful Actions job merely proves observation completed, not reliable HTTP acceptance. Pin exact rerun attempt in evidence; distinguish old historical passed windows from fresh data.
+- Protected #939 genuine disposable JWT trial acceptance must include **two independently signed Auth-only JWTs after 240 seconds idle** and reject already-near-expiry JWT before the idle; no final signed success receipt until both exact GoTrue cleanup operations complete. Still requires independent protected workflow security/ops review; do not enable public Y1 settings from CI or PR push. Auth-only signed 404s do not prove positive retailer tenant parity.
