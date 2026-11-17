@@ -100,16 +100,21 @@ class TenantStore:
             with self.transport(request, timeout=8) as response:
                 return json.loads(response.read().decode("utf-8"))
         except HTTPError as exc:
-            if exc.code in (400, 402, 409, 429, 500):
-                try:
-                    response_code = json.loads(exc.read(4096)).get("code")
-                except (ValueError, AttributeError, TypeError):
-                    response_code = None
-                if response_code in ("RG001", "RG002"):
-                    raise SubscriptionDenied(response_code) from exc
-            if exc.code in (401, 403):
-                raise AuthenticationError("database denied user token") from exc
-            raise StorageUnavailable("database request rejected") from exc
+            try:
+                if exc.code in (400, 402, 409, 429, 500):
+                    try:
+                        response_code = json.loads(exc.read(4096)).get("code")
+                    except (ValueError, AttributeError, TypeError):
+                        response_code = None
+                    if response_code in ("RG001", "RG002"):
+                        raise SubscriptionDenied(response_code) from exc
+                if exc.code in (401, 403):
+                    raise AuthenticationError("database denied user token") from exc
+                raise StorageUnavailable("database request rejected") from exc
+            finally:
+                # HTTPError owns a response/socket even on denied redirects;
+                # close it on all error paths, including auth and quota.
+                exc.close()
         except (URLError, OSError, json.JSONDecodeError) as exc:
             raise StorageUnavailable("database unavailable") from exc
 
