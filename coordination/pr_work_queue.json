@@ -15,13 +15,13 @@
   "summary": {
     "open_prs": 36,
     "by_feature": {
-      "shared": 5,
-      "issue249": 10,
-      "F3": 3,
       "F2": 10,
+      "F3": 3,
       "F4": 2,
       "F5": 5,
-      "F7": 1
+      "F7": 1,
+      "issue249": 10,
+      "shared": 5
     }
   },
   "entries": [
@@ -53,9 +53,9 @@
     },
     {
       "pr": 965,
-      "title": "fix(#249): restore Feature2 JWT verifier construction after warm-cache integration",
+      "title": "fix(#249): repair Feature2 verifier and protect original JWT/service-role transports",
       "feature": "issue249",
-      "head_sha": "69758c5ccc3298f65c4dd59727d2d27f91adac08",
+      "head_sha": "8a713825ce1aa6dde602d76e00f878ebb04dcbad",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P2",
@@ -81,7 +81,7 @@
       "pr": 955,
       "title": "docs(#249): checkpoint manual-only Y1 trial and JWT cache source work",
       "feature": "issue249",
-      "head_sha": "1cbe162d4a3a26c853bb68e2502698cf16172f42",
+      "head_sha": "5c6dacd256b5de8062a3f110f031defcde250334",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P0",
@@ -115,7 +115,7 @@
       "pr": 939,
       "title": "ops(#249): bounded DEV Y1 public-only JWT shadow trial with rollback",
       "feature": "issue249",
-      "head_sha": "58d27135e29bc997cf3204ff814c8691e1cc5230",
+      "head_sha": "00b7e564f3f39534acd2e741a1f382358a926600",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P0",
