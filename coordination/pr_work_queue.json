@@ -17,21 +17,21 @@
     "by_feature": {
       "F2": 13,
       "F3": 4,
-      "F4": 7,
+      "F4": 6,
       "F5": 5,
       "F7": 1,
       "issue249": 10,
-      "shared": 4
+      "shared": 5
     }
   },
   "entries": [
     {
       "pr": 967,
       "title": "ci(video): preserve full F4 media acceptance under 25-minute job timeout",
-      "feature": "F4",
+      "feature": "shared",
       "head_sha": "fd9faf468b0229813c21c7fd2e52786401e773de",
       "base_branch": "main",
-      "work_owner": "schedule-f4",
+      "work_owner": "manual-integration",
       "priority": "P2",
       "phase": "needs-triage",
       "claim": null,
