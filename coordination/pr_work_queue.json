@@ -155,16 +155,16 @@
       "pr": 944,
       "title": "fix(feature3 F3-08): pin injected Supabase JWT verifier to configured project",
       "feature": "F3",
-      "head_sha": "3c1135f27f9a89e41e9e68c7909d8fe7c7b19d53",
+      "head_sha": "bb1fe290c812ed854bea2f89f0b89cf881a5ee71",
       "base_branch": "feat/feature3-f3-08-current-rights-attestation-20261106",
       "work_owner": "schedule-f3",
       "priority": "P0",
       "phase": "blocked",
       "claim": {
         "owner": "schedule-f3",
-        "head_sha": "3c1135f27f9a89e41e9e68c7909d8fe7c7b19d53",
-        "claimed_at": "2026-11-17T00:37:21.435Z",
-        "expires_at": "2026-11-17T02:07:21.435Z"
+        "head_sha": "bb1fe290c812ed854bea2f89f0b89cf881a5ee71",
+        "claimed_at": "2026-11-17T00:37:33.697Z",
+        "expires_at": "2026-11-17T02:07:33.697Z"
       },
       "checkpoint": {
         "owner": "schedule-f3",
