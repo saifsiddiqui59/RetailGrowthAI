@@ -8,11 +8,11 @@
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "5779e097-2390-8330-b57b-2cc94abf923c",
+      "last_run_id": "14818108-9254-8330-8487-8250057a3fcb",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T05:28:43.458119Z",
-      "last_end_utc": "2026-11-17T05:28:58.303351Z",
-      "duration_seconds": 14.85,
+      "last_start_utc": "2026-11-17T06:23:20.935441Z",
+      "last_end_utc": "2026-11-17T06:23:34.777535Z",
+      "duration_seconds": 13842,
       "reported_code_commits": 0,
       "local_tests_verified": 0,
       "last_pr": 917,
@@ -22,15 +22,15 @@
       "verified_code_commits": 0,
       "ci_run_id": 44010051857,
       "ci_status": "UNKNOWN",
-      "classification": "REVIEW_BLOCKED"
+      "classification": "NO_CHANGE"
     },
     "schedule-f3": {
       "automation_id": "6ae731649368819198cd8ceea7a15a60",
-      "last_run_id": "9b1f9867-b9d4-832f-a779-a5ab0df5608b",
+      "last_run_id": "a22d68a6-1070-8326-803d-9c2e9142b1f0",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T05:33:29.064319Z",
-      "last_end_utc": "2026-11-17T05:33:44.418929Z",
-      "duration_seconds": 15.35,
+      "last_start_utc": "2026-11-17T06:33:22.346556Z",
+      "last_end_utc": "2026-11-17T06:33:42.052322Z",
+      "duration_seconds": 19706,
       "reported_code_commits": 0,
       "local_tests_verified": 0,
       "last_pr": 944,
@@ -40,15 +40,15 @@
       "verified_code_commits": 0,
       "ci_run_id": 43996652354,
       "ci_status": "UNKNOWN",
-      "classification": "REVIEW_BLOCKED"
+      "classification": "NO_CHANGE"
     },
     "schedule-f4": {
       "automation_id": "6af396f7239481918480cfed86af4b2c",
-      "last_run_id": "aac9d5ea-ef88-8326-af9e-c86d0eb082d8",
+      "last_run_id": "a5809fc3-5f90-8331-a8ad-b135e0633cf6",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T05:44:34.563766Z",
-      "last_end_utc": "2026-11-17T05:44:50.334010Z",
-      "duration_seconds": 15.77,
+      "last_start_utc": "2026-11-17T06:40:51.257223Z",
+      "last_end_utc": "2026-11-17T06:41:07.794929Z",
+      "duration_seconds": 16537,
       "reported_code_commits": 0,
       "local_tests_verified": 0,
       "last_pr": 779,
@@ -58,15 +58,15 @@
       "verified_code_commits": 0,
       "ci_run_id": 43999413216,
       "ci_status": "UNKNOWN",
-      "classification": "REVIEW_BLOCKED"
+      "classification": "NO_CHANGE"
     },
     "schedule-f7": {
       "automation_id": "6af396facd5c8191a5add51a377f199c",
-      "last_run_id": "1f23234b-7734-8322-a154-65083f741cdc",
+      "last_run_id": "f09d1e80-52f0-832d-81e7-aebfafb28f8e",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T05:06:50.491797Z",
-      "last_end_utc": "2026-11-17T05:07:03.712104Z",
-      "duration_seconds": 13.22,
+      "last_start_utc": "2026-11-17T06:05:40.330926Z",
+      "last_end_utc": "2026-11-17T06:05:59.044841Z",
+      "duration_seconds": 18714,
       "reported_code_commits": 0,
       "local_tests_verified": 0,
       "last_pr": 513,
@@ -76,7 +76,7 @@
       "verified_code_commits": 0,
       "ci_run_id": 43985240207,
       "ci_status": "UNKNOWN",
-      "classification": "REVIEW_BLOCKED"
+      "classification": "NO_CHANGE"
     }
   },
   "history": [
@@ -283,6 +283,58 @@
       "ci": "UNKNOWN (not independently rechecked in this audit)",
       "classification": "REVIEW_BLOCKED",
       "evidence": "latest automation summary says no source/test changes; no independent commit metadata comparison"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "14818108-9254-8330-8487-8250057a3fcb",
+      "started_at": "2026-11-17T06:23:20.935441Z",
+      "completed_at": "2026-11-17T06:23:34.777535Z",
+      "duration_seconds": 13842,
+      "verified_code_test_commits": 0,
+      "local_tests_verified": 0,
+      "ci": "UNKNOWN (four jobs not verified)",
+      "classification": "NO_CHANGE",
+      "evidence": "No independent commit comparison; automation summary not counted as proof"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f3",
+      "run_id": "a22d68a6-1070-8326-803d-9c2e9142b1f0",
+      "started_at": "2026-11-17T06:33:22.346556Z",
+      "completed_at": "2026-11-17T06:33:42.052322Z",
+      "duration_seconds": 19706,
+      "verified_code_test_commits": 0,
+      "local_tests_verified": 0,
+      "ci": "UNKNOWN (four jobs not verified)",
+      "classification": "NO_CHANGE",
+      "evidence": "No independent commit comparison; automation summary not counted as proof"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f4",
+      "run_id": "a5809fc3-5f90-8331-a8ad-b135e0633cf6",
+      "started_at": "2026-11-17T06:40:51.257223Z",
+      "completed_at": "2026-11-17T06:41:07.794929Z",
+      "duration_seconds": 16537,
+      "verified_code_test_commits": 0,
+      "local_tests_verified": 0,
+      "ci": "UNKNOWN (four jobs not verified)",
+      "classification": "NO_CHANGE",
+      "evidence": "No independent commit comparison; automation summary not counted as proof"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f7",
+      "run_id": "f09d1e80-52f0-832d-81e7-aebfafb28f8e",
+      "started_at": "2026-11-17T06:05:40.330926Z",
+      "completed_at": "2026-11-17T06:05:59.044841Z",
+      "duration_seconds": 18714,
+      "verified_code_test_commits": 0,
+      "local_tests_verified": 0,
+      "ci": "UNKNOWN (four jobs not verified)",
+      "classification": "NO_CHANGE",
+      "evidence": "No independent commit comparison; automation summary not counted as proof"
     }
   ]
 }
