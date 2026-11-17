@@ -113,7 +113,7 @@ class PrivatePNGHttpAdapterTests(unittest.TestCase):
         for shop, job in (
             ("synthetic-shop", JOB),
             (SHOP, "synthetic-job"),
-            (SHOP.upper(), JOB),
+            ("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa".upper(), JOB),
             ("11111111-1111-1111-8111-111111111111", JOB),
             (SHOP, "22222222-2222-4222-8222-22222222222z"),
             (None, JOB),
