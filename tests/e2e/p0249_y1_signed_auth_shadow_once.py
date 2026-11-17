@@ -6,8 +6,10 @@ writes. Service-role credential is used ONLY in protected runner Auth admin
 create/delete, never sent to Azure Function App or GitHub logs.
 """
 import importlib.util
+import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import secrets
 import sys
@@ -26,6 +28,22 @@ Y1 = "https://rgai-dev-y1-p0249-d4e5ddbd.azurewebsites.net"
 SUPABASE = helper.SUPABASE
 CAMPAIGN = "11111111-1111-4111-8111-111111111111"
 PREFIX = helper.CANARY_PREFIX
+
+
+def canary_marker(slot):
+    """Two reproducible, run-bound synthetic identities for independent cleanup.
+
+    A GitHub Actions run ID + attempt makes the marker recoverable by a *separate*
+    protected restore job after a worker interruption. It is not an auth secret.
+    """
+    run = os.environ.get("GITHUB_RUN_ID", "")
+    attempt = os.environ.get("GITHUB_RUN_ATTEMPT", "")
+    if (type(slot) is not int or slot not in (0, 1) or
+            not re.fullmatch(r"[0-9]{1,20}", run) or
+            not re.fullmatch(r"[0-9]{1,8}", attempt)):
+        raise RuntimeError("UNSAFE_RUN_BOUND_AUTH_MARKER")
+    marker = f"p0249-y1-signed:{run}:{attempt}:{slot}".encode("ascii")
+    return PREFIX + hashlib.sha256(marker).hexdigest()[:16]
 
 
 def y1_read(token, *, campaign=CAMPAIGN):
@@ -49,8 +67,8 @@ def y1_read(token, *, campaign=CAMPAIGN):
     return status, bool(headers.get("X-Request-ID")), parsed, round(time.monotonic()-started, 3)
 
 
-def create_test_user(key, pub):
-    marker = PREFIX + uuid.uuid4().hex[:16]
+def create_test_user(key, pub, slot):
+    marker = canary_marker(slot)
     password = secrets.token_urlsafe(32)
     email = marker + "@example.invalid"
     uid = None
@@ -109,7 +127,7 @@ def main():
     created = []
     try:
         for i in range(2):
-            marker, uid, token = create_test_user(key, pub)
+            marker, uid, token = create_test_user(key, pub, i)
             created.append((marker, uid, token))
             for n in range(3):
                 code, marked, payload, sec = y1_read(token)
@@ -147,9 +165,36 @@ def main():
     print("P0249_Y1_REAL_SUPABASE_SIGNED_USERS=2_OF_2_AFTER_IDLE_ACCEPTED_AND_CLEANED", flush=True)
 
 
+def cleanup_only():
+    """Independent protected job: reconcile exactly the two deterministic IDs.
+
+    All remotely observed identities must still pass helper's strict email +
+    canonical UUID re-read before DELETE. A missing account is a safe no-op.
+    """
+    if os.environ.get("RGAI_DEV_P0249_JWT_CANARY_APPROVAL") != "OWNER_APPROVED_READ_ONLY_JWT_TEST":
+        raise RuntimeError("Missing exact DEV synthetic cleanup approval")
+    key = os.environ.get("RGAI_DEV_SERVICE_KEY", "")
+    if not key.startswith(("sb_secret_", "eyJ")) or len(key) < 40:
+        raise RuntimeError("Wrong DEV Supabase admin key class")
+    failures = 0
+    for slot in (1, 0):
+        try:
+            helper.owner_only_cleanup(key, canary_marker(slot), None)
+        except Exception:
+            failures += 1
+    if failures:
+        raise RuntimeError("Run-bound synthetic Auth cleanup requires manual review")
+    print("P0249_Y1_INDEPENDENT_AUTH_CLEANUP=2_SLOTS_RECONCILED", flush=True)
+
+
 if __name__ == "__main__":
     try:
-        main()
+        if len(sys.argv) == 1:
+            main()
+        elif sys.argv[1:] == ["cleanup-only"]:
+            cleanup_only()
+        else:
+            raise RuntimeError("Unsafe signed trial command")
     except Exception:
-        print("P0249_Y1_REAL_SIGNED_TEST_FAILED_OR_CLEANUP_NEEDED",file=sys.stderr)
+        print("P0249_Y1_REAL_SIGNED_TEST_FAILED_OR_CLEANUP_NEEDED", file=sys.stderr)
         raise SystemExit(5)
