@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-17T04:02:00Z",
+  "last_written_at": "2026-11-17T13:03:51.719Z",
   "last_inventory_count": 36,
   "last_inventory_checked_at": "2026-11-17T04:02:00Z",
   "owners": {
@@ -392,5 +392,47 @@
       "classification": "NO_CHANGE",
       "evidence": "Run duration confirmed; code/test commit delta and CI not independently verified"
     }
-  ]
+  ],
+  "current_review_gates": {
+    "verified_at_utc": "2026-11-17T13:03:51.719Z",
+    "scope": "source PR exact-head CI only; independent review/integration/hosted acceptance not complete",
+    "feature2": {
+      "pr": 917,
+      "head": "32cacb8a52b9",
+      "ci_run": 44010051857,
+      "ci": "4/4 PASS",
+      "status": "review/merge-blocked; #925 also 4/4 PASS; #848 manual integration"
+    },
+    "feature3": {
+      "pr": 944,
+      "head": "7a44c4b08375",
+      "ci_run": 43996652354,
+      "ci": "4/4 PASS",
+      "status": "source review pending #879/#880/#944; hosted tenant/rights not certified"
+    },
+    "feature4": {
+      "pr": 779,
+      "head": "c1d66e9b3903",
+      "ci_run": 43999413216,
+      "ci": "4/4 PASS",
+      "status": "draft, mergeable=false; manual integration #779 and #322 visual QA",
+      "paused": true,
+      "eligible_for_auto_resume": false
+    },
+    "feature7": {
+      "pr": 513,
+      "head": "eb9df22f3460",
+      "ci_run": 43985240207,
+      "ci": "4/4 PASS",
+      "status": "mergeable=false, 521 commits, 132 changed files; manual integration/security review",
+      "paused": true,
+      "eligible_for_auto_resume": false
+    }
+  },
+  "execution_environment": {
+    "persistent_executor_configured": false,
+    "reason": "Automations currently inherit unspecified environment; scheduler tool cannot provision persistent developer checkout",
+    "fallback": "GitHub connector file-edit + GitHub Actions CI",
+    "limits": "Runtime duration cannot be controlled by automation prompt"
+  }
 }
