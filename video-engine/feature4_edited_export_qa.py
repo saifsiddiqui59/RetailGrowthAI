@@ -45,6 +45,11 @@ def _frame(path, at):
 
 
 def _luma_delta(a, b):
+    # Decode always requests an exact 72x128 grayscale frame. Never allow
+    # implicit zip truncation or non-byte buffers to fake editor parity.
+    if (not isinstance(a, bytes) or not isinstance(b, bytes)
+            or len(a) != 72 * 128 or len(b) != 72 * 128):
+        raise EditorExportProofError("Malformed encoded editor grayscale frame")
     return sum(abs(x-y) for x, y in zip(a, b)) / len(a)
 
 

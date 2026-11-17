@@ -71,6 +71,19 @@ class EncodedEditorParityTests(unittest.TestCase):
                 verify_mock_editor_output(self.file, operation="unreviewed")
             probe.assert_not_called()
 
+    def test_malformed_decoded_frames_cannot_pass_pixel_parity(self):
+        # Original F4-04 #723 negative cases, retained alongside duplicate QA.
+        v1, p1, v2, p2 = self.valid
+        for name, frames in (
+            ("truncated-first-video", (v1[:-1], p1, v2, p2)),
+            ("oversized-product-frame", (v1, p1 + b"\x00", v2, p2)),
+            ("wrong-decoder-type", (v1, p1, bytearray(v2), p2)),
+            ("empty-frame", (v1, p1, b"", p2)),
+        ):
+            with self.subTest(case=name), self.assertRaisesRegex(
+                    EditorExportProofError, "Malformed encoded editor grayscale frame"):
+                self.prove(frames)
+
     def test_mutated_input_and_wrong_duration_denied(self):
         frames = list(self.valid)
         def decode(src, at):
