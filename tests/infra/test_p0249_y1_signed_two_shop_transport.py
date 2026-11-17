@@ -215,6 +215,36 @@ class Y1SignedOriginalTwoShopParity(TestCase):
                 self.assertEqual(len(self.backend.requests), before,
                                  "rejected JWT must not reach PostgREST")
 
+    def test_actual_y1_handler_marks_jwks_dependency_503_without_db_or_token(self):
+        from jwt.exceptions import PyJWKClientConnectionError
+        from security import cached_supabase_verifier
+
+        token = make_token(A_USER)
+        request = SimpleNamespace(
+            route_params={"campaign_id": A_CAMPAIGN},
+            headers={"Authorization": "Bearer " + token},
+        )
+
+        def no_keys(_token):
+            raise PyJWKClientConnectionError("synthetic JWKS outage secret=fixture")
+
+        cached_supabase_verifier.cache_clear()
+        try:
+            with patch("security.PyJWKClient", return_value=SimpleNamespace(
+                    get_signing_key_from_jwt=no_keys)):
+                with patch.dict("os.environ", ENV):
+                    response = shadow.main(request)
+            self.assertEqual(response.status_code, 503)
+            self.assertEqual(json.loads(response.get_body()),
+                             {"error": "SERVICE_UNAVAILABLE"})
+            self.assertTrue(response.headers.get("X-Request-ID"))
+            self.assertEqual(response.headers.get("Cache-Control"), "no-store")
+            self.assertNotIn(token, response.get_body().decode("utf-8"))
+            self.assertNotIn("secret=fixture", response.get_body().decode("utf-8"))
+            self.assertEqual(self.backend.requests, [])
+        finally:
+            cached_supabase_verifier.cache_clear()
+
     def test_y1_reuses_only_bounded_jwks_verifier_not_current_tenant_store(self):
         from security import cached_supabase_verifier
 
