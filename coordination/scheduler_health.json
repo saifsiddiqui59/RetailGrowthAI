@@ -3,16 +3,16 @@
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
   "last_written_at": "2026-11-17T16:04:43.000Z",
-  "last_inventory_count": 36,
+  "last_inventory_count": 39,
   "last_inventory_checked_at": "2026-11-17T15:03:23Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "ba61aad3-1810-832c-bab3-640865df8b57",
+      "last_run_id": "06823d63-6310-832c-8d3a-5c506e27c283",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T15:24:17.344496Z",
-      "last_end_utc": "2026-11-17T15:24:45.093043Z",
-      "duration_seconds": 27.749,
+      "last_start_utc": "2026-11-17T16:26:43.993729Z",
+      "last_end_utc": "2026-11-17T16:27:12.801661Z",
+      "duration_seconds": 28.808,
       "reported_code_commits": 0,
       "local_tests_verified": null,
       "last_pr": 917,
@@ -25,7 +25,11 @@
       "classification": "REVIEW_BLOCKED",
       "automation_enabled": true,
       "ci_latest_run_id": 44010051857,
-      "ci_latest_status": "success (4/4)"
+      "ci_latest_status": "success (4/4)",
+      "executor_status": "EXECUTOR_NOT_PROVISIONED",
+      "executor_type": "GITHUB_CONNECTOR_ONLY",
+      "environment_selection": "inherited",
+      "environments_verified": false
     },
     "schedule-f3": {
       "automation_id": "6ae731649368819198cd8ceea7a15a60",
@@ -50,11 +54,11 @@
     },
     "schedule-f4": {
       "automation_id": "6af396f7239481918480cfed86af4b2c",
-      "last_run_id": "12965f42-32d8-8332-932b-5a028b579bab",
+      "last_run_id": "aa180ade-98b8-8329-9002-d58879932cac",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T15:43:46.601301Z",
-      "last_end_utc": "2026-11-17T15:44:12.418395Z",
-      "duration_seconds": 25.817,
+      "last_start_utc": "2026-11-17T16:48:34.503888Z",
+      "last_end_utc": "2026-11-17T16:48:55.888730Z",
+      "duration_seconds": 21.385,
       "reported_code_commits": 0,
       "local_tests_verified": null,
       "last_pr": 322,
@@ -67,15 +71,19 @@
       "classification": "NO_CODING_TARGET",
       "ci_latest_run_id": 44012074650,
       "ci_latest_status": "cancelled (3/4)",
-      "automation_enabled": true
+      "automation_enabled": true,
+      "executor_status": "EXECUTOR_NOT_PROVISIONED",
+      "executor_type": "GITHUB_CONNECTOR_ONLY",
+      "environment_selection": "inherited",
+      "environments_verified": false
     },
     "schedule-f7": {
       "automation_id": "6af396facd5c8191a5add51a377f199c",
-      "last_run_id": "d9779d78-9a24-832e-a8a2-ddead6f8a4ae",
+      "last_run_id": "abbf6624-5fd8-8325-ac16-7c75831e2ff2",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T15:09:46.698468Z",
-      "last_end_utc": "2026-11-17T15:10:15.343096Z",
-      "duration_seconds": 28.645,
+      "last_start_utc": "2026-11-17T16:08:35.209432Z",
+      "last_end_utc": "2026-11-17T16:09:11.306644Z",
+      "duration_seconds": 36.097,
       "reported_code_commits": 0,
       "local_tests_verified": 0,
       "last_pr": 513,
@@ -88,49 +96,14 @@
       "classification": "REVIEW_BLOCKED",
       "automation_enabled": true,
       "ci_latest_run_id": 43985240207,
-      "ci_latest_status": "success (4/4)"
+      "ci_latest_status": "success (4/4)",
+      "executor_status": "EXECUTOR_NOT_PROVISIONED",
+      "executor_type": "GITHUB_CONNECTOR_ONLY",
+      "environment_selection": "inherited",
+      "environments_verified": false
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f4",
-      "run_id": "fc0a5374-7278-832a-88e9-0cab1b931f68",
-      "started_at": "2026-11-17T09:44:29.507814Z",
-      "completed_at": "2026-11-17T09:44:45.507083Z",
-      "duration_seconds": 16,
-      "verified_code_test_commits": 0,
-      "local_tests_verified": 0,
-      "ci": "UNKNOWN (no exact-head all-trigger jobs verification)",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "Automation summary says no new code/test; no independently verified new source/test commit; current-head metadata unavailable"
-    },
-    {
-      "event": "worker_run",
-      "owner": "schedule-f7",
-      "run_id": "ab78bae6-fafc-8326-91a0-e5a33617ef91",
-      "started_at": "2026-11-17T09:11:11.855427Z",
-      "completed_at": "2026-11-17T09:11:31.088756Z",
-      "duration_seconds": 19.233,
-      "verified_code_test_commits": 0,
-      "local_tests_verified": 0,
-      "ci": "UNKNOWN (no exact-head all-trigger jobs verification)",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "Automation summary says no new code/test; no independently verified new source/test commit; current-head metadata unavailable"
-    },
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "c4b23d7e-b57c-832c-91a2-81c55c312e43",
-      "started_at": "2026-11-17T10:26:29.641877Z",
-      "completed_at": "2026-11-17T10:26:46.684133Z",
-      "duration_seconds": 17.043,
-      "verified_code_test_commits": 0,
-      "local_tests_verified": 0,
-      "ci": "UNKNOWN (all-trigger exact-head four-job verification unavailable)",
-      "classification": "NO_CHANGE",
-      "evidence": "Worker summary reports no new code/test; GitHub source/test commit delta not independently verified; independent review or merge handoff remains"
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f3",
@@ -392,6 +365,45 @@
       "ci": "success (4/4)",
       "classification": "REVIEW_BLOCKED",
       "evidence": "No new source/test commit independently verified; owner run summary reviewed"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "06823d63-6310-832c-8d3a-5c506e27c283",
+      "started_at": "2026-11-17T16:26:43.993729Z",
+      "completed_at": "2026-11-17T16:27:12.801661Z",
+      "duration_seconds": 28.808,
+      "verified_code_test_commits": null,
+      "local_tests_verified": null,
+      "ci": "success (4/4); prior verified 4/4 run 44010051857",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "No new source/test SHA independently established; connector-only environment_selection inherited, environments null"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f4",
+      "run_id": "aa180ade-98b8-8329-9002-d58879932cac",
+      "started_at": "2026-11-17T16:48:34.503888Z",
+      "completed_at": "2026-11-17T16:48:55.888730Z",
+      "duration_seconds": 21.385,
+      "verified_code_test_commits": null,
+      "local_tests_verified": null,
+      "ci": "cancelled (3/4); prior verified 4/4 run 44012067977",
+      "classification": "NO_CODING_TARGET",
+      "evidence": "No new source/test SHA independently established; connector-only environment_selection inherited, environments null"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f7",
+      "run_id": "abbf6624-5fd8-8325-ac16-7c75831e2ff2",
+      "started_at": "2026-11-17T16:08:35.209432Z",
+      "completed_at": "2026-11-17T16:09:11.306644Z",
+      "duration_seconds": 36.097,
+      "verified_code_test_commits": null,
+      "local_tests_verified": null,
+      "ci": "success (4/4); prior verified 4/4 run 43985240207",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "No new source/test SHA independently established; connector-only environment_selection inherited, environments null"
     }
   ],
   "current_review_gates": {
@@ -447,11 +459,11 @@
     "scheduler_run_duration_uncontrolled": true
   },
   "coding_executor_migration": {
-    "status": "NEEDS_USER_ENVIRONMENT_SETUP",
+    "status": "EXECUTOR_NOT_PROVISIONED",
     "verified_at_utc": "2026-11-17T16:23:55.443Z",
     "migration_document": "docs/SCHEDULER_EXECUTOR_MIGRATION_20261117.md",
     "migration_commit": "4813e3fad923c1f4a647588e685157c8e11d0001",
-    "executor": "GITHUB_CONNECTOR_ONLY; CLOUD_CODEX/LOCAL_WORKTREE NOT VERIFIED",
+    "executor": "GITHUB_CONNECTOR_ONLY; no verified Cloud Codex or local worktree",
     "blocked_capability": "Existing automation update API cannot select or provision an executor; cloud/desktop task environment must be selected in Work/Codex UI",
     "baseline_seconds": {
       "F2": 27.749,
