@@ -47,7 +47,12 @@
       "work_owner": "schedule-f7",
       "priority": "P0",
       "phase": "blocked",
-      "claim": null,
+      "claim": {
+        "owner": "schedule-f7",
+        "head_sha": "ae1c42099930ae4f4ed6eb3167ecf4898aa43be9",
+        "claimed_at": "2026-11-17T00:09:00Z",
+        "expires_at": "2026-11-17T01:39:00Z"
+      },
       "checkpoint": {
         "owner": "schedule-f7",
         "at": "2026-11-15T21:15:00Z",
