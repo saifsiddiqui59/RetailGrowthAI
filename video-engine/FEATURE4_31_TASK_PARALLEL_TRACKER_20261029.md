@@ -150,3 +150,6 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 
 ### 2026-11-17 — F4-13 #803 all rendered auxiliary asset rights
 - Current F4 parent now has original F4-13 source/test/handoff SHA from #803: validate whole media lineage against fresh same-shop rights, reject unapproved auxiliary audio/logo/stock, synthetic assets, duplicate lineage, invalid output ID. Source-only IN PROGRESS; details [integration checkpoint](feature4/INTEGRATION_SPRINT_F405_F411_F415_20261117.md).
+
+### 2026-11-17 — F4-02 original #799 render-stage anti-alias/no-op
+- Current parent code and tests now preserve exact old #799 SHA, rejecting alias/hardlink source/master/preview/captioned and identical encoded stage bytes. Original handoff retained, details [checkpoint](feature4/INTEGRATION_SPRINT_F405_F411_F415_20261117.md). IN PROGRESS pending exact-head 4/4 and accepted main/hosted 60s QA.
