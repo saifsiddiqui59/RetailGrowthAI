@@ -1172,3 +1172,7 @@ Owner direction to reuse original VoiceStudio code implemented with unchanged pi
 
 ### 2026-11-17 — #249 shared JWT dependency outage error contract includes Feature2
 - Returning 503 only for a connection-layer signing-key fetch failure is not enough when Feature2 has three independent `TrendFeatureAdapter` handler families. Convert `SigningKeysUnavailable` in all three to existing stable sanitized storage/dependency **503** contracts, never generic 500 or invalid-JWT 401. No retries of POST, membership bypass, debug tokens or paid model activation; source requires independent shared auth/Feature2 review.
+
+## 2026-11-17 — #249 make disposable Auth cleanup recoverable across jobs
+- A protected Auth-only canary that owns two short-lived synthetic users must have recovery outside the test runner: derive strictly the two run-bound labels from the GitHub run ID + attempt + slot using SHA-256 (16 hex characters) and authorize deletion **only after fresh exact UUID/email verification**. A second protected job reconciles both even if the first cannot finish normally; failure/ambiguity must mark the run red. Neither marker nor JWT is a secret by itself, but Admin credentials stay runner-only.
+- `if: always()` is best-effort and cannot guarantee a recovery job on full workflow cancellation/control-plane outage. Keep explicit manual run-ID-scoped recovery documented, independent security approval mandatory, and no authenticated trial/runtime change merely from source tests.
