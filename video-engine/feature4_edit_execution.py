@@ -49,6 +49,25 @@ def draft_fingerprint(draft):
     return hashlib.sha256(data).hexdigest()
 
 
+def edit_decision_fingerprint(decision):
+    """Canonical SHA of the exact reviewed decision, including every scene edit.
+
+    The caller must retrieve this digest from an independently persisted,
+    authorized server-side review row. Never derive the trusted value from a
+    browser/model payload during the render request.
+    """
+    if type(decision) is not dict:
+        raise CreativeContractError("Invalid Feature7 decision")
+    try:
+        canonical = json.dumps(
+            decision, sort_keys=True, ensure_ascii=False,
+            separators=(",", ":"), allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise CreativeContractError("Invalid Feature7 decision") from exc
+    return hashlib.sha256(canonical).hexdigest()
+
+
 def execute_approved_edit(draft, snapshot, approved_edits):
     """Compile the same trusted v2 request, after deterministic AI edit choices.
 
@@ -77,6 +96,18 @@ def execute_approved_edit(draft, snapshot, approved_edits):
                 "timeline_version": "creative_reel_v1",
             }):
         raise CreativeContractError("Feature7 review must match server snapshot")
+    # The original v1 check authenticated only the review ID and four
+    # metadata fields. It did not bind the *actual scene instructions* to the
+    # independently approved record: a modified trim/reorder could reuse a
+    # valid approval ID. Require the persisted decision hash before compiling.
+    # This local trust-envelope field is stripped before passing the existing
+    # immutable creative_reel_v1 contract to the renderer.
+    stored_digest = snapshot.get("edit_decision_sha256")
+    if (type(stored_digest) is not str or
+            not SHA256.fullmatch(stored_digest) or
+            stored_digest != edit_decision_fingerprint(approved_edits)):
+        raise CreativeContractError(
+            "Feature7 edit commands do not match persisted review")
     if (approved_edits["shop_id"] != snapshot.get("shop_id") or
             approved_edits["campaign_id"] != snapshot.get("campaign_id") or
             draft.get("shop_id") != snapshot.get("shop_id")):
@@ -140,4 +171,6 @@ def execute_approved_edit(draft, snapshot, approved_edits):
     # The existing compiler is authoritative for Feature2 copy, Feature3/5
     # media rights/provenance, source audio, transitions, user-supplied IDs and
     # duration. The lineage it emits records the actual Feature7 approval ID.
-    return compile_approved_storyboard(new_draft, snapshot)
+    renderer_snapshot = copy.deepcopy(snapshot)
+    renderer_snapshot.pop("edit_decision_sha256")
+    return compile_approved_storyboard(new_draft, renderer_snapshot)

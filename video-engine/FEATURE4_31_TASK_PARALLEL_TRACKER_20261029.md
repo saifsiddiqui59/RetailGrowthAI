@@ -168,3 +168,6 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 
 ### 2026-11-17 — original F4-13/F4-15 #852 provenance and last negative test
 - Canonical original #852 storage-key and signed output SHA source is covered by stronger current guards; original same-byte inode replacement **of staged source during CPU** negative test ported into current worker tests, not merely the output-upload check. Original tracker source notes archived at [feature checkpoint](feature4/ORIGINAL_852_PROVENANCE_20261117.md). Still IN PROGRESS pending exact final-head CI and main acceptance.
+
+### 2026-11-17 — F4-04/F4-20 original #906/#715 decision digest
+- Current parent source/test now carries original #906 exact source `efd57f56` and tests `937dee49`, requiring independently persisted canonical approved Feature7 edit SHA and rejecting changed/replayed scene instructions. Original #715 review context archived in [file](feature4/ORIGINAL_715_PROVENANCE_20261117.md); reviewer/hosted DB contract still OPEN. Source-only IN PROGRESS, exact-head 4/4 pending.
