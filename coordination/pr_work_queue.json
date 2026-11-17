@@ -26,6 +26,19 @@
   },
   "entries": [
     {
+      "pr": 967,
+      "title": "ci(video): preserve full F4 media acceptance under 25-minute job timeout",
+      "feature": "F4",
+      "head_sha": "fd9faf468b0229813c21c7fd2e52786401e773de",
+      "base_branch": "main",
+      "work_owner": "schedule-f4",
+      "priority": "P2",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/967"
+    },
+    {
       "pr": 966,
       "title": "docs(integration): F4 source reconciliation and 15 deduplicated drafts",
       "feature": "shared",
@@ -249,7 +262,7 @@
       "pr": 906,
       "title": "Feature4 F4-04: reconcile persisted editor-approval digest from original #715",
       "feature": "F4",
-      "head_sha": "2cef0eb459fd44e3d26fbb2f46c33c05bd90808b",
+      "head_sha": "6f3ebd3c2392b64db3dba20c6ddde789ab7f27bc",
       "base_branch": "feat/feature4-professional-video-studio",
       "work_owner": "schedule-f4",
       "priority": "P1",
@@ -400,19 +413,6 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/720"
-    },
-    {
-      "pr": 715,
-      "title": "fix(feature4): bind Feature7 edit commands to persisted reviewer snapshot",
-      "feature": "F4",
-      "head_sha": "dbae534f002940545aa130668f718215c8dc8528",
-      "base_branch": "feat/feature4-professional-video-studio",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/715"
     },
     {
       "pr": 707,
@@ -631,7 +631,7 @@
       "pr": 322,
       "title": "WIP Feature #4 — Timeline Studio engine (illustrated demo rejected; visual QA open)",
       "feature": "F4",
-      "head_sha": "587f5a0ab061225b75115a6a2be32b01c3550b46",
+      "head_sha": "fc9788bc8dcb41d5800d4c968fbfcc71e4a39423",
       "base_branch": "main",
       "work_owner": "schedule-f4",
       "priority": "P0",
