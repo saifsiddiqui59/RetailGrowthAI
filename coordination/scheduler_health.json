@@ -110,19 +110,6 @@
   "history": [
     {
       "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "73b7ce8d-a7f0-832c-a46a-83db9575bc0e",
-      "started_at": "2026-11-17T12:27:29.113439Z",
-      "completed_at": "2026-11-17T12:27:57.015321Z",
-      "duration_seconds": 27.9,
-      "verified_code_test_commits": null,
-      "local_tests_verified": null,
-      "ci": "UNKNOWN (all-trigger exact-head jobs not verified)",
-      "classification": "NO_CHANGE",
-      "evidence": "Run duration confirmed; code/test commit delta and CI not independently verified"
-    },
-    {
-      "event": "worker_run",
       "owner": "schedule-f3",
       "run_id": "aa391cd6-bdf4-832e-92fb-bf72568c91af",
       "started_at": "2026-11-17T12:36:05.214010Z",
@@ -408,6 +395,19 @@
       "ci": "PASS 4/4 exact-head push #44010051857",
       "classification": "REVIEW_BLOCKED",
       "evidence": "Distinct automation run; 0 source/test commits self-reported, no independently new SHA established; exact-head four CI jobs verified. Inherited environment selection, environments null."
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "3af90a21-fd74-8328-990e-fa1a10002ce3",
+      "started_at": "2026-11-17T21:21:41.762161Z",
+      "completed_at": "2026-11-17T21:22:22.658272Z",
+      "duration_seconds": 40.896,
+      "verified_code_test_commits": null,
+      "local_tests_verified": null,
+      "ci": "F2 #917 exact-head push 4/4 PASS #44010051857; #925 prior green not rechecked this run",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "No new source/test SHA independently established. Inherited/null executor environment; independent review and manual integration remain."
     }
   ],
   "current_review_gates": {
