@@ -7,10 +7,21 @@ from __future__ import annotations
 
 import json
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from urllib.parse import urlencode, urlsplit
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from tenant_store import StorageUnavailable, SubscriptionDenied, canonical_uuid
+
+
+class _DenyRedirects(HTTPRedirectHandler):
+    """A service-role secret must never be sent to any HTTP redirect target."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+# Retain the historic injectable urlopen name for existing worker fixtures,
+# but default to an opener that never redirects a privileged API key or POST.
+urlopen = build_opener(_DenyRedirects()).open
 
 
 def backend_headers(secret):
@@ -24,10 +35,25 @@ def backend_headers(secret):
 
 class AdminStore:
     def __init__(self, origin, service_role_key, transport=None):
-        if not origin.startswith("https://") or not service_role_key:
+        if (not isinstance(origin, str) or not isinstance(service_role_key, str)
+                or not service_role_key or
+                any(ord(ch) <= 32 or ord(ch) == 127 for ch in origin)
+                or "\\" in origin):
+            raise ValueError("worker-only Supabase HTTPS origin and secret key required")
+        try:
+            parsed = urlsplit(origin)
+            parsed.port  # reject malformed port before passing a secret to HTTP
+            valid = (origin.startswith("https://") and parsed.scheme == "https"
+                     and bool(parsed.hostname) and parsed.username is None
+                     and parsed.password is None and parsed.path in ("", "/")
+                     and not parsed.query and not parsed.fragment
+                     and parsed.geturl() == origin)
+        except ValueError:
+            valid = False
+        if not valid:
             raise ValueError("worker-only Supabase HTTPS origin and secret key required")
         self.origin, self.secret = origin.rstrip("/"), service_role_key
-        self.transport = transport or urlopen
+        self.transport = transport if transport is not None else urlopen
 
     def request(self, path, *, query=None, data=None, method="GET", upsert=False):
         if path not in ("rpc/claim_campaign_job", "rpc/claim_render_job",
@@ -87,12 +113,16 @@ class AdminStore:
                 return json.loads(raw.decode()) if raw else None
         except HTTPError as exc:
             try:
-                response_code = json.loads(exc.read(4096)).get("code")
-            except (ValueError, AttributeError, TypeError):
-                response_code = None
-            if response_code in ("RG001", "RG002", "RG003", "RG004"):
-                raise SubscriptionDenied(response_code) from exc
-            raise StorageUnavailable("worker database request failed") from exc
+                try:
+                    response_code = json.loads(exc.read(4096)).get("code")
+                except (ValueError, AttributeError, TypeError):
+                    response_code = None
+                if response_code in ("RG001", "RG002", "RG003", "RG004"):
+                    raise SubscriptionDenied(response_code) from exc
+                raise StorageUnavailable("worker database request failed") from exc
+            finally:
+                # Redirects and error responses retain the underlying socket.
+                exc.close()
         except (URLError, OSError, json.JSONDecodeError) as exc:
             raise StorageUnavailable("worker database request failed") from exc
 
