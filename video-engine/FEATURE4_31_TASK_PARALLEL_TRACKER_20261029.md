@@ -91,3 +91,6 @@ Five nonoverlapping technical source drafts have been batched for one final inte
 
 ### 2026-11-17 — original #745/#773 encoded split/reorder QA
 - Integrated #745 frozen moving-clip source (3/17s) and #773 near-cut scene family (5/13/15/21s) checks and two targeted regressions on surviving #779, preserving duplicate-op and source SHA. Details and original HEADs: [handoff](feature4/ORIGINAL_745_773_PROVENANCE_20261117.md). F4-04 IN PROGRESS pending full exact-head CI and accepted current-main source integration.
+
+### 2026-11-17 — original F4-04 #735 complete duplicate project regression recovered
+- Ported original JS duplicate→Python compiler→HyperFrames negative/positive project test (adapted to current operation name), retaining source-level 0/0 inpoints, one music SFX and explicit OWNER_REJECTED; current #779 already actually renders duplicate in CPU smoke. Details: [source note](feature4/ORIGINAL_735_PROVENANCE_20261117.md). Source-only F4-04 IN PROGRESS, parent/main merge + exact-head CI pending.
