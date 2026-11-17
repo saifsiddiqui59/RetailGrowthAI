@@ -55,7 +55,7 @@
       "pr": 965,
       "title": "fix(#249): restore Feature2 JWT verifier construction after warm-cache integration",
       "feature": "issue249",
-      "head_sha": "0a6828249a16110f19059899d14b79917a5b7668",
+      "head_sha": "4b75a0b2eb8cc8d77d5a4e710e22f6a8fda93d60",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P2",
