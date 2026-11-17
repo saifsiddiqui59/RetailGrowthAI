@@ -130,7 +130,7 @@ class RuntimeCompositionTests(unittest.TestCase):
                 pass
             def read(self, **kwargs):
                 calls.append("backend")
-                return b"synthetic-only"
+                return (bytes((137, 80, 78, 71, 13, 10, 26, 10)) + b"synthetic-fixture" * 8)
 
         shop, job = str(uuid4()), str(uuid4())
         with patch("feature3_private_png_runtime.Feature3RevocablePNGReader",
@@ -138,7 +138,7 @@ class RuntimeCompositionTests(unittest.TestCase):
             scoped = self.build()(shop, job)
             self.assertEqual(
                 scoped.read(user_token="synthetic-test-token-123",
-                            shop_id=shop, job_id=job), b"synthetic-only")
+                            shop_id=shop, job_id=job), (bytes((137, 80, 78, 71, 13, 10, 26, 10)) + b"synthetic-fixture" * 8))
         self.assertEqual(calls, ["backend"])
 
     def test_cross_project_real_verifier_is_rejected_before_reader_io(self):
