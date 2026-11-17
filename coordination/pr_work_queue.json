@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 39,
+    "open_prs": 38,
     "by_feature": {
-      "F2": 12,
+      "F2": 11,
       "F3": 3,
       "F4": 4,
       "F5": 5,
@@ -33,16 +33,17 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration",
-        "claimed_at": "2026-11-17T17:05:03.746Z",
-        "expires_at": "2026-11-17T18:35:03.746Z",
-        "head_sha": "a204af9f160e99a808e279f53745b0c5fb60eff7"
-      },
+      "phase": "ready-for-review",
+      "claim": null,
       "checkpoint": {
-        "next_action": "Exact final-head CI and independent security/F4 review; archive original #912 ledger hunk",
-        "head_sha": "a204af9f160e99a808e279f53745b0c5fb60eff7"
+        "recorded_at": "2026-11-17T17:09:54.512Z",
+        "owner": "manual-integration",
+        "head_sha": "a204af9f160e99a808e279f53745b0c5fb60eff7",
+        "commits_reported": 2,
+        "tests_reported": "Final PR head 4/4, 4 source Git blobs exactly old #912 + ledger hunk archived; old PR closed unmerged",
+        "ci_reported": "success run #44132961182",
+        "next_action": "Independent security/F4 review; then rebase latest main, merged main 4/4, hosted RLS/CAS acceptance",
+        "evidence_status": "worker-reported-unverified"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/972"
     },
@@ -303,27 +304,6 @@
         "next_action": "Independent F2-21 CPU quota security review, then manual integration after keeper #848 reconciliation"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/917"
-    },
-    {
-      "pr": 912,
-      "title": "Feature2 F2-31: restore current editorial-rights recheck from original #766",
-      "feature": "F2",
-      "head_sha": "9a818a7dbce5cdf7bddbdc94c6854c7d5c667644",
-      "base_branch": "feat/feature2-source-batch-8pr-consolidation-20261030",
-      "work_owner": "schedule-f2",
-      "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration",
-        "claimed_at": "2026-11-17T17:05:03.746Z",
-        "expires_at": "2026-11-17T18:35:03.746Z",
-        "head_sha": "9a818a7dbce5cdf7bddbdc94c6854c7d5c667644"
-      },
-      "checkpoint": {
-        "next_action": "Check source/test SHA equivalence with #972 and exact final-head CI; close superseded unmerged with evidence only if accepted",
-        "head_sha": "9a818a7dbce5cdf7bddbdc94c6854c7d5c667644"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/912"
     },
     {
       "pr": 887,
