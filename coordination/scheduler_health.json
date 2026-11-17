@@ -8,11 +8,11 @@
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "974b46ce-1b70-8330-937e-2293c695b160",
+      "last_run_id": "96fa83c3-385c-832c-8e47-6569738b981e",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T09:28:03.782645Z",
-      "last_end_utc": "2026-11-17T09:28:46.102884Z",
-      "duration_seconds": 42.32,
+      "last_start_utc": "2026-11-17T11:26:17.377959Z",
+      "last_end_utc": "2026-11-17T11:26:35.075291Z",
+      "duration_seconds": 17698,
       "reported_code_commits": 0,
       "local_tests_verified": 0,
       "last_pr": 917,
@@ -22,15 +22,15 @@
       "verified_code_commits": 0,
       "ci_run_id": 44010051857,
       "ci_status": "UNKNOWN",
-      "classification": "REVIEW_BLOCKED"
+      "classification": "NO_CHANGE"
     },
     "schedule-f3": {
       "automation_id": "6ae731649368819198cd8ceea7a15a60",
-      "last_run_id": "71499f82-b714-8333-ad3c-4d7d5b75071a",
+      "last_run_id": "0b9bc813-4290-8323-9b8c-8e41ebd915d0",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T09:35:51.592260Z",
-      "last_end_utc": "2026-11-17T09:36:14.139937Z",
-      "duration_seconds": 22.547,
+      "last_start_utc": "2026-11-17T11:33:15.612289Z",
+      "last_end_utc": "2026-11-17T11:33:38.743237Z",
+      "duration_seconds": 23131,
       "reported_code_commits": 0,
       "local_tests_verified": 0,
       "last_pr": 944,
@@ -40,15 +40,15 @@
       "verified_code_commits": 0,
       "ci_run_id": 43996652354,
       "ci_status": "UNKNOWN",
-      "classification": "REVIEW_BLOCKED"
+      "classification": "NO_CHANGE"
     },
     "schedule-f4": {
       "automation_id": "6af396f7239481918480cfed86af4b2c",
-      "last_run_id": "fc0a5374-7278-832a-88e9-0cab1b931f68",
+      "last_run_id": "f5769efd-fad8-832e-9147-db3fc7ddc9d0",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T09:44:29.507814Z",
-      "last_end_utc": "2026-11-17T09:44:45.507083Z",
-      "duration_seconds": 16,
+      "last_start_utc": "2026-11-17T11:47:04.753085Z",
+      "last_end_utc": "2026-11-17T11:47:24.176237Z",
+      "duration_seconds": 19423,
       "reported_code_commits": 0,
       "local_tests_verified": 0,
       "last_pr": 779,
@@ -58,15 +58,15 @@
       "verified_code_commits": 0,
       "ci_run_id": 43999413216,
       "ci_status": "UNKNOWN",
-      "classification": "REVIEW_BLOCKED"
+      "classification": "NO_CHANGE"
     },
     "schedule-f7": {
       "automation_id": "6af396facd5c8191a5add51a377f199c",
-      "last_run_id": "ab78bae6-fafc-8326-91a0-e5a33617ef91",
+      "last_run_id": "96146c56-ddbc-832a-9c7b-222c050718df",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T09:11:11.855427Z",
-      "last_end_utc": "2026-11-17T09:11:31.088756Z",
-      "duration_seconds": 19.233,
+      "last_start_utc": "2026-11-17T11:12:54.670083Z",
+      "last_end_utc": "2026-11-17T11:13:15.831166Z",
+      "duration_seconds": 21161,
       "reported_code_commits": 0,
       "local_tests_verified": 0,
       "last_pr": 513,
@@ -76,62 +76,10 @@
       "verified_code_commits": 0,
       "ci_run_id": 43985240207,
       "ci_status": "UNKNOWN",
-      "classification": "REVIEW_BLOCKED"
+      "classification": "NO_CHANGE"
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "5779e097-2390-8330-b57b-2cc94abf923c",
-      "started_at": "2026-11-17T05:28:43.458119Z",
-      "completed_at": "2026-11-17T05:28:58.303351Z",
-      "duration_seconds": 14.85,
-      "verified_code_test_commits": 0,
-      "local_tests_verified": 0,
-      "ci": "UNKNOWN (not independently rechecked in this audit)",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "latest automation summary says no source/test changes; no independent commit metadata comparison"
-    },
-    {
-      "event": "worker_run",
-      "owner": "schedule-f3",
-      "run_id": "9b1f9867-b9d4-832f-a779-a5ab0df5608b",
-      "started_at": "2026-11-17T05:33:29.064319Z",
-      "completed_at": "2026-11-17T05:33:44.418929Z",
-      "duration_seconds": 15.35,
-      "verified_code_test_commits": 0,
-      "local_tests_verified": 0,
-      "ci": "UNKNOWN (not independently rechecked in this audit)",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "latest automation summary says no source/test changes; no independent commit metadata comparison"
-    },
-    {
-      "event": "worker_run",
-      "owner": "schedule-f4",
-      "run_id": "aac9d5ea-ef88-8326-af9e-c86d0eb082d8",
-      "started_at": "2026-11-17T05:44:34.563766Z",
-      "completed_at": "2026-11-17T05:44:50.334010Z",
-      "duration_seconds": 15.77,
-      "verified_code_test_commits": 0,
-      "local_tests_verified": 0,
-      "ci": "UNKNOWN (not independently rechecked in this audit)",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "latest automation summary says no source/test changes; no independent commit metadata comparison"
-    },
-    {
-      "event": "worker_run",
-      "owner": "schedule-f7",
-      "run_id": "1f23234b-7734-8322-a154-65083f741cdc",
-      "started_at": "2026-11-17T05:06:50.491797Z",
-      "completed_at": "2026-11-17T05:07:03.712104Z",
-      "duration_seconds": 13.22,
-      "verified_code_test_commits": 0,
-      "local_tests_verified": 0,
-      "ci": "UNKNOWN (not independently rechecked in this audit)",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "latest automation summary says no source/test changes; no independent commit metadata comparison"
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f2",
@@ -391,6 +339,58 @@
       "ci": "UNKNOWN (all-trigger exact-head four-job verification unavailable)",
       "classification": "NO_CHANGE",
       "evidence": "Worker summary reports no new code/test; GitHub source/test commit delta not independently verified; independent review or merge handoff remains"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "96fa83c3-385c-832c-8e47-6569738b981e",
+      "started_at": "2026-11-17T11:26:17.377959Z",
+      "completed_at": "2026-11-17T11:26:35.075291Z",
+      "duration_seconds": 17698,
+      "verified_code_test_commits": 0,
+      "local_tests_verified": 0,
+      "ci": "UNKNOWN (all-trigger exact-head jobs not independently verified)",
+      "classification": "NO_CHANGE",
+      "evidence": "No new exact-head code/test commits verified; last run summary not treated as proof"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f3",
+      "run_id": "0b9bc813-4290-8323-9b8c-8e41ebd915d0",
+      "started_at": "2026-11-17T11:33:15.612289Z",
+      "completed_at": "2026-11-17T11:33:38.743237Z",
+      "duration_seconds": 23131,
+      "verified_code_test_commits": 0,
+      "local_tests_verified": 0,
+      "ci": "UNKNOWN (all-trigger exact-head jobs not independently verified)",
+      "classification": "NO_CHANGE",
+      "evidence": "No new exact-head code/test commits verified; last run summary not treated as proof"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f4",
+      "run_id": "f5769efd-fad8-832e-9147-db3fc7ddc9d0",
+      "started_at": "2026-11-17T11:47:04.753085Z",
+      "completed_at": "2026-11-17T11:47:24.176237Z",
+      "duration_seconds": 19423,
+      "verified_code_test_commits": 0,
+      "local_tests_verified": 0,
+      "ci": "UNKNOWN (all-trigger exact-head jobs not independently verified)",
+      "classification": "NO_CHANGE",
+      "evidence": "No new exact-head code/test commits verified; last run summary not treated as proof"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f7",
+      "run_id": "96146c56-ddbc-832a-9c7b-222c050718df",
+      "started_at": "2026-11-17T11:12:54.670083Z",
+      "completed_at": "2026-11-17T11:13:15.831166Z",
+      "duration_seconds": 21161,
+      "verified_code_test_commits": 0,
+      "local_tests_verified": 0,
+      "ci": "UNKNOWN (all-trigger exact-head jobs not independently verified)",
+      "classification": "NO_CHANGE",
+      "evidence": "No new exact-head code/test commits verified; last run summary not treated as proof"
     }
   ]
 }
