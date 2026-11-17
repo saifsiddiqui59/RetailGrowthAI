@@ -71,7 +71,7 @@ class Y1ExtraGetSafetyTests(unittest.TestCase):
                                               UID, "Bearer synthetic", environment=CONFIG),
                              (404, {"error": "NOT_FOUND"}))
             for wrong in ("", "not-a-uuid", "11111111-1111-4111-8111-111111111111/extra",
-                          UID.upper(), "%2f" + UID, UID.replace("-", "")):
+                          "ABCDEFAB-CDEF-4ABC-8ABC-ABCDEFABCDEF", "%2f" + UID, UID.replace("-", "")):
                 self.assertEqual(shadow.handle_get("poster_job", wrong, "Bearer synthetic",
                                                    environment=CONFIG),
                                  (400, {"error": "INVALID_REQUEST"}))
