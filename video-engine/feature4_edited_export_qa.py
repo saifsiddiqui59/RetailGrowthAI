@@ -77,6 +77,12 @@ def _frame(path, at):
 
 
 def _luma_delta(a, b):
+    # Prevent zip() silently truncating a forged decoded frame. The split
+    # editor decoder yields 72x128; the separately verified duplicate center
+    # decoder yields 72x96. Both decoders check their own exact frame size.
+    if (type(a) is not bytes or type(b) is not bytes
+            or len(a) != len(b) or len(a) not in (72 * 128, 72 * 96)):
+        raise EditorExportProofError("Malformed encoded editor grayscale frame")
     return sum(abs(x-y) for x, y in zip(a, b)) / len(a)
 
 
@@ -108,6 +114,12 @@ def verify_mock_editor_output(source: Path, *, expected_sha256: str):
     first_video, first_photo, trimmed_video, offer_photo = [
         _frame(source, time) for time in at
     ]
+    # Two intra-video samples deny a frozen shot presented as moving footage.
+    # Four interior near-cut samples deny gross scene-family timing shifts.
+    moving_first, moving_trimmed = (_frame(source, t) for t in (3.0, 17.0))
+    early_photo, late_photo, early_trimmed_video, early_offer = (
+        _frame(source, t) for t in (5.0, 13.0, 15.0, 21.0)
+    )
     if _source_fingerprint(source) != source_fingerprint:
         raise EditorExportProofError("Encoded MP4 changed during export QA sampling")
     video_pair = _luma_delta(first_video, trimmed_video)
@@ -122,8 +134,20 @@ def verify_mock_editor_output(source: Path, *, expected_sha256: str):
     # The two video segments share footage, but the second is nonidentical
     # due to its reviewed 4s media in-point, not an exact identical replay.
     # Both product-photo scenes must remain distinct from each other and video.
+    motion_first = _luma_delta(first_video, moving_first)
+    motion_trimmed = _luma_delta(trimmed_video, moving_trimmed)
+    boundary_photo_delta = max(_luma_delta(early_photo, first_photo),
+                               _luma_delta(late_photo, first_photo))
+    boundary_offer_delta = _luma_delta(early_offer, offer_photo)
+    boundary_video_separation = min(
+        _luma_delta(early_trimmed_video, first_photo),
+        _luma_delta(early_trimmed_video, offer_photo))
     if not (2.0 < video_pair < .65 * cross and
-            photo_pair >= 10.0 and cross >= 12.0):
+            photo_pair >= 10.0 and cross >= 12.0 and
+            motion_first >= .25 and motion_trimmed >= .25 and
+            boundary_photo_delta < .65 * photo_pair and
+            boundary_offer_delta < .65 * photo_pair and
+            boundary_video_separation >= .65 * cross):
         raise EditorExportProofError(
             "Actual encoded editor order/inpoint or image distinction regressed")
     return {
@@ -136,6 +160,15 @@ def verify_mock_editor_output(source: Path, *, expected_sha256: str):
         "repeated_source_video_delta": round(video_pair, 3),
         "different_photo_scene_delta": round(photo_pair, 3),
         "minimum_video_vs_photo_delta": round(cross, 3),
+        "first_video_encoded_motion_delta": round(motion_first, 3),
+        "trimmed_video_encoded_motion_delta": round(motion_trimmed, 3),
+        "encoded_motion_threshold": .25,
+        "boundary_probe_times_seconds": [5, 13, 15, 21],
+        "boundary_photo_max_delta": round(boundary_photo_delta, 3),
+        "boundary_offer_delta": round(boundary_offer_delta, 3),
+        "boundary_video_min_separation": round(boundary_video_separation, 3),
+        "boundary_scene_family_verified": True,
+        "exact_transition_frame_verified": False,
         "exact_inpoint_frame_verified": False,
         "human_visual_approval": False,
         "stock_model_product_match_verified": False,

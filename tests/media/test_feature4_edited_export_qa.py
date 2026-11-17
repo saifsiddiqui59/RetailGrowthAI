@@ -22,10 +22,17 @@ class EncodedEditorParityTests(unittest.TestCase):
         self.profile = {"width": 540, "height": 960, "seconds": 30.0}
         self.valid = (bytes([20])*9216, bytes([70])*9216,
                       bytes([24])*9216, bytes([120])*9216)
+        # Source fixture-only split editor motion and near-cut probes.
+        self.split_probes = (bytes([21])*9216, bytes([25])*9216,
+                             bytes([70])*9216, bytes([70])*9216,
+                             bytes([24])*9216, bytes([120])*9216)
 
-    def prove(self, frames=None):
+    def prove(self, frames=None, *, motion=None, boundary=None):
+        decoded = list(self.valid if frames is None else frames)
+        decoded += list(self.split_probes[:2] if motion is None else motion)
+        decoded += list(self.split_probes[2:] if boundary is None else boundary)
         with patch.object(qa, "inspect_mp4", return_value=self.profile), \
-             patch.object(qa, "_frame", side_effect=list(frames or self.valid)):
+             patch.object(qa, "_frame", side_effect=decoded):
             return verify_mock_editor_output(
                 self.file,
                 expected_sha256=hashlib.sha256(self.file.read_bytes()).hexdigest())
@@ -36,6 +43,10 @@ class EncodedEditorParityTests(unittest.TestCase):
         self.assertEqual(proof["source_sha256"],
                          hashlib.sha256(self.file.read_bytes()).hexdigest())
         self.assertFalse(proof["exact_inpoint_frame_verified"])
+        self.assertEqual(proof["first_video_encoded_motion_delta"], 1)
+        self.assertEqual(proof["trimmed_video_encoded_motion_delta"], 1)
+        self.assertTrue(proof["boundary_scene_family_verified"])
+        self.assertFalse(proof["exact_transition_frame_verified"])
         self.assertFalse(proof["human_visual_approval"])
         self.assertFalse(proof["commercial_release_eligible"])
 
@@ -47,8 +58,41 @@ class EncodedEditorParityTests(unittest.TestCase):
                  self.assertRaises(EditorExportProofError):
                 self.prove(frames)
 
+    def test_malformed_decoded_frames_cannot_pass_pixel_parity(self):
+        # Original F4-04 #723 negative cases, retained alongside duplicate QA.
+        v1, p1, v2, p2 = self.valid
+        for name, frames in (
+            ("truncated-first-video", (v1[:-1], p1, v2, p2)),
+            ("oversized-product-frame", (v1, p1 + b"\x00", v2, p2)),
+            ("wrong-decoder-type", (v1, p1, bytearray(v2), p2)),
+            ("empty-frame", (v1, p1, b"", p2)),
+        ):
+            with self.subTest(case=name), self.assertRaisesRegex(
+                    EditorExportProofError, "Malformed encoded editor grayscale frame"):
+                self.prove(frames)
+
+    def test_frozen_source_video_segments_are_denied(self):
+        first, photo, trimmed, offer = self.valid
+        moving_first, moving_trimmed = self.split_probes[:2]
+        for motion in ((first, moving_trimmed), (moving_first, trimmed), (first, trimmed)):
+            with self.subTest(motion=motion[0][0]), self.assertRaisesRegex(
+                    EditorExportProofError, "order/inpoint"):
+                self.prove(motion=motion)
+
+    def test_delayed_or_replaced_cut_boundary_frames_denied(self):
+        video, product, trimmed, offer = self.valid
+        for name, probes in (
+            ("first photo starts late", (video, product, trimmed, offer)),
+            ("first photo ends early", (product, offer, trimmed, offer)),
+            ("second video starts late", (product, product, product, offer)),
+            ("offer starts late", (product, product, trimmed, product)),
+        ):
+            with self.subTest(name=name), self.assertRaisesRegex(
+                    EditorExportProofError, "order/inpoint"):
+                self.prove(boundary=probes)
+
     def test_mutated_input_and_wrong_duration_denied(self):
-        frames = list(self.valid)
+        frames = list(self.valid) + list(self.split_probes)
         def decode(src, at):
             if at == 2.0:
                 with self.file.open("ab") as handle:
@@ -79,7 +123,7 @@ class EncodedEditorParityTests(unittest.TestCase):
                     self.file, expected_sha256=hashlib.sha256(self.file.read_bytes()).hexdigest())
 
     def test_same_byte_atomic_inode_swap_during_decoding_is_denied(self):
-        frames = list(self.valid)
+        frames = list(self.valid) + list(self.split_probes)
         original = self.file.read_bytes()
 
         def decode(_source, at):
