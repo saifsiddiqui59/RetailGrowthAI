@@ -8,28 +8,29 @@
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "96ccb66d-9210-8330-bee5-8b5b1bcf9f6d",
+      "last_run_id": "77781655-f510-8330-8f4f-48cb4a8712ac",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T03:24:33.786879Z",
-      "last_end_utc": "2026-11-17T03:25:09.676491Z",
-      "duration_seconds": 35.89,
-      "reported_code_commits": 1,
+      "last_start_utc": "2026-11-17T04:29:04.450512Z",
+      "last_end_utc": "2026-11-17T04:29:17.955022Z",
+      "duration_seconds": 13.505,
+      "reported_code_commits": 0,
       "local_tests_verified": 0,
       "last_pr": 917,
       "last_head": "32cacb8a52b98e83e20afeb18645d2a2ecc54d0a",
       "pr_state": "open",
       "pr_mergeable": true,
-      "verified_code_commits": 1,
+      "verified_code_commits": 0,
       "ci_run_id": 44010051857,
-      "ci_status": "PASS"
+      "ci_status": "UNKNOWN_NOT_REVERIFIED",
+      "classification": "REVIEW_BLOCKED"
     },
     "schedule-f3": {
       "automation_id": "6ae731649368819198cd8ceea7a15a60",
-      "last_run_id": "43b8d79c-669c-832d-be94-510ae8bada50",
+      "last_run_id": "99b798b3-6164-8324-9798-c53406b35191",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T03:35:42.864791Z",
-      "last_end_utc": "2026-11-17T03:36:02.299646Z",
-      "duration_seconds": 19.44,
+      "last_start_utc": "2026-11-17T04:37:11.128731Z",
+      "last_end_utc": "2026-11-17T04:37:24.961970Z",
+      "duration_seconds": 13.833,
       "reported_code_commits": 0,
       "local_tests_verified": 0,
       "last_pr": 944,
@@ -38,15 +39,16 @@
       "pr_mergeable": true,
       "verified_code_commits": 0,
       "ci_run_id": 43996652354,
-      "ci_status": "PREVIOUS_PASS_NOT_REVERIFIED"
+      "ci_status": "UNKNOWN_NOT_REVERIFIED",
+      "classification": "REVIEW_BLOCKED"
     },
     "schedule-f4": {
       "automation_id": "6af396f7239481918480cfed86af4b2c",
-      "last_run_id": "36d6688e-93a0-8324-910f-c825c7b3d951",
+      "last_run_id": "9e8dfc89-d3ac-832f-ba12-04b86c554cec",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T03:40:25.498852Z",
-      "last_end_utc": "2026-11-17T03:40:45.447174Z",
-      "duration_seconds": 19.95,
+      "last_start_utc": "2026-11-17T04:43:30.607925Z",
+      "last_end_utc": "2026-11-17T04:43:47.902542Z",
+      "duration_seconds": 17.295,
       "reported_code_commits": 0,
       "local_tests_verified": 0,
       "last_pr": 779,
@@ -55,15 +57,16 @@
       "pr_mergeable": false,
       "verified_code_commits": 0,
       "ci_run_id": 43999413216,
-      "ci_status": "PREVIOUS_PASS_NOT_REVERIFIED"
+      "ci_status": "UNKNOWN_NOT_REVERIFIED",
+      "classification": "REVIEW_BLOCKED"
     },
     "schedule-f7": {
       "automation_id": "6af396facd5c8191a5add51a377f199c",
-      "last_run_id": "228bee85-c894-8320-af77-4baa1611409a",
+      "last_run_id": "7ab7860b-e884-832b-93aa-489d554f90a5",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T03:15:02.098986Z",
-      "last_end_utc": "2026-11-17T03:15:21.677628Z",
-      "duration_seconds": 19.58,
+      "last_start_utc": "2026-11-17T04:07:30.847540Z",
+      "last_end_utc": "2026-11-17T04:07:47.512591Z",
+      "duration_seconds": 16.665,
       "reported_code_commits": 0,
       "local_tests_verified": 0,
       "last_pr": 513,
@@ -72,7 +75,8 @@
       "pr_mergeable": false,
       "verified_code_commits": 0,
       "ci_run_id": 43985240207,
-      "ci_status": "PREVIOUS_PASS_NOT_REVERIFIED"
+      "ci_status": "UNKNOWN_NOT_REVERIFIED",
+      "classification": "REVIEW_BLOCKED"
     }
   },
   "history": [
@@ -171,6 +175,58 @@
       "duration_seconds": 19.58,
       "verified_code_test_commits": 0,
       "ci": "previous checkpoint; not reverified"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "77781655-f510-8330-8f4f-48cb4a8712ac",
+      "started_at": "2026-11-17T04:29:04.450512Z",
+      "completed_at": "2026-11-17T04:29:17.955022Z",
+      "duration_seconds": 13.505,
+      "verified_code_test_commits": 0,
+      "local_tests_verified": 0,
+      "ci": "UNKNOWN (current-head jobs not reverified)",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "automation summary reports zero code/test commits; no local test execution"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f3",
+      "run_id": "99b798b3-6164-8324-9798-c53406b35191",
+      "started_at": "2026-11-17T04:37:11.128731Z",
+      "completed_at": "2026-11-17T04:37:24.961970Z",
+      "duration_seconds": 13.833,
+      "verified_code_test_commits": 0,
+      "local_tests_verified": 0,
+      "ci": "UNKNOWN (current-head jobs not reverified)",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "automation summary reports zero code/test commits; no local test execution"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f4",
+      "run_id": "9e8dfc89-d3ac-832f-ba12-04b86c554cec",
+      "started_at": "2026-11-17T04:43:30.607925Z",
+      "completed_at": "2026-11-17T04:43:47.902542Z",
+      "duration_seconds": 17.295,
+      "verified_code_test_commits": 0,
+      "local_tests_verified": 0,
+      "ci": "UNKNOWN (current-head jobs not reverified)",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "automation summary reports zero code/test commits; no local test execution"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f7",
+      "run_id": "7ab7860b-e884-832b-93aa-489d554f90a5",
+      "started_at": "2026-11-17T04:07:30.847540Z",
+      "completed_at": "2026-11-17T04:07:47.512591Z",
+      "duration_seconds": 16.665,
+      "verified_code_test_commits": 0,
+      "local_tests_verified": 0,
+      "ci": "UNKNOWN (current-head jobs not reverified)",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "automation summary reports zero code/test commits; no local test execution"
     }
   ]
 }
