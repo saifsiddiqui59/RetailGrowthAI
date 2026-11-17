@@ -377,6 +377,22 @@ class WorkerHandoffTests(unittest.TestCase):
         self.assertEqual(self.media.uploads, [])
 
 
+    def test_claim_revoked_after_staging_never_reaches_cpu_renderer(self):
+        # New parent checks lease before/after bundle and after download;\n        # fourth check just before render simulates a post-staging loss.
+        self.admin.claim_checks = 0
+        def current(_claim):
+            self.admin.claim_checks += 1
+            return self.admin.claim_checks <= 3
+        self.admin.feature4_claim_current = current
+        def forbidden_render(*args):
+            self.fail("stale post-staging claim must never start CPU renderer")
+        self.assertEqual(process_feature4_render(
+            JOB, self.admin, self.media, render_fn=forbidden_render), "STALE")
+        self.assertEqual(len(self.media.downloads), 1)
+        self.assertEqual(self.media.uploads, [])
+        self.assertEqual(self.admin.completions, [])
+        self.assertEqual(self.admin.failures, [])
+
     def test_same_content_inode_replacement_during_hash_is_rejected(self):
         # A stable open FD still reads old bytes after same-content os.replace.
         with tempfile.TemporaryDirectory(prefix="f4-inode-") as folder:

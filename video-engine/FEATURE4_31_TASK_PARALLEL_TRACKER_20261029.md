@@ -156,3 +156,6 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 
 ### 2026-11-17 — #799 negative-fixture CI repair
 - After strict unchanged-bytes render-stage guard, two existing malformed media/symlink negatives required distinct invalid source/master/preview bytes. Test-only repair retains the security guard; exact-head CI pending. F4-02 still IN PROGRESS.
+
+### 2026-11-17 — #828 last unique pre-render lease regression ported
+- Added original F4-15 `test_claim_revoked_after_staging_never_reaches_cpu_renderer` to parent with current four-stage claim validation, testing postdownload pre-render claim revocation. All 12 original #828 source/test paths audited, four handoffs retained exactly. Parent CI and main/hosted acceptance pending, F4-05/11/15 IN PROGRESS.
