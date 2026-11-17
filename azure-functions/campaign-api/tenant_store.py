@@ -9,7 +9,7 @@ import json
 import re
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 from uuid import UUID
 
 from security import AuthenticationError
@@ -36,13 +36,25 @@ def canonical_uuid(value):
         raise ValueError("invalid UUID") from exc
 
 
+class _RejectRedirects(HTTPRedirectHandler):
+    """Never forward a verified user's JWT or Supabase API key to a redirect."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_NO_REDIRECT_OPENER = build_opener(_RejectRedirects())
+
+
 class TenantStore:
     def __init__(self, origin: str, publishable_key: str, transport=None):
         if not origin.startswith("https://") or not publishable_key:
             raise ValueError("Supabase HTTPS origin and publishable key required")
         self.origin = origin.rstrip("/")
         self.key = publishable_key
-        self.transport = transport or urlopen
+        # Public PostgREST uses the *user* Bearer token; default urlopen
+        # follows HTTP redirects, including to a different origin.
+        # Keep explicitly injected transports for isolated offline fixtures.
+        self.transport = transport if transport is not None else _NO_REDIRECT_OPENER.open
 
     def _request(self, table, token, *, query=None, method="GET", data=None):
         if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs", "poster_drafts", "poster_jobs", "business_profiles", "shop_content_drafts", "feature3_gpu_jobs"}:
