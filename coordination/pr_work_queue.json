@@ -13,15 +13,15 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 38,
+    "open_prs": 36,
     "by_feature": {
-      "F2": 10,
-      "F3": 4,
-      "F4": 3,
-      "F5": 5,
-      "F7": 1,
+      "shared": 5,
       "issue249": 10,
-      "shared": 5
+      "F3": 3,
+      "F2": 10,
+      "F4": 2,
+      "F5": 5,
+      "F7": 1
     }
   },
   "entries": [
@@ -42,7 +42,7 @@
       "pr": 966,
       "title": "docs(integration): F4 source reconciliation and 15 deduplicated drafts",
       "feature": "shared",
-      "head_sha": "2199c0da8b8f531a2a9d8cf0364e4e69796a7f8d",
+      "head_sha": "51ece50cf4b9337dbe618c288597c459df756db8",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
@@ -55,7 +55,7 @@
       "pr": 965,
       "title": "fix(#249): restore Feature2 JWT verifier construction after warm-cache integration",
       "feature": "issue249",
-      "head_sha": "4b75a0b2eb8cc8d77d5a4e710e22f6a8fda93d60",
+      "head_sha": "5790d4fcd787800455707d58dafd82a953281fe4",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P2",
@@ -81,7 +81,7 @@
       "pr": 955,
       "title": "docs(#249): checkpoint manual-only Y1 trial and JWT cache source work",
       "feature": "issue249",
-      "head_sha": "32409c3775222820f153634c436c942571ddb079",
+      "head_sha": "62a3cdf83f93034f92a1cf4c26a09f4dede3da1f",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P0",
@@ -312,19 +312,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/879"
     },
     {
-      "pr": 873,
-      "title": "docs(feature3): record F3-13 PR #872 verified main CI and review gap",
-      "feature": "F3",
-      "head_sha": "8cdbe41dab9e8a1f5c2c60003bb2de7ede099ce9",
-      "base_branch": "main",
-      "work_owner": "schedule-f3",
-      "priority": "P0",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/873"
-    },
-    {
       "pr": 848,
       "title": "feat(feature2): consolidate existing Creative Director source PRs for coordinator review",
       "feature": "F2",
@@ -349,19 +336,6 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/779"
-    },
-    {
-      "pr": 733,
-      "title": "fix(feature4): seek muted source footage with timeline frame jog (F4-08)",
-      "feature": "F4",
-      "head_sha": "3e5db8ede75833d765a92fc07218bc9c2b997b57",
-      "base_branch": "feat/feature4-professional-video-studio",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/733"
     },
     {
       "pr": 724,
@@ -567,7 +541,7 @@
       "pr": 322,
       "title": "WIP Feature #4 — Timeline Studio engine (illustrated demo rejected; visual QA open)",
       "feature": "F4",
-      "head_sha": "0dc51722b333b7908c22ca59d65fcafc2e0dc168",
+      "head_sha": "b9525a9ea3d5e5aee351edf89a3c011c2314ed2e",
       "base_branch": "main",
       "work_owner": "schedule-f4",
       "priority": "P0",
