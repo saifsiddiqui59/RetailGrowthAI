@@ -8,11 +8,11 @@
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "1e9096b8-fa98-832c-a48d-d37cbe484854",
+      "last_run_id": "8f2bd658-8730-8328-9cb4-a447dc2b0ea5",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T19:29:36.243905Z",
-      "last_end_utc": "2026-11-17T19:30:21.755841Z",
-      "duration_seconds": 45.51,
+      "last_start_utc": "2026-11-17T20:28:10.226861Z",
+      "last_end_utc": "2026-11-17T20:28:45.544466Z",
+      "duration_seconds": 35.318,
       "reported_code_commits": 0,
       "local_tests_verified": null,
       "last_pr": 917,
@@ -108,19 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f7",
-      "run_id": "96146c56-ddbc-832a-9c7b-222c050718df",
-      "started_at": "2026-11-17T11:12:54.670083Z",
-      "completed_at": "2026-11-17T11:13:15.831166Z",
-      "duration_seconds": 21.161,
-      "verified_code_test_commits": 0,
-      "local_tests_verified": 0,
-      "ci": "UNKNOWN (all-trigger exact-head jobs not independently verified)",
-      "classification": "NO_CHANGE",
-      "evidence": "No new exact-head code/test commits verified; last run summary not treated as proof"
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f2",
@@ -408,6 +395,19 @@
       "ci": "latest CANCELLED 3/4; earlier push PASS 4/4 #44012067977",
       "classification": "REVIEW_BLOCKED",
       "evidence": "Distinct run observed; source/test commits not independently established; exact-head Part 1 CI jobs checked; inherited/null executor environment."
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "8f2bd658-8730-8328-9cb4-a447dc2b0ea5",
+      "started_at": "2026-11-17T20:28:10.226861Z",
+      "completed_at": "2026-11-17T20:28:45.544466Z",
+      "duration_seconds": 35.318,
+      "verified_code_test_commits": null,
+      "local_tests_verified": null,
+      "ci": "PASS 4/4 exact-head push #44010051857",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "Distinct automation run; 0 source/test commits self-reported, no independently new SHA established; exact-head four CI jobs verified. Inherited environment selection, environments null."
     }
   ],
   "current_review_gates": {
