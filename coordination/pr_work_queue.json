@@ -98,31 +98,16 @@
       "base_branch": "feat/feature3-f3-08-current-rights-attestation-20261106",
       "work_owner": "schedule-f3",
       "priority": "P0",
-      "phase": "blocked",
-      "claim": {
-        "owner": "schedule-f3",
-        "head_sha": "7a44c4b0837526f79207c848813cb0206781e9cb",
-        "claimed_at": "2026-11-17T01:34:53.463Z",
-        "expires_at": "2026-11-17T03:04:53.463Z"
-      },
+      "phase": "ready-for-review",
+      "claim": null,
       "checkpoint": {
         "owner": "schedule-f3",
-        "at": "2026-11-15T15:32:14.818Z",
-        "head_before": "40741ff1038affb2257159695c3888c77073ca60",
-        "head_after": "3c1135f27f9a89e41e9e68c7909d8fe7c7b19d53",
-        "commits": [
-          "02a00856d2fd990aa1804b2ef67a7f985a7e76da",
-          "3c1135f27f9a89e41e9e68c7909d8fe7c7b19d53"
-        ],
-        "files_changed": [
-          "azure-functions/campaign-api/feature3_private_png_http_adapter.py",
-          "tests/api/test_feature3_private_png_http_adapter.py"
-        ],
-        "tests": "Synthetic regression added; targeted tests NOT EXECUTED (no checkout/test runner in this run)",
-        "ci": "Exact-head workflow runs [] and commit statuses []; mandatory 4/4 NOT VERIFIED",
-        "blockers": "Authenticated Azure Functions route and trusted rights integration pending; exact-head CI and independent security review missing",
-        "next_action": "Run python -m unittest tests/api/test_feature3_private_png_http_adapter.py in full checkout; fix failures; wire secure route and verify exact-head 4/4",
-        "status": "worker-reported; NOT DONE"
+        "at": "2026-11-17T02:40:00Z",
+        "head_after": "7a44c4b0837526f79207c848813cb0206781e9cb",
+        "ci": "RetailGrowthAI Part 1 CI push run #43996652354 SUCCESS 4/4 exact-head",
+        "tests": "Remote CI verified; local tests not run in this invocation",
+        "status": "SOURCE ONLY, review/rights-gated, NOT merged or hosted verified",
+        "next_action": "Independent tenant/auth/rights security review; manual integration after dependency checks"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/944"
     },
