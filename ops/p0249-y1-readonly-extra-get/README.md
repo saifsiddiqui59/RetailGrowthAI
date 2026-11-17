@@ -14,6 +14,10 @@ All three use strict GET-only v1 manifests. The original `cached_supabase_verifi
 
 Both `RGAI_P0249_READONLY_SHADOW=true` **and a separate NEW flag** `RGAI_P0249_EXTRA_GET_SHADOW=true` are required, along with `RETAIL_SUPABASE_URL` and its public **publishable** key. This second flag is absent from existing Y1 and **not included in protected trial #939**. Without both flags the source returns fixed handler-marked `503 SERVICE_NOT_CONFIGURED` to properly shaped Bearer credentials; without Bearer it returns `401 UNAUTHORIZED` before importing JWT/DB or checking config. Invalid UUID returns fixed `400 INVALID_REQUEST`. No acceptance claim from synthetic 404s without authenticated user/tenant data.
 
+## Verified source checks (no hosted acceptance)
+
+`tests/infra/test_p0249_y1_extra_get_source.py` covers strict GET-only manifests, literal paths, canonical UUIDs, no-Bearer 401, both flags OFF 503, existing adapter composition without privileged key or queue, deferred JWT import, and sanitized 405/500 responses. `tests/infra/test_p0249_y1_extra_get_signed_two_shop.py` runs real original cryptographic JWT verification plus original HTTPAPI/RLS-aware TenantStore and render/poster status handlers against a fully synthetic signed two-shop fake PostgREST transport. It checks own-shop 200, deliberately leaked foreign-row 404, immediate membership revocation, invalid JWT claims/signature and **GET-only transport**. No real GoTrue users, Postgres rows or tokens are created; this is offline evidence only. Exact PR-head four-job CI remains mandatory.
+
 ## Required steps before any rollout
 
 1. After current Y1 signed Auth-only 240s idle test is independently reviewed and genuinely passes with both disposable users, review these three new route sources and the original JWT/RLS, poster, job, and tenant requirements with affected leads. A source-only PR with four green CI jobs **is not** permission to deploy.
