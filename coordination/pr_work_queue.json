@@ -221,8 +221,13 @@
       "base_branch": "feat/feature2-source-batch-8pr-consolidation-20261030",
       "work_owner": "schedule-f2",
       "priority": "P1",
-      "phase": "draft",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "schedule-f2",
+        "head_sha": "f8700c366f12884b10bf77a51ed58a39e91a3316",
+        "claimed_at": "2026-11-17T03:26:00Z",
+        "expires_at": "2026-11-17T04:56:00Z"
+      },
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/917"
     },
