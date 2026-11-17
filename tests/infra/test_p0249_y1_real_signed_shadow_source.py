@@ -77,11 +77,58 @@ class RealSignedY1SafetyTests(unittest.TestCase):
              patch.object(trial, "y1_read", side_effect=shadow_get) as request, \
              patch.object(trial.helper, "request",
                           return_value=(200, {"keys": [{"alg": "RS256"}]}, None, 0.2)), \
-             patch.object(trial.helper, "owner_only_cleanup") as cleaned:
+             patch.object(trial.helper, "owner_only_cleanup") as cleaned, \
+             patch.object(trial.time, "sleep") as idle:
             trial.main()
         self.assertEqual(created.call_count, 2)
         self.assertEqual(cleaned.call_count, 2)
-        self.assertEqual(request.call_count, 9)
+        self.assertEqual(request.call_count, 11)
+        idle.assert_called_once_with(240)
+
+    def test_failed_signed_get_after_idle_still_cleans_both_users(self):
+        accounts = [
+            ("rgai-p0249-jwt-" + "a" * 16, "11111111-1111-4111-8111-111111111111", "a.b.c"),
+            ("rgai-p0249-jwt-" + "b" * 16, "22222222-2222-4222-8222-222222222222", "a.b.d"),
+        ]
+        calls = [("fake-but-wellformed-jwt", 401)]
+        # The ordinary pre-idle successful sequence is three 404s then a 401
+        # for each of the two genuine (mocked) user tokens.
+        def read(token):
+            if token == "fake-but-wellformed-jwt" or token.endswith(".A"):
+                return 401, True, {"error": "UNAUTHORIZED"}, 0.2
+            read.user_calls += 1
+            if read.user_calls == 8:
+                return 503, False, None, 18.0
+            return 404, True, {"error": "NOT_FOUND"}, 0.3
+        read.user_calls = 0
+        with patch.object(trial, "create_test_user", side_effect=accounts), \
+             patch.object(trial, "y1_read", side_effect=read), \
+             patch.object(trial.helper, "request",
+                          return_value=(200, {"keys": [{"alg": "ES256"}]}, None, 0.2)), \
+             patch.object(trial.helper, "owner_only_cleanup") as cleaned, \
+             patch.object(trial.time, "sleep") as idle, \
+             self.assertRaisesRegex(RuntimeError, "after 240s idle"):
+            trial.main()
+        self.assertEqual(cleaned.call_count, 2)
+        idle.assert_called_once_with(240)
+
+    def test_expiring_test_jwt_is_rejected_before_idle_soak_and_cleaned(self):
+        uid = "11111111-1111-4111-8111-111111111111"
+        email_request = None
+        def request(url, **kwargs):
+            nonlocal email_request
+            if url.endswith("/auth/v1/admin/users"):
+                email_request = kwargs["data"]["email"]
+                return 201, {"id": uid, "email": email_request}, None, 0.2
+            return 200, {"access_token": "a.b.c"}, None, 0.2
+        with patch.object(trial.helper, "request", side_effect=request), \
+             patch.object(trial.helper, "jwt_claims_for_local_shape_only",
+                          return_value={"sub": uid, "exp": int(trial.time.time()) + 40}), \
+             patch.object(trial.helper, "owner_only_cleanup") as cleaned, \
+             self.assertRaisesRegex(RuntimeError, "expires before bounded idle soak"):
+            trial.create_test_user("sb_secret_" + "x" * 42, trial.helper.PUBLIC)
+        cleaned.assert_called_once()
+        self.assertTrue(email_request.endswith("@example.invalid"))
 
     def test_failed_signed_read_cleans_disposable_account(self):
         with patch.object(trial, "create_test_user", return_value=(
