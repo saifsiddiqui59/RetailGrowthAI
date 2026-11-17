@@ -96,6 +96,26 @@ class EncodedEditorParityTests(unittest.TestCase):
                     EditorExportProofError, "Malformed encoded editor grayscale frame"):
                 self.prove(frames)
 
+    def test_frozen_source_video_segments_are_denied(self):
+        first, photo, trimmed, offer = self.valid
+        moving_first, moving_trimmed = self.split_probes[:2]
+        for motion in ((first, moving_trimmed), (moving_first, trimmed), (first, trimmed)):
+            with self.subTest(motion=motion[0][0]), self.assertRaisesRegex(
+                    EditorExportProofError, "order/inpoint"):
+                self.prove(motion=motion)
+
+    def test_delayed_or_replaced_cut_boundary_frames_denied(self):
+        video, product, trimmed, offer = self.valid
+        for name, probes in (
+            ("first photo starts late", (video, product, trimmed, offer)),
+            ("first photo ends early", (product, offer, trimmed, offer)),
+            ("second video starts late", (product, product, product, offer)),
+            ("offer starts late", (product, product, trimmed, product)),
+        ):
+            with self.subTest(name=name), self.assertRaisesRegex(
+                    EditorExportProofError, "order/inpoint"):
+                self.prove(boundary=probes)
+
     def test_mutated_input_and_wrong_duration_denied(self):
         frames = list(self.valid) + list(self.split_probes)
         def decode(src, at):
