@@ -8,11 +8,11 @@
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "b8c13c58-0750-832c-b55a-f300d0f73c85",
+      "last_run_id": "1e9096b8-fa98-832c-a48d-d37cbe484854",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T18:23:13.301379Z",
-      "last_end_utc": "2026-11-17T18:23:41.732517Z",
-      "duration_seconds": 28.431,
+      "last_start_utc": "2026-11-17T19:29:36.243905Z",
+      "last_end_utc": "2026-11-17T19:30:21.755841Z",
+      "duration_seconds": 45.51,
       "reported_code_commits": 0,
       "local_tests_verified": null,
       "last_pr": 917,
@@ -58,11 +58,11 @@
     },
     "schedule-f4": {
       "automation_id": "6af396f7239481918480cfed86af4b2c",
-      "last_run_id": "1ca21026-dbcc-8320-8aa1-fad0e724b2c9",
+      "last_run_id": "f22102f3-892c-832b-b137-3cb77eaace51",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T17:43:23.970939Z",
-      "last_end_utc": "2026-11-17T17:44:00.682800Z",
-      "duration_seconds": 36.71,
+      "last_start_utc": "2026-11-17T18:41:42.577114Z",
+      "last_end_utc": "2026-11-17T18:42:12.370374Z",
+      "duration_seconds": 29.79,
       "reported_code_commits": 0,
       "local_tests_verified": null,
       "last_pr": 322,
@@ -72,10 +72,10 @@
       "verified_code_commits": null,
       "ci_run_id": 44012074650,
       "ci_status": "latest CANCELLED 3/4; earlier push PASS 4/4 #44012067977",
-      "classification": "NO_CODING_TARGET",
+      "classification": "REVIEW_BLOCKED",
       "ci_latest_run_id": 44012074650,
       "ci_latest_status": "latest CANCELLED 3/4; earlier push PASS 4/4 #44012067977",
-      "automation_enabled": true,
+      "automation_enabled": false,
       "executor_status": "EXECUTOR_NOT_PROVISIONED",
       "executor_type": "GITHUB_CONNECTOR_ONLY",
       "environment_selection": "inherited",
@@ -108,32 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f3",
-      "run_id": "0b9bc813-4290-8323-9b8c-8e41ebd915d0",
-      "started_at": "2026-11-17T11:33:15.612289Z",
-      "completed_at": "2026-11-17T11:33:38.743237Z",
-      "duration_seconds": 23.131,
-      "verified_code_test_commits": 0,
-      "local_tests_verified": 0,
-      "ci": "UNKNOWN (all-trigger exact-head jobs not independently verified)",
-      "classification": "NO_CHANGE",
-      "evidence": "No new exact-head code/test commits verified; last run summary not treated as proof"
-    },
-    {
-      "event": "worker_run",
-      "owner": "schedule-f4",
-      "run_id": "f5769efd-fad8-832e-9147-db3fc7ddc9d0",
-      "started_at": "2026-11-17T11:47:04.753085Z",
-      "completed_at": "2026-11-17T11:47:24.176237Z",
-      "duration_seconds": 19.423,
-      "verified_code_test_commits": 0,
-      "local_tests_verified": 0,
-      "ci": "UNKNOWN (all-trigger exact-head jobs not independently verified)",
-      "classification": "NO_CHANGE",
-      "evidence": "No new exact-head code/test commits verified; last run summary not treated as proof"
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f7",
@@ -408,6 +382,32 @@
       "ci": "PASS 4/4 exact-head push #44010051857",
       "classification": "REVIEW_BLOCKED",
       "evidence": "Run observed; no new source/test commit metadata established; exact-head four jobs verified; inherited/null executor environment."
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "1e9096b8-fa98-832c-a48d-d37cbe484854",
+      "started_at": "2026-11-17T19:29:36.243905Z",
+      "completed_at": "2026-11-17T19:30:21.755841Z",
+      "duration_seconds": 45.51,
+      "verified_code_test_commits": null,
+      "local_tests_verified": null,
+      "ci": "PASS 4/4",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "Distinct run observed; source/test commits not independently established; exact-head Part 1 CI jobs checked; inherited/null executor environment."
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f4",
+      "run_id": "f22102f3-892c-832b-b137-3cb77eaace51",
+      "started_at": "2026-11-17T18:41:42.577114Z",
+      "completed_at": "2026-11-17T18:42:12.370374Z",
+      "duration_seconds": 29.79,
+      "verified_code_test_commits": null,
+      "local_tests_verified": null,
+      "ci": "latest CANCELLED 3/4; earlier push PASS 4/4 #44012067977",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "Distinct run observed; source/test commits not independently established; exact-head Part 1 CI jobs checked; inherited/null executor environment."
     }
   ],
   "current_review_gates": {
