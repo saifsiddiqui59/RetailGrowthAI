@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-17T13:03:51.719Z",
+  "last_written_at": "2026-11-17T13:05:55.351Z",
   "last_inventory_count": 36,
   "last_inventory_checked_at": "2026-11-17T04:02:00Z",
   "owners": {
@@ -415,24 +415,34 @@
       "head": "c1d66e9b3903",
       "ci_run": 43999413216,
       "ci": "4/4 PASS",
-      "status": "draft, mergeable=false; manual integration #779 and #322 visual QA",
-      "paused": true,
-      "eligible_for_auto_resume": false
+      "status": "source task reactivated; independent review/integration still pending",
+      "paused": false,
+      "eligible_for_auto_resume": false,
+      "scheduler_reenabled_at_utc": "2026-11-17T13:05:55.351Z",
+      "next_source_task": "F4-01 native 60s test acceptance",
+      "target_existing_pr": 322,
+      "source_acceptance_unverified": true
     },
     "feature7": {
       "pr": 513,
       "head": "eb9df22f3460",
       "ci_run": 43985240207,
       "ci": "4/4 PASS",
-      "status": "mergeable=false, 521 commits, 132 changed files; manual integration/security review",
-      "paused": true,
-      "eligible_for_auto_resume": false
+      "status": "source task reactivated; independent review/integration still pending",
+      "paused": false,
+      "eligible_for_auto_resume": false,
+      "scheduler_reenabled_at_utc": "2026-11-17T13:05:55.351Z",
+      "next_source_task": "F7-G/F7-AC bounded CPU negative tests",
+      "target_existing_pr": 513,
+      "source_acceptance_unverified": true
     }
   },
   "execution_environment": {
     "persistent_executor_configured": false,
     "reason": "Automations currently inherit unspecified environment; scheduler tool cannot provision persistent developer checkout",
     "fallback": "GitHub connector file-edit + GitHub Actions CI",
-    "limits": "Runtime duration cannot be controlled by automation prompt"
+    "limits": "Runtime duration cannot be controlled by automation prompt",
+    "source_execution": "GitHub connector + GitHub Actions",
+    "scheduler_run_duration_uncontrolled": true
   }
 }
