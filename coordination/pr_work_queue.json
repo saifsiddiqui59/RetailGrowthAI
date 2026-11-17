@@ -291,9 +291,16 @@
       "base_branch": "main",
       "work_owner": "schedule-f3",
       "priority": "P0",
-      "phase": "needs-triage",
+      "phase": "ready-for-review",
       "claim": null,
-      "checkpoint": null,
+      "checkpoint": {
+        "owner": "schedule-f3",
+        "head_after": "141860508c1d4592b5fecfcbe0bce9f931a1bfda",
+        "ci": "Exact-head push #43595771999 SUCCESS 4/4; PR #43595775074 SUCCESS",
+        "tests": "Remote CI only; local tests not run",
+        "status": "F3-08 SOURCE ONLY; independent security/rights review and manual integration required",
+        "next_action": "Manual integration reconcile #879 canonical adapter, #880 rights/route and #944 verifier; maintain tenant gates; hosted acceptance separate"
+      },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/880"
     },
     {
