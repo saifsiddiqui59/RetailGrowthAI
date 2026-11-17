@@ -173,5 +173,54 @@ class Feature4MasterTests(unittest.TestCase):
             audio_master._write_private_receipt(report,payload)
         self.assertEqual(__import__("json").loads(report.read_text()),payload)
 
+
+    def test_proof_fsync_failure_removes_only_owned_partial(self):
+        report=self.root/"failed-fsync.json"
+        with patch.object(audio_master.os,"fsync",side_effect=OSError("durability failure")):
+            with self.assertRaisesRegex(AudioMasterError, "safely create"):
+                audio_master._write_private_receipt(report,{"status":"NOT_PUBLISHED"})
+        self.assertFalse(report.exists())
+
+    def test_private_receipt_replacement_is_never_unlinked(self):
+        report=self.root/"race-receipt.json"
+        foreign=self.root/"foreign.json"
+        def replace_and_fail(*_args, **_kwargs):
+            foreign.write_text("another tenant receipt",encoding="utf-8")
+            foreign.replace(report)
+            raise OSError("write failed after path swap")
+        with patch.object(audio_master.json,"dump",side_effect=replace_and_fail):
+            with self.assertRaisesRegex(AudioMasterError,"safely create"):
+                audio_master._write_private_receipt(report,{"status":"TEST_ONLY"})
+        self.assertEqual(report.read_text(encoding="utf-8"),"another tenant receipt")
+
+    def test_unreceipted_master_replacement_is_not_deleted(self):
+        report=self.root/"failed-proof.json"
+        def create_own_master(src,output,*,expected_seconds):
+            Path(output).write_bytes(b"ours-before-replacement"*4)
+            return {"status":"PRIVATE_AUDIO_MASTERED_NOT_PUBLISHED",
+                    "source_audio_mean_db":-28.0,"mastered_audio_mean_db":-16.0}
+        def replace_before_error(*args):
+            foreign=self.root/"foreign-output.mp4"
+            foreign.write_bytes(b"another tenant master"*4)
+            foreign.replace(self.output)
+            raise AudioMasterError("durable proof failed")
+        argv=["master","--source",str(self.source),"--output",str(self.output),
+              "--duration","15","--report",str(report)]
+        with patch.object(sys,"argv",argv), \
+             patch.object(audio_master,"master_private_audio",side_effect=create_own_master), \
+             patch.object(audio_master,"_write_private_receipt",side_effect=replace_before_error):
+            with self.assertRaises(SystemExit) as outcome:
+                audio_master.main()
+            self.assertEqual(outcome.exception.code,2)
+        self.assertEqual(self.output.read_bytes(),b"another tenant master"*4)
+
+    def test_private_receipt_rejects_symlinked_ancestor(self):
+        approved=self.root/"real-parent"/"child"
+        approved.mkdir(parents=True)
+        redirect=self.root/"linked-ancestor"
+        redirect.symlink_to(approved.parent,target_is_directory=True)
+        with self.assertRaises(AudioMasterError):
+            audio_master._check_private_receipt_path(redirect/"child"/"proof.json")
+
 if __name__=="__main__":
     unittest.main()

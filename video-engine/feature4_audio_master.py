@@ -10,6 +10,7 @@ import hashlib
 import json
 import math
 import os
+import stat
 from pathlib import Path
 import re
 import subprocess
@@ -138,27 +139,79 @@ def _check_private_receipt_path(proof: Path):
     proof = Path(proof)
     if (proof.suffix.lower() != ".json" or proof.is_symlink()
             or proof.exists() or not proof.parent.is_dir()
-            or proof.parent.is_symlink()):
+            or any(p.is_symlink() for p in (proof.parent, *proof.parent.parents))):
         raise AudioMasterError("Proof report must be new JSON in a private directory")
 
 
 def _write_private_receipt(proof: Path, report: dict):
     """Exclusive create: an in-flight second writer cannot overwrite another receipt."""
     _check_private_receipt_path(proof)
-    created = False
+    owner_inode = None
     try:
-        # Create in 0600 mode even on hosts with a permissive process umask.
-        # O_EXCL denies competing writers; O_NOFOLLOW rejects a final symlink.
+        # 0600/no-follow/no-clobber from the very first byte, regardless of umask.
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
         fd = os.open(str(proof), flags, 0o600)
-        created = True
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(report, handle, indent=2, allow_nan=False)
-            handle.write("\n")
+        try:
+            opened = os.fstat(fd)
+            owner_inode = (opened.st_dev, opened.st_ino)
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(report, handle, indent=2, allow_nan=False)
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())  # Never acknowledge undurable receipt bytes.
+        except BaseException:
+            # fdopen owns and closes the descriptor only after successful setup.
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+            raise
     except (OSError, TypeError, ValueError) as exc:
-        if created:
-            proof.unlink(missing_ok=True)
+        # Another writer may have replaced the path during an interrupted write.
+        # Only unlink a regular file still matching our exclusive inode.
+        if owner_inode is not None:
+            try:
+                current = proof.lstat()
+                if (stat.S_ISREG(current.st_mode)
+                        and (current.st_dev, current.st_ino) == owner_inode):
+                    proof.unlink()
+            except OSError:
+                pass
         raise AudioMasterError("Could not safely create private audio proof") from exc
+
+
+def _master_output_identity(path):
+    """A failed receipt may delete only its own unchanged private master.
+
+    A replaced or symlinked output must not be removed using a stale path.
+    Compare actual inode and streaming bytes, rather than trusting client input.
+    """
+    path = Path(path)
+    fd = None
+    try:
+        fd = os.open(str(path), os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        with os.fdopen(fd, "rb") as stream:
+            fd = None
+            st = os.fstat(stream.fileno())
+            if not stat.S_ISREG(st.st_mode) or not 10 <= st.st_size <= 80 * 1024 * 1024:
+                return None
+            sha = hashlib.sha256()
+            for block in iter(lambda: stream.read(1024 * 1024), b""):
+                sha.update(block)
+            after = os.fstat(stream.fileno())
+        current = os.stat(path, follow_symlinks=False)
+        original = (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns)
+        final = (current.st_dev, current.st_ino, current.st_size,
+                 current.st_mtime_ns, current.st_ctime_ns)
+        end = (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns)
+        if not stat.S_ISREG(current.st_mode) or original != final or end != final:
+            return None
+        return (*original, sha.hexdigest())
+    except OSError:
+        return None
+    finally:
+        if fd is not None:
+            os.close(fd)
 
 
 def main():
@@ -174,11 +227,14 @@ def main():
         _check_private_receipt_path(proof)
         report=master_private_audio(Path(args.source),output,
                                     expected_seconds=args.duration)
+        output_identity = _master_output_identity(output)
         try:
             _write_private_receipt(proof, report)
         except AudioMasterError:
-            # Do not retain an unreceipted private master from this invocation.
-            output.unlink(missing_ok=True)
+            # Only our exact unchanged local master may be removed. A foreign
+            # replacement/symlink is never deleted because its receipt failed.
+            if output_identity is not None and _master_output_identity(output) == output_identity:
+                output.unlink(missing_ok=True)
             raise
         print(json.dumps({"status":report["status"],
                           "source_mean_db":report["source_audio_mean_db"],
