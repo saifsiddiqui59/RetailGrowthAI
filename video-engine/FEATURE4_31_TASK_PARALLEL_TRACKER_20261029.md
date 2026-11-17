@@ -147,3 +147,6 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 
 ### 2026-11-17 — original #690/#731/#792 source reconciliation
 - Parent #322 hardens F4-15 staged source integrity, F4-11 encoded source late-write detection, and F4-13 tenant-private object-key validation; originals retained in [feature checkpoint](feature4/INTEGRATION_SPRINT_F405_F411_F415_20261117.md). IN PROGRESS until exact-head 4/4, safe source reconciliation and accepted main integration.
+
+### 2026-11-17 — F4-13 #803 all rendered auxiliary asset rights
+- Current F4 parent now has original F4-13 source/test/handoff SHA from #803: validate whole media lineage against fresh same-shop rights, reject unapproved auxiliary audio/logo/stock, synthetic assets, duplicate lineage, invalid output ID. Source-only IN PROGRESS; details [integration checkpoint](feature4/INTEGRATION_SPRINT_F405_F411_F415_20261117.md).
