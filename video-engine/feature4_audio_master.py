@@ -146,7 +146,8 @@ def _private_report_path(path: Path):
     """Reject unusable proof destinations before touching authorized media."""
     path = Path(path)
     if (path.suffix.lower() != ".json" or path.is_symlink() or path.exists() or
-            not path.parent.is_dir() or\n            any(parent.is_symlink() for parent in (path.parent, *path.parent.parents))):
+            not path.parent.is_dir() or
+            any(parent.is_symlink() for parent in (path.parent, *path.parent.parents))):
         raise AudioMasterError("Proof report must be a new private JSON file")
     return path
 
