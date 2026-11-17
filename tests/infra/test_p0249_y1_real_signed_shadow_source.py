@@ -288,7 +288,7 @@ class RealSignedY1SafetyTests(unittest.TestCase):
         restore = workflow.split("\n  independent-restore:\n", 1)[1]
         self.assertIn("Independently reconcile run-bound disposable Auth users", restore)
         self.assertIn("if: always()", restore)
-        self.assertIn("RGAI_DEV_SERVICE_KEY: \${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}".replace("\\", ""), restore)
+        self.assertIn("RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}", restore)
         self.assertIn("p0249_y1_signed_auth_shadow_once.py cleanup-only", restore)
         self.assertLess(restore.index("p0249_y1_public_shadow_trial_guard.py rollback"),
                         restore.index("p0249_y1_signed_auth_shadow_once.py cleanup-only"))
