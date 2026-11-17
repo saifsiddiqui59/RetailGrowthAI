@@ -85,3 +85,6 @@ Five nonoverlapping technical source drafts have been batched for one final inte
 
 ### 2026-11-17 — #753 contiguous full-minute scene window proof
 - Original F4-02 #753 finite, positive contiguous 12-scene 60s window validation and four regression tests were reconciled into the latest v3 continuous-black-scan source. Original tracker/handoff preserved verbatim in [note](feature4/ORIGINAL_753_PROVENANCE_20261117.md). Source-only IN PROGRESS; actual private 60s release/CI/main acceptance separate.
+
+### 2026-11-17 — original #784 native clip drag cancellation regression
+- Ported the independent F4-10 #784 cancelled-drag fence and Playwright regression into the current consolidated source; retains newer bounded frame seek, caption drag lease/draft checks. Original SHA + tracker lines preserved in [note](feature4/ORIGINAL_784_PROVENANCE_20261117.md). Source-only F4-10 IN PROGRESS until CI and accepted current-main integration.

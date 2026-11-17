@@ -345,3 +345,23 @@ test('stale caption resize aborts across synthetic shop switch or approval lock'
  await fireUp(23)
  expect(await page.evaluate(()=>window.__feature4ResizeWrites.length)).toBe(0)
 })
+
+test('cancelled native clip drag cannot reorder on a later unrelated drop',async ({page})=>{
+ await mount(page)
+ const clips=page.locator('[data-timeline-segment-track="image"]')
+ const original=await clips.evaluateAll(nodes=>nodes.map(node=>node.getAttribute('aria-label')))
+ await clips.nth(0).evaluate(el=>{
+   const transfer=new DataTransfer()
+   el.dispatchEvent(new DragEvent('dragstart',{bubbles:true,cancelable:true,dataTransfer:transfer}))
+   el.dispatchEvent(new DragEvent('dragend',{bubbles:true,cancelable:true,dataTransfer:transfer}))
+ })
+ await clips.nth(2).evaluate(el=>{
+   el.dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:new DataTransfer()}))
+ })
+ await expect.poll(()=>clips.evaluateAll(nodes=>nodes.map(node=>node.getAttribute('aria-label'))))
+   .toEqual(original)
+ await page.getByRole('button',{name:'Submit authorized render'}).click()
+ await expect.poll(()=>page.evaluate(()=>window.__feature4Renders.length)).toBe(1)
+ const submitted=await page.evaluate(()=>window.__feature4Renders[0].scenes.map(scene=>scene.headline))
+ expect(submitted).toEqual(original.map(label=>label.replace(/^Scene \d+: /,'')))
+})
