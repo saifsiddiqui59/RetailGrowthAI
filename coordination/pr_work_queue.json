@@ -173,18 +173,27 @@
       "pr": 925,
       "title": "review(feature2): OFF-by-default signed VoiceStudio Azure Functions route",
       "feature": "F2",
-      "head_sha": "7f77e5e76b16c65066cd2b488f5219477a552eb2",
+      "head_sha": "69a4edce42c3e7ed54c6984b9876a7bdd07d41f0",
       "base_branch": "feat/feature2-voicestudio-register-wav-20261111",
       "work_owner": "schedule-f2",
       "priority": "P1",
       "phase": "in-progress",
       "claim": {
         "owner": "schedule-f2",
-        "head_sha": "7f77e5e76b16c65066cd2b488f5219477a552eb2",
+        "head_sha": "69a4edce42c3e7ed54c6984b9876a7bdd07d41f0",
         "claimed_at": "2026-11-17T02:23:09Z",
         "expires_at": "2026-11-17T03:53:09Z"
       },
-      "checkpoint": null,
+      "checkpoint": {
+        "owner": "schedule-f2",
+        "at": "2026-11-17T02:23:09Z",
+        "commits": [
+          "69a4edce42c3e7ed54c6984b9876a7bdd07d41f0"
+        ],
+        "tests": "Local tests NOT RUN; added fail-closed RuntimeError regression",
+        "status": "IN PROGRESS",
+        "next_action": "Check exact-head push CI and independent security review"
+      },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/925"
     },
     {
