@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "ai-agents/src"))
 sys.path.insert(0, str(ROOT / "azure-functions/campaign-api"))
 from http_api import HTTPAPI  # noqa: E402
+from feature2_adapter import TrendFeatureAdapter  # noqa: E402
 from security import (AuthenticationError, SigningKeysUnavailable,
                       SupabaseJWTVerifier)  # noqa: E402
 
@@ -58,6 +59,28 @@ class JWKSOutageClassificationTests(unittest.TestCase):
                 with self.assertRaises(kind) as raised:
                     verifier(SYNTHETIC_TOKEN)
                 self.assertNotIn("fake JWKS", str(raised.exception))
+
+    def test_feature2_all_original_jwt_routes_fail_closed_with_dependency_503(self):
+        shop = "33333333-3333-4333-8333-333333333333"
+        lookup = Mock(side_effect=PyJWKClientConnectionError(
+            "synthetic JWKS outage key=not-a-real-key"))
+        verifier = SupabaseJWTVerifier(
+            ORIGIN, jwks_client=Mock(get_signing_key_from_jwt=lookup))
+        adapter = TrendFeatureAdapter(verifier, NoTenantCalls())
+        expected = (
+            (adapter.handle, ("GET", shop, "Bearer " + SYNTHETIC_TOKEN),
+             (503, {"error": "TREND_STORAGE_UNAVAILABLE"})),
+            (adapter.improve, (shop, "Bearer " + SYNTHETIC_TOKEN, {}),
+             (503, {"error": "PROFILE_UNAVAILABLE"})),
+            (adapter.list_drafts, (shop, "Bearer " + SYNTHETIC_TOKEN),
+             (503, {"error": "CONTENT_DRAFT_READ_UNAVAILABLE"})),
+        )
+        for fn, args, output in expected:
+            with self.subTest(endpoint=fn.__name__):
+                status, body = fn(*args)
+                self.assertEqual((status, body), output)
+                self.assertNotIn("not-a-real-key", str(body))
+        self.assertEqual(lookup.call_count, 3)
 
     def test_invalid_token_fails_before_jwks_and_returns_401(self):
         api, lookup = api_with_error(
