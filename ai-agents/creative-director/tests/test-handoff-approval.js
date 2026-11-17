@@ -170,6 +170,21 @@ fails(()=>h.approveCreativeDraftFromTrustedReaders(
   original,'Bearer verified-jwt','shop-403',lateRevocation,KEY),
   'third membership read rejects revocation after editorial recheck');
 assert.equal(membershipReads,3);
+// An editor demoted to VIEWER after the first review must never receive
+// a signed editorial receipt, even if their membership remains active.
+let roleReads=0;
+const lateRoleDowngrade={
+  ...readers,
+  currentMembership:(_token,actor,shop)=>{
+    roleReads++;
+    return {shop_id:shop,user_id:actor,active:true,
+      role:roleReads===3?'VIEWER':'EDITOR'};
+  }
+};
+fails(()=>h.approveCreativeDraftFromTrustedReaders(
+  original,'Bearer verified-jwt','shop-403',lateRoleDowngrade,KEY),
+  'late reviewer role downgrade denies signing');
+assert.equal(roleReads,3);
 let secondReadCount=0;
 fails(()=>h.approveCreativeDraftFromTrustedReaders(
   original,'Bearer verified-jwt','shop-403',{
