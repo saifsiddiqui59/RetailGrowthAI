@@ -25,7 +25,11 @@ class VisibilityReceiptTests(unittest.TestCase):
         self.windows=[{"start":i*5.0,"duration":5.0} for i in range(12)]
         self.prov={"scene_windows":self.windows}
         self.report={
-            "schema":"feature4_scene_visibility_v2",
+            "schema":"feature4_scene_visibility_v3",
+            "continuous_full_reel_black_scan":True,
+            "continuous_black_hold_threshold_seconds":.65,
+            "continuous_long_black_holds_count":0,
+            "sub_threshold_blank_frames_certified_absent":False,
             "sample_fractions":[.15,.30,.50,.70,.85],
             "short_blank_frames_excluded_by_sampling":False,
             "status":"SAMPLED_SCENES_NOT_BLANK_NOT_CONTENT_APPROVAL",
@@ -95,6 +99,19 @@ class VisibilityReceiptTests(unittest.TestCase):
         self.persist()
         with self.assertRaises(MinuteProofError):
             self.verify()
+
+    def test_missing_or_forged_continuous_scan_evidence_rejected(self):
+        for key,bad in (("continuous_full_reel_black_scan",False),
+                        ("continuous_black_hold_threshold_seconds",99),
+                        ("continuous_long_black_holds_count",True),
+                        ("continuous_long_black_holds_count",1),
+                        ("sub_threshold_blank_frames_certified_absent",True)):
+            original=self.report[key]
+            self.report[key]=bad
+            self.persist()
+            with self.subTest(key=key,bad=bad),self.assertRaises(MinuteProofError):
+                self.verify()
+            self.report[key]=original
 
     def test_legacy_two_frame_proof_is_no_longer_accepted(self):
         self.report["schema"]="feature4_scene_visibility_v1"

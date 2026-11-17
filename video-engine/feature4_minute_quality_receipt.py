@@ -78,12 +78,17 @@ def validate_visibility_evidence(*, original, provenance, visibility_proof):
     v=_record(visibility_proof)
     windows=p.get("scene_windows")
     measured=v.get("checked_scenes")
-    if (v.get("schema")!="feature4_scene_visibility_v2"
+    if (v.get("schema")!="feature4_scene_visibility_v3"
             or v.get("status")!="SAMPLED_SCENES_NOT_BLANK_NOT_CONTENT_APPROVAL"
             or v.get("source_sha256")!=_sha(original)
             or v.get("seconds")!=60
             or v.get("checked_scene_count")!=12
             or v.get("sample_fractions")!=[.15,.30,.50,.70,.85]
+            or v.get("continuous_full_reel_black_scan") is not True
+            or v.get("continuous_black_hold_threshold_seconds")!=.65
+            or type(v.get("continuous_long_black_holds_count")) is not int
+            or v["continuous_long_black_holds_count"]!=0
+            or v.get("sub_threshold_blank_frames_certified_absent") is not False
             or v.get("short_blank_frames_excluded_by_sampling") is not False
             or v.get("sustained_near_black_count")!=0
             or v.get("commercial_release_eligible") is not False
@@ -92,6 +97,21 @@ def validate_visibility_evidence(*, original, provenance, visibility_proof):
             or not isinstance(windows,list) or len(windows)!=12
             or not isinstance(measured,list) or len(measured)!=12):
         raise MinuteProofError("60s visual scene evidence incomplete or overclaimed")
+    # A matched pair of provenance/visibility JSON cannot jointly omit or
+    # overlap part of the minute. Require finite positive contiguous windows.
+    cursor=0.0
+    for window in windows:
+        if (type(window) is not dict or set(window)!={"start","duration"}
+                or type(window["start"]) not in (int,float)
+                or type(window["duration"]) not in (int,float)
+                or not math.isfinite(window["start"])
+                or not math.isfinite(window["duration"])
+                or window["duration"]<=0
+                or abs(window["start"]-cursor)>.003):
+            raise MinuteProofError("60s visibility scene windows are not contiguous")
+        cursor=window["start"]+window["duration"]
+    if abs(cursor-60)>.003:
+        raise MinuteProofError("60s visibility scenes do not cover the full minute")
     for want,got in zip(windows,measured):
         if (type(want) is not dict or type(got) is not dict
                 or set(want)!={"start","duration"}

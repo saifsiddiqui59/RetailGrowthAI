@@ -174,3 +174,6 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 
 ### 2026-11-17 — F4-14 #779 CPU three-duration evidence source
 - Imported original F4-14 15/30/60 immutable CPU matrix source/tests and compatible benchmark SHA reporter from #779. Original handoff SHA in [integration checkpoint](feature4/INTEGRATION_SPRINT_F405_F411_F415_20261117.md). No real full three-length test media produced; source IN PROGRESS; exact-final-head 4/4 & rights/CPU budget acceptance separate.
+
+### 2026-11-17 — F4-02/F4-11 #779 continuous scan into v3 receipt
+- Imported original v3 FFmpeg scan/negative tests, 60s contiguous time-window coverage and reviewer handoff, retained #799 anti-alias and distinct-stage SHA gates. Exact head CI and real accepted 60s media pending. See [checkpoint](feature4/INTEGRATION_SPRINT_F405_F411_F415_20261117.md).
