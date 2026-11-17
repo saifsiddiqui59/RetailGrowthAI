@@ -70,6 +70,32 @@ class TenantStoreRedirectSafety(unittest.TestCase):
                 self.assertEqual(public, PUBLIC)
                 self.assertNotIn(TOKEN, str(error.exception))
 
+    def test_initial_origin_is_pinned_to_https_authority_before_jwt_transport(self):
+        bad = (
+            "", "http://synthetic-p0249.supabase.co",
+            "https://", "https://name:password@synthetic-p0249.supabase.co",
+            "https://synthetic-p0249.supabase.co/rest/v1",
+            "https://synthetic-p0249.supabase.co/?token=leak",
+            "https://synthetic-p0249.supabase.co/#fragment",
+            "https://synthetic-p0249.supabase.co?",
+            "https://synthetic-p0249.supabase.co#",
+            "https://synthetic-p0249.supabase.co:bad",
+            "https://[not-an-ipv6",
+            "https://synthetic-p0249.supabase.co\\\\@untrusted.invalid",
+            "https://synthetic-p0249.supabase.co\nExtra: yes",
+            None, 42,
+        )
+        for origin in bad:
+            with self.subTest(origin=repr(origin)), self.assertRaises(ValueError):
+                tenant_store.TenantStore(origin, PUBLIC)
+        for origin in (ORIGIN, ORIGIN + "/", ORIGIN + ":443"):
+            with self.subTest(origin=origin):
+                store = tenant_store.TenantStore(origin, PUBLIC)
+                self.assertEqual(store.origin, origin.rstrip("/"))
+        for key in (None, "", 5):
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                tenant_store.TenantStore(ORIGIN, key)
+
     def test_explicit_test_transport_remains_injectable(self):
         seen = []
 
