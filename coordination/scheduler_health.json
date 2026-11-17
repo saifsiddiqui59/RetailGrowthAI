@@ -8,18 +8,18 @@
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "3af90a21-fd74-8328-990e-fa1a10002ce3",
+      "last_run_id": "9a4a0c66-bc34-8328-805f-46b7c09e3c83",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T21:21:41.762161Z",
-      "last_end_utc": "2026-11-17T21:22:22.658272Z",
-      "duration_seconds": 40.896,
+      "last_start_utc": "2026-11-17T22:23:46.743498Z",
+      "last_end_utc": "2026-11-17T22:24:12.778946Z",
+      "duration_seconds": 26.035,
       "reported_code_commits": 0,
       "local_tests_verified": null,
       "last_pr": 917,
       "last_head": "32cacb8a52b98e83e20afeb18645d2a2ecc54d0a",
       "pr_state": "open",
       "pr_mergeable": true,
-      "verified_code_commits": null,
+      "verified_code_commits": 0,
       "ci_run_id": 44010051857,
       "ci_status": "PASS 4/4",
       "classification": "REVIEW_BLOCKED",
@@ -108,19 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f3",
-      "run_id": "aa391cd6-bdf4-832e-92fb-bf72568c91af",
-      "started_at": "2026-11-17T12:36:05.214010Z",
-      "completed_at": "2026-11-17T12:36:40.155038Z",
-      "duration_seconds": 34.94,
-      "verified_code_test_commits": null,
-      "local_tests_verified": null,
-      "ci": "UNKNOWN (all-trigger exact-head jobs not verified)",
-      "classification": "NO_CHANGE",
-      "evidence": "Run duration confirmed; code/test commit delta and CI not independently verified"
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f4",
@@ -408,6 +395,19 @@
       "ci": "F2 #917 exact-head push 4/4 PASS #44010051857; #925 prior green not rechecked this run",
       "classification": "REVIEW_BLOCKED",
       "evidence": "No new source/test SHA independently established. Inherited/null executor environment; independent review and manual integration remain."
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "9a4a0c66-bc34-8328-805f-46b7c09e3c83",
+      "started_at": "2026-11-17T22:23:46.743498Z",
+      "completed_at": "2026-11-17T22:24:12.778946Z",
+      "duration_seconds": 26.035,
+      "verified_code_test_commits": 0,
+      "local_tests_verified": null,
+      "ci": "F2 #917 exact-head push 4/4 PASS #44010051857; #925 not rechecked this run",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "PR #917 full head unchanged since last verified checkpoint; no new source/test SHA. Inherited/null executor; F2 #848 manual-integration."
     }
   ],
   "current_review_gates": {
