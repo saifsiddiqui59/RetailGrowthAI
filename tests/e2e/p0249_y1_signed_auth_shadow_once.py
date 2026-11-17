@@ -36,7 +36,7 @@ def y1_read(token, *, campaign=CAMPAIGN):
         headers={"Authorization": "Bearer " + token, "Cache-Control": "no-store"})
     started = time.monotonic()
     try:
-        with urllib.request.urlopen(req, timeout=18) as response:
+        with helper.NO_REDIRECT_OPENER.open(req, timeout=18) as response:
             status, headers, body = response.status, response.headers, response.read(4096)
     except urllib.error.HTTPError as response:
         status, headers, body = response.code, response.headers, response.read(4096)
