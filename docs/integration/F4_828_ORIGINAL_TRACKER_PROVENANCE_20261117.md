@@ -1,6 +1,6 @@
 # Original Feature4 source-draft #828 tracker history — 2026-11-17
 
-Original source-draft #828 is still OPEN at head `ca103ce851c567d67198040a5a41738ea98e8395`; the original patch's original run/task tracker included 16 historical nonblank lines absent from newer current parent #322. These are preserved verbatim below, **not** treated as 16 unfinished tasks. Four original source handoff markdown Git blobs and encoded motion source blob match current Feature4 parent exactly; original tests/motion/worker/editor contracts have been selectively imported or replaced with stronger current safety checks. Exact-parent CI, verified source preservation review and independent main integration are separate; no current feature is DONE by retiring stale branches.
+Original source-draft #828 was OPEN at archival inspection head `ca103ce851c567d67198040a5a41738ea98e8395` and is now **CLOSED UNMERGED** (verified 2026-11-17). Its original run/task tracker included 16 historical nonblank lines absent from newer current parent #322. These are preserved verbatim below, **not** treated as 16 unfinished tasks. Four original source handoff markdown Git blobs and encoded motion source blob match current Feature4 parent exactly; original tests/motion/worker/editor contracts have been selectively imported or replaced with stronger current safety checks. Exact-parent CI, verified source preservation review and independent main integration are separate; no current feature is DONE by retiring stale branches.
 
 ## Historical lines from original F4 tracker (exact source text)
 
@@ -24,3 +24,7 @@ Original source-draft #828 is still OPEN at head `ca103ce851c567d67198040a5a4173
 Original tracker Git SHA: `25ab70cda527de35793d8241f9ad5534d76453e2`. Current parent tracker Git SHA as reviewed: `ba599ecbdbc3d36ce78de72f298b1b870cb4b3b4`. Source original PR #828: https://github.com/saifsiddiqui59/RetailGrowthAI/pull/828
 
 GPU and paid models OFF; no Azure/PROD/SQL/WineShopPOS actions.
+
+## Current preservation boundary (2026-11-17 recheck)
+
+The exact historical #828 source head remains GitHub-readable after unmerged closure. Current F4 parent [#322](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322) has integrated or replaced its effect/motion/worker source while retaining this verbatim original task-history appendix in the reviewable #966 docs PR. This is **not** acceptance on main: parent is draft, the earlier media CI run #44011387138 failed a mock exhaustion regression, and the newer run #44012074650 cancelled during encoded rendering. A correct final-head 4/4, independent review and postmerge main 4/4 are required; keep underlying original tasks open.
