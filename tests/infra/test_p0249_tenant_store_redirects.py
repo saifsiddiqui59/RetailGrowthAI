@@ -26,6 +26,7 @@ class RedirectingHTTPS(HTTPSHandler):
         super().__init__()
         self.status = redirect_status
         self.attempted = []
+        self.responses = []
 
     def https_open(self, request):
         self.attempted.append((
@@ -37,6 +38,7 @@ class RedirectingHTTPS(HTTPSHandler):
         response = addinfourl(io.BytesIO(b""), headers, request.full_url,
                               self.status)
         response.msg = "Redirect"
+        self.responses.append(response)
         return response
 
 
@@ -64,6 +66,8 @@ class TenantStoreRedirectSafety(unittest.TestCase):
                     with self.assertRaises(tenant_store.StorageUnavailable) as error:
                         store._request("campaigns", TOKEN, query={"select": "id"})
                 self.assertEqual(len(redirect.attempted), 1)
+                self.assertEqual(len(redirect.responses), 1)
+                self.assertTrue(redirect.responses[0].closed)
                 path, auth, public, method = redirect.attempted[0]
                 self.assertEqual(path, ORIGIN + "/rest/v1/campaigns?select=id")
                 self.assertEqual(auth, "Bearer " + TOKEN)
@@ -83,6 +87,8 @@ class TenantStoreRedirectSafety(unittest.TestCase):
                         store._request("campaigns", TOKEN, method="POST",
                                        data={"id": "synthetic-only"})
                 self.assertEqual(len(redirect.attempted), 1)
+                self.assertEqual(len(redirect.responses), 1)
+                self.assertTrue(redirect.responses[0].closed)
                 url, auth, pub, method = redirect.attempted[0]
                 self.assertEqual(url, ORIGIN + "/rest/v1/campaigns")
                 self.assertEqual(auth, "Bearer " + TOKEN)
