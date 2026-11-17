@@ -70,7 +70,10 @@ def _staged_fingerprint(path):
                     or (last.st_dev, last.st_ino, last.st_size, last.st_mtime_ns) !=
                        (current.st_dev, current.st_ino, current.st_size, current.st_mtime_ns)):
                 raise Feature4HandoffError("Private staged asset path changed while hashing")
-            return first.st_size, digest.hexdigest()
+            # Fingerprint also binds inode/device/mtime across separate reads.
+            # Same-byte os.replace during upload must never pass a SHA-only check.
+            return (first.st_size, digest.hexdigest(), first.st_dev,
+                    first.st_ino, first.st_mtime_ns)
     except Feature4HandoffError:
         raise
     except OSError as exc:

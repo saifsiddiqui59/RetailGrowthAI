@@ -162,3 +162,6 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 
 ### 2026-11-17 — F4-13/F4-15 output proof and private input key from #852
 - Original encoded output SHA/inode, post-upload identity check, exact canonical shop/job/lease storage key, current claim after upload and conservative private input keys ported to current parent. See [integration handoff](feature4/INTEGRATION_SPRINT_F405_F411_F415_20261117.md). Original F4-13/F4-15 IN PROGRESS, new 4/4 CI/current-main acceptance pending.
+
+### 2026-11-17 — F4-15 same-byte upload substitution corrected
+- FFmpeg job #44000451010 found source fingerprint returned only size+SHA, permitting same-byte atomic path replacement between pre-upload and post-upload checks. Source now returns size, SHA, device, inode, mtime_ns; existing regression retained, 4/4 exact-head CI pending. Source-only IN PROGRESS; no GPU/provider/cloud/PROD/WineShopPOS.
