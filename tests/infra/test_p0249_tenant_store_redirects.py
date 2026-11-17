@@ -30,7 +30,7 @@ class RedirectingHTTPS(HTTPSHandler):
     def https_open(self, request):
         self.attempted.append((
             request.full_url, request.get_header("Authorization"),
-            request.get_header("Apikey"),
+            request.get_header("Apikey"), request.get_method(),
         ))
         headers = Message()
         headers["Location"] = "https://untrusted-p0249.invalid/collect"
@@ -64,11 +64,30 @@ class TenantStoreRedirectSafety(unittest.TestCase):
                     with self.assertRaises(tenant_store.StorageUnavailable) as error:
                         store._request("campaigns", TOKEN, query={"select": "id"})
                 self.assertEqual(len(redirect.attempted), 1)
-                path, auth, public = redirect.attempted[0]
+                path, auth, public, method = redirect.attempted[0]
                 self.assertEqual(path, ORIGIN + "/rest/v1/campaigns?select=id")
                 self.assertEqual(auth, "Bearer " + TOKEN)
                 self.assertEqual(public, PUBLIC)
+                self.assertEqual(method, "GET")
                 self.assertNotIn(TOKEN, str(error.exception))
+
+    def test_redirect_cannot_replay_post_mutation_or_forward_credentials(self):
+        for status in (302, 307, 308):
+            with self.subTest(status=status):
+                redirect = RedirectingHTTPS(status)
+                opener = build_opener(ProxyHandler({}),
+                                      tenant_store._RejectRedirects(), redirect)
+                with patch.object(tenant_store, "_NO_REDIRECT_OPENER", opener):
+                    store = tenant_store.TenantStore(ORIGIN, PUBLIC)
+                    with self.assertRaises(tenant_store.StorageUnavailable):
+                        store._request("campaigns", TOKEN, method="POST",
+                                       data={"id": "synthetic-only"})
+                self.assertEqual(len(redirect.attempted), 1)
+                url, auth, pub, method = redirect.attempted[0]
+                self.assertEqual(url, ORIGIN + "/rest/v1/campaigns")
+                self.assertEqual(auth, "Bearer " + TOKEN)
+                self.assertEqual(pub, PUBLIC)
+                self.assertEqual(method, "POST")
 
     def test_initial_origin_is_pinned_to_https_authority_before_jwt_transport(self):
         bad = (
