@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   VIDEO_MODES, VIDEO_TEMPLATES, VIDEO_ANIMATIONS, VIDEO_TRANSITIONS, compatibleMedia, makeVideoDraft,
-  shiftVideoScene, retimeVideoDraft, validateVideoDraft, sourceClipPlaybackWindow,
+  shiftVideoScene, retimeVideoDraft, validateVideoDraft, sourceClipPlaybackWindow, sourceClipTimeForPlayhead,
 } from './video-model.mjs'
 import { privateMediaPreviewUrl } from './video-transport.mjs'
 import TimelineStudioSurface from './TimelineStudioSurface.jsx'
@@ -26,11 +26,13 @@ export default function VideoStudio({
   const [error, setError] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [selectedSceneIndex, setSelectedSceneIndex] = useState(0)
+  const [timelinePlayhead, setTimelinePlayhead] = useState(null)
   const previewVideo = useRef(null)
   // A login/shop switch cannot retain the previous tenant's composition draft.
   useEffect(() => {
     setDraft(makeVideoDraft({ shopId, mediaAssets }))
     setSelectedSceneIndex(0)
+    setTimelinePlayhead(null)
     setSubmitted(false)
     setError('')
   }, [shopId])
@@ -38,6 +40,7 @@ export default function VideoStudio({
     if (approvedRead?.draft) {
       setDraft(approvedRead.draft)
       setSelectedSceneIndex(0)
+    setTimelinePlayhead(null)
       setSubmitted(false)
     }
   }, [approvedRead])
@@ -65,6 +68,15 @@ export default function VideoStudio({
         sceneSource.preview_url, import.meta.env?.VITE_SUPABASE_URL, shopId)
     }
   } catch { /* Invalid or cross-tenant source previews are never rendered. */ }
+  // Source-frame jog is read-only and does not grant asset or composition rights.
+  useEffect(() => {
+    if (!previewSource || !previewVideo.current || !sourceWindow) return
+    const position = sourceClipTimeForPlayhead(selectedScene, sceneSource, timelinePlayhead)
+    if (position === null || previewVideo.current.readyState < 1) return
+    if (Math.abs(previewVideo.current.currentTime - position) > .015) {
+      previewVideo.current.currentTime = position
+    }
+  }, [timelinePlayhead, selectedScene, sceneSource, previewSource, sourceWindow?.start, sourceWindow?.end])
   function changeDuration(next) {
     if (creativeDirection) return
     try {
@@ -84,6 +96,7 @@ export default function VideoStudio({
     setError('')
     setSubmitted(false)
     setSelectedSceneIndex(0)
+    setTimelinePlayhead(null)
   }
   async function submit(event) {
     event.preventDefault()
@@ -280,7 +293,7 @@ export default function VideoStudio({
                   preload="metadata" aria-label="Authorized source footage excerpt; muted preview, not rendered advertisement"
                   onLoadedMetadata={event => {
                     if (sourceWindow) {
-                      try { event.currentTarget.currentTime = sourceWindow.start } catch { /* unavailable seek is not a render approval */ }
+                      try { event.currentTarget.currentTime = sourceClipTimeForPlayhead(selectedScene, sceneSource, timelinePlayhead) ?? sourceWindow.start } catch { /* unavailable seek is not a render approval */ }
                     }
                   }}
                   onPlay={event => {
@@ -321,6 +334,7 @@ export default function VideoStudio({
         selectedSceneIndex={selectedSceneIndex} onSelectScene={setSelectedSceneIndex}
         approvedDirection={Boolean(creativeDirection)}
         spokenCaptions={approvedRead?.captionCues || []}
+        onSeek={setTimelinePlayhead}
         onChange={next => { setDraft(next); setSubmitted(false) }} />
     </section>
   )

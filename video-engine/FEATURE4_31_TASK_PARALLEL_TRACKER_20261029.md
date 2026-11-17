@@ -177,3 +177,6 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 
 ### 2026-11-17 — F4-02/F4-11 #779 continuous scan into v3 receipt
 - Imported original v3 FFmpeg scan/negative tests, 60s contiguous time-window coverage and reviewer handoff, retained #799 anti-alias and distinct-stage SHA gates. Exact head CI and real accepted 60s media pending. See [checkpoint](feature4/INTEGRATION_SPRINT_F405_F411_F415_20261117.md).
+
+### 2026-11-17 — F4-08 original #733 preview jog integration
+- Current F4 parent integrated old #733 verified sourceClipTimeForPlayhead helper, regression tests, Timeline onSeek and muted HTML5 source-video scrub without changing stronger bounded frame handling/tenant authorization. Original handoff preserved verbatim. Exact-head 4-job CI, reviewed main/hosted acceptance PENDING; task IN PROGRESS.

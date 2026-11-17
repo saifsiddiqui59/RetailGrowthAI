@@ -16,7 +16,7 @@ import './TimelineStudioSurface.css'
 // the existing approved rg_video_v2 and trusted HyperFrames renderer.
 // No upstream localStorage account, cloud upload or independent video exporter.
 export default function TimelineStudioSurface({ draft, onChange, onSelectScene, mediaAssets = [], musicAssets = [],
-  selectedSceneIndex = 0, approvedDirection = false, spokenCaptions = [] }) {
+  selectedSceneIndex = 0, approvedDirection = false, spokenCaptions = [], onSeek = () => {} }) {
   const [history, setHistory] = useState(() => createEditorHistory(draft))
   const [playhead, setPlayhead] = useState(0)
   const [snapEnabled, setSnapEnabled] = useState(true)
@@ -81,6 +81,7 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
     const position = boundedFrameSeek(requested, draft.duration_seconds, previewFps)
     if (position === null) return
     setPlayhead(position)
+    onSeek(position)
     const index = spans.findIndex(span => position >= span.start && position < span.end)
     if (index >= 0) onSelectScene(index)
   }
@@ -117,7 +118,7 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
     showTrackContextMenu: event => event.preventDefault(),
     selectCaptionClip: (_event,_id,index,start) => {
       const position = boundedFrameSeek(start, draft.duration_seconds, previewFps)
-      if (position !== null) { onSelectScene(index); setPlayhead(position) }
+      if (position !== null) { onSelectScene(index); setPlayhead(position); onSeek(position) }
     },
     startCaptionResize: (event,_id,index,edge) => {
       const boundary = edge === 'start' ? index - 1 : index
@@ -240,7 +241,7 @@ export default function TimelineStudioSurface({ draft, onChange, onSelectScene, 
             onClick={()=>{
               const position = boundedSceneMidpointSeek(span.start, span.duration,
                 draft.duration_seconds, previewFps)
-              if (position !== null) { onSelectScene(i); setPlayhead(position) }
+              if (position !== null) { onSelectScene(i); setPlayhead(position); onSeek(position) }
             }}
             aria-label={'Scene '+(i+1)+': '+(draft.scenes[i].headline)}>
             <span className="f4-ts-clip-index">{i+1}</span>
