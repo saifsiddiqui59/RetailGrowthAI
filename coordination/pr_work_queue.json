@@ -13,11 +13,11 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 43,
+    "open_prs": 38,
     "by_feature": {
-      "F2": 13,
+      "F2": 10,
       "F3": 4,
-      "F4": 5,
+      "F4": 3,
       "F5": 5,
       "F7": 1,
       "issue249": 10,
@@ -42,7 +42,7 @@
       "pr": 966,
       "title": "docs(integration): F4 source reconciliation and 15 deduplicated drafts",
       "feature": "shared",
-      "head_sha": "952263ada0c3266b9102118f433dc30f991e22eb",
+      "head_sha": "2199c0da8b8f531a2a9d8cf0364e4e69796a7f8d",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
@@ -258,19 +258,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/912"
     },
     {
-      "pr": 906,
-      "title": "Feature4 F4-04: reconcile persisted editor-approval digest from original #715",
-      "feature": "F4",
-      "head_sha": "6f3ebd3c2392b64db3dba20c6ddde789ab7f27bc",
-      "base_branch": "feat/feature4-professional-video-studio",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/906"
-    },
-    {
       "pr": 887,
       "title": "ci(#249): review isolated DEV-only manual Azure incident workflow",
       "feature": "issue249",
@@ -333,7 +320,7 @@
       "pr": 848,
       "title": "feat(feature2): consolidate existing Creative Director source PRs for coordinator review",
       "feature": "F2",
-      "head_sha": "be876fb087b47393299366aa971cc1123600f5bf",
+      "head_sha": "a35a1f171819564bfb3ed00806e4a87545a8a043",
       "base_branch": "feat/feature2-unified-offline-source-20261028",
       "work_owner": "schedule-f2",
       "priority": "P0",
@@ -341,19 +328,6 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848"
-    },
-    {
-      "pr": 828,
-      "title": "Feature4 consolidated batch: real effect parity + motion source integrity + lease-race guards",
-      "feature": "F4",
-      "head_sha": "ca103ce851c567d67198040a5a41738ea98e8395",
-      "base_branch": "feat/feature4-cpu-3profile-matrix-20261030",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/828"
     },
     {
       "pr": 779,
@@ -395,32 +369,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/724"
     },
     {
-      "pr": 720,
-      "title": "fix(feature2 F2-29): require atomic dual-asset private MP3/WAV receipts",
-      "feature": "F2",
-      "head_sha": "2ef005a7d22d796e0d4a0b4f11d52a2386b0f1cd",
-      "base_branch": "feat/feature2-unified-offline-source-20261028",
-      "work_owner": "schedule-f2",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/720"
-    },
-    {
-      "pr": 707,
-      "title": "fix(feature2): harden Unicode retail claims and signed RSS headline review",
-      "feature": "F2",
-      "head_sha": "46d89d6a9387f7d22048fa17ddf1de9e9d6197c3",
-      "base_branch": "feat/feature2-unified-offline-source-20261028",
-      "work_owner": "schedule-f2",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/707"
-    },
-    {
       "pr": 700,
       "title": "fix(feature2 #20): block original WAV storage success after tenant revocation",
       "feature": "F2",
@@ -458,19 +406,6 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/696"
-    },
-    {
-      "pr": 684,
-      "title": "fix(feature2 #2/#4/#29): private MP3/WAV and Unicode editorial safety",
-      "feature": "F2",
-      "head_sha": "4ec5bd967b8b66354ce7d5852cf2f543e0ad8208",
-      "base_branch": "feat/feature2-unified-offline-source-20261028",
-      "work_owner": "schedule-f2",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/684"
     },
     {
       "pr": 679,
@@ -624,7 +559,7 @@
       "pr": 322,
       "title": "WIP Feature #4 — Timeline Studio engine (illustrated demo rejected; visual QA open)",
       "feature": "F4",
-      "head_sha": "3a8b80b4b62b024e7d8c39f09e9debf53ed3d919",
+      "head_sha": "0dc51722b333b7908c22ca59d65fcafc2e0dc168",
       "base_branch": "main",
       "work_owner": "schedule-f4",
       "priority": "P0",
