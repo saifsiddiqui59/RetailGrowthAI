@@ -479,8 +479,8 @@
       "claim": {
         "owner": "schedule-f4",
         "head_sha": "228b4d623b916621709bac6e588d839662b303fb",
-        "claimed_at": "2026-11-17T00:41:00Z",
-        "expires_at": "2026-11-17T02:11:00Z"
+        "claimed_at": "2026-11-17T01:45:00Z",
+        "expires_at": "2026-11-17T03:15:00Z"
       },
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/845"
