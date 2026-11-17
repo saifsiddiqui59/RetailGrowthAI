@@ -335,6 +335,58 @@
       "ci": "UNKNOWN (four jobs not verified)",
       "classification": "NO_CHANGE",
       "evidence": "No independent commit comparison; automation summary not counted as proof"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "e441f6e3-0658-8330-bfcb-b56351998210",
+      "started_at": "2026-11-17T07:28:52.034940Z",
+      "completed_at": "2026-11-17T07:29:19.844038Z",
+      "duration_seconds": 27.81,
+      "verified_code_test_commits": 0,
+      "local_tests_verified": 0,
+      "ci": "UNKNOWN (current-head jobs not independently verified)",
+      "classification": "NO_CHANGE",
+      "evidence": "Run recorded; no verified GitHub source/test commit comparison; summary not counted"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f3",
+      "run_id": "e17f4b3e-4dcc-8331-ba34-0c0009e1b3ef",
+      "started_at": "2026-11-17T07:36:11.696871Z",
+      "completed_at": "2026-11-17T07:36:29.381512Z",
+      "duration_seconds": 17.685,
+      "verified_code_test_commits": 0,
+      "local_tests_verified": 0,
+      "ci": "UNKNOWN (current-head jobs not independently verified)",
+      "classification": "NO_CHANGE",
+      "evidence": "Run recorded; no verified GitHub source/test commit comparison; summary not counted"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f4",
+      "run_id": "03524e64-598c-8328-8b63-a3c8c0a686c1",
+      "started_at": "2026-11-17T07:43:23.254702Z",
+      "completed_at": "2026-11-17T07:43:40.927994Z",
+      "duration_seconds": 17.673,
+      "verified_code_test_commits": 0,
+      "local_tests_verified": 0,
+      "ci": "UNKNOWN (current-head jobs not independently verified)",
+      "classification": "NO_CHANGE",
+      "evidence": "Run recorded; no verified GitHub source/test commit comparison; summary not counted"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f7",
+      "run_id": "0f0b2e57-b06c-8324-9ec8-ebe357e5945f",
+      "started_at": "2026-11-17T07:11:35.107886Z",
+      "completed_at": "2026-11-17T07:11:54.012345Z",
+      "duration_seconds": 18.905,
+      "verified_code_test_commits": 0,
+      "local_tests_verified": 0,
+      "ci": "UNKNOWN (current-head jobs not independently verified)",
+      "classification": "NO_CHANGE",
+      "evidence": "Run recorded; no verified GitHub source/test commit comparison; summary not counted"
     }
   ]
 }
