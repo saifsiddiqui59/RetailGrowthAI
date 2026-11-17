@@ -1,5 +1,9 @@
 """Offline, no-Azure tests of bounded Y1 read shadow activation/rollback."""
 import importlib.util
+import io
+from email.message import Message
+import urllib.request
+import urllib.response
 import json
 import os
 from pathlib import Path
@@ -28,6 +32,30 @@ class PublicShadowTrialSafetyTests(unittest.TestCase):
 
     def marker(self):
         Path(self.path).write_text(json.dumps(trial.marker()))
+
+    def test_negative_probe_does_not_follow_redirect(self):
+        attempted = []
+
+        class RedirectingHTTPS(urllib.request.HTTPSHandler):
+            def https_open(self, request):
+                attempted.append(request.full_url)
+                headers = Message()
+                headers["Location"] = "https://example.invalid/redirect"
+                response = urllib.response.addinfourl(
+                    io.BytesIO(b""), headers, request.full_url, 302)
+                response.msg = "Found"
+                return response
+
+        opener = urllib.request.build_opener(trial._BlockRedirects(),
+                                             RedirectingHTTPS())
+        with patch.object(trial, "NO_REDIRECT_OPENER", opener):
+            status, marked, elapsed = trial.get(
+                trial.CAMPAIGN_PATH, "synthetic.jwt.test")
+        self.assertEqual(status, 302)
+        self.assertFalse(marked)
+        self.assertEqual(attempted, [
+            "https://" + trial.SITE + ".azurewebsites.net" + trial.CAMPAIGN_PATH
+        ])
 
     def test_exact_public_only_setting_allowlist(self):
         self.assertEqual(set(trial.NAMES), {
