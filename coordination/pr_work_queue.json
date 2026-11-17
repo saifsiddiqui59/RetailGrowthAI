@@ -471,14 +471,14 @@
       "pr": 845,
       "title": "fix(feature4 F4-07): preflight private audio proof before mastering",
       "feature": "F4",
-      "head_sha": "304e7236eb7183f668ed629dda8822b2292d67b0",
+      "head_sha": "228b4d623b916621709bac6e588d839662b303fb",
       "base_branch": "feat/feature4-professional-video-studio",
       "work_owner": "schedule-f4",
       "priority": "P1",
       "phase": "draft",
       "claim": {
         "owner": "schedule-f4",
-        "head_sha": "304e7236eb7183f668ed629dda8822b2292d67b0",
+        "head_sha": "228b4d623b916621709bac6e588d839662b303fb",
         "claimed_at": "2026-11-17T00:41:00Z",
         "expires_at": "2026-11-17T02:11:00Z"
       },
