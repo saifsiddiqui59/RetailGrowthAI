@@ -23,6 +23,8 @@ class RealSignedY1SafetyTests(unittest.TestCase):
             "RGAI_DEV_P0249_JWT_CANARY_APPROVAL": "OWNER_APPROVED_READ_ONLY_JWT_TEST",
             "RGAI_DEV_SERVICE_KEY": "sb_secret_" + "x" * 54,
             "RGAI_DEV_P0249_PUBLISHABLE_KEY": trial.helper.PUBLIC,
+            "GITHUB_RUN_ID": "123456789",
+            "GITHUB_RUN_ATTEMPT": "1",
         })
         env.start()
         self.addCleanup(env.stop)
@@ -126,7 +128,7 @@ class RealSignedY1SafetyTests(unittest.TestCase):
                           return_value={"sub": uid, "exp": int(trial.time.time()) + 40}), \
              patch.object(trial.helper, "owner_only_cleanup") as cleaned, \
              self.assertRaisesRegex(RuntimeError, "expires before bounded idle soak"):
-            trial.create_test_user("sb_secret_" + "x" * 42, trial.helper.PUBLIC)
+            trial.create_test_user("sb_secret_" + "x" * 42, trial.helper.PUBLIC, 0)
         cleaned.assert_called_once()
         self.assertTrue(email_request.endswith("@example.invalid"))
 
@@ -246,9 +248,50 @@ class RealSignedY1SafetyTests(unittest.TestCase):
         with patch.object(trial.helper, "request", side_effect=responses) as req, \
              patch.object(trial.helper, "owner_only_cleanup") as cleanup, \
              self.assertRaisesRegex(RuntimeError, "Synthetic Auth create response identity mismatch"):
-            trial.create_test_user("sb_secret_" + "x" * 42, trial.helper.PUBLIC)
+            trial.create_test_user("sb_secret_" + "x" * 42, trial.helper.PUBLIC, 0)
         self.assertEqual(req.call_count, 1)
         cleanup.assert_called_once()
+
+    def test_run_bound_fixture_identifiers_are_exact_two_and_nonreused(self):
+        a, b = trial.canary_marker(0), trial.canary_marker(1)
+        self.assertNotEqual(a, b)
+        for label in (a, b):
+            self.assertRegex(label, r"^rgai-p0249-jwt-[0-9a-f]{16}$")
+        with patch.dict(os.environ, {"GITHUB_RUN_ATTEMPT": "2"}):
+            self.assertNotIn(trial.canary_marker(0), (a, b))
+        with patch.dict(os.environ, {"GITHUB_RUN_ID": ""}):
+            with self.assertRaisesRegex(RuntimeError, "UNSAFE_RUN_BOUND_AUTH_MARKER"):
+                trial.canary_marker(0)
+        for slot in (-1, 2, False, "0"):
+            with self.subTest(slot=slot), self.assertRaises(RuntimeError):
+                trial.canary_marker(slot)
+
+    def test_independent_reconciliation_uses_only_two_exact_run_markers(self):
+        with patch.object(trial.helper, "owner_only_cleanup") as cleanup:
+            trial.cleanup_only()
+        self.assertEqual(cleanup.call_count, 2)
+        actual = [item.args for item in cleanup.call_args_list]
+        self.assertEqual(actual, [
+            ("sb_secret_" + "x" * 54, trial.canary_marker(1), None),
+            ("sb_secret_" + "x" * 54, trial.canary_marker(0), None),
+        ])
+
+    def test_independent_cleanup_attempts_both_if_one_fails(self):
+        with patch.object(trial.helper, "owner_only_cleanup",
+                          side_effect=(RuntimeError("cannot verify"), None)) as cleanup, \
+             self.assertRaisesRegex(RuntimeError, "manual review"):
+            trial.cleanup_only()
+        self.assertEqual(cleanup.call_count, 2)
+
+    def test_protected_restore_tries_auth_cleanup_even_if_azure_restore_fails(self):
+        workflow = (ROOT / ".github/workflows/p0249-dev-y1-public-shadow-bounded-once.yml").read_text()
+        restore = workflow.split("\n  independent-restore:\n", 1)[1]
+        self.assertIn("Independently reconcile run-bound disposable Auth users", restore)
+        self.assertIn("if: always()", restore)
+        self.assertIn("RGAI_DEV_SERVICE_KEY: \${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}".replace("\\", ""), restore)
+        self.assertIn("p0249_y1_signed_auth_shadow_once.py cleanup-only", restore)
+        self.assertLess(restore.index("p0249_y1_public_shadow_trial_guard.py rollback"),
+                        restore.index("p0249_y1_signed_auth_shadow_once.py cleanup-only"))
 
     def test_workflow_never_passes_admin_key_as_azure_appsetting(self):
         workflow = (ROOT / ".github/workflows/p0249-dev-y1-public-shadow-bounded-once.yml").read_text()
