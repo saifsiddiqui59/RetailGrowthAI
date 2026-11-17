@@ -163,8 +163,8 @@
       "claim": {
         "owner": "schedule-f3",
         "head_sha": "bb1fe290c812ed854bea2f89f0b89cf881a5ee71",
-        "claimed_at": "2026-11-17T00:37:33.697Z",
-        "expires_at": "2026-11-17T02:07:33.697Z"
+        "claimed_at": "2026-11-17T01:34:38.829Z",
+        "expires_at": "2026-11-17T03:04:38.829Z"
       },
       "checkpoint": {
         "owner": "schedule-f3",
