@@ -171,3 +171,6 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 
 ### 2026-11-17 — F4-04/F4-20 original #906/#715 decision digest
 - Current parent source/test now carries original #906 exact source `efd57f56` and tests `937dee49`, requiring independently persisted canonical approved Feature7 edit SHA and rejecting changed/replayed scene instructions. Original #715 review context archived in [file](feature4/ORIGINAL_715_PROVENANCE_20261117.md); reviewer/hosted DB contract still OPEN. Source-only IN PROGRESS, exact-head 4/4 pending.
+
+### 2026-11-17 — F4-14 #779 CPU three-duration evidence source
+- Imported original F4-14 15/30/60 immutable CPU matrix source/tests and compatible benchmark SHA reporter from #779. Original handoff SHA in [integration checkpoint](feature4/INTEGRATION_SPRINT_F405_F411_F415_20261117.md). No real full three-length test media produced; source IN PROGRESS; exact-final-head 4/4 & rights/CPU budget acceptance separate.

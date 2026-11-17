@@ -164,6 +164,10 @@ def benchmark(project, output, report, *, timeout_seconds=420, use_npm_node22=Fa
         "fps": config["fps"],
         "output_bytes": output_bytes,
         "output_sha256": output_sha256,
+        # Declared current Git checkout, not a signed CI provenance attestation.
+        "source_commit_claim": subprocess.check_output(
+            ["git", "-C", str(ROOT.parents[1]), "rev-parse", "--verify", "HEAD"],
+            text=True, timeout=5).strip(),
         "output_hash_type": "SHA256_STABLE_LOCAL_REGULAR_FILE_ONLY",
         "runtime_platform": platform.platform(),
         "cpu_count_visible": os.cpu_count(),
