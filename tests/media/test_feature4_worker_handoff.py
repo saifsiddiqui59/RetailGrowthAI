@@ -471,7 +471,8 @@ class WorkerHandoffTests(unittest.TestCase):
 
 
     def test_claim_revoked_after_staging_never_reaches_cpu_renderer(self):
-        # New parent checks lease before/after bundle and after download;\n        # fourth check just before render simulates a post-staging loss.
+        # New parent checks lease before/after bundle and after download;
+        # fourth check just before render simulates a post-staging loss.
         self.admin.claim_checks = 0
         def current(_claim):
             self.admin.claim_checks += 1
