@@ -148,6 +148,17 @@ jobs:
           set -euo pipefail
           python3 -u ops/p0249_y1_public_shadow_trial_guard.py rollback \
             --marker "$RUNNER_TEMP/p0249-public/p0249-public-before.json"
+      - name: Independently reconcile run-bound disposable Auth users
+        if: always()
+        env:
+          RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+          RGAI_DEV_P0249_JWT_CANARY_APPROVAL: OWNER_APPROVED_READ_ONLY_JWT_TEST
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The protected job recomputes two synthetic emails from run ID+attempt.
+          # Re-read exact GoTrue email+UUID before any deletion; no Y1 secret.
+          python3 -u tests/e2e/p0249_y1_signed_auth_shadow_once.py cleanup-only
       - name: Logout
         if: always()
         shell: bash
