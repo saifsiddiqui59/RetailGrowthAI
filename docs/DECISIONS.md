@@ -1158,3 +1158,6 @@ Owner direction to reuse original VoiceStudio code implemented with unchanged pi
 
 ## 2026-11-17 — #249 invalid user token vs unavailable JWKS are distinct states
 - Original `SupabaseJWTVerifier` must fail closed on both bad signatures and unavailable project signing keys, **but HTTP status must distinguish them**: PyJWT connection-layer `PyJWKClientConnectionError` -> noncredential `SigningKeysUnavailable` -> sanitized `HTTPAPI` 503, whereas invalid signature/key-id/claims remain 401. This neither retries a write nor logs tokens/JWKS exception details. It is a **handler-marked dependency 503**, not evidence for the historic **unmarked pre-handler Azure ingress 503**. Source-only shared auth needs independent security review before main integration or hosted activation.
+
+### 2026-11-17 — #249 distinguish marked handler dependency 503 from unmarked gateway 503
+- The original Y1 shadow `campaign_read.main` preserves safe `X-Request-ID` for a true JWKS connection outage classified by the original verifier+HTTPAPI as dependency 503. Add actual handler-level synthetic fixture, asserting no tenant reads and no secret leakage. This is an offline observability distinction, **not** the historical original Flex Azure ingress outage resolution or permission to enable Y1.
