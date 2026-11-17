@@ -152,7 +152,7 @@ def discover_retailer_music(*, shop_id: str, creative_brief: str,
                             authorized_shop_reader, environ=None, get=None):
     """Server caller supplies current signed shop membership reader, not a bool."""
     if (not callable(authorized_shop_reader) or
-            not authorized_shop_reader(shop_id)):
+            authorized_shop_reader(shop_id) is not True):
         raise PermissionError("Current authenticated retailer membership required")
     collected = discover_music(now=now, environ=environ, get=get)
     if collected["status"] != "OK":
@@ -160,7 +160,7 @@ def discover_retailer_music(*, shop_id: str, creative_brief: str,
                 "recommendations": [], "can_publish": False,
                 "can_mix_audio": False}
     # Re-check after remote call: a revocation during discovery must deny.
-    if not authorized_shop_reader(shop_id):
+    if authorized_shop_reader(shop_id) is not True:
         raise PermissionError("Shop membership revoked during provider call")
     ranked = recommend_audio(
         shop_id=shop_id, creative_brief=creative_brief,

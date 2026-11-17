@@ -94,3 +94,27 @@ def test_bad_provider_and_api_host_leak_are_fail_closed():
         _get("https://www.googleapis.com.evil.example/youtube/v3/videos?key=TEST_VALID_KEY_1234567890")
     with pytest.raises((AudioDiscoveryUnavailable,ValueError)):
         _get("https://evil.example/youtube/v3/videos?key=TEST_VALID_KEY_1234567890")
+
+
+def test_truthy_nonbool_editor_callbacks_fail_closed_before_and_after_api():
+    calls = []
+    with pytest.raises(PermissionError, match="authenticated"):
+        discover_retailer_music(
+            shop_id=SHOP, creative_brief="Kurti styling Reel",
+            duration_seconds=30, now=NOW, environ=ENV,
+            get=lambda *a, **kw: calls.append(1) or response(),
+            authorized_shop_reader=lambda _: "yes",
+        )
+    assert calls == []
+    checks = []
+    def revoked_to_truthy_string(_):
+        checks.append(1)
+        return True if len(checks) == 1 else "approved"
+    with pytest.raises(PermissionError, match="revoked"):
+        discover_retailer_music(
+            shop_id=SHOP, creative_brief="Kurti styling Reel",
+            duration_seconds=30, now=NOW, environ=ENV,
+            get=lambda *a, **kw: response(),
+            authorized_shop_reader=revoked_to_truthy_string,
+        )
+    assert len(checks) == 2

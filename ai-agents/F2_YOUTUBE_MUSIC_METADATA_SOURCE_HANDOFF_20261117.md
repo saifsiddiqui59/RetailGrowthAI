@@ -9,3 +9,7 @@ This reuses **two unchanged original Git blobs** from both F2 parent #551 (`d80d
 - `RETAIL_FEATURE2_MUSIC_YT_ENABLED` defaults OFF, server API key only, exact HTTPS endpoint, bounded result size, strict untrusted text/video ID checks, no redirects, current signed tenant-role lookup before and after provider observation, and `can_use_audio=false`.
 - All tests inject fake network responses and deny forged hosts, stale/revoked membership and non-music content. No external API, paid provider, licensed media, voice model or rendering is run.
 - Source-only acceptance requires four exact-head PR CI jobs and four fresh-main CI jobs; original F2 hosted/rights/editor and F4/7 media handoff remain unfinished. No GPU/DEV cloud/SQL/PROD/WineShopPOS changes.
+
+## Current-main hardening over original Git baseline
+
+The original two Git blobs above are the verified source lineage, **not** byte-identical final active content after this review. The active module now requires callback result `is True` both before and after provider observation; truthy strings/numbers cannot simulate current signed editor membership. An additional deterministic negative test covers pre-call and post-call nonboolean authorization callbacks. All original mocked tests remain intact; exact new-head 4/4 and fresh main 4/4 are still mandatory. No external API or licensed media used.
