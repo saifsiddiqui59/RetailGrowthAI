@@ -159,3 +159,6 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 
 ### 2026-11-17 — #828 last unique pre-render lease regression ported
 - Added original F4-15 `test_claim_revoked_after_staging_never_reaches_cpu_renderer` to parent with current four-stage claim validation, testing postdownload pre-render claim revocation. All 12 original #828 source/test paths audited, four handoffs retained exactly. Parent CI and main/hosted acceptance pending, F4-05/11/15 IN PROGRESS.
+
+### 2026-11-17 — F4-13/F4-15 output proof and private input key from #852
+- Original encoded output SHA/inode, post-upload identity check, exact canonical shop/job/lease storage key, current claim after upload and conservative private input keys ported to current parent. See [integration handoff](feature4/INTEGRATION_SPRINT_F405_F411_F415_20261117.md). Original F4-13/F4-15 IN PROGRESS, new 4/4 CI/current-main acceptance pending.

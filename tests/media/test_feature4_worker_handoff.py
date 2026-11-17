@@ -132,7 +132,8 @@ def fake_render(request, manifest, staged, output):
             "output_probe": {"duration_seconds": 15.0,
                              "width": 1080, "height": 1920, "fps": 24,
                              "bytes": destination.stat().st_size,
-                             "video_codec": "h264", "audio_codec": "aac"}}
+                             "video_codec": "h264", "audio_codec": "aac",
+                              "sha256": hashlib.sha256(destination.read_bytes()).hexdigest()}}
 
 
 class WorkerHandoffTests(unittest.TestCase):
@@ -353,6 +354,7 @@ class WorkerHandoffTests(unittest.TestCase):
             ("duration_seconds", 60.0), ("width", 540), ("fps", 30),
             ("video_codec", "mpeg4"), ("audio_codec", "mp3"),
             ("bytes", 999999), ("bytes", True),
+            ("sha256", "a"*64), ("sha256", None),
         )
         for key, value in examples:
             with self.subTest(key=key, value=value):
@@ -366,6 +368,97 @@ class WorkerHandoffTests(unittest.TestCase):
                     process_feature4_render(JOB, self.admin, self.media, render_fn=damaged)
                 self.assertEqual(self.media.uploads, [])
                 self.assertEqual(self.admin.failures, [("INVALID_RENDER_INPUT", True)])
+
+    def test_uploaded_key_must_bind_exact_original_shop_job_and_lease(self):
+        """An upload adapter response is not an authorization grant."""
+        allowed = SHOP + "/renders/" + JOB + "/" + LEASE + ".mp4"
+        invalid = (
+            OTHER + "/renders/" + JOB + "/" + LEASE + ".mp4",
+            SHOP + "/renders/" + OTHER + "/" + LEASE + ".mp4",
+            SHOP + "/renders/" + JOB + "/" + OTHER + ".mp4",
+            SHOP + "/renders/" + JOB + "/" + LEASE + ".mp4?token=foreign",
+            SHOP + "/renders/" + JOB + "/../" + LEASE + ".mp4",
+            "https://example.invalid/" + allowed,
+            allowed.upper(), allowed + "/extra", None, "", {"object_path": allowed},
+        )
+        for returned in invalid:
+            with self.subTest(returned=returned):
+                claim, bundle = sample()
+                self.admin = Admin(claim, bundle)
+                class WrongUploadKey(Media):
+                    def upload(media_self, sid, job_id, file_path, *, lease_token):
+                        super().upload(sid, job_id, file_path, lease_token=lease_token)
+                        return returned
+                self.media = WrongUploadKey()
+                with self.assertRaisesRegex(
+                        Feature4HandoffError, "Private uploaded object does not match current claim"):
+                    self.run_worker()
+                # Local success may leave an orphan remote upload, but must
+                # never complete the wrong object or create a signed URL.
+                self.assertEqual(len(self.media.uploads), 1)
+                self.assertEqual(self.admin.completions, [])
+                self.assertEqual(self.admin.failures, [("INVALID_RENDER_INPUT", True)])
+        claim, bundle = sample()
+        self.admin = Admin(claim, bundle)
+        self.media = Media()
+        self.assertEqual(self.run_worker(), "SUCCEEDED")
+        self.assertEqual(self.admin.completions[0][1], allowed)
+
+    def test_verified_output_cannot_change_during_private_upload(self):
+        for variant in ("append", "overwrite", "same-byte-atomic-swap"):
+            with self.subTest(variant=variant):
+                self.media = Media()
+                self.admin.failures.clear()
+                self.admin.completions.clear()
+                class CorruptDuringUpload(Media):
+                    def upload(media_self, sid, job_id, file_path, *, lease_token):
+                        key = super().upload(sid, job_id, file_path,
+                                             lease_token=lease_token)
+                        if variant == "append":
+                            with file_path.open("ab") as out:
+                                out.write(b"late data")
+                        elif variant == "overwrite":
+                            file_path.write_bytes(b"changed output" * 100)
+                        else:
+                            replacement = file_path.parent / "new-inode-output.mp4"
+                            replacement.write_bytes(file_path.read_bytes())
+                            os.replace(replacement, file_path)
+                        return key
+                self.media = CorruptDuringUpload()
+                with self.assertRaisesRegex(
+                        Feature4HandoffError, "Encoded output changed during private upload"):
+                    self.run_worker()
+                # An orphan upload can exist, but completion MUST NOT occur.
+                self.assertEqual(len(self.media.uploads), 1)
+                self.assertEqual(self.admin.completions, [])
+                self.assertEqual(self.admin.failures, [("INVALID_RENDER_INPUT", True)])
+
+    def test_ambiguous_encoded_or_dot_private_object_paths_denied_before_download(self):
+        # All these names formerly passed the worker path prefix / '..'
+        # segment checks, yet are not canonical signed source paths.
+        for suffix in (
+            "/approved/./asset.png", "/approved/%2e%2e/asset.png",
+            "/approved/photo%2fother.png", "/approved/img.png?token=foreign",
+            "/approved/img.png#signed", "/approved/control\n.png",
+            "/approved/fi\u200ble.png", "/approved/space name.png",
+            "/approved/../other.png", "/approved//image.png",
+        ):
+            with self.subTest(suffix=repr(suffix)):
+                self.admin.bundle = copy.deepcopy(sample()[1])
+                self.admin.bundle["assets"]["product01"]["object_path"] = SHOP + suffix
+                with self.assertRaisesRegex(Feature4HandoffError,
+                                            "Media storage path escapes tenant"):
+                    self.run_worker()
+                self.assertEqual(self.media.downloads, [])
+                self.assertEqual(self.media.uploads, [])
+        self.assertEqual(self.admin.completions, [])
+
+    def test_canonical_nested_private_object_path_remains_supported(self):
+        self.admin.bundle["assets"]["product01"]["object_path"] = (
+            SHOP + "/approved/F4_Products/2026-10/Look_01.png")
+        self.assertEqual(self.run_worker(), "SUCCEEDED")
+        self.assertEqual(self.media.downloads[0][1], (
+            SHOP + "/approved/F4_Products/2026-10/Look_01.png"))
 
     def test_renderer_forged_fallback_events_rejected(self):
         def damaged(*args):

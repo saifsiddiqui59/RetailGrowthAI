@@ -122,11 +122,12 @@ def _bundle(job, source):
                 or type(origin) is not str or not 0 < len(origin.strip()) <= 300):
             raise Feature4HandoffError("Missing verified commercial rights or MIME")
         key = row["object_path"]
+        # Canonical same-shop paths only: reject encoded escapes, query
+        # fragments, Unicode controls and empty/dot path components.
         if (type(key) is not str or not key.startswith(sid + "/")
-                or ".." in key.split("/") or "." in key.split("/")
-                or "\\" in key or "//" in key or key.endswith("/")
-                or "://" in key or len(key) > 1000
-                or any(ord(char) < 32 or ord(char) == 127 for char in key)):
+                or len(key) > 1000
+                or not re.fullmatch(r"[A-Za-z0-9._/-]+", key)
+                or any(seg in ("", ".", "..") for seg in key.split("/"))):
             raise Feature4HandoffError("Media storage path escapes tenant")
         # Use enumeration-generated filenames: no untrusted object keys in local path.
         rel = "in" + str(len(assets)).zfill(2) + suffix
@@ -179,7 +180,14 @@ def _verified_render_result(result, output, job, request, audit):
                 or probe["bytes"] != file.stat().st_size
                 or not 1024 < probe["bytes"] <= 80 * 1024 * 1024):
             raise Feature4HandoffError("Renderer media proof contradicts approved output")
-        return file, probe
+        # Output proof must attest to the actual stable encoded bytes.
+        actual = _staged_fingerprint(file)
+        if (type(probe.get("sha256")) is not str
+                or not re.fullmatch(r"[0-9a-f]{64}", probe["sha256"])
+                or probe["sha256"] != actual[1]
+                or probe["bytes"] != actual[0]):
+            raise Feature4HandoffError("Renderer output SHA disagrees with encoded artifact")
+        return file, probe, actual
     except Feature4HandoffError:
         raise
     except (KeyError, TypeError, ValueError, OSError) as exc:
@@ -242,6 +250,10 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
             staged_bytes = 0
             staged_fingerprints = {}
             for asset_id, key in objects.items():
+                # Authorization may expire between separate network downloads.
+                if (admin.render_authorized(claim) is not True or
+                        admin.feature4_claim_current(claim) is not True):
+                    return "STALE"
                 path = staging / manifest["assets"][asset_id]["path"]
                 media.download(claim["shop_id"], key, path)
                 if not path.is_file() or path.is_symlink():
@@ -263,7 +275,8 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
                     admin.feature4_claim_current(claim) is not True):
                 return "STALE"
             result = render_fn(request, manifest, staging, output)
-            result_path, probe = _verified_render_result(result, output, claim, request, audit)
+            result_path, probe, output_fingerprint = _verified_render_result(
+                result, output, claim, request, audit)
             # Verify that CPU work did not replace, truncate or swap original staged media.
             for asset_id, original in staged_fingerprints.items():
                 staged_path = staging / manifest["assets"][asset_id]["path"]
@@ -276,6 +289,17 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
             # no upsert. Completion RPC must CAS same claim token and ledger once.
             key = media.upload(claim["shop_id"], jid, result_path,
                                lease_token=claim["render_claim_token"])
+            # Detect encoded append/replacement while bytes are uploaded;
+            # orphaned remote bytes must never be finalized or billed.
+            if _staged_fingerprint(result_path) != output_fingerprint:
+                raise Feature4HandoffError("Encoded output changed during private upload")
+            expected_key = (claim["shop_id"] + "/renders/" + jid + "/" +
+                            claim["render_claim_token"] + ".mp4")
+            if type(key) is not str or key != expected_key:
+                raise Feature4HandoffError("Private uploaded object does not match current claim")
+            if (admin.render_authorized(claim) is not True or
+                    admin.feature4_claim_current(claim) is not True):
+                return "STALE"
             finalized = admin.complete_feature4_render(
                 claim, key, probe, audit["rendered_as"])
             if finalized is not True:
