@@ -148,6 +148,15 @@ def rollback(path):
     return False
 
 
+class _BlockRedirects(urllib.request.HTTPRedirectHandler):
+    """Fail closed on redirects in credential-bearing DEV Y1 probes."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+NO_REDIRECT_OPENER = urllib.request.build_opener(_BlockRedirects())
+
+
 def get(path, token=""):
     headers = {"Cache-Control": "no-store"}
     if token:
@@ -157,7 +166,7 @@ def get(path, token=""):
         headers=headers, method="GET")
     started = time.monotonic()
     try:
-        with urllib.request.urlopen(req, timeout=18) as response:
+        with NO_REDIRECT_OPENER.open(req, timeout=18) as response:
             status = response.status
             marked = bool(response.headers.get("X-Request-ID"))
     except urllib.error.HTTPError as exc:
