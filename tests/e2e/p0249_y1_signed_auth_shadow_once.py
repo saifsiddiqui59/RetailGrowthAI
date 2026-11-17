@@ -75,6 +75,11 @@ def create_test_user(key, pub):
         claims = helper.jwt_claims_for_local_shape_only(token)
         if claims.get("sub") != uid:
             raise RuntimeError("Synthetic signed JWT subject mismatch")
+        # Use an ordinary long-lived TEST JWT so an expiry during the idle
+        # window cannot be misclassified as an Azure ingress regression.
+        expiry = claims.get("exp")
+        if type(expiry) is not int or expiry <= time.time() + 360:
+            raise RuntimeError("Synthetic JWT expires before bounded idle soak")
         return marker, uid, token
     except BaseException:
         helper.owner_only_cleanup(key, marker, uid)
@@ -105,7 +110,7 @@ def main():
     try:
         for i in range(2):
             marker, uid, token = create_test_user(key, pub)
-            created.append((marker, uid))
+            created.append((marker, uid, token))
             for n in range(3):
                 code, marked, payload, sec = y1_read(token)
                 if (code != 404 or not marked or
@@ -119,16 +124,27 @@ def main():
             if code != 401 or not marked or payload != {"error": "UNAUTHORIZED"}:
                 raise RuntimeError("Forged JWT not rejected by original Y1 verifier")
             print(f"P0249_Y1_REAL_USER={i+1} FORGED_SIGNATURE=DENIED",flush=True)
-        print("P0249_Y1_REAL_SUPABASE_SIGNED_USERS=2_OF_2_ACCEPTED_NO_SHOP_DATA",flush=True)
+        # Separate immediate signed JWT success from actual idle reliability.
+        # No probe traffic is generated during this single deliberate idle.
+        print("P0249_Y1_SIGNED_IDLE_SECONDS=240", flush=True)
+        time.sleep(240)
+        for i, (_, _, token) in enumerate(created):
+            code, marked, payload, sec = y1_read(token)
+            if (code != 404 or not marked or
+                    payload != {"error": "NOT_FOUND"} or sec >= 18):
+                raise RuntimeError("Signed DEV JWT failed original Y1 GET after 240s idle")
+            print(f"P0249_Y1_SIGNED_AFTER_IDLE_USER={i+1} HTTP404_MARKED=PASS SECONDS={sec}", flush=True)
     finally:
         failures = 0
-        for marker, uid in reversed(created):
+        for marker, uid, _ in reversed(created):
             try:
                 helper.owner_only_cleanup(key, marker, uid)
             except Exception:
                 failures += 1
         if failures:
             raise RuntimeError("Critical: disposable Auth user cleanup incomplete")
+    # This receipt is printed only AFTER exact two-user cleanup succeeds.
+    print("P0249_Y1_REAL_SUPABASE_SIGNED_USERS=2_OF_2_AFTER_IDLE_ACCEPTED_AND_CLEANED", flush=True)
 
 
 if __name__ == "__main__":
