@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 40,
+    "open_prs": 39,
     "by_feature": {
-      "F2": 13,
+      "F2": 12,
       "F3": 3,
       "F4": 4,
       "F5": 5,
@@ -51,33 +51,6 @@
         "evidence_status": "worker-reported-unverified"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/972"
-    },
-    {
-      "pr": 971,
-      "title": "feat(feature2 F2-05): recover OFF-by-default unlicensed music-chart metadata",
-      "feature": "F2",
-      "head_sha": "8c033eb9573d393157c8f953cc535b2ce6de4545",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration",
-        "head_sha": "8c033eb9573d393157c8f953cc535b2ce6de4545",
-        "claimed_at": "2026-11-17T16:58:52.312Z",
-        "expires_at": "2026-11-17T18:28:52.312Z"
-      },
-      "checkpoint": {
-        "recorded_at": "2026-11-17T16:58:52.312Z",
-        "owner": "manual-integration",
-        "head_sha": "8c033eb9573d393157c8f953cc535b2ce6de4545",
-        "commits_reported": 2,
-        "tests_reported": "Original music tests + nonbool authorization negatives; final CI pending",
-        "ci_reported": "run #44131824828 queued",
-        "next_action": "Verify exact-final-head 4/4, main compatibility and merge; independently fresh main 4/4",
-        "evidence_status": "worker-reported-unverified"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/971"
     },
     {
       "pr": 970,
