@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 38,
+    "open_prs": 37,
     "by_feature": {
-      "F2": 11,
+      "F2": 10,
       "F3": 3,
       "F4": 4,
       "F5": 5,
@@ -25,33 +25,6 @@
     }
   },
   "entries": [
-    {
-      "pr": 969,
-      "title": "feat(feature2 F2-05): restore OFF-by-default Pexels metadata discovery on current main",
-      "feature": "F2",
-      "head_sha": "163172f0e2927212e3a9502def835eb76996d28c",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration",
-        "head_sha": "163172f0e2927212e3a9502def835eb76996d28c",
-        "claimed_at": "2026-11-17T16:43:20.727Z",
-        "expires_at": "2026-11-17T18:13:20.727Z"
-      },
-      "checkpoint": {
-        "recorded_at": "2026-11-17T16:43:20.727Z",
-        "owner": "manual-integration",
-        "head_sha": "163172f0e2927212e3a9502def835eb76996d28c",
-        "commits_reported": 1,
-        "tests_reported": "Original mock-only Pexels test suite included; CI pending",
-        "ci_reported": "run #44128811949 queued",
-        "next_action": "Verify exact-head four mandatory jobs; safely merge if independently eligible; fresh main four jobs",
-        "evidence_status": "worker-reported-unverified"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/969"
-    },
     {
       "pr": 968,
       "title": "feat(#249): stage three original JWT/RLS GET status routes for isolated Y1 (source only)",
