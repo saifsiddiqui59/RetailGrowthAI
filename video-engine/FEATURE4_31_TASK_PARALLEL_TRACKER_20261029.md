@@ -153,3 +153,6 @@ PR #322 (DRAFT). Feature4 owner: `feat/feature4-professional-video-studio`. Revi
 
 ### 2026-11-17 — F4-02 original #799 render-stage anti-alias/no-op
 - Current parent code and tests now preserve exact old #799 SHA, rejecting alias/hardlink source/master/preview/captioned and identical encoded stage bytes. Original handoff retained, details [checkpoint](feature4/INTEGRATION_SPRINT_F405_F411_F415_20261117.md). IN PROGRESS pending exact-head 4/4 and accepted main/hosted 60s QA.
+
+### 2026-11-17 — #799 negative-fixture CI repair
+- After strict unchanged-bytes render-stage guard, two existing malformed media/symlink negatives required distinct invalid source/master/preview bytes. Test-only repair retains the security guard; exact-head CI pending. F4-02 still IN PROGRESS.

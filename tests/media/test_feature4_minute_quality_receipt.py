@@ -84,13 +84,13 @@ class MinuteEvidenceTests(unittest.TestCase):
     def test_garbage_or_unproven_mp4_rejected(self):
         self.fill_test_records()
         for k in ('original','master','preview'):
-            self.paths[k].write_bytes(b"not media"*100)
+            self.paths[k].write_bytes(b"not media" + k.encode("ascii")*100)
         with self.assertRaisesRegex(MinuteProofError,"media/codec preflight"):
             self.validate()
     def test_symlinked_evidence_rejected(self):
         self.fill_test_records()
         for k in ("original","master","preview"):
-            self.paths[k].write_bytes(b"not media"*100)
+            self.paths[k].write_bytes(b"not media" + k.encode("ascii")*100)
         backing=self.root/'evidence.json'
         backing.write_text('{"valid": false}')
         self.paths['provenance'].unlink()
