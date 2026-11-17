@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "ledger_branch": "coordination/pr-execution-ledger",
-  "snapshot_date": "2026-11-15",
+  "snapshot_date": "2026-11-17",
   "data_kind": "GitHub live PR inventory; not proof of review/CI or an active lease",
   "main_merge_owner": "manual-integration",
   "lease_policy": {
@@ -13,18 +13,44 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 69,
+    "open_prs": 44,
     "by_feature": {
-      "shared": 3,
-      "F7": 1,
-      "F4": 34,
       "F2": 13,
-      "issue249": 9,
       "F3": 4,
-      "F5": 5
+      "F4": 7,
+      "F5": 5,
+      "F7": 1,
+      "issue249": 10,
+      "shared": 4
     }
   },
   "entries": [
+    {
+      "pr": 966,
+      "title": "docs(integration): F4 source reconciliation and 15 deduplicated drafts",
+      "feature": "shared",
+      "head_sha": "952263ada0c3266b9102118f433dc30f991e22eb",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P2",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/966"
+    },
+    {
+      "pr": 965,
+      "title": "fix(#249): restore Feature2 JWT verifier construction after warm-cache integration",
+      "feature": "issue249",
+      "head_sha": "0a6828249a16110f19059899d14b79917a5b7668",
+      "base_branch": "main",
+      "work_owner": "manual-issue249",
+      "priority": "P2",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/965"
+    },
     {
       "pr": 964,
       "title": "feat(coordination): serialize main merges and use CAS-backed PR queue",
@@ -39,79 +65,10 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/964"
     },
     {
-      "pr": 513,
-      "title": "feat(feature7): AutoBroll uploaded-footage semantic edit proposals with tenant fences",
-      "feature": "F7",
-      "head_sha": "eb9df22f34604f2ac592e9c1620430a7978794b5",
-      "base_branch": "main",
-      "work_owner": "schedule-f7",
-      "priority": "P0",
-      "phase": "blocked",
-      "claim": null,
-      "checkpoint": {
-        "owner": "schedule-f7",
-        "at": "2026-11-15T21:15:00Z",
-        "head_before": "5be0dd259066fa3c902e4ace0dfb0b7afa2778c0",
-        "head_after": "ae1c42099930ae4f4ed6eb3167ecf4898aa43be9",
-        "commits": [
-          "1eb7c255e1d2bc1cbdd9fbb1f9bf62db75cec792",
-          "ae1c42099930ae4f4ed6eb3167ecf4898aa43be9"
-        ],
-        "files_changed": [
-          "video-engine/feature7/voicestudio_verified_media.mjs",
-          "tests/media/test_feature7_voicestudio_verified_media.py"
-        ],
-        "tests": "NOT RUN: GitHub connector source edits; no executable checkout",
-        "ci": "Exact-head PR workflow runs 0; 0/4 verified",
-        "blockers": "CPU regression execution, exact-head CI, independent review, parent mergeability",
-        "next_action": "Execute python -m unittest tests/media/test_feature7_voicestudio_verified_media.py at ae1c4209; fix failing test/source, trigger and verify exact-head 4/4 CI; manual integration handles main",
-        "status": "worker-reported; NOT DONE"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/513"
-    },
-    {
-      "pr": 322,
-      "title": "WIP Feature #4 — Timeline Studio engine (illustrated demo rejected; visual QA open)",
-      "feature": "F4",
-      "head_sha": "e26658f844328171342b56241450b29821b33d5f",
-      "base_branch": "main",
-      "work_owner": "schedule-f4",
-      "priority": "P0",
-      "phase": "blocked",
-      "claim": null,
-      "checkpoint": {
-        "owner": "schedule-f4",
-        "at": "2026-11-15T20:52:00Z",
-        "head_before": "e26658f844328171342b56241450b29821b33d5f",
-        "head_after": "e26658f844328171342b56241450b29821b33d5f",
-        "commits": [],
-        "files_changed": [],
-        "tests": "NOT RUN: local checkout blocked by github.com DNS resolution",
-        "ci": "Existing exact-head workflow #43742581420: 3/4 jobs success, FFmpeg job cancelled; successfully requested retry of cancelled FFmpeg job 132898771325, pending",
-        "blockers": "Actual targeted CPU tests unavailable locally; rerun pending; independent review and owner-rejected visual QA open",
-        "next_action": "Inspect rerun FFmpeg job 132898771325; if green confirm exact-head 4/4, otherwise repair F4-owned tests after obtaining CAS lease; independently review current-main-compatible unique F4 changes",
-        "status": "worker-reported; NOT DONE"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322"
-    },
-    {
-      "pr": 551,
-      "title": "feat(feature2): unify pinned MIT Creative Director, trusted grants, QA, editorial handoff and GPU-off integration tests",
-      "feature": "F2",
-      "head_sha": "d80d6b50705323290c4b214bf2f006eacef1ef33",
-      "base_branch": "main",
-      "work_owner": "schedule-f2",
-      "priority": "P0",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/551"
-    },
-    {
       "pr": 955,
       "title": "docs(#249): checkpoint manual-only Y1 trial and JWT cache source work",
       "feature": "issue249",
-      "head_sha": "b40cc44f6de614f8528525e04838779e17894365",
+      "head_sha": "32409c3775222820f153634c436c942571ddb079",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P0",
@@ -119,32 +76,6 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/955"
-    },
-    {
-      "pr": 939,
-      "title": "ops(#249): bounded DEV Y1 public-only JWT shadow trial with rollback",
-      "feature": "issue249",
-      "head_sha": "bf182848cf4aeed5f681cdf2374251535b0589cc",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P0",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/939"
-    },
-    {
-      "pr": 921,
-      "title": "audit(#249): inspect Y1 remote build and deployment logs",
-      "feature": "issue249",
-      "head_sha": "64ba7a53ae7942791185d98bbd08d8d71e642bb6",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P0",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/921"
     },
     {
       "pr": 944,
@@ -183,17 +114,17 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/944"
     },
     {
-      "pr": 848,
-      "title": "feat(feature2): consolidate existing Creative Director source PRs for coordinator review",
-      "feature": "F2",
-      "head_sha": "be876fb087b47393299366aa971cc1123600f5bf",
-      "base_branch": "feat/feature2-unified-offline-source-20261028",
-      "work_owner": "schedule-f2",
+      "pr": 939,
+      "title": "ops(#249): bounded DEV Y1 public-only JWT shadow trial with rollback",
+      "feature": "issue249",
+      "head_sha": "58d27135e29bc997cf3204ff814c8691e1cc5230",
+      "base_branch": "main",
+      "work_owner": "manual-issue249",
       "priority": "P0",
       "phase": "needs-triage",
       "claim": null,
       "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/939"
     },
     {
       "pr": 937,
@@ -226,19 +157,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/937"
     },
     {
-      "pr": 880,
-      "title": "Feature3 F3-08: fail-closed current output rights authority boundary and negative tests",
-      "feature": "F3",
-      "head_sha": "141860508c1d4592b5fecfcbe0bce9f931a1bfda",
-      "base_branch": "main",
-      "work_owner": "schedule-f3",
-      "priority": "P0",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/880"
-    },
-    {
       "pr": 925,
       "title": "review(feature2): OFF-by-default signed VoiceStudio Azure Functions route",
       "feature": "F2",
@@ -265,6 +183,19 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/923"
     },
     {
+      "pr": 921,
+      "title": "audit(#249): inspect Y1 remote build and deployment logs",
+      "feature": "issue249",
+      "head_sha": "64ba7a53ae7942791185d98bbd08d8d71e642bb6",
+      "base_branch": "main",
+      "work_owner": "manual-issue249",
+      "priority": "P0",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/921"
+    },
+    {
       "pr": 920,
       "title": "feat(F2-19/F2-20): join VoiceStudio one-shot job to private WAV and SQL review receipts",
       "feature": "F2",
@@ -276,19 +207,6 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/920"
-    },
-    {
-      "pr": 906,
-      "title": "Feature4 F4-04: reconcile persisted editor-approval digest from original #715",
-      "feature": "F4",
-      "head_sha": "2cef0eb459fd44e3d26fbb2f46c33c05bd90808b",
-      "base_branch": "feat/feature4-professional-video-studio",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/906"
     },
     {
       "pr": 917,
@@ -311,13 +229,8 @@
       "base_branch": "feat/feature2-source-batch-8pr-consolidation-20261030",
       "work_owner": "schedule-f2",
       "priority": "P1",
-      "phase": "draft",
-      "claim": {
-        "owner": "schedule-f2",
-        "head_sha": "9a818a7dbce5cdf7bddbdc94c6854c7d5c667644",
-        "claimed_at": "2026-11-17T00:28:00Z",
-        "expires_at": "2026-11-17T01:58:00Z"
-      },
+      "phase": "ready-for-review",
+      "claim": null,
       "checkpoint": {
         "owner": "schedule-f2",
         "at": "2026-11-17T00:28:00Z",
@@ -333,17 +246,17 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/912"
     },
     {
-      "pr": 465,
-      "title": "Feature #5 GPU-OFF Wan2.2: real Feature3 producer integration, private imports and 4/4 CI",
-      "feature": "F5",
-      "head_sha": "2106caa6563f952a6db2942f08bd6701d5f4f9c8",
-      "base_branch": "feat/feature5-premium-ai-motion",
-      "work_owner": "manual-integration",
-      "priority": "P0",
+      "pr": 906,
+      "title": "Feature4 F4-04: reconcile persisted editor-approval digest from original #715",
+      "feature": "F4",
+      "head_sha": "2cef0eb459fd44e3d26fbb2f46c33c05bd90808b",
+      "base_branch": "feat/feature4-professional-video-studio",
+      "work_owner": "schedule-f4",
+      "priority": "P1",
       "phase": "draft",
       "claim": null,
       "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/465"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/906"
     },
     {
       "pr": 887,
@@ -359,30 +272,17 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/887"
     },
     {
-      "pr": 873,
-      "title": "docs(feature3): record F3-13 PR #872 verified main CI and review gap",
+      "pr": 880,
+      "title": "Feature3 F3-08: fail-closed current output rights authority boundary and negative tests",
       "feature": "F3",
-      "head_sha": "8cdbe41dab9e8a1f5c2c60003bb2de7ede099ce9",
+      "head_sha": "141860508c1d4592b5fecfcbe0bce9f931a1bfda",
       "base_branch": "main",
       "work_owner": "schedule-f3",
       "priority": "P0",
       "phase": "needs-triage",
       "claim": null,
       "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/873"
-    },
-    {
-      "pr": 668,
-      "title": "feat(p0249): add OFF-by-default same-origin Node HTTP transport candidate",
-      "feature": "issue249",
-      "head_sha": "d0814c492fef18b2dc948e309470f73687685d3a",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P0",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/668"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/880"
     },
     {
       "pr": 879,
@@ -398,6 +298,19 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/879"
     },
     {
+      "pr": 873,
+      "title": "docs(feature3): record F3-13 PR #872 verified main CI and review gap",
+      "feature": "F3",
+      "head_sha": "8cdbe41dab9e8a1f5c2c60003bb2de7ede099ce9",
+      "base_branch": "main",
+      "work_owner": "schedule-f3",
+      "priority": "P0",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/873"
+    },
+    {
       "pr": 852,
       "title": "Feature4 F4-13: canonical same-shop storage object keys before private source download",
       "feature": "F4",
@@ -411,152 +324,17 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/852"
     },
     {
-      "pr": 779,
-      "title": "Feature4 batched source integration: F4-03/04/10/13/14/15 with one CI boundary",
-      "feature": "F4",
-      "head_sha": "91f21d8135cde4d1bcc330bb9a02bbf7e1316601",
-      "base_branch": "feat/feature4-professional-video-studio",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/779"
-    },
-    {
-      "pr": 851,
-      "title": "Feature4 F4-15: fence encoded-output SHA and original inode through private upload",
-      "feature": "F4",
-      "head_sha": "6a5bc166a1cdc78b3f45366117975a2d13bc51f1",
-      "base_branch": "feat/feature4-stale-render-response-fence-20261030",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/851"
-    },
-    {
-      "pr": 850,
-      "title": "Feature4 F4-10: prevent stale shop/draft render ACKs from revealing signed previews",
-      "feature": "F4",
-      "head_sha": "cf8d3cc77c4af33b7c1d3961128dfa096d24aca1",
-      "base_branch": "feat/feature4-minute-proof-stable-read-20261030",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/850"
-    },
-    {
-      "pr": 125,
-      "title": "DRAFT Part 3 → main: gated Wan premium video foundations (Coordinator integration)",
-      "feature": "F5",
-      "head_sha": "3d985127e495d839e3e1f657080cbd8885561e6e",
-      "base_branch": "main",
-      "work_owner": "schedule-f5",
+      "pr": 848,
+      "title": "feat(feature2): consolidate existing Creative Director source PRs for coordinator review",
+      "feature": "F2",
+      "head_sha": "be876fb087b47393299366aa971cc1123600f5bf",
+      "base_branch": "feat/feature2-unified-offline-source-20261028",
+      "work_owner": "schedule-f2",
       "priority": "P0",
-      "phase": "draft",
+      "phase": "needs-triage",
       "claim": null,
       "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/125"
-    },
-    {
-      "pr": 845,
-      "title": "fix(feature4 F4-07): preflight private audio proof before mastering",
-      "feature": "F4",
-      "head_sha": "84b7e1c148a1bb50ffcbfb7f4ad6fcb61b88c2bb",
-      "base_branch": "feat/feature4-professional-video-studio",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": {
-        "owner": "schedule-f4",
-        "head_sha": "84b7e1c148a1bb50ffcbfb7f4ad6fcb61b88c2bb",
-        "claimed_at": "2026-11-17T01:47:00Z",
-        "expires_at": "2026-11-17T03:17:00Z"
-      },
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/845"
-    },
-    {
-      "pr": 841,
-      "title": "Feature4 F4-02: fail closed on swapped 60s MP4/provenance/QA receipt paths",
-      "feature": "F4",
-      "head_sha": "5415824127e290ef246b6f55005aa96cfac03fd7",
-      "base_branch": "feat/feature4-preview-seek-sync-20261030",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/841"
-    },
-    {
-      "pr": 839,
-      "title": "Feature4 F4-08: synchronize timeline frame seeking with authorized video preview",
-      "feature": "F4",
-      "head_sha": "c7826bc930b44c76261a731df3b9c7621efcf33c",
-      "base_branch": "feat/feature4-caption-typography-bidi-20261030",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/839"
-    },
-    {
-      "pr": 837,
-      "title": "Feature4 F4-12: multilingual approved subtitle typography and anti-spoof controls",
-      "feature": "F4",
-      "head_sha": "3ab34466edc36d6a4d214ca2ba4ca799dfea0aed",
-      "base_branch": "feat/feature4-endcard-inode-proof-20261030",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/837"
-    },
-    {
-      "pr": 835,
-      "title": "Feature4 F4-11: stable original MP4 inode for encoded 60s endcard proof",
-      "feature": "F4",
-      "head_sha": "0c21d93aed1993aa3c008feb449971bbe3c07a1c",
-      "base_branch": "feat/feature4-audio-master-source-fence-20261030",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/835"
-    },
-    {
-      "pr": 831,
-      "title": "Feature4 F4-07: fence same-content source inode swaps during AAC mastering",
-      "feature": "F4",
-      "head_sha": "2166a6c45457fbd0cfdd3d1fe611c2c5159eaf19",
-      "base_branch": "feat/feature4-bounded-independent-audio-gains-20261030",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/831"
-    },
-    {
-      "pr": 830,
-      "title": "Feature4 F4-06: bounded independent source/music/voice/SFX gain contract",
-      "feature": "F4",
-      "head_sha": "a86884dd1d676719b9000515dec0cdfe4df06ffb",
-      "base_branch": "feat/feature4-f405-f411-f415-integration-20261030",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/830"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848"
     },
     {
       "pr": 828,
@@ -572,173 +350,17 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/828"
     },
     {
-      "pr": 827,
-      "title": "Feature4 F4-11: stable encoded motion SHA/inode and finite same-scene probes",
+      "pr": 779,
+      "title": "Feature4 batched source integration: F4-03/04/10/13/14/15 with one CI boundary",
       "feature": "F4",
-      "head_sha": "b1a5058c853b8087788982311c12f2576323877d",
-      "base_branch": "feat/feature4-cpu-3profile-matrix-20261030",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/827"
-    },
-    {
-      "pr": 824,
-      "title": "Feature4 F4-15: fence lease before private download/CPU and verify staged inode",
-      "feature": "F4",
-      "head_sha": "3dd468202a781f331391ff1172ba4f5cbc60384b",
-      "base_branch": "feat/feature4-cpu-3profile-matrix-20261030",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/824"
-    },
-    {
-      "pr": 822,
-      "title": "Feature4 F4-05: fix silent approved animation presets and lock renderer effect parity",
-      "feature": "F4",
-      "head_sha": "1ba7949c2666691a6442e007053bd1a2c58512d3",
-      "base_branch": "feat/feature4-cpu-3profile-matrix-20261030",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/822"
-    },
-    {
-      "pr": 808,
-      "title": "Feature4 F4-11: full encoded timeline black-hold QA, not just scene spot checks",
-      "feature": "F4",
-      "head_sha": "81023702673f48730d85e4b33fae26936e8b30cd",
-      "base_branch": "feat/feature4-batched-source-handoff-20261030",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/808"
-    },
-    {
-      "pr": 816,
-      "title": "Feature4 F4-14: same-head 15/30/60 source CPU/RSS evidence envelope",
-      "feature": "F4",
-      "head_sha": "d01e3c716b4f651809d645684c921c6f0413c343",
-      "base_branch": "feat/feature4-continuous-black-qa-20261030",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/816"
-    },
-    {
-      "pr": 803,
-      "title": "fix(feature4 F4-13): deny release with unapproved auxiliary Reel media",
-      "feature": "F4",
-      "head_sha": "73f0549e84ff9fba91ad57bb027829689149398f",
+      "head_sha": "c1d66e9b3903c45ae4cc9930ad1362a38b3f8843",
       "base_branch": "feat/feature4-professional-video-studio",
       "work_owner": "schedule-f4",
       "priority": "P1",
       "phase": "draft",
       "claim": null,
       "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/803"
-    },
-    {
-      "pr": 799,
-      "title": "fix(feature4 F4-02): prevent aliased/no-op 60s QA receipts",
-      "feature": "F4",
-      "head_sha": "94388aa16d7d4e1f2348eae3a9d2b0a791ac0499",
-      "base_branch": "feat/feature4-professional-video-studio",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/799"
-    },
-    {
-      "pr": 792,
-      "title": "Feature4: pre-render lease/rights fence and private object-key hardening",
-      "feature": "F4",
-      "head_sha": "47db93529edfd50b9ea7b68a610bbc805545ab49",
-      "base_branch": "feat/feature4-professional-video-studio",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/792"
-    },
-    {
-      "pr": 784,
-      "title": "fix(feature4 F4-10): clear cancelled clip drags before unrelated drops",
-      "feature": "F4",
-      "head_sha": "55832723c784bc08694ea73d4a9cd6ba72452c65",
-      "base_branch": "feat/feature4-professional-video-studio",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/784"
-    },
-    {
-      "pr": 773,
-      "title": "Feature4 F4-04: fail-closed encoded editor cut-boundary parity checks",
-      "feature": "F4",
-      "head_sha": "31dd9d72e8b059eaa92005a596cad7aa7acdac6c",
-      "base_branch": "feat/feature4-professional-video-studio",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/773"
-    },
-    {
-      "pr": 753,
-      "title": "test(feature4): reject gapped 60s scene-visibility receipts (F4-02)",
-      "feature": "F4",
-      "head_sha": "eeec8c363627b1085cfff33dcc62d85a57973800",
-      "base_branch": "feat/feature4-professional-video-studio",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/753"
-    },
-    {
-      "pr": 745,
-      "title": "test(feature4): fail closed on frozen encoded video scenes (F4-04)",
-      "feature": "F4",
-      "head_sha": "bd9088ebe8c401441e0a27e66f85e648ed8d24d7",
-      "base_branch": "feat/feature4-professional-video-studio",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/745"
-    },
-    {
-      "pr": 735,
-      "title": "Feature4 F4-04: opt-in encoded duplicate editor QA (mock only)",
-      "feature": "F4",
-      "head_sha": "8f80480f9d6d27cb781d6389a423ee843a67e8d3",
-      "base_branch": "feat/feature4-professional-video-studio",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/735"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/779"
     },
     {
       "pr": 733,
@@ -754,19 +376,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/733"
     },
     {
-      "pr": 731,
-      "title": "fix(feature4): bind encoded motion QA to immutable private MP4 bytes (F4-11)",
-      "feature": "F4",
-      "head_sha": "fdf615bdd09cad80e4129bf6d8527e0112eadd47",
-      "base_branch": "feat/feature4-professional-video-studio",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/731"
-    },
-    {
       "pr": 724,
       "title": "Feature #5 F5-14: opt-in read-only checkpoint SHA-256 audit (GPU OFF)",
       "feature": "F5",
@@ -778,19 +387,6 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/724"
-    },
-    {
-      "pr": 723,
-      "title": "fix(feature4): fail-closed encoded edit QA and mid-download lease/rights fences",
-      "feature": "F4",
-      "head_sha": "e71a4e401e6634120f3a4f5e85571b4f807b88f8",
-      "base_branch": "feat/feature4-professional-video-studio",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/723"
     },
     {
       "pr": 720,
@@ -832,45 +428,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/707"
     },
     {
-      "pr": 679,
-      "title": "fix(p0249): protect DEV Node canary JWT from header spoofing and redirects",
-      "feature": "issue249",
-      "head_sha": "39b943e28c1f74cdd96b0a0f1c09867b9892319b",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P2",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/679"
-    },
-    {
-      "pr": 701,
-      "title": "fix(feature4): cancel timeline resize on tenant, approval and pointer lifecycle changes",
-      "feature": "F4",
-      "head_sha": "0653a58fef41c3ff4076f43fda160aae95236647",
-      "base_branch": "feat/feature4-professional-video-studio",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/701"
-    },
-    {
-      "pr": 696,
-      "title": "feat(coordination): make feature chats read control table and continue next tasks",
-      "feature": "shared",
-      "head_sha": "dfa0e58c01f4f961180682f6bedd85c9d308d0e4",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/696"
-    },
-    {
       "pr": 700,
       "title": "fix(feature2 #20): block original WAV storage success after tenant revocation",
       "feature": "F2",
@@ -897,6 +454,19 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/697"
     },
     {
+      "pr": 696,
+      "title": "feat(coordination): make feature chats read control table and continue next tasks",
+      "feature": "shared",
+      "head_sha": "dfa0e58c01f4f961180682f6bedd85c9d308d0e4",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P2",
+      "phase": "draft",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/696"
+    },
+    {
       "pr": 684,
       "title": "fix(feature2 #2/#4/#29): private MP3/WAV and Unicode editorial safety",
       "feature": "F2",
@@ -910,30 +480,17 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/684"
     },
     {
-      "pr": 690,
-      "title": "fix(feature4): prevent staged media mutation during v2 CPU render",
-      "feature": "F4",
-      "head_sha": "211312a68061bf5fe605f0e9e44653db4dd2cfcf",
-      "base_branch": "feat/feature4-professional-video-studio",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
+      "pr": 679,
+      "title": "fix(p0249): protect DEV Node canary JWT from header spoofing and redirects",
+      "feature": "issue249",
+      "head_sha": "39b943e28c1f74cdd96b0a0f1c09867b9892319b",
+      "base_branch": "main",
+      "work_owner": "manual-issue249",
+      "priority": "P2",
+      "phase": "needs-triage",
       "claim": null,
       "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/690"
-    },
-    {
-      "pr": 686,
-      "title": "feat(feature4): encoded duplicate timeline parity via trusted HyperFrames renderer",
-      "feature": "F4",
-      "head_sha": "eff709ef42c7ed3eeb832a5e724170d78d96511d",
-      "base_branch": "feat/feature4-professional-video-studio",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/686"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/679"
     },
     {
       "pr": 676,
@@ -949,17 +506,17 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/676"
     },
     {
-      "pr": 627,
-      "title": "feat(testing): signed backend-verified worker evidence in Testing Chat",
-      "feature": "shared",
-      "head_sha": "6ef9788a26661c07a3feb851dfe1cb0209b310da",
+      "pr": 668,
+      "title": "feat(p0249): add OFF-by-default same-origin Node HTTP transport candidate",
+      "feature": "issue249",
+      "head_sha": "d0814c492fef18b2dc948e309470f73687685d3a",
       "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "draft",
+      "work_owner": "manual-issue249",
+      "priority": "P0",
+      "phase": "needs-triage",
       "claim": null,
       "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/627"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/668"
     },
     {
       "pr": 639,
@@ -975,17 +532,74 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/639"
     },
     {
-      "pr": 323,
-      "title": "Feature #5: gated Hunyuan AI motion provider/worker contracts (source-only)",
-      "feature": "F5",
-      "head_sha": "ffc464c09f719a0bfb6b15b5c34608f89d76234b",
+      "pr": 627,
+      "title": "feat(testing): signed backend-verified worker evidence in Testing Chat",
+      "feature": "shared",
+      "head_sha": "6ef9788a26661c07a3feb851dfe1cb0209b310da",
       "base_branch": "main",
-      "work_owner": "schedule-f5",
+      "work_owner": "manual-integration",
+      "priority": "P2",
+      "phase": "draft",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/627"
+    },
+    {
+      "pr": 551,
+      "title": "feat(feature2): unify pinned MIT Creative Director, trusted grants, QA, editorial handoff and GPU-off integration tests",
+      "feature": "F2",
+      "head_sha": "d80d6b50705323290c4b214bf2f006eacef1ef33",
+      "base_branch": "main",
+      "work_owner": "schedule-f2",
+      "priority": "P0",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/551"
+    },
+    {
+      "pr": 513,
+      "title": "feat(feature7): AutoBroll uploaded-footage semantic edit proposals with tenant fences",
+      "feature": "F7",
+      "head_sha": "eb9df22f34604f2ac592e9c1620430a7978794b5",
+      "base_branch": "main",
+      "work_owner": "schedule-f7",
+      "priority": "P0",
+      "phase": "blocked",
+      "claim": null,
+      "checkpoint": {
+        "owner": "schedule-f7",
+        "at": "2026-11-15T21:15:00Z",
+        "head_before": "5be0dd259066fa3c902e4ace0dfb0b7afa2778c0",
+        "head_after": "ae1c42099930ae4f4ed6eb3167ecf4898aa43be9",
+        "commits": [
+          "1eb7c255e1d2bc1cbdd9fbb1f9bf62db75cec792",
+          "ae1c42099930ae4f4ed6eb3167ecf4898aa43be9"
+        ],
+        "files_changed": [
+          "video-engine/feature7/voicestudio_verified_media.mjs",
+          "tests/media/test_feature7_voicestudio_verified_media.py"
+        ],
+        "tests": "NOT RUN: GitHub connector source edits; no executable checkout",
+        "ci": "Exact-head PR workflow runs 0; 0/4 verified",
+        "blockers": "CPU regression execution, exact-head CI, independent review, parent mergeability",
+        "next_action": "Execute python -m unittest tests/media/test_feature7_voicestudio_verified_media.py at ae1c4209; fix failing test/source, trigger and verify exact-head 4/4 CI; manual integration handles main",
+        "status": "worker-reported; NOT DONE"
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/513"
+    },
+    {
+      "pr": 465,
+      "title": "Feature #5 GPU-OFF Wan2.2: real Feature3 producer integration, private imports and 4/4 CI",
+      "feature": "F5",
+      "head_sha": "2106caa6563f952a6db2942f08bd6701d5f4f9c8",
+      "base_branch": "feat/feature5-premium-ai-motion",
+      "work_owner": "manual-integration",
       "priority": "P0",
       "phase": "draft",
       "claim": null,
       "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/323"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/465"
     },
     {
       "pr": 356,
@@ -999,6 +613,57 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/356"
+    },
+    {
+      "pr": 323,
+      "title": "Feature #5: gated Hunyuan AI motion provider/worker contracts (source-only)",
+      "feature": "F5",
+      "head_sha": "ffc464c09f719a0bfb6b15b5c34608f89d76234b",
+      "base_branch": "main",
+      "work_owner": "schedule-f5",
+      "priority": "P0",
+      "phase": "draft",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/323"
+    },
+    {
+      "pr": 322,
+      "title": "WIP Feature #4 — Timeline Studio engine (illustrated demo rejected; visual QA open)",
+      "feature": "F4",
+      "head_sha": "587f5a0ab061225b75115a6a2be32b01c3550b46",
+      "base_branch": "main",
+      "work_owner": "schedule-f4",
+      "priority": "P0",
+      "phase": "blocked",
+      "claim": null,
+      "checkpoint": {
+        "owner": "schedule-f4",
+        "at": "2026-11-15T20:52:00Z",
+        "head_before": "e26658f844328171342b56241450b29821b33d5f",
+        "head_after": "e26658f844328171342b56241450b29821b33d5f",
+        "commits": [],
+        "files_changed": [],
+        "tests": "NOT RUN: local checkout blocked by github.com DNS resolution",
+        "ci": "Existing exact-head workflow #43742581420: 3/4 jobs success, FFmpeg job cancelled; successfully requested retry of cancelled FFmpeg job 132898771325, pending",
+        "blockers": "Actual targeted CPU tests unavailable locally; rerun pending; independent review and owner-rejected visual QA open",
+        "next_action": "Inspect rerun FFmpeg job 132898771325; if green confirm exact-head 4/4, otherwise repair F4-owned tests after obtaining CAS lease; independently review current-main-compatible unique F4 changes",
+        "status": "worker-reported; NOT DONE"
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322"
+    },
+    {
+      "pr": 125,
+      "title": "DRAFT Part 3 → main: gated Wan premium video foundations (Coordinator integration)",
+      "feature": "F5",
+      "head_sha": "3d985127e495d839e3e1f657080cbd8885561e6e",
+      "base_branch": "main",
+      "work_owner": "schedule-f5",
+      "priority": "P0",
+      "phase": "draft",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/125"
     },
     {
       "pr": 121,
