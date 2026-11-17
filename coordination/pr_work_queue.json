@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 39,
+    "open_prs": 40,
     "by_feature": {
-      "F2": 12,
+      "F2": 13,
       "F3": 3,
       "F4": 4,
       "F5": 5,
@@ -25,6 +25,33 @@
     }
   },
   "entries": [
+    {
+      "pr": 972,
+      "title": "fix(feature2 F2-31): revalidate signed editorial rights immediately before handoff",
+      "feature": "F2",
+      "head_sha": "a3ede86687461c3d9a5bfd355283cc1cb338f652",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P2",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration",
+        "head_sha": "a3ede86687461c3d9a5bfd355283cc1cb338f652",
+        "claimed_at": "2026-11-17T17:01:55.507Z",
+        "expires_at": "2026-11-17T18:31:55.507Z"
+      },
+      "checkpoint": {
+        "recorded_at": "2026-11-17T17:01:55.507Z",
+        "owner": "manual-integration",
+        "head_sha": "a3ede86687461c3d9a5bfd355283cc1cb338f652",
+        "commits_reported": 1,
+        "tests_reported": "Exact original editorial security guard and Node negative tests included; CI pending",
+        "ci_reported": "queued",
+        "next_action": "Verify PR 4/4, obtain independent F4/security review; do not merge until reviewed",
+        "evidence_status": "worker-reported-unverified"
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/972"
+    },
     {
       "pr": 971,
       "title": "feat(feature2 F2-05): recover OFF-by-default unlicensed music-chart metadata",
