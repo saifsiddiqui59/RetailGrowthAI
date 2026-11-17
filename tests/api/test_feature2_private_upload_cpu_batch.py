@@ -116,7 +116,8 @@ def test_f2_21_real_atomic_reservation_validation_is_not_worker_dispatch():
     assert out["real_model_inference_observed"] is False
     assert out["reservation_is_not_worker_completion"] is True
     assert out["can_publish"] is False
-    assert c["job_writes"]==1 and c["quota_reads"]==1
+    # F2-21 re-reads authoritative quota after atomic reservation to fence revocation.
+    assert c["job_writes"]==1 and c["quota_reads"]==2
     assert m.reads>=4
     # The same request key may not trigger new reserve/worker after uncertainty.
     assert api.post(SHOP,CAMP,"Bearer signed",req)[0]==404
