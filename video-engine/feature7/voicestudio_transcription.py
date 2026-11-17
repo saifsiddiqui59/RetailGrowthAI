@@ -225,6 +225,18 @@ def transcribe_private_voice(
                                 VoiceStudioTranscriptionDenied("Non-finite ASR JSON number")))
     except (UnicodeError, ValueError, TypeError, RecursionError) as exc:
         raise VoiceStudioTranscriptionDenied("Malformed ASR result") from exc
+    # Reject excessive nesting even in otherwise ignored upstream fields.
+    # An explicit bounded walk avoids relying on interpreter JSON recursion
+    # limits and keeps untrusted review evidence structurally predictable.
+    pending = [(parsed, 0)]
+    while pending:
+        value, depth = pending.pop()
+        if depth > 32:
+            raise VoiceStudioTranscriptionDenied("ASR JSON nesting exceeds limit")
+        if type(value) is dict:
+            pending.extend((child, depth + 1) for child in value.values())
+        elif type(value) is list:
+            pending.extend((child, depth + 1) for child in value)
     if type(parsed) is not dict or parsed.get("task") != "transcribe":
         raise VoiceStudioTranscriptionDenied("Incorrect ASR response type")
     # The upstream duration is advisory, but when supplied it must describe
