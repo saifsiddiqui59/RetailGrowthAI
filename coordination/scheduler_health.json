@@ -21,7 +21,7 @@
       "pr_mergeable": true,
       "verified_code_commits": 0,
       "ci_run_id": 44010051857,
-      "ci_status": "UNKNOWN_NOT_REVERIFIED",
+      "ci_status": "PASS",
       "classification": "REVIEW_BLOCKED"
     },
     "schedule-f3": {
@@ -39,7 +39,7 @@
       "pr_mergeable": true,
       "verified_code_commits": 0,
       "ci_run_id": 43996652354,
-      "ci_status": "UNKNOWN_NOT_REVERIFIED",
+      "ci_status": "PASS",
       "classification": "REVIEW_BLOCKED"
     },
     "schedule-f4": {
@@ -57,7 +57,7 @@
       "pr_mergeable": false,
       "verified_code_commits": 0,
       "ci_run_id": 43999413216,
-      "ci_status": "UNKNOWN_NOT_REVERIFIED",
+      "ci_status": "PASS",
       "classification": "REVIEW_BLOCKED"
     },
     "schedule-f7": {
@@ -75,7 +75,7 @@
       "pr_mergeable": false,
       "verified_code_commits": 0,
       "ci_run_id": 43985240207,
-      "ci_status": "UNKNOWN_NOT_REVERIFIED",
+      "ci_status": "PASS",
       "classification": "REVIEW_BLOCKED"
     }
   },
@@ -185,9 +185,10 @@
       "duration_seconds": 13.505,
       "verified_code_test_commits": 0,
       "local_tests_verified": 0,
-      "ci": "UNKNOWN (current-head jobs not reverified)",
+      "ci": "4/4 PASS exact-head push run 44010051857; four jobs independently verified",
       "classification": "REVIEW_BLOCKED",
-      "evidence": "automation summary reports zero code/test commits; no local test execution"
+      "evidence": "automation summary reports zero code/test commits; no local test execution",
+      "ci_run_id": 44010051857
     },
     {
       "event": "worker_run",
@@ -198,9 +199,10 @@
       "duration_seconds": 13.833,
       "verified_code_test_commits": 0,
       "local_tests_verified": 0,
-      "ci": "UNKNOWN (current-head jobs not reverified)",
+      "ci": "4/4 PASS exact-head push run 43996652354; four jobs independently verified",
       "classification": "REVIEW_BLOCKED",
-      "evidence": "automation summary reports zero code/test commits; no local test execution"
+      "evidence": "automation summary reports zero code/test commits; no local test execution",
+      "ci_run_id": 43996652354
     },
     {
       "event": "worker_run",
@@ -211,9 +213,10 @@
       "duration_seconds": 17.295,
       "verified_code_test_commits": 0,
       "local_tests_verified": 0,
-      "ci": "UNKNOWN (current-head jobs not reverified)",
+      "ci": "4/4 PASS exact-head push run 43999413216; four jobs independently verified",
       "classification": "REVIEW_BLOCKED",
-      "evidence": "automation summary reports zero code/test commits; no local test execution"
+      "evidence": "automation summary reports zero code/test commits; no local test execution",
+      "ci_run_id": 43999413216
     },
     {
       "event": "worker_run",
@@ -224,9 +227,10 @@
       "duration_seconds": 16.665,
       "verified_code_test_commits": 0,
       "local_tests_verified": 0,
-      "ci": "UNKNOWN (current-head jobs not reverified)",
+      "ci": "4/4 PASS exact-head push run 43985240207; four jobs independently verified",
       "classification": "REVIEW_BLOCKED",
-      "evidence": "automation summary reports zero code/test commits; no local test execution"
+      "evidence": "automation summary reports zero code/test commits; no local test execution",
+      "ci_run_id": 43985240207
     }
   ]
 }
