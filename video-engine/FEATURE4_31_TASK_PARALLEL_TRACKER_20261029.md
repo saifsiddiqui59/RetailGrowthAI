@@ -82,3 +82,6 @@ Five nonoverlapping technical source drafts have been batched for one final inte
 
 ### 2026-11-17 — original F4-04 #723 decoded frame integrity preservation
 - Source-only: exact 9216-byte grayscale decode guard and four malformed buffer regressions ported into `feature4_edited_export_qa.py` and tests. Original #723 historical tracker notes archived in [checkpoint](feature4/ORIGINAL_723_PROVENANCE_20261117.md); latest parent #322 retains stronger per-download rights/lease check from original. #779 source needs rebasing/reconciliation, F4-04/F4-15 still IN PROGRESS.
+
+### 2026-11-17 — #753 contiguous full-minute scene window proof
+- Original F4-02 #753 finite, positive contiguous 12-scene 60s window validation and four regression tests were reconciled into the latest v3 continuous-black-scan source. Original tracker/handoff preserved verbatim in [note](feature4/ORIGINAL_753_PROVENANCE_20261117.md). Source-only IN PROGRESS; actual private 60s release/CI/main acceptance separate.
