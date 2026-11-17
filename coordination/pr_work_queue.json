@@ -119,20 +119,21 @@
       "pr": 966,
       "title": "docs(integration): F4 source reconciliation and 15 deduplicated drafts",
       "feature": "F4",
-      "head_sha": "51ece50cf4b9337dbe618c288597c459df756db8",
+      "head_sha": "9962da1764d54b199fc069e9cf0f02f911849327",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration",
-        "head_sha": "51ece50cf4b9337dbe618c288597c459df756db8",
-        "claimed_at": "2026-11-17T16:30:34.529Z",
-        "expires_at": "2026-11-17T18:00:34.529Z"
-      },
+      "phase": "blocked",
+      "claim": null,
       "checkpoint": {
-        "next_action": "Refresh stale F4 #828 status and exact 2026-11-17 CI evidence; do not merge unreviewed code",
-        "head_sha": "51ece50cf4b9337dbe618c288597c459df756db8"
+        "recorded_at": "2026-11-17T16:32:26.444Z",
+        "owner": "manual-integration",
+        "head_sha": "9962da1764d54b199fc069e9cf0f02f911849327",
+        "commits_reported": 2,
+        "tests_reported": "Docs-only corrected stale #828 closure; predecessor #44011542854 4/4, new exact-head CI pending",
+        "ci_reported": "run #44126732306 pending",
+        "next_action": "Verify exact final-head 4/4; independent shared-doc review; then consider safe main merge, fresh main 4/4. F4 #322 remains draft and media not 4/4.",
+        "evidence_status": "worker-reported-unverified"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/966"
     },
