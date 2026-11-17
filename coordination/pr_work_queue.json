@@ -221,23 +221,16 @@
       "base_branch": "feat/feature2-source-batch-8pr-consolidation-20261030",
       "work_owner": "schedule-f2",
       "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "schedule-f2",
-        "head_sha": "32cacb8a52b98e83e20afeb18645d2a2ecc54d0a",
-        "claimed_at": "2026-11-17T03:28:00Z",
-        "expires_at": "2026-11-17T04:58:00Z"
-      },
+      "phase": "ready-for-review",
+      "claim": null,
       "checkpoint": {
         "owner": "schedule-f2",
-        "at": "2026-11-17T03:28:00Z",
+        "at": "2026-11-17T04:30:00Z",
         "head_after": "32cacb8a52b98e83e20afeb18645d2a2ecc54d0a",
-        "commits": [
-          "32cacb8a52b98e83e20afeb18645d2a2ecc54d0a"
-        ],
-        "tests": "local not run; fixed deterministic CI assertion 1->2 for authoritative post-lease quota read",
-        "status": "await exact-head push CI",
-        "next_action": "check four GitHub CI jobs for new head; independent security review after green"
+        "ci": "exact-head push #44010051857 4/4 PASS",
+        "tests": "local not run; remote CI four jobs PASS",
+        "status": "SOURCE ONLY, draft, independent CPU policy/security review and manual integration pending",
+        "next_action": "Independent F2-21 CPU quota security review, then manual integration after keeper #848 reconciliation"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/917"
     },
