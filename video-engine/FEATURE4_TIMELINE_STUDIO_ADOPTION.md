@@ -148,3 +148,6 @@ edit controls despite working seek. Commits `4f8c260f`, `ca281aac`,
 `a552dfa8`. Browser/source CI at exact head required before claiming
 verified. This is not a true frame-accurate decoded preview or mobile human
 usability approval; real hosted signed-media preview remains a separate gate.
+
+## 2026-10-30 — Server-only F4-06 bounded audio channel levels; UI control still disabled
+A new **optional trusted** `creative_reel_v1.audio_mix` scalar map is lowered through the existing reviewed source contract to native HyperFrames data-volume for source-video sound, music bed, licensed narration and 2s SFX. Bounded linear gains, original music-under-voice ducking safety cap and rights checks remain mandatory; default render mix is unchanged. The adopted Timeline Studio **still disables** browser gain automation and arbitrary per-clip envelopes: do not enable controls before an authenticated, shop-scoped reviewed change set and actual audio render/FFmpeg decoding prove the same gain. No new source audio, licensing, F2 speech alignment or voice synthesis is inferred. Detailed contract/negatives in `FEATURE4_AUDIO_GAIN_HANDOFF_20261030.md`.

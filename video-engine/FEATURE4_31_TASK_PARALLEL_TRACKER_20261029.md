@@ -94,3 +94,6 @@ Five nonoverlapping technical source drafts have been batched for one final inte
 
 ### 2026-11-17 — original F4-04 #735 complete duplicate project regression recovered
 - Ported original JS duplicate→Python compiler→HyperFrames negative/positive project test (adapted to current operation name), retaining source-level 0/0 inpoints, one music SFX and explicit OWNER_REJECTED; current #779 already actually renders duplicate in CPU smoke. Details: [source note](feature4/ORIGINAL_735_PROVENANCE_20261117.md). Source-only F4-04 IN PROGRESS, parent/main merge + exact-head CI pending.
+
+### 2026-11-17 — F4-06 original #830 fully preserved in source consolidation #779
+- Copy original #830 fixed bounded four-channel audio source contract, complete compile/renderer tests and source handoffs onto #779 as **exact Git blobs**. Audio mix source 0.20–1, music 0–1, voiceover 0.20–1, SFX 0–0.50 and 0.01 quantization, deny unknown/inert/nonfinite/unlicensed track; trusted renderer writes corresponding fixed `data-volume` and keeps existing music-under-narration/source ducking. Independent JS duplicate, encoded motion/boundary and tenant/rights protections on other paths untouched. Original #830 remains source-only until final CI/current-parent integration, F4-06/F4-07 IN PROGRESS.
