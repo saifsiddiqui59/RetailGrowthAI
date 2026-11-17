@@ -445,5 +445,22 @@
     "limits": "Runtime duration cannot be controlled by automation prompt",
     "source_execution": "GitHub connector + GitHub Actions",
     "scheduler_run_duration_uncontrolled": true
+  },
+  "coding_executor_migration": {
+    "status": "NEEDS_USER_ENVIRONMENT_SETUP",
+    "verified_at_utc": "2026-11-17T16:23:55.443Z",
+    "migration_document": "docs/SCHEDULER_EXECUTOR_MIGRATION_20261117.md",
+    "migration_commit": "4813e3fad923c1f4a647588e685157c8e11d0001",
+    "executor": "GITHUB_CONNECTOR_ONLY; CLOUD_CODEX/LOCAL_WORKTREE NOT VERIFIED",
+    "blocked_capability": "Existing automation update API cannot select or provision an executor; cloud/desktop task environment must be selected in Work/Codex UI",
+    "baseline_seconds": {
+      "F2": 27.749,
+      "F3": 45.589,
+      "F4": 25.817,
+      "F7": 36.097,
+      "mean": 33.813
+    },
+    "acceptance": "2 new environment-backed coding runs, each with observed duration, executed targeted tests, source/test commit and exact-head CI if code changed; never insert a sleep just to increase duration",
+    "ready_to_provision": false
   }
 }
