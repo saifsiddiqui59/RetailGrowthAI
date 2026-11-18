@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 38,
+    "open_prs": 37,
     "by_feature": {
-      "F2": 10,
+      "F2": 9,
       "F3": 3,
       "F4": 5,
       "F5": 5,
@@ -51,33 +51,6 @@
         "evidence_status": "worker-reported-unverified"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/981"
-    },
-    {
-      "pr": 980,
-      "title": "test(feature2): restore 438-line editorial rights and stock licensing denials",
-      "feature": "F2",
-      "head_sha": "547fc8368961fc70b7dc9a84b82613b4ccf7b889",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration",
-        "head_sha": "547fc8368961fc70b7dc9a84b82613b4ccf7b889",
-        "claimed_at": "2026-11-18T12:48:53.402Z",
-        "expires_at": "2026-11-18T14:18:53.402Z"
-      },
-      "checkpoint": {
-        "recorded_at": "2026-11-18T12:48:53.402Z",
-        "owner": "manual-integration",
-        "head_sha": "547fc8368961fc70b7dc9a84b82613b4ccf7b889",
-        "commits_reported": 2,
-        "tests_reported": "Original F2 editorial, stock rights and synthetic 30/60 sec cross-feature tests included",
-        "ci_reported": "run #44307411180 queued",
-        "next_action": "Verify final head 4/4, safe main merge, fresh exact-main 4/4",
-        "evidence_status": "worker-reported-unverified"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/980"
     },
     {
       "pr": 979,
