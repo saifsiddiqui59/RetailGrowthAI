@@ -55,21 +55,16 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration",
-        "head_sha": "2a814552f9d2a006a9cd787c8f8951f6227adaab",
-        "claimed_at": "2026-11-18T07:31:39.813Z",
-        "expires_at": "2026-11-18T09:01:39.813Z"
-      },
+      "phase": "ready-for-review",
+      "claim": null,
       "checkpoint": {
-        "recorded_at": "2026-11-18T07:31:39.813Z",
+        "recorded_at": "2026-11-18T07:35:24.110Z",
         "owner": "manual-integration",
         "head_sha": "2a814552f9d2a006a9cd787c8f8951f6227adaab",
         "commits_reported": 4,
-        "tests_reported": "Source #969/#971/#973 exact PR and main CI 4/4 each; docs final head CI pending",
-        "ci_reported": "#44259500190 in_progress",
-        "next_action": "Verify final docs four CI jobs, independent shared-doc review; reconcile #966, current main after review",
+        "tests_reported": "Exact final docs PR 4/4 PASS; #969/#971/#973 original PR + fresh main 4/4 PASS each; three old stacked F2 drafts closed archived, original tasks pending",
+        "ci_reported": "COMPLETED SUCCESS #44259500190 4/4",
+        "next_action": "Independent shared-doc review of #970; reconcile F4 docs #966 and moving main before merge, then independently fresh main four CI",
         "evidence_status": "worker-reported-unverified"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/970"
