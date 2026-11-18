@@ -188,9 +188,31 @@ jobs:
             sleep 15
           done
           python3 -u - <<'PY'
-          import sys,time
+          import sys,time,urllib.error,urllib.request
           sys.path.insert(0,"ops")
           import p0249_y1_canary_guard as g
+          class NoRedirects(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+          opener=urllib.request.build_opener(NoRedirects())
+          def guarded_get(path):
+              req=urllib.request.Request(
+                  "https://rgai-dev-y1-p0249-d4e5ddbd.azurewebsites.net"+path,
+                  headers={"Cache-Control":"no-store"},method="GET")
+              start=time.monotonic()
+              try:
+                  with opener.open(req,timeout=18) as response:
+                      status=response.status
+                      marker=bool(response.headers.get("X-Request-ID"))
+              except urllib.error.HTTPError as err:
+                  try:
+                      status=err.code
+                      marker=bool(err.headers.get("X-Request-ID"))
+                  finally:
+                      err.close()
+              except (urllib.error.URLError,TimeoutError,OSError):
+                  status,marker=0,False
+              return status,marker,time.monotonic()-start
           uid="11111111-1111-4111-8111-111111111111"
           paths=("/api/campaigns/"+uid,"/api/render-jobs/"+uid,
                  "/api/poster-jobs/"+uid,"/api/poster-drafts/"+uid)
@@ -200,7 +222,7 @@ jobs:
                   time.sleep(240)
               g.probe()  # 20 real health/unknown GETs in each window.
               for path in paths:
-                  status,marker,seconds=g.get(path,18)
+                  status,marker,seconds=guarded_get(path)
                   ok=(status==401 and marker and seconds<18)
                   print(f"P0249_Y1_GET_DENIAL window={window} type={path.split('/')[2]} "
                         f"status={status} marked={marker} seconds={seconds} pass={ok}",flush=True)
