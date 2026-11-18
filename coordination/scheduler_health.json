@@ -2,17 +2,17 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-18T16:56:54Z",
+  "last_written_at": "2026-11-18T18:04:09Z",
   "last_inventory_count": 36,
-  "last_inventory_checked_at": "2026-11-18T16:56:54Z",
+  "last_inventory_checked_at": "2026-11-18T18:04:09Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "f49ac0d1-6634-8324-93b2-1cf9657cdddc",
+      "last_run_id": "efbf925d-0ffc-8324-a09c-2420bdcf784c",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-18T16:29:18.687332Z",
-      "last_end_utc": "2026-11-18T16:29:46.056243Z",
-      "duration_seconds": 27.369,
+      "last_start_utc": "2026-11-18T17:28:20.780871Z",
+      "last_end_utc": "2026-11-18T17:28:47.534662Z",
+      "duration_seconds": 26.754,
       "reported_code_commits": 0,
       "local_tests_verified": false,
       "last_pr": 925,
@@ -108,19 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "b8c13c58-0750-832c-b55a-f300d0f73c85",
-      "started_at": "2026-11-17T18:23:13.301379Z",
-      "completed_at": "2026-11-17T18:23:41.732517Z",
-      "duration_seconds": 28.431,
-      "verified_code_test_commits": null,
-      "local_tests_verified": null,
-      "ci": "PASS 4/4 exact-head push #44010051857",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "Run observed; no new source/test commit metadata established; exact-head four jobs verified; inherited/null executor environment."
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f2",
@@ -423,6 +410,20 @@
       "ci": "PR #925 exact-head #44002627409 PASS 4/4",
       "classification": "REVIEW_BLOCKED",
       "evidence": "No new source/test commit SHA; protected review, inherited/null executor."
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "efbf925d-0ffc-8324-a09c-2420bdcf784c",
+      "started_at": "2026-11-18T17:28:20.780871Z",
+      "completed_at": "2026-11-18T17:28:47.534662Z",
+      "duration_seconds": 26.754,
+      "verified_code_test_commits": null,
+      "reported_code_test_commits": 0,
+      "local_tests_verified": false,
+      "ci": "exact-head #44002627409 PASS 4/4, jobs rechecked",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "No new source/test SHA independently established; inherited environment with null details."
     }
   ],
   "current_review_gates": {
