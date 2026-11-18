@@ -323,10 +323,15 @@
       "feature": "F2",
       "head_sha": "603e6e488085ce78fa4a86e3ef2f4c9bb0c820e2",
       "base_branch": "main",
-      "work_owner": "schedule-f2",
+      "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
-      "phase": "blocked",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-d-20261119",
+        "head_sha": "603e6e488085ce78fa4a86e3ef2f4c9bb0c820e2",
+        "claimed_at": "2026-11-18T19:24:44.368Z",
+        "expires_at": "2026-11-18T20:54:44.368Z"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-e-20261119",
         "at": "2026-11-18T19:16:44.121Z",
@@ -364,10 +369,15 @@
       "feature": "F2",
       "head_sha": "7df64cc70f3fd8bed693dc69d3d0ec83a22df17f",
       "base_branch": "main",
-      "work_owner": "schedule-f2",
+      "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P1",
-      "phase": "blocked",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-d-20261119",
+        "head_sha": "7df64cc70f3fd8bed693dc69d3d0ec83a22df17f",
+        "claimed_at": "2026-11-18T19:24:44.368Z",
+        "expires_at": "2026-11-18T20:54:44.368Z"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-d-20261119",
         "at": "2026-11-18T19:21:27.166Z",
@@ -397,10 +407,15 @@
       "feature": "F2",
       "head_sha": "5cb0da47b662a38a40c233feef774624b92d7ce5",
       "base_branch": "main",
-      "work_owner": "schedule-f2",
+      "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P1",
-      "phase": "blocked",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-d-20261119",
+        "head_sha": "5cb0da47b662a38a40c233feef774624b92d7ce5",
+        "claimed_at": "2026-11-18T19:24:44.368Z",
+        "expires_at": "2026-11-18T20:54:44.368Z"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-d-20261119",
         "at": "2026-11-18T19:21:27.166Z",
@@ -478,10 +493,15 @@
       "feature": "F2",
       "head_sha": "a35a1f171819564bfb3ed00806e4a87545a8a043",
       "base_branch": "feat/feature2-unified-offline-source-20261028",
-      "work_owner": "schedule-f2",
+      "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
-      "phase": "needs-triage",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-d-20261119",
+        "head_sha": "a35a1f171819564bfb3ed00806e4a87545a8a043",
+        "claimed_at": "2026-11-18T19:24:44.368Z",
+        "expires_at": "2026-11-18T20:54:44.368Z"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-e-20261119",
         "at": "2026-11-18T19:16:44.121Z",
@@ -615,10 +635,15 @@
       "feature": "F2",
       "head_sha": "d80d6b50705323290c4b214bf2f006eacef1ef33",
       "base_branch": "main",
-      "work_owner": "schedule-f2",
+      "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
-      "phase": "blocked",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-d-20261119",
+        "head_sha": "d80d6b50705323290c4b214bf2f006eacef1ef33",
+        "claimed_at": "2026-11-18T19:24:44.368Z",
+        "expires_at": "2026-11-18T20:54:44.368Z"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-d-20261119",
         "at": "2026-11-18T19:21:27.166Z",
@@ -635,10 +660,15 @@
       "feature": "F7",
       "head_sha": "eb9df22f34604f2ac592e9c1620430a7978794b5",
       "base_branch": "main",
-      "work_owner": "schedule-f7",
+      "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
-      "phase": "blocked",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-d-20261119",
+        "head_sha": "eb9df22f34604f2ac592e9c1620430a7978794b5",
+        "claimed_at": "2026-11-18T19:24:44.368Z",
+        "expires_at": "2026-11-18T20:54:44.368Z"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-e-20261119",
         "at": "2026-11-18T19:16:44.121Z",
@@ -688,10 +718,15 @@
       "feature": "F5",
       "head_sha": "ffc464c09f719a0bfb6b15b5c34608f89d76234b",
       "base_branch": "main",
-      "work_owner": "schedule-f5",
+      "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
-      "phase": "blocked",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-d-20261119",
+        "head_sha": "ffc464c09f719a0bfb6b15b5c34608f89d76234b",
+        "claimed_at": "2026-11-18T19:24:44.368Z",
+        "expires_at": "2026-11-18T20:54:44.368Z"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-d-20261119",
         "at": "2026-11-18T19:21:27.166Z",
@@ -708,10 +743,15 @@
       "feature": "F4",
       "head_sha": "b9525a9ea3d5e5aee351edf89a3c011c2314ed2e",
       "base_branch": "main",
-      "work_owner": "schedule-f4",
+      "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
-      "phase": "blocked",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-d-20261119",
+        "head_sha": "b9525a9ea3d5e5aee351edf89a3c011c2314ed2e",
+        "claimed_at": "2026-11-18T19:24:44.368Z",
+        "expires_at": "2026-11-18T20:54:44.368Z"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-e-20261119",
         "at": "2026-11-18T19:16:44.121Z",
