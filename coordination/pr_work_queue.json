@@ -55,17 +55,19 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "ready-for-review",
-      "claim": null,
-      "checkpoint": {
-        "recorded_at": "2026-11-17T17:10:47.849Z",
+      "phase": "in-progress",
+      "claim": {
         "owner": "manual-integration",
         "head_sha": "75bac0ef59a99079c1fc8ab4d13ff5fbc22463a2",
-        "commits_reported": 3,
-        "tests_reported": "Two source merges #969/#971 each exact PR/main 4/4; final combined docs current head all four jobs passed",
-        "ci_reported": "success #44133448602",
-        "next_action": "Independent shared-doc review; recheck main and #966 canonical docs overlap before safe merge; fresh main CI required",
-        "evidence_status": "worker-reported-unverified"
+        "claimed_at": "2026-11-18T07:29:15.069Z",
+        "expires_at": "2026-11-18T08:59:15.069Z"
+      },
+      "checkpoint": {
+        "recorded_at": "2026-11-18T07:29:15.069Z",
+        "owner": "manual-integration",
+        "head_sha": "75bac0ef59a99079c1fc8ab4d13ff5fbc22463a2",
+        "next_action": "Append verified #973 accepted source and archived #697/#700/#917 receipts to canonical docs; exact new-head 4/4; independent shared docs review before merge",
+        "ci_reported": "prior #44133448602 4/4, will be superseded"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/970"
     },
