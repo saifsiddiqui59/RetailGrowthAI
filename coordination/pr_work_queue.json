@@ -3,7 +3,7 @@
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "ledger_branch": "coordination/pr-execution-ledger",
   "snapshot_date": "2026-11-19",
-  "data_kind": "Live GitHub open PR inventory 25 at manual integration batch C checkpoint; merge acceptance separate from PR closure",
+  "data_kind": "Live GitHub open PR inventory; acceptance separate from closure",
   "main_merge_owner": "manual-integration",
   "lease_policy": {
     "default_minutes": 90,
@@ -13,15 +13,14 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 32,
+    "open_prs": 24,
     "by_feature": {
-      "issue249": 9,
-      "F4": 2,
+      "F5": 2,
+      "issue249": 8,
       "shared": 3,
-      "F2": 8,
+      "F2": 7,
       "F3": 3,
-      "F7": 1,
-      "F5": 3
+      "F4": 1
     }
   },
   "entries": [
@@ -44,47 +43,6 @@
         "head_sha": "f561fbbc28100eba32bc33f49fdf0d7b88692692"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1013"
-    },
-    {
-      "pr": 1011,
-      "title": "feat(F5): recover original GPU-OFF manifest lock source and 10 negative tests",
-      "feature": "F5",
-      "head_sha": "7ef8ae66da133f121a712b02ff73e767b30130ce",
-      "base_branch": "main",
-      "work_owner": "manual-integration-chat-e-F5-20261119",
-      "priority": "P1",
-      "phase": "merged",
-      "claim": null,
-      "checkpoint": {
-        "owner": "manual-integration-chat-e-F5-20261119",
-        "at": "2026-11-18T19:55:40.532Z",
-        "status": "merged exact original artifact-lock code/test only; no F5 task DONE",
-        "merge_sha": "d22758e2c4c81ac1349f428bd1ddb747f3f12aa6",
-        "ci": "PR #44383469750 exact head 4/4; merged main #44384358592 exact sha 4/4",
-        "original_source_blobs": 4,
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1011"
-    },
-    {
-      "pr": 1009,
-      "title": "feat(feature2): preserve all 171 original #551 file patches before stale parent retirement",
-      "feature": "F2",
-      "head_sha": "52d15c09ef4d3fecf884ccd5fe2f73b9ae7e5fc1",
-      "base_branch": "main",
-      "work_owner": "manual-integration-chat-e-F2-20261119",
-      "priority": "P2",
-      "phase": "merged",
-      "claim": null,
-      "checkpoint": {
-        "owner": "manual-integration-chat-e-F2-20261119",
-        "at": "2026-11-18T19:47:34.189Z",
-        "status": "merged archive-only",
-        "merge_sha": "80f2bc158e098fac230547256bc0cd0ed39cfa79",
-        "ci": "PR #44382047486 4/4; newer descendant main #44383014517 4/4",
-        "original_tasks_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1009"
     },
     {
       "pr": 1002,
@@ -130,89 +88,6 @@
         "integrated_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1007"
-    },
-    {
-      "pr": 1004,
-      "title": "feat(feature5 F5-22): isolate GPU-OFF shared mount CPU integrity preflight from stale stack",
-      "feature": "F5",
-      "head_sha": "667587257dbbe27618c548651f01feb480665273",
-      "base_branch": "main",
-      "work_owner": "manual-integration-chat-c-20261119",
-      "priority": "P2",
-      "phase": "source-integrated-main-4of4",
-      "claim": null,
-      "checkpoint": {
-        "at": "2026-11-18T19:41:41.862Z",
-        "owner": "manual-integration-chat-c-20261119",
-        "head_after": "667587257dbbe27618c548651f01feb480665273",
-        "status": "merged source accepted; NOT hosted F5 task DONE",
-        "merge_sha": "4a8c9c437909089f21e388a3c884f71edac085bc",
-        "ci": "PR #44379160942 PASS 4/4; exact merged main #44380019398 attempt 3 PASS 4/4",
-        "next_action": "Maintain GPU OFF; source fixture only, F5 hosted model/rights/mount/inference acceptance separate"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1004"
-    },
-    {
-      "pr": 1000,
-      "title": "docs(coordination): preserve old #696 chat-control draft without resetting policy",
-      "feature": "shared",
-      "head_sha": "6ff1a22c6e0ce613368cfef3e8b495048c5943ba",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "merged",
-      "claim": null,
-      "checkpoint": {
-        "owner": "manual-integration-chat-d-20261119",
-        "at": "2026-11-18T19:22:35.434Z",
-        "status": "merged; source archive only",
-        "merge_sha": "315e5fa5ad1895b8f8fdef285909d816ef6ab271",
-        "ci": "44376830005 exact-head 4/4; 44379097246 fresh-main 4/4",
-        "note": "#696 still active elsewhere; archive not task DONE",
-        "original_tasks_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1000"
-    },
-    {
-      "pr": 998,
-      "title": "docs(feature5): preserve original #724 source and tests without GPU/cloud",
-      "feature": "shared",
-      "head_sha": "36ec943b61b9e8a1b0acd5b7f72213b81cbd5821",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "closed-unmerged",
-      "claim": null,
-      "checkpoint": {
-        "owner": "manual-integration-chat-d-20261119 (observed external closure)",
-        "at": "2026-11-18T19:22:35.434Z",
-        "status": "closed unmerged by another concurrent chat",
-        "ci": "original #998 exact-head 4/4 but not accepted",
-        "note": "Stale historical #724 head 359221f...; live #724 changed, so archive declined; see comment 6989051837",
-        "original_tasks_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/998"
-    },
-    {
-      "pr": 997,
-      "title": "docs(feature4): archive exact #779/#966 superseded source/document patches",
-      "feature": "shared",
-      "head_sha": "5e6a1e228f7016681c3b93456fa89f207fb59ae4",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "merged",
-      "claim": null,
-      "checkpoint": {
-        "owner": "manual-integration-chat-d-20261119",
-        "at": "2026-11-18T19:21:27.166Z",
-        "status": "merged",
-        "merge_sha": "c3f45d825bfa2515230f8e3b4757c7d6d2482256",
-        "ci": "44378329065 4/4 PASS",
-        "source_preserved": "PR #997 58/58 per-file patches",
-        "original_tasks_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/997"
     },
     {
       "pr": 995,
@@ -299,27 +174,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/968"
     },
     {
-      "pr": 966,
-      "title": "docs(integration): F4 source reconciliation and 15 deduplicated drafts",
-      "feature": "F4",
-      "head_sha": "9962da1764d54b199fc069e9cf0f02f911849327",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "closed-unmerged",
-      "claim": null,
-      "checkpoint": {
-        "owner": "manual-integration-chat-d-20261119",
-        "at": "2026-11-18T19:21:27.166Z",
-        "status": "closed-unmerged",
-        "merge_sha": null,
-        "ci": "archive #997 44378329065 4/4 PASS",
-        "source_preserved": "PR #997 58/58 per-file patches",
-        "original_tasks_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/966"
-    },
-    {
       "pr": 965,
       "title": "fix(#249): repair Feature2 verifier and protect original JWT/service-role transports",
       "feature": "issue249",
@@ -350,19 +204,6 @@
         "next_action": "Exact SHA 44461dc: 4/4 CI #44378154471 passed; shared governance docs and CAS queue require independent coordination review."
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/964"
-    },
-    {
-      "pr": 955,
-      "title": "docs(#249): checkpoint manual-only Y1 trial and JWT cache source work",
-      "feature": "issue249",
-      "head_sha": "6fedbba1befa1deb11eb928ad420e035133c47bd",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P0",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/955"
     },
     {
       "pr": 944,
@@ -400,7 +241,7 @@
       "pr": 937,
       "title": "feat(feature2): current signed editor and SQL receipt gate for private VoiceStudio review",
       "feature": "F2",
-      "head_sha": "77a50b9c7d2fdba52c4ca32d7d9f6dc32522f934",
+      "head_sha": "f5fe92b4e0c87538953cb8e548a51e67c22e79b9",
       "base_branch": "main",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
@@ -448,7 +289,7 @@
       "pr": 923,
       "title": "review(feature2): service-only VoiceStudio original-key plan/claim/register/receipt SQL",
       "feature": "F2",
-      "head_sha": "7df64cc70f3fd8bed693dc69d3d0ec83a22df17f",
+      "head_sha": "291835bf521a99dbd1bb258b24de02e323b6da28",
       "base_branch": "main",
       "work_owner": "manual-integration-chat-g-20261119",
       "priority": "P1",
@@ -486,7 +327,7 @@
       "pr": 920,
       "title": "feat(F2-19/F2-20): join VoiceStudio one-shot job to private WAV and SQL review receipts",
       "feature": "F2",
-      "head_sha": "5cb0da47b662a38a40c233feef774624b92d7ce5",
+      "head_sha": "e4df6c8e7a2468259a3501abac5640ec277caf1d",
       "base_branch": "main",
       "work_owner": "manual-integration-chat-g-20261119",
       "priority": "P1",
@@ -511,7 +352,7 @@
       "pr": 887,
       "title": "ci(#249): review isolated DEV-only manual Azure incident workflow",
       "feature": "issue249",
-      "head_sha": "cbb0a8b1fcb93608b5a15e5f6737b1ba73e8e171",
+      "head_sha": "539923046e91c0b78bd014030e7dee6cd7e018e7",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P2",
@@ -593,207 +434,6 @@
         }
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848"
-    },
-    {
-      "pr": 779,
-      "title": "Feature4 batched source integration: F4-03/04/10/13/14/15 with one CI boundary",
-      "feature": "F4",
-      "head_sha": "c1d66e9b3903c45ae4cc9930ad1362a38b3f8843",
-      "base_branch": "feat/feature4-professional-video-studio",
-      "work_owner": "schedule-f4",
-      "priority": "P1",
-      "phase": "closed-unmerged",
-      "claim": null,
-      "checkpoint": {
-        "owner": "manual-integration-chat-d-20261119",
-        "at": "2026-11-18T19:21:27.166Z",
-        "status": "closed-unmerged",
-        "merge_sha": null,
-        "ci": "archive #997 44378329065 4/4 PASS",
-        "source_preserved": "PR #997 58/58 per-file patches",
-        "original_tasks_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/779"
-    },
-    {
-      "pr": 724,
-      "title": "Feature #5 F5-14: opt-in read-only checkpoint SHA-256 audit (GPU OFF)",
-      "feature": "F5",
-      "head_sha": "14689bd55afe299e735923c7c9d1d7e42d59cf59",
-      "base_branch": "feat/feature5-a100-safe-control-20261028",
-      "work_owner": "schedule-f5",
-      "priority": "P2",
-      "phase": "closed-unmerged",
-      "claim": null,
-      "checkpoint": {
-        "at": "2026-11-18T19:34:40.475Z",
-        "owner": "manual-integration-chat-c-20261119",
-        "head_after": "14689bd55afe299e735923c7c9d1d7e42d59cf59",
-        "status": "closed-unmerged",
-        "next_action": "Four changed Git blobs exactly match current main after #1004. Closed old stack unmerged; postmain CI acceptance pending."
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/724"
-    },
-    {
-      "pr": 696,
-      "title": "feat(coordination): make feature chats read control table and continue next tasks",
-      "feature": "shared",
-      "head_sha": "dfa0e58c01f4f961180682f6bedd85c9d308d0e4",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "closed-unmerged",
-      "claim": null,
-      "checkpoint": {
-        "at": "2026-11-18T19:34:40.475Z",
-        "owner": "manual-integration-chat-c-20261119",
-        "head_after": "dfa0e58c01f4f961180682f6bedd85c9d308d0e4",
-        "status": "closed-unmerged",
-        "next_action": "12-file obsolete chat-control draft retired unmerged; source Git diff/commit retained."
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/696"
-    },
-    {
-      "pr": 679,
-      "title": "fix(p0249): protect DEV Node canary JWT from header spoofing and redirects",
-      "feature": "issue249",
-      "head_sha": "39b943e28c1f74cdd96b0a0f1c09867b9892319b",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P2",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/679"
-    },
-    {
-      "pr": 676,
-      "title": "fix(p0249): stage both disposable retailer accounts before ROOT approval window",
-      "feature": "issue249",
-      "head_sha": "ad112c4ee4d552e5dea374f2f7014d1055ac4458",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P2",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/676"
-    },
-    {
-      "pr": 668,
-      "title": "feat(p0249): add OFF-by-default same-origin Node HTTP transport candidate",
-      "feature": "issue249",
-      "head_sha": "d0814c492fef18b2dc948e309470f73687685d3a",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P0",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/668"
-    },
-    {
-      "pr": 639,
-      "title": "fix(p0249): wait for exact ROOT queue render and reject overlapping test runs",
-      "feature": "issue249",
-      "head_sha": "14c0417e32903923e79dd15de1332caba8247d85",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P2",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/639"
-    },
-    {
-      "pr": 551,
-      "title": "feat(feature2): unify pinned MIT Creative Director, trusted grants, QA, editorial handoff and GPU-off integration tests",
-      "feature": "F2",
-      "head_sha": "d80d6b50705323290c4b214bf2f006eacef1ef33",
-      "base_branch": "main",
-      "work_owner": "manual-integration-chat-d-20261119",
-      "priority": "P0",
-      "phase": "closed-unmerged",
-      "claim": null,
-      "checkpoint": {
-        "owner": "manual-integration-chat-e-F2-20261119",
-        "at": "2026-11-18T19:47:34.189Z",
-        "status": "historical parent closed UNMERGED; original 38 F2 IDs remain OPEN",
-        "archive_pr": 1009,
-        "archive_commit": "80f2bc158e098fac230547256bc0cd0ed39cfa79",
-        "preserved_original_file_patches": "171/171",
-        "ci": "PR #44382047486 exact-head 4/4; original main #44382666860 cancelled; newer descendant main #44383014517 4/4",
-        "original_tasks_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/551"
-    },
-    {
-      "pr": 513,
-      "title": "feat(feature7): AutoBroll uploaded-footage semantic edit proposals with tenant fences",
-      "feature": "F7",
-      "head_sha": "cae31b5efd7699084be5ee7763c1d1c3fd9628ea",
-      "base_branch": "main",
-      "work_owner": "manual-integration-chat-d-20261119",
-      "priority": "P0",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-d-20261119",
-        "head_sha": "cae31b5efd7699084be5ee7763c1d1c3fd9628ea",
-        "claimed_at": "2026-11-18T19:24:44.368Z",
-        "expires_at": "2026-11-18T20:54:44.368Z"
-      },
-      "checkpoint": {
-        "owner": "manual-integration-chat-d-20261119",
-        "at": "2026-11-18T19:39:30.547Z",
-        "status": "SOURCE_MERGE_RECONCILED_CI_PENDING",
-        "commit": "cae31b5efd7699084be5ee7763c1d1c3fd9628ea",
-        "ci_run": 44382364583,
-        "ci": "new-head CI in progress; older head 4/4 verified",
-        "blockers": "affected security/media review; hosted quality unverified",
-        "verified_integrated_done": false,
-        "previous": {
-          "owner": "manual-integration-chat-e-20261119",
-          "at": "2026-11-18T19:16:44.121Z",
-          "status": "BLOCKED",
-          "summary": "Feature7 132-file semantic-edit draft with tenant and rights fences; main-targeted non-mergeable, needs feature4 compatibility and independent review; not safe to drop unique source.",
-          "next_action": "Reconcile with Feature4 #322 current interface and main, run CPU negatives, exact-head 4/4 and independent security review",
-          "merged": false,
-          "verified_integrated_done": false
-        }
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/513"
-    },
-    {
-      "pr": 465,
-      "title": "Feature #5 GPU-OFF Wan2.2: real Feature3 producer integration, private imports and 4/4 CI",
-      "feature": "F5",
-      "head_sha": "2106caa6563f952a6db2942f08bd6701d5f4f9c8",
-      "base_branch": "feat/feature5-premium-ai-motion",
-      "work_owner": "manual-integration",
-      "priority": "P0",
-      "phase": "closed-unmerged",
-      "claim": null,
-      "checkpoint": {
-        "at": "2026-11-18T19:34:40.475Z",
-        "owner": "manual-integration-chat-c-20261119",
-        "head_after": "2106caa6563f952a6db2942f08bd6701d5f4f9c8",
-        "status": "closed-unmerged",
-        "next_action": "701-file contaminated F5 stack retired unmerged; unique source recoverable, no accepted F5 DONE."
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/465"
-    },
-    {
-      "pr": 356,
-      "title": "P0 #249: merge validated private Reel SQL proposal without feature conflicts",
-      "feature": "issue249",
-      "head_sha": "753954847e936d2869d5521b09e3a01cd414f20b",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P2",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/356"
     },
     {
       "pr": 323,
