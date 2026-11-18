@@ -13,18 +13,57 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 35,
+    "open_prs": 37,
     "by_feature": {
-      "F2": 8,
-      "F3": 3,
-      "F4": 3,
-      "F5": 5,
-      "F7": 1,
+      "shared": 6,
       "issue249": 12,
-      "shared": 3
+      "F2": 8,
+      "F4": 3,
+      "F3": 3,
+      "F5": 4,
+      "F7": 1
     }
   },
   "entries": [
+    {
+      "pr": 1000,
+      "title": "docs(coordination): preserve old #696 chat-control draft without resetting policy",
+      "feature": "shared",
+      "head_sha": "6ff1a22c6e0ce613368cfef3e8b495048c5943ba",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P2",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1000"
+    },
+    {
+      "pr": 998,
+      "title": "docs(feature5): preserve original #724 source and tests without GPU/cloud",
+      "feature": "shared",
+      "head_sha": "36ec943b61b9e8a1b0acd5b7f72213b81cbd5821",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P2",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/998"
+    },
+    {
+      "pr": 997,
+      "title": "docs(feature4): archive exact #779/#966 superseded source/document patches",
+      "feature": "shared",
+      "head_sha": "5e6a1e228f7016681c3b93456fa89f207fb59ae4",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P2",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/997"
+    },
     {
       "pr": 995,
       "title": "build(#249): exact five-route Y1 GET staging with deny-list tests",
@@ -419,7 +458,7 @@
       "pr": 724,
       "title": "Feature #5 F5-14: opt-in read-only checkpoint SHA-256 audit (GPU OFF)",
       "feature": "F5",
-      "head_sha": "359221f2bd198ce498c01e1807b59f4284fb9227",
+      "head_sha": "f81b7bd8bd33d3454ebff1a5a94bd24ac5693efb",
       "base_branch": "feat/feature5-a100-safe-control-20261028",
       "work_owner": "schedule-f5",
       "priority": "P2",
@@ -628,19 +667,6 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/125"
-    },
-    {
-      "pr": 121,
-      "title": "Part 3: secure private Wan output ingestion and media validation",
-      "feature": "F5",
-      "head_sha": "829d5fe5cdec32fd850c0a5efc4e01a924082f74",
-      "base_branch": "feat/part3-integration",
-      "work_owner": "schedule-f5",
-      "priority": "P2",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/121"
     }
   ]
 }
