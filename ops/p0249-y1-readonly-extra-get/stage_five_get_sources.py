@@ -11,6 +11,7 @@ import ast
 import json
 from pathlib import Path
 import shutil
+import sys
 
 # Deliberately exhaustive: never copy function_app.py, workers, queues,
 # service credentials, mutable deployment settings or entire source folders.
@@ -72,6 +73,35 @@ def _validated_manifest(source: Path, route: str) -> None:
         raise ValueError("Y1 package must contain only approved GET routes")
 
 
+
+def _validate_import_closure(tree: ast.AST, relative: str) -> None:
+    """Require every non-stdlib import to be bundled or externally pinned.
+
+    This catches a newer original HTTP/JWT/store module gaining a dependency
+    that the isolated Y1 release ZIP does not vendor (e.g. a worker module
+    or a third-party HTTP client). Fail *before* creating any stage output.
+    """
+    local = {dest.split("/", 1)[0].removesuffix(".py")
+             for dest in SOURCES if dest.endswith(".py")}
+    external = {"jwt"}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            imports = [item.name for item in node.names]
+        elif isinstance(node, ast.ImportFrom):
+            if node.level != 0 or not node.module:
+                raise ValueError("unreviewed relative Y1 import in " + relative)
+            imports = [node.module]
+        else:
+            continue
+        for module in imports:
+            root = module.split(".", 1)[0]
+            if root == "azure":
+                if module not in {"azure", "azure.functions"}:
+                    raise ValueError("unvendored Azure SDK import in " + relative)
+            elif root not in sys.stdlib_module_names and root not in local and root not in external:
+                raise ValueError("unvendored Y1 Python import in " + relative + ": " + root)
+
+
 def stage_sources(repo: Path, target: Path) -> Path:
     repo = repo.resolve(strict=True)
     raw_target = target.absolute()
@@ -91,7 +121,7 @@ def stage_sources(repo: Path, target: Path) -> Path:
         if not source.is_file() or source.is_symlink() or repo not in source.resolve().parents:
             raise ValueError("missing or symlinked allowlisted Y1 source: " + relative)
         if dest.endswith(".py"):
-            ast.parse(source.read_text(encoding="utf-8"), filename=relative)
+            _validate_import_closure(ast.parse(source.read_text(encoding="utf-8"), filename=relative), relative)
         elif dest.endswith("function.json"):
             _validated_manifest(source, ROUTES[Path(dest).parent.name])
     host = json.loads((repo / SOURCES["host.json"]).read_text(encoding="utf-8"))
