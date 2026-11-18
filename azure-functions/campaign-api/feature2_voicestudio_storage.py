@@ -47,7 +47,7 @@ def _wav(data):
     # Deny hidden chunks, trailing data, and impossible frame geometry even
     # when a WAV decoder could ignore extra content after the RIFF envelope.
     if struct.unpack_from("<I", data, 4)[0] != len(data) - 8:
-        raise PrivateVoiceStorageDenied("RIFF byte length does not match object")
+        raise PrivateVoiceStorageDenied("RIFF byte length does not match object (invalid RIFF envelope)")
     cursor = 12
     chunks = []
     while cursor < len(data):
