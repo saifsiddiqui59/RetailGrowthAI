@@ -1,0 +1,3 @@
+# F2 hosted DEV read-only Playwright opt-in original-source recovery — 2026-11-18
+
+Source-only original #551 exact Git blobs `4d4f3ea67bdc4b256b9c5ba870bd0110c9cc9657` and `fc22ae1ce38baf6a101665aedbc1cf55b9e24aa2`. `--plan` runs without network; `--run` is explicitly disabled in CI, requires exact local operator opt-in and existing authorized test-shop UUID. No collected passwords, screenshots, storage state, paid AI, render/publish, approval automation or hosted cloud mutations. Local browser script must not be run by CI. The target DEV UI may change: no claim of hosted acceptance. Require PR exact-head and fresh-main 4/4; original F2 signed JWT/rights/Feature4 release still open.
