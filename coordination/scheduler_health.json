@@ -8,18 +8,18 @@
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "9a4a0c66-bc34-8328-805f-46b7c09e3c83",
+      "last_run_id": "332a913d-7a00-8328-89eb-1a509e772433",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T22:23:46.743498Z",
-      "last_end_utc": "2026-11-17T22:24:12.778946Z",
-      "duration_seconds": 26.035,
+      "last_start_utc": "2026-11-17T23:29:56.911171Z",
+      "last_end_utc": "2026-11-17T23:30:19.137748Z",
+      "duration_seconds": 22.226,
       "reported_code_commits": 0,
       "local_tests_verified": null,
       "last_pr": 917,
       "last_head": "32cacb8a52b98e83e20afeb18645d2a2ecc54d0a",
       "pr_state": "open",
       "pr_mergeable": true,
-      "verified_code_commits": 0,
+      "verified_code_commits": null,
       "ci_run_id": 44010051857,
       "ci_status": "PASS 4/4",
       "classification": "REVIEW_BLOCKED",
@@ -108,19 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f4",
-      "run_id": "b6a2921b-7c14-8325-a672-023c4649469d",
-      "started_at": "2026-11-17T12:45:44.132357Z",
-      "completed_at": "2026-11-17T12:46:20.178048Z",
-      "duration_seconds": 36.05,
-      "verified_code_test_commits": null,
-      "local_tests_verified": null,
-      "ci": "UNKNOWN (all-trigger exact-head jobs not verified)",
-      "classification": "NO_CHANGE",
-      "evidence": "Run duration confirmed; code/test commit delta and CI not independently verified"
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f2",
@@ -408,6 +395,18 @@
       "ci": "F2 #917 exact-head push 4/4 PASS #44010051857; #925 not rechecked this run",
       "classification": "REVIEW_BLOCKED",
       "evidence": "PR #917 full head unchanged since last verified checkpoint; no new source/test SHA. Inherited/null executor; F2 #848 manual-integration."
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "332a913d-7a00-8328-89eb-1a509e772433",
+      "started_at": "2026-11-17T23:29:56.911171Z",
+      "completed_at": "2026-11-17T23:30:19.137748Z",
+      "duration_seconds": 22.226,
+      "verified_code_test_commits": null,
+      "ci": "exact-head #44010051857 4/4 PASS; current new commits UNKNOWN",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "GitHub head unchanged; run completed without independently verified source/test delta"
     }
   ],
   "current_review_gates": {
