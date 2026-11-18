@@ -1173,3 +1173,6 @@ Owner direction to reuse original VoiceStudio code implemented with unchanged pi
 ## 2026-11-19 — Preserve source, retire contaminated stacks
 - Approve retiring obsolete October chat controller #696 and broad F5 701-path stacked draft #465 **UNMERGED**; GitHub PRs and immutable original branch heads retain source for explicit later retrieval. Closing a PR is not feature completion.
 - Prefer feature-owned, current-main, smallest safe Git-blob source ports over merging inherited stale cross-feature histories. #1004 isolates the CPU-only F5 private shared mount audit from original #724, with GPU and cloud mutations OFF. Integration acceptance still requires exact SHA post-main four-job success and separate real rights/security/hosted verification where applicable.
+
+## 2026-11-19 — Exact-main CI requirement satisfied for isolated F5 CPU source
+- Source PR #1004 accepted only after exact merged main `4a8c9c437909089f21e388a3c884f71edac085bc` CI #44380019398 attempt 3 **4/4 SUCCESS**. Retired old stacked PR #724 **unmerged** after checking all four original Git file SHA blobs against current main, not as a release/hosted DONE. The source-only no-GPU/no-cloud rights boundary remains.
