@@ -550,25 +550,35 @@
       "pr": 848,
       "title": "feat(feature2): consolidate existing Creative Director source PRs for coordinator review",
       "feature": "F2",
-      "head_sha": "a35a1f171819564bfb3ed00806e4a87545a8a043",
+      "head_sha": "a3e52192308f47a399bcea94fe5e87627e577b6e",
       "base_branch": "feat/feature2-unified-offline-source-20261028",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
       "phase": "in-progress",
       "claim": {
         "owner": "manual-integration-chat-d-20261119",
-        "head_sha": "a35a1f171819564bfb3ed00806e4a87545a8a043",
+        "head_sha": "a3e52192308f47a399bcea94fe5e87627e577b6e",
         "claimed_at": "2026-11-18T19:24:44.368Z",
         "expires_at": "2026-11-18T20:54:44.368Z"
       },
       "checkpoint": {
-        "owner": "manual-integration-chat-e-20261119",
-        "at": "2026-11-18T19:16:44.121Z",
-        "status": "IN_PROGRESS",
-        "summary": "Unique Feature2 Creative Director source batch (85 files) stacked onto #551's currently claimed parent. Child is mergeable with its old base but NOT direct-main-ready. Avoid concurrent modifications to parent; no child merge authorized by source-only evidence.",
-        "next_action": "After parent #551 owner releases its claim, compare/merge ten-source batch on owned integration branch and rerun 4/4",
-        "merged": false,
-        "verified_integrated_done": false
+        "owner": "manual-integration-chat-d-20261119",
+        "at": "2026-11-18T19:39:30.547Z",
+        "status": "SOURCE_CI_PASS_REVIEW_PENDING",
+        "commit": "a3e52192308f47a399bcea94fe5e87627e577b6e",
+        "ci_run": 44381016829,
+        "ci": "Part 1 exact-branch-head 4/4 SUCCESS; 11 editorial regressions repaired",
+        "blockers": "stacked #551, current-main reconciliation, shared route/SQL independent review",
+        "verified_integrated_done": false,
+        "previous": {
+          "owner": "manual-integration-chat-e-20261119",
+          "at": "2026-11-18T19:16:44.121Z",
+          "status": "IN_PROGRESS",
+          "summary": "Unique Feature2 Creative Director source batch (85 files) stacked onto #551's currently claimed parent. Child is mergeable with its old base but NOT direct-main-ready. Avoid concurrent modifications to parent; no child merge authorized by source-only evidence.",
+          "next_action": "After parent #551 owner releases its claim, compare/merge ten-source batch on owned integration branch and rerun 4/4",
+          "merged": false,
+          "verified_integrated_done": false
+        }
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848"
     },
@@ -712,25 +722,35 @@
       "pr": 513,
       "title": "feat(feature7): AutoBroll uploaded-footage semantic edit proposals with tenant fences",
       "feature": "F7",
-      "head_sha": "eb9df22f34604f2ac592e9c1620430a7978794b5",
+      "head_sha": "cae31b5efd7699084be5ee7763c1d1c3fd9628ea",
       "base_branch": "main",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
       "phase": "in-progress",
       "claim": {
         "owner": "manual-integration-chat-d-20261119",
-        "head_sha": "eb9df22f34604f2ac592e9c1620430a7978794b5",
+        "head_sha": "cae31b5efd7699084be5ee7763c1d1c3fd9628ea",
         "claimed_at": "2026-11-18T19:24:44.368Z",
         "expires_at": "2026-11-18T20:54:44.368Z"
       },
       "checkpoint": {
-        "owner": "manual-integration-chat-e-20261119",
-        "at": "2026-11-18T19:16:44.121Z",
-        "status": "BLOCKED",
-        "summary": "Feature7 132-file semantic-edit draft with tenant and rights fences; main-targeted non-mergeable, needs feature4 compatibility and independent review; not safe to drop unique source.",
-        "next_action": "Reconcile with Feature4 #322 current interface and main, run CPU negatives, exact-head 4/4 and independent security review",
-        "merged": false,
-        "verified_integrated_done": false
+        "owner": "manual-integration-chat-d-20261119",
+        "at": "2026-11-18T19:39:30.547Z",
+        "status": "SOURCE_MERGE_RECONCILED_CI_PENDING",
+        "commit": "cae31b5efd7699084be5ee7763c1d1c3fd9628ea",
+        "ci_run": 44382364583,
+        "ci": "new-head CI in progress; older head 4/4 verified",
+        "blockers": "affected security/media review; hosted quality unverified",
+        "verified_integrated_done": false,
+        "previous": {
+          "owner": "manual-integration-chat-e-20261119",
+          "at": "2026-11-18T19:16:44.121Z",
+          "status": "BLOCKED",
+          "summary": "Feature7 132-file semantic-edit draft with tenant and rights fences; main-targeted non-mergeable, needs feature4 compatibility and independent review; not safe to drop unique source.",
+          "next_action": "Reconcile with Feature4 #322 current interface and main, run CPU negatives, exact-head 4/4 and independent security review",
+          "merged": false,
+          "verified_integrated_done": false
+        }
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/513"
     },
