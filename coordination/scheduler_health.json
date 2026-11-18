@@ -2,17 +2,17 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-18T11:03:23Z",
+  "last_written_at": "2026-11-18T11:26:34Z",
   "last_inventory_count": 36,
-  "last_inventory_checked_at": "2026-11-18T11:03:23Z",
+  "last_inventory_checked_at": "2026-11-18T11:26:34Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "800158f8-f32c-8324-9f8c-621e1f596c50",
+      "last_run_id": "be8019f3-4dc0-8324-ba7a-f17b37d844cf",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-18T10:22:34.986130Z",
-      "last_end_utc": "2026-11-18T10:22:58.351889Z",
-      "duration_seconds": 23.366,
+      "last_start_utc": "2026-11-18T11:23:14.819278Z",
+      "last_end_utc": "2026-11-18T11:23:33.892093Z",
+      "duration_seconds": 19.073,
       "reported_code_commits": null,
       "local_tests_verified": false,
       "last_pr": 925,
@@ -21,7 +21,7 @@
       "pr_mergeable": true,
       "verified_code_commits": null,
       "ci_run_id": 44002627409,
-      "ci_status": "PASS 4/4 exact-head push #44002627409; current run verified",
+      "ci_status": "PASS 4/4 exact-head #44002627409; current verified",
       "classification": "REVIEW_BLOCKED",
       "automation_enabled": true,
       "ci_latest_run_id": 44002627409,
@@ -108,19 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "06823d63-6310-832c-8d3a-5c506e27c283",
-      "started_at": "2026-11-17T16:26:43.993729Z",
-      "completed_at": "2026-11-17T16:27:12.801661Z",
-      "duration_seconds": 28.808,
-      "verified_code_test_commits": null,
-      "local_tests_verified": null,
-      "ci": "success (4/4); prior verified 4/4 run 44010051857",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "No new source/test SHA independently established; connector-only environment_selection inherited, environments null"
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f4",
@@ -422,6 +409,20 @@
       "ci": "PR #925 exact-head #44002627409 PASS 4/4",
       "classification": "REVIEW_BLOCKED",
       "evidence": "Run completed; no independently verified new source/test SHA; manual review pending; inherited/null environment"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "be8019f3-4dc0-8324-ba7a-f17b37d844cf",
+      "started_at": "2026-11-18T11:23:14.819278Z",
+      "completed_at": "2026-11-18T11:23:33.892093Z",
+      "duration_seconds": 19.073,
+      "verified_code_test_commits": null,
+      "reported_code_test_commits": null,
+      "local_tests_verified": false,
+      "ci": "PR #925 exact-head #44002627409 PASS 4/4, four jobs verified",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "New run observed; PR head unchanged; no independently verified new source/test SHA; inherited/null coding environment"
     }
   ],
   "current_review_gates": {
@@ -533,6 +534,6 @@
     "head": "fd9faf468b0229813c21c7fd2e52786401e773de",
     "main_timeout_verified": false,
     "actual_post_merge_video_job_duration_seconds": null,
-    "checked_at": "2026-11-18T11:03:23Z"
+    "checked_at": "2026-11-18T11:26:34Z"
   }
 }
