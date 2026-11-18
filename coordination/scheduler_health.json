@@ -8,11 +8,11 @@
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "a72aa6e3-cadc-8328-ba07-b8ff680ab269",
+      "last_run_id": "32661fd2-506c-8328-8207-c961d2be9c54",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-18T00:26:09.187947Z",
-      "last_end_utc": "2026-11-18T00:26:38.109888Z",
-      "duration_seconds": 28.922,
+      "last_start_utc": "2026-11-18T01:24:56.933942Z",
+      "last_end_utc": "2026-11-18T01:25:31.928424Z",
+      "duration_seconds": 34.995,
       "reported_code_commits": 0,
       "local_tests_verified": null,
       "last_pr": 917,
@@ -108,18 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f3",
-      "run_id": "7a4a6fc9-fed8-8325-bea9-74f944c8c3c3",
-      "started_at": "2026-11-17T13:36:44.414093Z",
-      "completed_at": "2026-11-17T13:37:09.490236Z",
-      "duration_seconds": 25.076,
-      "verified_code_test_commits": null,
-      "ci": "4/4 PASS exact-head push",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "No independently verified new source/test commit; GitHub exact-head CI jobs verified"
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f4",
@@ -408,6 +396,18 @@
       "ci": "#917 exact-head 44010051857 PASS 4/4; #925 earlier exact-head 44002627409 reported, not rechecked here",
       "classification": "REVIEW_BLOCKED",
       "evidence": "Automation reports 0 code/test commits; no new commit independently verified; #917 exact-head 4 CI jobs verified; executor environment inherited/null"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "32661fd2-506c-8328-8207-c961d2be9c54",
+      "started_at": "2026-11-18T01:24:56.933942Z",
+      "completed_at": "2026-11-18T01:25:31.928424Z",
+      "duration_seconds": 34.995,
+      "verified_code_test_commits": null,
+      "ci": "PASS 4/4 exact-head push #44010051857 (four jobs inspected)",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "Run summary is not independent source/test commit verification; no new head observed"
     }
   ],
   "current_review_gates": {
