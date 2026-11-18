@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 25,
+    "open_prs": 33,
     "by_feature": {
-      "F2": 8,
+      "F2": 9,
       "F3": 3,
       "F4": 1,
       "F5": 1,
@@ -25,6 +25,30 @@
     }
   },
   "entries": [
+    {
+      "pr": 1009,
+      "title": "feat(feature2): preserve all 171 original #551 file patches before stale parent retirement",
+      "feature": "F2",
+      "head_sha": "52d15c09ef4d3fecf884ccd5fe2f73b9ae7e5fc1",
+      "base_branch": "main",
+      "work_owner": "manual-integration-chat-e-F2-20261119",
+      "priority": "P2",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-e-F2-20261119",
+        "claimed_at": "2026-11-18T19:37:02.017Z",
+        "expires_at": "2026-11-18T21:07:02.017Z",
+        "head_sha": "52d15c09ef4d3fecf884ccd5fe2f73b9ae7e5fc1"
+      },
+      "checkpoint": {
+        "owner": "manual-integration-chat-e-F2-20261119",
+        "at": "2026-11-18T19:37:02.017Z",
+        "status": "in-progress; exact patch text verified 171/171; PR CI not confirmed",
+        "patches_preserved": 171,
+        "original_tasks_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1009"
+    },
     {
       "pr": 1002,
       "title": "docs(#249): record Y1 five-GET release source and missing live acceptance",
