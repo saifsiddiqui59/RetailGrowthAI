@@ -356,34 +356,20 @@
       "pr": 937,
       "title": "feat(feature2): current signed editor and SQL receipt gate for private VoiceStudio review",
       "feature": "F2",
-      "head_sha": "7f899415e3a20c12ea8b14d7c095623291ca5f9a",
-      "base_branch": "feat/feature2-voicestudio-private-wav-reader-20261111",
+      "head_sha": "603e6e488085ce78fa4a86e3ef2f4c9bb0c820e2",
+      "base_branch": "main",
       "work_owner": "schedule-f2",
       "priority": "P0",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-e-20261119",
-        "head_sha": "7f899415e3a20c12ea8b14d7c095623291ca5f9a",
-        "claimed_at": "2026-11-18T19:14:03.657Z",
-        "expires_at": "2026-11-18T20:44:03.657Z"
-      },
+      "phase": "blocked",
+      "claim": null,
       "checkpoint": {
-        "owner": "schedule-f2",
-        "at": "2026-11-15T15:25:00Z",
-        "head_before": "7f899415e3a20c12ea8b14d7c095623291ca5f9a",
-        "head_after": "7f899415e3a20c12ea8b14d7c095623291ca5f9a",
-        "commits": [],
-        "files_reviewed": [
-          "azure-functions/campaign-api/feature2_voicestudio_review_http.py",
-          "azure-functions/campaign-api/feature2_voicestudio_review_audio.py",
-          "tests/ai/test_feature2_voicestudio_review_http.py"
-        ],
-        "tests": "NOT EXECUTED; connector source review only",
-        "ci": "0/4 exact-head jobs independently verified in this run",
-        "reviews": "0 independent approvals observed",
-        "blockers": "Protected PR; source-only review did not establish a new defect; executable checkout and exact-head CI unavailable",
-        "next_action": "Execute python -m pytest tests/ai/test_feature2_voicestudio_review_http.py tests/ai/test_feature2_voicestudio_review_audio.py tests/ai/test_feature2_voicestudio_riff_envelope.py at head 7f899415; fix only demonstrated failures; obtain exact-head CI 4/4 and independent review; manual-integration merges main",
-        "status": "worker-reported; NOT DONE"
+        "owner": "manual-integration-chat-e-20261119",
+        "at": "2026-11-18T19:16:44.121Z",
+        "status": "IN_PROGRESS",
+        "summary": "Retargeted to main after source parent #936 was merged. Feature-scoped handoff commit 603e6e488085ce78fa4a86e3ef2f4c9bb0c820e2; draft + non-mergeable with newer main, no new exact-head CI verified.",
+        "next_action": "Owner resolve current-main conflict and protected VoiceStudio review; verify 4/4 exact final head and independent permission/security review",
+        "merged": false,
+        "verified_integrated_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/937"
     },
@@ -542,14 +528,17 @@
       "base_branch": "feat/feature2-unified-offline-source-20261028",
       "work_owner": "schedule-f2",
       "priority": "P0",
-      "phase": "in-progress",
-      "claim": {
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": {
         "owner": "manual-integration-chat-e-20261119",
-        "head_sha": "a35a1f171819564bfb3ed00806e4a87545a8a043",
-        "claimed_at": "2026-11-18T19:14:03.657Z",
-        "expires_at": "2026-11-18T20:44:03.657Z"
+        "at": "2026-11-18T19:16:44.121Z",
+        "status": "IN_PROGRESS",
+        "summary": "Unique Feature2 Creative Director source batch (85 files) stacked onto #551's currently claimed parent. Child is mergeable with its old base but NOT direct-main-ready. Avoid concurrent modifications to parent; no child merge authorized by source-only evidence.",
+        "next_action": "After parent #551 owner releases its claim, compare/merge ten-source batch on owned integration branch and rerun 4/4",
+        "merged": false,
+        "verified_integrated_done": false
       },
-      "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848"
     },
     {
@@ -697,31 +686,16 @@
       "base_branch": "main",
       "work_owner": "schedule-f7",
       "priority": "P0",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-e-20261119",
-        "head_sha": "eb9df22f34604f2ac592e9c1620430a7978794b5",
-        "claimed_at": "2026-11-18T19:14:03.657Z",
-        "expires_at": "2026-11-18T20:44:03.657Z"
-      },
+      "phase": "blocked",
+      "claim": null,
       "checkpoint": {
-        "owner": "schedule-f7",
-        "at": "2026-11-15T21:15:00Z",
-        "head_before": "5be0dd259066fa3c902e4ace0dfb0b7afa2778c0",
-        "head_after": "ae1c42099930ae4f4ed6eb3167ecf4898aa43be9",
-        "commits": [
-          "1eb7c255e1d2bc1cbdd9fbb1f9bf62db75cec792",
-          "ae1c42099930ae4f4ed6eb3167ecf4898aa43be9"
-        ],
-        "files_changed": [
-          "video-engine/feature7/voicestudio_verified_media.mjs",
-          "tests/media/test_feature7_voicestudio_verified_media.py"
-        ],
-        "tests": "NOT RUN: GitHub connector source edits; no executable checkout",
-        "ci": "Exact-head PR workflow runs 0; 0/4 verified",
-        "blockers": "CPU regression execution, exact-head CI, independent review, parent mergeability",
-        "next_action": "Execute python -m unittest tests/media/test_feature7_voicestudio_verified_media.py at ae1c4209; fix failing test/source, trigger and verify exact-head 4/4 CI; manual integration handles main",
-        "status": "worker-reported; NOT DONE"
+        "owner": "manual-integration-chat-e-20261119",
+        "at": "2026-11-18T19:16:44.121Z",
+        "status": "BLOCKED",
+        "summary": "Feature7 132-file semantic-edit draft with tenant and rights fences; main-targeted non-mergeable, needs feature4 compatibility and independent review; not safe to drop unique source.",
+        "next_action": "Reconcile with Feature4 #322 current interface and main, run CPU negatives, exact-head 4/4 and independent security review",
+        "merged": false,
+        "verified_integrated_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/513"
     },
@@ -791,25 +765,16 @@
       "base_branch": "main",
       "work_owner": "schedule-f4",
       "priority": "P0",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-e-20261119",
-        "head_sha": "b9525a9ea3d5e5aee351edf89a3c011c2314ed2e",
-        "claimed_at": "2026-11-18T19:14:03.657Z",
-        "expires_at": "2026-11-18T20:44:03.657Z"
-      },
+      "phase": "blocked",
+      "claim": null,
       "checkpoint": {
-        "owner": "schedule-f4",
-        "at": "2026-11-15T20:52:00Z",
-        "head_before": "e26658f844328171342b56241450b29821b33d5f",
-        "head_after": "e26658f844328171342b56241450b29821b33d5f",
-        "commits": [],
-        "files_changed": [],
-        "tests": "NOT RUN: local checkout blocked by github.com DNS resolution",
-        "ci": "Existing exact-head workflow #43742581420: 3/4 jobs success, FFmpeg job cancelled; successfully requested retry of cancelled FFmpeg job 132898771325, pending",
-        "blockers": "Actual targeted CPU tests unavailable locally; rerun pending; independent review and owner-rejected visual QA open",
-        "next_action": "Inspect rerun FFmpeg job 132898771325; if green confirm exact-head 4/4, otherwise repair F4-owned tests after obtaining CAS lease; independently review current-main-compatible unique F4 changes",
-        "status": "worker-reported; NOT DONE"
+        "owner": "manual-integration-chat-e-20261119",
+        "at": "2026-11-18T19:16:44.121Z",
+        "status": "BLOCKED",
+        "summary": "Feature4 188-file draft WIP, owner visual acceptance rejected; existing offline media tests cannot attest customer-quality render. Shared frontend/video overlap; cannot self-merge.",
+        "next_action": "Feature4 owner resolve visual QA, merge conflicts and verify exact-head 4/4 + fresh postmerge main",
+        "merged": false,
+        "verified_integrated_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322"
     },
@@ -821,14 +786,17 @@
       "base_branch": "main",
       "work_owner": "schedule-f5",
       "priority": "P0",
-      "phase": "in-progress",
-      "claim": {
+      "phase": "draft",
+      "claim": null,
+      "checkpoint": {
         "owner": "manual-integration-chat-e-20261119",
-        "head_sha": "3d985127e495d839e3e1f657080cbd8885561e6e",
-        "claimed_at": "2026-11-18T19:14:03.657Z",
-        "expires_at": "2026-11-18T20:44:03.657Z"
+        "at": "2026-11-18T19:16:44.121Z",
+        "status": "BLOCKED",
+        "summary": "Unique 49-file Part3 premium-video source; diverged with main, workflow/shared frontend critical paths. Parent source-only #122 already integrated, but this PR has other unique work; independent review, base reconciliation and exact-head CI required.",
+        "next_action": "Owner/manual integration reconcile with current main; no GPU/paid/hosted operations",
+        "merged": false,
+        "verified_integrated_done": false
       },
-      "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/125"
     }
   ]
