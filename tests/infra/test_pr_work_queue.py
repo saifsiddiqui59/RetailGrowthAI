@@ -31,6 +31,15 @@ class QueueTest(unittest.TestCase):
             queue.claim_entry(new, 551, "manual-integration", HEAD, NOW)
         self.assertEqual(queue.find(new, 551)["claim"]["owner"], "schedule-f2")
 
+    def test_distinct_manual_chats_cannot_rebind_one_anothers_lease(self):
+        first = queue.claim_entry(sample(), 551, "manual-integration-chat-a", HEAD, NOW)
+        with self.assertRaisesRegex(queue.QueueError, "active lease"):
+            queue.claim_entry(first, 551, "manual-integration-chat-b", HEAD, NOW)
+        resumed = queue.claim_entry(first, 551, "manual-integration-chat-a", HEAD, NOW)
+        self.assertEqual(queue.find(resumed, 551)["claim"]["owner"], "manual-integration-chat-a")
+        with self.assertRaisesRegex(queue.QueueError, "not assigned"):
+            queue.claim_entry(sample(), 551, "manual-integration-chat-!", HEAD, NOW)
+
     def test_integration_schedule_lease_blocks_manual_collision(self):
         state = queue.claim_entry(sample(), 551, "schedule-integration", HEAD, NOW)
         with self.assertRaisesRegex(queue.QueueError, "active lease"):
