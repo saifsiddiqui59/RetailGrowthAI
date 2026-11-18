@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 37,
+    "open_prs": 38,
     "by_feature": {
-      "F2": 9,
+      "F2": 10,
       "F3": 3,
       "F4": 5,
       "F5": 5,
@@ -25,6 +25,33 @@
     }
   },
   "entries": [
+    {
+      "pr": 981,
+      "title": "test(feature2): restore offline director CLI, mocked handoff and synthetic B-roll plan",
+      "feature": "F2",
+      "head_sha": "aca4f9f50faccc105a81783bafdb205d743a9c26",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P2",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration",
+        "head_sha": "aca4f9f50faccc105a81783bafdb205d743a9c26",
+        "claimed_at": "2026-11-18T12:52:02.612Z",
+        "expires_at": "2026-11-18T14:22:02.612Z"
+      },
+      "checkpoint": {
+        "recorded_at": "2026-11-18T12:52:02.612Z",
+        "owner": "manual-integration",
+        "head_sha": "aca4f9f50faccc105a81783bafdb205d743a9c26",
+        "commits_reported": 1,
+        "tests_reported": "Five exact original offline Node/CPU fixture and source-only tests included; CI pending",
+        "ci_reported": "run #44307957056 queued",
+        "next_action": "Check exact-head CI 4/4, current base, safe merge and fresh-main four jobs",
+        "evidence_status": "worker-reported-unverified"
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/981"
+    },
     {
       "pr": 980,
       "title": "test(feature2): restore 438-line editorial rights and stock licensing denials",
