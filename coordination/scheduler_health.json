@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-18T06:22:34.222134Z",
+  "last_written_at": "2026-11-18T07:53:00.989Z",
   "last_inventory_count": 38,
   "last_inventory_checked_at": "2026-11-18T06:22:34.222134Z",
   "owners": {
@@ -486,5 +486,22 @@
     },
     "acceptance": "2 new environment-backed coding runs, each with observed duration, executed targeted tests, source/test commit and exact-head CI if code changed; never insert a sleep just to increase duration",
     "ready_to_provision": false
+  },
+  "extended_cpu_runner": {
+    "workflow_pr": 977,
+    "workflow_path": ".github/workflows/retailgrowthai-f4-extended-cpu.yml",
+    "branch": "ci/extended-f4-cpu-acceptance-20261118",
+    "tested_head": "c6f1cab844156785aa58a518ffce08b7a8976409",
+    "pr_ci_run": 44261855098,
+    "pr_ci": "4/4 PASS (completed, 2026-11-18)",
+    "extended_cpu_run": 44261849124,
+    "extended_cpu_status": "IN_PROGRESS — native 60s encode, outcome not yet verified",
+    "job_timeout_minutes": 25,
+    "feature4_ref": "feat/feature4-professional-video-studio",
+    "environment": "GITHUB_ACTIONS_CPU_ONLY",
+    "scope": "Offline extended test, NOT ChatGPT scheduled AI coding duration and NOT approved commercial video",
+    "first_attempt": "44261176520 failed: missing FFmpeg",
+    "second_attempt": "44261439834 failed: missing pinned Pillow",
+    "next_action": "Read exact job 134656820737; verify actual duration and receipt before completion; obtain independent workflow review before merging PR #977"
   }
 }
