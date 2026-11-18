@@ -84,6 +84,20 @@ jobs:
           ffmpeg -version | head -1
           ffprobe -version | head -1
 
+      - name: Install uv for the pinned original synthetic image fixture
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.1'
+          enable-cache: true
+
+      - name: Install existing Python Pillow dependency inside disposable venv
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv venv .f4-extended-py-venv --python python3
+          uv pip install --python .f4-extended-py-venv/bin/python "Pillow==13.0.0"
+          echo "$GITHUB_WORKSPACE/.f4-extended-py-venv/bin" >> "$GITHUB_PATH"
+
       - name: Validate existing package lock before any npm install
         shell: bash
         run: |
