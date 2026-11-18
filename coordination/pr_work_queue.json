@@ -13,18 +13,55 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 35,
+    "open_prs": 37,
     "by_feature": {
-      "F2": 8,
+      "F2": 9,
       "F3": 3,
       "F4": 4,
       "F5": 5,
       "F7": 1,
       "issue249": 11,
-      "shared": 3
+      "shared": 4
     }
   },
   "entries": [
+    {
+      "pr": 975,
+      "title": "test(testing): current signed worker RPC tenant negatives + preserve historical #627",
+      "feature": "shared",
+      "head_sha": "4fd89ab524bbf98e358dca655b3d7d93c0c9fc3a",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P2",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration",
+        "head_sha": "4fd89ab524bbf98e358dca655b3d7d93c0c9fc3a",
+        "claimed_at": "2026-11-18T07:41:21.307Z",
+        "expires_at": "2026-11-18T09:11:21.307Z"
+      },
+      "checkpoint": {
+        "recorded_at": "2026-11-18T07:41:21.307Z",
+        "head_sha": "4fd89ab524bbf98e358dca655b3d7d93c0c9fc3a",
+        "owner": "manual-integration",
+        "next_action": "Verify current signed worker RPC tests 4/4, safely integrate to main, verify fresh main 4/4",
+        "ci_reported": "#44260759318 in progress"
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/975"
+    },
+    {
+      "pr": 974,
+      "title": "test(feature2): restore pinned MIT Creative Director integrity and approval regressions",
+      "feature": "F2",
+      "head_sha": "169c5506776bb7a10219bcbde9e07f041ee074dd",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P2",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/974"
+    },
     {
       "pr": 972,
       "title": "fix(feature2 F2-31): revalidate signed editorial rights immediately before handoff",
@@ -437,9 +474,20 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration",
+        "head_sha": "6ef9788a26661c07a3feb851dfe1cb0209b310da",
+        "claimed_at": "2026-11-18T07:41:21.307Z",
+        "expires_at": "2026-11-18T09:11:21.307Z"
+      },
+      "checkpoint": {
+        "recorded_at": "2026-11-18T07:41:21.307Z",
+        "head_sha": "6ef9788a26661c07a3feb851dfe1cb0209b310da",
+        "owner": "manual-integration",
+        "next_action": "Original 5 source patches archived in #975; retire UNMERGED only after accepted archive and direct head/path parity",
+        "ci_reported": "historic draft protected"
+      },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/627"
     },
     {
