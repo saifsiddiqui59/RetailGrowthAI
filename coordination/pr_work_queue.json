@@ -731,16 +731,22 @@
       "base_branch": "main",
       "work_owner": "schedule-f5",
       "priority": "P0",
-      "phase": "draft",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration",
+        "head_sha": "3d985127e495d839e3e1f657080cbd8885561e6e",
+        "claimed_at": "2026-11-18T19:23:22.490Z",
+        "expires_at": "2026-11-18T20:53:22.490Z"
+      },
       "checkpoint": {
-        "owner": "manual-integration-chat-e-20261119",
-        "at": "2026-11-18T19:16:44.121Z",
-        "status": "BLOCKED",
-        "summary": "Unique 49-file Part3 premium-video source; diverged with main, workflow/shared frontend critical paths. Parent source-only #122 already integrated, but this PR has other unique work; independent review, base reconciliation and exact-head CI required.",
-        "next_action": "Owner/manual integration reconcile with current main; no GPU/paid/hosted operations",
-        "merged": false,
-        "verified_integrated_done": false
+        "recorded_at": "2026-11-18T19:23:22.490Z",
+        "owner": "manual-integration",
+        "head_sha": "3d985127e495d839e3e1f657080cbd8885561e6e",
+        "commits_reported": 1,
+        "tests_reported": "PR #1005 original 49/49 GitHub patches exact archived, CI running",
+        "ci_reported": "CI #44379509031 pending",
+        "next_action": "Review and merge exact archive #1005 only after PR 4/4; confirm fresh-main 4/4; close old #125 UNMERGED with protected downstream tasks active",
+        "evidence_status": "worker-reported-unverified"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/125"
     }
