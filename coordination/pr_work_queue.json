@@ -68,8 +68,13 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "ready-for-review",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration",
+        "head_sha": "fda5f5f6017748d7ecb01431b78e705d99862a8f",
+        "claimed_at": "2026-11-18T18:59:09.860Z",
+        "expires_at": "2026-11-18T20:29:09.860Z"
+      },
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/977"
     },
