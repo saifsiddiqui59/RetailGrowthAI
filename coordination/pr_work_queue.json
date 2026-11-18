@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 36,
+    "open_prs": 37,
     "by_feature": {
-      "F2": 8,
+      "F2": 9,
       "F3": 3,
       "F4": 5,
       "F5": 5,
@@ -25,6 +25,33 @@
     }
   },
   "entries": [
+    {
+      "pr": 980,
+      "title": "test(feature2): restore 438-line editorial rights and stock licensing denials",
+      "feature": "F2",
+      "head_sha": "3e5b792bd863d971a03fc43324a187d3d74f8ef4",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P2",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration",
+        "head_sha": "3e5b792bd863d971a03fc43324a187d3d74f8ef4",
+        "claimed_at": "2026-11-18T12:46:54.074Z",
+        "expires_at": "2026-11-18T14:16:54.074Z"
+      },
+      "checkpoint": {
+        "recorded_at": "2026-11-18T12:46:54.074Z",
+        "owner": "manual-integration",
+        "head_sha": "3e5b792bd863d971a03fc43324a187d3d74f8ef4",
+        "commits_reported": 1,
+        "tests_reported": "Original 438-line editorial negatives, historical Pexels rights denial fixtures; CI running",
+        "ci_reported": "run #44307095298 in progress",
+        "next_action": "Verify exact final-head 4/4, main compatibility, safe merge and postmerge exact-main 4/4",
+        "evidence_status": "worker-reported-unverified"
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/980"
+    },
     {
       "pr": 979,
       "title": "fix(testing): reject forged worker event IDs, statuses and media receipts",
