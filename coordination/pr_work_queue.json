@@ -13,90 +13,30 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 38,
+    "open_prs": 36,
     "by_feature": {
-      "F2": 10,
+      "F2": 8,
       "F3": 3,
-      "F4": 4,
+      "F4": 5,
       "F5": 5,
       "F7": 1,
       "issue249": 11,
-      "shared": 4
+      "shared": 3
     }
   },
   "entries": [
     {
-      "pr": 976,
-      "title": "test(feature2): recover offline Pexels discovery fixture plan, no media downloads",
-      "feature": "F2",
-      "head_sha": "892530314c521dd5151cb77f9269b9cf793bb7b0",
+      "pr": 977,
+      "title": "ci(feature4): add on-demand extended CPU 60s acceptance job",
+      "feature": "F4",
+      "head_sha": "c6f1cab844156785aa58a518ffce08b7a8976409",
       "base_branch": "main",
-      "work_owner": "manual-integration",
+      "work_owner": "schedule-f4",
       "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration",
-        "head_sha": "892530314c521dd5151cb77f9269b9cf793bb7b0",
-        "claimed_at": "2026-11-18T07:44:05.595Z",
-        "expires_at": "2026-11-18T09:14:05.595Z"
-      },
-      "checkpoint": {
-        "recorded_at": "2026-11-18T07:44:05.595Z",
-        "owner": "manual-integration",
-        "head_sha": "892530314c521dd5151cb77f9269b9cf793bb7b0",
-        "ci_reported": "run 44261077357 executing",
-        "next_action": "Verify exact final head 4/4 then safe merge and fresh main 4/4 for non-network Pexels plan-only test code"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/976"
-    },
-    {
-      "pr": 975,
-      "title": "test(testing): current signed worker RPC tenant negatives + preserve historical #627",
-      "feature": "shared",
-      "head_sha": "4fd89ab524bbf98e358dca655b3d7d93c0c9fc3a",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration",
-        "head_sha": "4fd89ab524bbf98e358dca655b3d7d93c0c9fc3a",
-        "claimed_at": "2026-11-18T07:41:21.307Z",
-        "expires_at": "2026-11-18T09:11:21.307Z"
-      },
-      "checkpoint": {
-        "recorded_at": "2026-11-18T07:41:21.307Z",
-        "head_sha": "4fd89ab524bbf98e358dca655b3d7d93c0c9fc3a",
-        "owner": "manual-integration",
-        "next_action": "Verify current signed worker RPC tests 4/4, safely integrate to main, verify fresh main 4/4",
-        "ci_reported": "#44260759318 in progress"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/975"
-    },
-    {
-      "pr": 974,
-      "title": "test(feature2): restore pinned MIT Creative Director integrity and approval regressions",
-      "feature": "F2",
-      "head_sha": "169c5506776bb7a10219bcbde9e07f041ee074dd",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration",
-        "head_sha": "169c5506776bb7a10219bcbde9e07f041ee074dd",
-        "claimed_at": "2026-11-18T07:41:44.260Z",
-        "expires_at": "2026-11-18T09:11:44.260Z"
-      },
-      "checkpoint": {
-        "recorded_at": "2026-11-18T07:41:44.260Z",
-        "owner": "manual-integration",
-        "head_sha": "169c5506776bb7a10219bcbde9e07f041ee074dd",
-        "commits_reported": 1,
-        "ci_reported": "run 44260681490 executing",
-        "next_action": "Exact PR head four-job CI; safe current-main merge; independently verify push CI"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/974"
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/977"
     },
     {
       "pr": 972,
