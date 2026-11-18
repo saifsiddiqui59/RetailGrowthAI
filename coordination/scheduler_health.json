@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-18T19:01:52.332Z",
+  "last_written_at": "2026-11-18T19:05:14.041Z",
   "last_inventory_count": 36,
   "last_inventory_checked_at": "2026-11-18T18:04:09Z",
   "owners": {
@@ -510,7 +510,7 @@
     "scope": "Offline extended test, NOT ChatGPT scheduled AI coding duration and NOT approved commercial video",
     "first_attempt": "44261176520 failed: missing FFmpeg",
     "second_attempt": "44261439834 failed: missing pinned Pillow",
-    "next_action": "Verify current main CI #44375688944 four jobs; do not rerun passed CPU proof; keep F4 original tasks IN PROGRESS and coding worker paused if only review/integration blockers remain",
+    "next_action": "Maintain F4-01/02/03 original tasks IN PROGRESS; manual workflows only; integration review/human quality and signed DEV remain separate. 25-minute CI job cap is not ChatGPT coding runtime.",
     "job_id": 134656820737,
     "job_result": "success",
     "runner_log_started_utc": "2026-11-18T07:49:15.0119667Z",
@@ -528,7 +528,7 @@
     "artifact_expires_at": "2026-11-21T07:55:31Z",
     "receipt_evidence": "GitHub Actions upload artifact confirmed; internal receipt content not downloaded",
     "pr_state": "MERGED",
-    "integration_phase": "POSTMERGE_MAIN_CI_PENDING",
+    "integration_phase": "POSTMERGE_MAIN_CI_4_OF_4_PASS",
     "merged_prs": [
       {
         "pr": 967,
@@ -544,12 +544,13 @@
         "workflow": "retailgrowthai-f4-extended-cpu.yml",
         "effect": "manual-only CPU 60s acceptance workflow, 25m job cap",
         "fresh_main_ci": 44375688944,
-        "fresh_main_ci_status": "PENDING"
+        "fresh_main_ci_status": "4/4 PASS"
       }
     ],
     "video_job_cap_minutes": 25,
     "standalone_manual_only": true,
-    "last_verified_utc": "2026-11-18T19:01:52.330Z"
+    "last_verified_utc": "2026-11-18T19:01:52.330Z",
+    "postmerge_main_ci_verified_at_utc": "2026-11-18T19:05:14.041Z"
   },
   "extended_execution_watch": {
     "pr": 967,
