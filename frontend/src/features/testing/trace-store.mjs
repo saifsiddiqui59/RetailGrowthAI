@@ -19,6 +19,32 @@ const WORKER_TERMINALS = Object.freeze({
     'render.failed': 'FAILED',
   }),
 })
+// Date.parse normalizes impossible calendar dates (for example February 30).
+// Validate the signed RPC receipt's calendar and offset before accepting it.
+function validWorkerTimestamp(value) {
+  if (typeof value !== 'string' || value.length > 64) return false
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?(Z|[+-]\d{2}:\d{2})$/.exec(value)
+  if (!match) return false
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const hour = Number(match[4])
+  const minute = Number(match[5])
+  const second = Number(match[6])
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+  const days = [0, 31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  if (year < 1 || month < 1 || month > 12 || day < 1 ||
+      day > days[month] || hour > 23 || minute > 59 || second > 59) return false
+  const zone = match[8]
+  if (zone !== 'Z') {
+    const zoneHours = Number(zone.slice(1, 3))
+    const zoneMinutes = Number(zone.slice(4, 6))
+    if (zoneHours > 14 || zoneMinutes > 59 ||
+        (zoneHours === 14 && zoneMinutes !== 0)) return false
+  }
+  return Number.isFinite(Date.parse(value))
+}
+
 // Defensive validation is not a substitute for authenticated backend/RLS
 // authority or independent cryptographic provenance from the worker service.
 function trustedWorkerSpan(row, shopId, jobId) {
@@ -33,9 +59,7 @@ function trustedWorkerSpan(row, shopId, jobId) {
       !Number.isInteger(row.attempt) || row.attempt < 1 || row.attempt > 5 ||
       !Number.isInteger(row.elapsed_ms) || row.elapsed_ms < 0 ||
       row.elapsed_ms > 1800000 ||
-      typeof row.recorded_at !== 'string' || row.recorded_at.length > 64 ||
-      !/^\d{4}-\d{2}-\d{2}T.+(?:Z|[+-]\d{2}:\d{2})$/i.test(row.recorded_at) ||
-      !Number.isFinite(Date.parse(row.recorded_at))) return false
+      !validWorkerTimestamp(row.recorded_at)) return false
   const meta = row.metadata
   if (!meta || typeof meta !== 'object' || Array.isArray(meta) ||
       JSON.stringify(meta).length > 2000) return false
