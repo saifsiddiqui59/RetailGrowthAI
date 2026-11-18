@@ -8,11 +8,11 @@
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "c494620a-73d0-8328-97e2-182860778d2f",
+      "last_run_id": "7e061565-7850-8328-abf0-4550b8c1f585",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-18T02:27:00.725496Z",
-      "last_end_utc": "2026-11-18T02:27:23.640216Z",
-      "duration_seconds": 22.915,
+      "last_start_utc": "2026-11-18T03:23:23.628861Z",
+      "last_end_utc": "2026-11-18T03:24:11.789957Z",
+      "duration_seconds": 48.161,
       "reported_code_commits": 0,
       "local_tests_verified": false,
       "last_pr": 925,
@@ -21,11 +21,11 @@
       "pr_mergeable": true,
       "verified_code_commits": null,
       "ci_run_id": 44002627409,
-      "ci_status": "PASS 4/4 exact-head (jobs independently inspected)",
+      "ci_status": "PASS 4/4 exact-head jobs inspected",
       "classification": "REVIEW_BLOCKED",
       "automation_enabled": true,
       "ci_latest_run_id": 44002627409,
-      "ci_latest_status": "PASS 4/4",
+      "ci_latest_status": "PASS 4/4 exact-head jobs inspected",
       "executor_status": "EXECUTOR_NOT_PROVISIONED",
       "executor_type": "GITHUB_CONNECTOR_ONLY",
       "environment_selection": "inherited",
@@ -108,18 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f7",
-      "run_id": "3b0bdf5d-b66c-832c-9c81-418c71c14169",
-      "started_at": "2026-11-17T13:12:31.195227Z",
-      "completed_at": "2026-11-17T13:13:14.106899Z",
-      "duration_seconds": 42.911,
-      "verified_code_test_commits": null,
-      "ci": "4/4 PASS exact-head push",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "No independently verified new source/test commit; GitHub exact-head CI jobs verified"
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f2",
@@ -410,6 +398,18 @@
       "ci": "PR #925 exact-head #44002627409 PASS 4/4, all jobs independently inspected",
       "classification": "REVIEW_BLOCKED",
       "evidence": "No new source/test commit independently verified; owner run reports zero; inherited/null execution environment"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "7e061565-7850-8328-abf0-4550b8c1f585",
+      "started_at": "2026-11-18T03:23:23.628861Z",
+      "completed_at": "2026-11-18T03:24:11.789957Z",
+      "duration_seconds": 48.161,
+      "verified_code_test_commits": null,
+      "ci": "PR #925 exact-head #44002627409 PASS 4/4; all jobs independently inspected",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "Distinct completed run; no new source/test commit independently established; PR head unchanged; inherited/null executor environment"
     }
   ],
   "current_review_gates": {
