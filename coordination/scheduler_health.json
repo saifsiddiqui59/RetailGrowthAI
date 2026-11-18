@@ -3,16 +3,16 @@
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
   "last_written_at": "2026-11-18T19:11:05.081Z",
-  "last_inventory_count": 24,
-  "last_inventory_checked_at": "2026-11-18T20:03:59Z",
+  "last_inventory_count": 21,
+  "last_inventory_checked_at": "2026-11-18T20:59:16.910Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "efbf925d-0ffc-8324-a09c-2420bdcf784c",
+      "last_run_id": "eab3508e-eb90-8320-be16-68de55c97d8e",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-18T17:28:20.780871Z",
-      "last_end_utc": "2026-11-18T17:28:47.534662Z",
-      "duration_seconds": 26.754,
+      "last_start_utc": "2026-11-18T20:26:29.753707Z",
+      "last_end_utc": "2026-11-18T20:26:58.459899Z",
+      "duration_seconds": 28.706,
       "reported_code_commits": 0,
       "local_tests_verified": false,
       "last_pr": 925,
@@ -23,7 +23,7 @@
       "ci_run_id": 44002627409,
       "ci_status": "PASS 4/4 exact-head, four jobs rechecked",
       "classification": "REVIEW_BLOCKED",
-      "automation_enabled": true,
+      "automation_enabled": false,
       "ci_latest_run_id": 44002627409,
       "ci_latest_status": "PASS 4/4 exact-head",
       "executor_status": "EXECUTOR_NOT_PROVISIONED",
@@ -108,19 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "3af90a21-fd74-8328-990e-fa1a10002ce3",
-      "started_at": "2026-11-17T21:21:41.762161Z",
-      "completed_at": "2026-11-17T21:22:22.658272Z",
-      "duration_seconds": 40.896,
-      "verified_code_test_commits": null,
-      "local_tests_verified": null,
-      "ci": "F2 #917 exact-head push 4/4 PASS #44010051857; #925 prior green not rechecked this run",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "No new source/test SHA independently established. Inherited/null executor environment; independent review and manual integration remain."
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f2",
@@ -418,6 +405,17 @@
       "verified_code_test_commits": null,
       "classification": "REVIEW_BLOCKED",
       "evidence": "No new source/test SHA independently verified; environment inherited/null; manual integration protected."
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "eab3508e-eb90-8320-be16-68de55c97d8e",
+      "started_at": "2026-11-18T20:26:29.753707Z",
+      "completed_at": "2026-11-18T20:26:58.459899Z",
+      "duration_seconds": 28.706,
+      "verified_code_test_commits": null,
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "No new source/test commit independently verified; automation currently disabled; executor not provisioned"
     }
   ],
   "current_review_gates": {
@@ -569,9 +567,10 @@
     "docs_postmerge_main_ci": {
       "run_id": 44377599370,
       "head_sha": "a65bb1503dd83af68de342329db45314aaa654cb",
-      "status": "COMPLETED_SUCCESS_4_OF_4",
-      "verified_at_utc": "2026-11-18T20:03:59Z",
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/44377599370"
+      "status": "completed",
+      "conclusion": "success",
+      "jobs_verified": 4,
+      "verified_at": "2026-11-18T20:59:19.650Z"
     },
     "docs_files_updated": [
       "docs/PROJECT_STATE.md",
