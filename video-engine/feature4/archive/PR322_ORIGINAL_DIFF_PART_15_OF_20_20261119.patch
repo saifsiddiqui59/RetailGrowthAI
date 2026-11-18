@@ -1,0 +1,1425 @@
+diff --git a/video-engine/feature4/archive/pr779_FEATURE4_TIMELINE_STUDIO_ADOPTION.md b/video-engine/feature4/archive/pr779_FEATURE4_TIMELINE_STUDIO_ADOPTION.md
+--- a/video-engine/feature4/archive/pr779_FEATURE4_TIMELINE_STUDIO_ADOPTION.md
++++ b/video-engine/feature4/archive/pr779_FEATURE4_TIMELINE_STUDIO_ADOPTION.md
+@@ -0,0 +1,153 @@
++# RetailGrowthAI Feature #4 — Actual Timeline Studio source adaptation
++
++Checkpoint 2026-10-28. **Source-only, PR #322 draft; no Azure, GPU or public editor deployment.**
++
++## Selected real upstream source
++
++- [MartinDelophy/ai-video-editor](https://github.com/MartinDelophy/ai-video-editor), immutable research commit `e1091feccca3be8832b507eb7e17c9e55eb2233a` (MIT).
++- Preserved original MIT LICENSE, © 2026 MartinDelophy, in `frontend/src/features/video/vendor/LICENSE`. This is adapted real upstream editing code, not a claim of full upstream-app deployment.
++- Upstream pinned commit's actual [Actions #40501035304](https://github.com/MartinDelophy/ai-video-editor/actions/runs/40501035304) SUCCESS: `npm ci`, ESLint, TypeScript typechecks (host and app), Vite production build. That upstream package does **not** define a standalone `npm test` script. Direct local clone/npm installation and launching the entire original application was **not possible in the available network-restricted runtime**; no fabricated local run.
++- Research ownership from [PR #497](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/497): **Feature #2** authors approved `creative_direction_v1`, dialogue, story, camera and exact motion prompts; **Feature #4** assembles, edits and verifies; **Feature #5** validates/inferences motions; **Feature #7** semantically edits existing uploaded footage.
++
++## Original source → Feature #4 source map
++
++| Upstream pinned source | Feature #4 adaptation | Real reused capability |
++| --- | --- | --- |
++| `src/lib/timeline.js` | `frontend/src/features/video/vendor/timeline.js` | Scene ranges, captions, lanes, reorder, timing, formatting |
++| `src/lib/timelineScale.js` | `frontend/src/features/video/vendor/timelineScale.js` | Zoom/ruler ticks, bounded viewport math |
++| `src/lib/projectTrackState.js` | `frontend/src/features/video/vendor/projectTrackState.js` | Multi-track visibility/lock helpers |
++| `src/lib/editorHistoryCore.ts` | `frontend/src/features/video/vendor/editorHistoryCore.mjs` | Exact upstream push/undo/redo algorithm converted from TS generics to JS |
++| `src/lib/timelineCutActions.js` | `frontend/src/features/video/vendor/timelineCut.js` | Original `splitVisualSegmentState` including video sourceStart offsets; unsupported keyframe logic omitted |
++| `src/components/TimelineClips.jsx` | `frontend/src/features/video/vendor/TimelineClips.jsx` | Real React caption/audio clip controls and resize handles |
++| `src/components/TimelineGain.jsx`, `.css` | `frontend/src/features/video/vendor/TimelineGain.*` | Original audio-gain UI, **disabled** when final renderer cannot reproduce it |
++| `src/config/editor.js` | `frontend/src/features/video/vendor/editorConfig.js` | Isolated original timing constants; avoids unrelated upstream host/model dependencies |
++| `src/components/ui.jsx` | `frontend/src/features/video/vendor/WaveformStrip.jsx` | Simplified static waveform adapter, not modeled/synthetic speech or AI waveform |
++
++## RetailGrowthAI integration
++
++- `TimelineStudioSurface.jsx` and `.css`: multi-track timeline rendered **inside** existing feature-owned React workspace, edit/seek, HTML drag reorder, mobile earlier/later controls, source video trims, real segment splitting, caption lane, music lane, undo/redo, ruler and playhead. It **does not** import or run upstream's cloud host, local accounts, browser-WebCodecs exporter or paid models.
++- `timeline-studio-bridge.mjs`: converts upstream timeline operations into the **exact existing** `rg_video_v2` scene allowlist. Keeps 15/30/60s duration, 1–12 scenes, minimum 0.5s clips, shop-private approved asset IDs, unchanged approved captions/offers/CTA. Clip split reuses same approved image/video, advancing video trim source offset. The existing `feature4_intent_compiler.py` remains authoritative for server approval/rights.
++- `creative-direction-adapter.mjs`: proposed frontend read-only `creative_direction_v1` preview bridge, requires Feature2 reviewed shop/campaign/approval/hash, exact approved headline/offer/CTA/media/allowed transitions and no unapproved assets. **UI browser approval flags are NOT authorization.** Feature2 schema and DB snapshot are not coordinator-frozen yet; consumer route remains OFF.
++- `feature4_motion_handoff.py`: source-only, bounded F2 approved motion brief → F5 legacy 5s/480p profile request. Preserves rich prompt and choreography data verbatim and derives shop-scoped idempotency. Coordinator must atomically reserve/claim/outbox before invoking callback. **No actual GPU, Wan, billed inference, queue deployment or live media receipt**.
++- Final export remains HyperFrames + FFmpeg fallback. No second independent renderer. Upstream `projectRenderPlan.js` intentionally **not** used: its offline path drops requested overlays/captions and would create false preview parity.
++
++## Explicit capabilities not yet claimed
++
++- Upstream full 200KB `Timeline.jsx`, 66KB `PreviewStage.jsx`, 127KB `App.jsx` and many unsupported mask/keyframe/3D effects are **not** imported wholesale. This is a bounded adoption of working upstream components and editing algorithms, **not** the entire original UI; deeper editing parity is still pending.
++- Independent subtitle-text editing, per-track gain, arbitrary keyframes, sophisticated source speech alignment and arbitrary motion transforms remain disabled or pending. Only renderer-supported effects are actionable; no silent drop of user-selected effects.
++- The Feature2 `creative_direction_v1` shape shown in tests is a **proposed** handoff, not a merged cross-feature contract. A real Feature2 review must be reissued if a director-locked storyboard is changed.
++- No actual Wan inference, original retailer kurti or human-model quality approval. Mocked media tests are engineering evidence only, not premium fashion-campaign acceptance.
++- No Azure v2 DB/queue/API contract, authenticated hosted E2E, signed output publishing, GPU or PROD delivery without coordinator approval and issue #249 remediation.
++
++## Verification requirements
++
++- Existing `tests/frontend/timeline-studio-adoption.test.mjs`: actual borrowed timeline geometry, caption lanes, zoom, split/trim, history, F2 contract and malicious media denial.
++- Existing `frontend/e2e/timeline-studio.spec.mjs`: actual browser interaction with adapter and mobile locked package (Vite-served test fixture, no public test route).
++- Existing `tests/media/test_feature4_motion_handoff.py`: mock F2→F5 security, exact prompt fidelity, no double dispatch and no GPU.
++- Existing real 30s synthetic 1080×1920 HyperFrames/FFmpeg CI; server snapshot/tenant/rights tests remain mandatory.
++- Inspect **exact latest head** four-job CI after every push and report failures separately. Previous runs with cancelled jobs or upstream passes do not prove the latest edited source.
++
++## Editing correctness follow-up (F4-17/18)
++- The upstream timeline zoom now expands the **actual** track width in a bounded 560–18,000px horizontal scroll surface and aligns playhead and ruler; the earlier zoom changed only tick labels.
++- Caption clip drag handles modify their correct adjacent scene boundary, not an unrelated clip; duration and source start remain protected.
++- Extending/shrinking a reviewed video scene cannot silently reuse the wrong original source frames; the current tenant and known ffprobe-derived source duration are checked at the UI, while authoritative file-duration checks still occur at the renderer.
++- Scene SFX is now selectable from same-shop licensed audio, visibly plotted at the actual scene start and **capped to existing HyperFrames 2-second, 25%-gain behavior**. It is *not* a general voiceover/multitrack-volume editor.
++- New direct Node `studioSplit`/`studioReorder` edit to trusted Python `compile_approved_storyboard` and `render_inputs` tests establish same-plan preservation for source media, approved copy, trims, music and poster plus tenant/tampered-claim refusal.
++- These tests do not substitute for a complete preview-to-final rendered video equivalence test, real garment/motion signoff, hosted authentication and commercial dependency notices.
++
++## Full-Reel approved narration — F4-19
++A bounded additive optional `voiceover_asset_id` appears in the editor and existing trusted `rg_video_v2`→`creative_reel_v1`→HyperFrames contract. Its private rights-approved 15/30/60s audio must cover the entire duration verified by ffprobe before assembly. The HyperFrames HTML uses a deterministic new dedicated audio track, fixed gain, with existing approved soundtrack ducked to 0.12 under narration. No voice model, altered advertising script, AI speech-generation charge, arbitrary DAW curves or unsanctioned endpoint is introduced. SFX remain 2s fixed-gain; they are **not** treated as speech. Three synthetic narration/media-rights tests and the broader code suite passed on exact code-head Actions #40689046813 and #40689055698 (4/4 each); this is NOT spoken-word intelligibility or actual Wan motion acceptance.
++
++## F4-20 — Actual encoded narration-track AAC parity test, 2026-10-28
++- **Implemented and verified on code SHA `9fa5b7d41083aafaa3848c5d7586ee51a2e24304`**: `demo_feature4_diwali.py --with-narration` adds an original, explicitly non-spoken 863 Hz test-only voice recording to the same 30s synthetic, authorized Feature4 private media pipeline. `hyperframes/ci-smoke.sh` enables it in the **existing** 30s/1080p HyperFrames output, not an extra paid renderer or provider call.
++- `hyperframes/check_feature4_output.py` Fourier-analyzes actual final MP4→AAC→PCM audio at 13s and 27s, failing when the voice signal disappears. Real [push CI #40690471199](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40690471199) **4/4 PASS**: 138 Python media tests, actual MP4 **30.000s, 1080×1920, 24fps, H264+AAC, 5,450,263 bytes**; decoded synthetic narrator amplitudes **1,898.71 / 1,898.83**. The standard non-narration 540p render independently preserves 480Hz source video sound and background music ducking. [PR CI #40690478611](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40690478611) is a separately observed check.
++- **Not accepted as authentic spoken narration**: no real TTS or human speech, word timings, spoken comprehension, exact text audio matching, reviewer approval or photoreal retailer garments. `spoken_word_qa_accepted=False`, `commercial_fashion_realism_accepted=False`. This is proof only that approved separate narration **can survive existing HyperFrames export**.
++
++## 2026-10-28 — F4-21/F4-22/F4-23: mock-first security, source preview and F2 edit preservation
++- **F4-21 P0 code completed, final exact-head CI pending:** `compatibleMedia` and `makeVideoDraft` now enforce the *selected* shop before placing source assets in the editor. `validateVideoDraft` rejects foreign/revoked product image or poster, music/audio of the wrong kind/shop, invalid video source in-points/mute flags and advertised source-duration overruns; it also rejects a clearly too-short full-Reel narration when trusted source duration is supplied. Server-side `compile_approved_storyboard` / `_bundle` / `professional.validate` remain the final independent authority and actual ffprobe source-length gate.
++- **F4-22 P0 source-level preview fidelity:** The authenticated source-footage preview seeks to the selected `trim_start` and stops at `trim_start + scene.duration`. Re-selecting/splitting the clip resets the excerpt; it remains *muted, clearly labeled source footage*, not a fake final color/transition/overlay render. Invalid cross-shop or expired private URLs still cannot be used as source HTML. Added pure source-window tests for valid, negative and overrun offsets.
++- **F4-22 P1 keyboard access:** React editor supports Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z on the focused timeline while explicitly respecting native text-input undo, F2 approved read-only, and undo/redo history. Added Playwright mobile keyboard acceptance.
++- **F4-23 P0 approved direction preservation:** `inspectCreativeDirection` now carries optional F2-reviewed `poster_overlay_asset_id`, `trim_start`, and `mute_source` into the existing v2 editor plan; requires same-shop approved F3 poster and valid actual F5/retailer video source, rejects illegal types/negative starts/source-bound overruns, and never rewrites copy/offer/CTA or the original approved package. Motion generation prompts remain stored in the trusted F2 package rather than reparsed by the browser.
++- All acceptance tests use explicitly authorized synthetic fixtures only, not user media or actual Wan human motion. **Do not mark P0 fully accepted until the new source-head 4/4 push/PR CI passes.**
++
++## 2026-10-28 — Verified F4-21 to F4-24 source/CI acceptance (not product release)
++Exact **code** SHA `9fdd205c72820b6affe5591db47c8aca07a64162` passed both [GitHub branch CI #40702356085](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40702356085) and independent [PR CI #40702364957](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40702364957), **4/4 SUCCESS on each**. The branch job logs recorded **54 Playwright browser tests passed**, **138 media tests passed**, plus a real synthetic **30.000s 1080×1920 24fps H.264/AAC MP4 (5,450,263 bytes)**. Existing source tone/music-duck and 863Hz test-narration signals survived AAC decoding. The revised Node Timeline Studio clip-split/SFX contract tests passed in the media suite.
++
++**Implementation verified offline:** shop-scoped image/poster/video/music/narration selection and trim/source-duration checks; signed private source clip preview time window; desktop/mobile timeline Undo/Redo; preservation of approved Feature2 poster overlays and original-video trim/mute fields; fail-closed SFX splitting without replay; Node client edit→trusted Python approved compiler→existing HyperFrames plan; allowed transitions and truthful unsupported effect disclosure.
++
++**Never infer:** real spoken-word/word-timed subtitle acceptance, retailer fashion photorealism, generated Wan F5 movement, actual F3 product identity, commercial music/license signoff, whole upstream project's every editor control, Azure worker memory/cost/runtime, hosted JWT/RLS/lease/quota end-to-end or production release. The release flag remains OFF. Full-size 60s source had earlier opt-in evidence but no same-head commercial human proof. The reviewed SHA-guarded npm dependency lock remains temporary, not committed. Coordinator owns shared `docs/**` reconciliation and main merge; no WineShopPOS/PROD/cloud mutation occurred.
++
++## 2026-10-28 — F4-25 ACTUAL EDITOR→ENCODED VIDEO VERIFIED (offline, original fixtures)
++- Source head `2dc971bbe97b7258e7175b0e835bfbf99a97b74b` verified [push CI #40725721193](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40725721193) and independent [PR CI #40725731267](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40725731267), **4/4 SUCCESS each**. Branch recorded **54 Playwright** and **139 media** tests; PR media run recorded 307 tests due to independently changing other test suites. Both passed their actual audio/video/codec and tenant isolation jobs; no bypass, paid inference, Azure deployment or public endpoints.
++- New `video-engine/demo_feature4_edited_reel.py` invokes the **actual borrowed JS Timeline Studio** operations (split original video at +4sec, reorder four resulting scenes) via `tests/media/test_feature4_editor_to_render_contract.py`. Its output is accepted by `compile_approved_storyboard`, `creative_reel_v1`/private-manifest rights checks and the **same existing HyperFrames compositor**. Mock F3 kurti image/poster and F5 moving human are generated with deterministic original illustrated fixture media and a **clearly disclosed repeated 8→10sec** synthetic walking clip. It preserves two source-video in-points (0/4 seconds), exactly one approved 2-second scene SFX, source authorization, CTA and `20% OFF`, and fails closed if HyperFrames HTML loses these attributes.
++- `ci-smoke.sh` now **actually encodes a second 30-second MP4** based on that edited timeline (540×960, 24fps, H.264/AAC, 2,382,922 bytes); ffprobe and 2/15/26s visual frames are archived. Separate existing source benchmark still exports genuine Full-HD synthetic 30s 1080×1920/24fps H.264/AAC MP4 (5,450,263 bytes) and proves 863Hz narrator test tone survives AAC at 13s/27s. The previous handoff was only source/plan parity; this demonstrates **real edited-frame/video export** for the supported subset without a second renderer.
++- **Manual visual QA:** frames demonstrate changing illustrated garment/motion/poster scenes and an exact `20% OFF` plus approved store CTA. Not photoreal (faceless vector-style garment fixture) and not human approval. `commercial_fashion_realism_accepted=False`, `real_ai_motion=False`, `spoken_word_qa_accepted=False` remain explicit. No rights/voice/garment fidelity claim can be inferred from synthetic assets.
++- **F4-12 reproducibility confirmed**: the *actual Git-tracked* 69,904-byte HyperFrames npm v3 lock hash `2b4016fde9514ac2771660a3a1e81389ee3b1237c72db6acfa1fc540494948a6` passed before direct `npm ci` in both latest exact-head runs (no install-time lock generation). Full library/Chromium/FFmpeg/libvips redistribution-license signoff, Azure Node/Chromium RAM/cold-start and commercial asset licenses still unresolved.
++- **Clear scope boundary:** This validates F4-25 mock **edit→approved source staging→30s MP4 export** for currently supported commands. It does not establish full upstream `Timeline.jsx`/advanced PreviewStage, word-level captions and intelligible spoken narration, genuinely approved Feature3 garment + Feature5 AI motion, Azure HTTP #249 reliability, coordinator JWT/RLS/claim/usage/outbox integration or authenticated hosted retailer E2E. Keep PR #322 DRAFT and main untouched; coordinator owns shared docs.
++
++## 2026-10-28 — F4-26/27 exact-code-head verified, offline readiness (NO production release)
++- At source commit `bc1a63412b3871e0c7db4c7a43bebdf2aadebe3a`, [GitHub PR CI #40728552814](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40728552814) PASSED **all 4 jobs**: Python, isolated Supabase, Frontend/**97 Playwright tests**, FFmpeg/**307 media tests**. The original 30s Full-HD synthetic Reel passed H.264/AAC verification (1080×1920, 24fps, 5,449,447 bytes) and the **actually edited** 30s 540×960 synthetic Reel passed H.264/AAC verification (2,392,330 bytes). The lockfile was Git-tracked and exact SHA-256 checked before direct `npm ci`. The branch-push equivalent [#40728539257](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40728539257) must be independently observed before claiming a second green run.
++- **F4-26 visual compositor bug CLOSED for video-led openings**: previously a 44%-width root `hero-logo` covered the actor face in the actual editor-driven first scene. `professional.py` now shows that giant logo ONLY for text/brand-only intros while retaining a small corner logo on all compositions. The actual edited mock project fails compilation if the big logo appears over a video-led scene or the small brand logo disappears. Reviewed 2s updated MP4 frame shows unobscured stylized model and corner branding. Text-only intro fixture still retains hero logo.
++- **F4-27 stale signed-preview bug CLOSED in tested UI**: `VideoStudio.jsx` now displays a completed private MP4 as the CURRENT composition only when its draft remains in the submitted state; editing/retiming/source switching invalidates current-display status instead of silently replaying an older signed result. Playwright exercises prior job vs new submission vs changed timeline draft. Backend job snapshot/tenant authorization remains independently authoritative; no new public endpoint.
++- This establishes **Feature4 offline source/editor/mock-render acceptance for the supported subset** and a genuine inspected video artifact, NOT the full professional product definition. Original MIT Timeline Studio full application/advanced PreviewStage tools are not completely adopted. User-specific garment detail, authentic human motion from Feature5, spoken real-voice subtitle sync, live JWT/RLS claim/quota/outbox, issue #249 HTTP reliability, third-party commercial licenses, signed-in hosted DEV E2E, and final commercial human visual signoff remain **OPEN**. The illustrated media and test sine-wave narration are explicitly synthetic and do not meet professional retailer quality. Do not enable paid GPU/cloud deployment, merge or declare production-ready.
++
++## F4-34 — working higher-adoption upstream OpenReel source (2026-10-28)
++The owner explicitly requested mature popular open-source editing code instead of hand-implementing the professional editor. Current GitHub comparison: OpenCut ~96.6k stars / 9.6k forks, but its `main` README documents a rewrite not yet the usable editor and `opencut-classic` is archived; Clypra is a Rust/Tauri desktop app. Chosen [augani/openreel-video](https://github.com/augani/openreel-video) ~5,486 stars / 808 forks, recent 2026-10-17 push, React/TypeScript, MIT. Pinned source: **`367d7e90b61b5181f9861b852bb8b9d7a7d2954a`**.
++
++**Actual copied/adapted upstream source, retaining complete license:** `apps/web/src/components/editor/editing-frame-rate.ts` → `frontend/src/features/video/vendor/openreel/editing-frame-rate.mjs`; `apps/web/src/utils/frame-timecode.ts` → `vendor/openreel/frame-timecode.mjs`; `apps/web/src/components/editor/PreviewTimecode.tsx` → `vendor/openreel/FrameTimecodeInput.jsx` (upstream input/key behavior with RetailGrowthAI local authorized playhead instead of global OpenReel store). Original MIT text and copyright © 2024–2026 Augustus Otu and Contributors in `vendor/openreel/LICENSE`. TypeScript type syntax removed for Node test compatibility.
++
++**Real integration:** existing TimelineStudioSurface mounts imported OpenReel frame timecode; typed HH:MM:SS:FF, ArrowUp/Down frame stepping, Enter/Escape, input validation, project duration, timeline track and slider seek now use the same bounded frame-aligned selection. Existing Timeline Studio splitter, F2 immutable copy, private-media checks, and HyperFrames/FFmpeg encoder are retained. New Node and desktop/mobile Playwright checks exercise the adopted source, actual seek and split, denial of invalid timecodes. Not a whole-app replacement, renderer substitution, or advanced effect parity claim; copy more upstream editor modules only as each one is tested against `rg_video_v2` and shop approvals. No GPU, paid infrastructure, PROD, or WineShopPOS change. Four-job exact-head CI must pass before this milestone is verified.
++
++## F4-35 — reuse OpenReel actual clip snapping + timeline item selection (2026-10-28)
++
++Continue existing F4-34 pinned [OpenReel](https://github.com/augani/openreel-video) at `367d7e90b61b5181f9861b852bb8b9d7a7d2954a`, MIT copyright © 2024–2026 Augustus Otu and Contributors. New actual source excerpts: `packages/core/src/timeline/clip-manager.ts` **ClipManager.snapToGrid** → `frontend/src/features/video/vendor/openreel/clip-snap.mjs` (retains grid/clip-boundary distance algorithm, strips TypeScript and heavy global action executor); `apps/web/src/utils/timeline-item-actions.ts` **getTimelineItemRanges, getSplittableTimelineItemIds, getTimelineTrackSelection** → `vendor/openreel/timeline-item-actions.mjs` (pure original item-selection/splittability subset, removes OpenReel store dependencies). The full original MIT license remains at `vendor/openreel/LICENSE`.
++
++Feature4 actually uses these: selected scenes projected read-only into OpenReel media-track layout (IDs/timings only); previous/next cut mobile-accessible controls use returned sorted track selection; Split button requires the original OpenReel interior-time eligibility AND the existing stronger 0.5s/authorization/backend constraints; optional snap-to-cut/grid for direct pointer/range scrub at current zoom uses the real ClipManager snapping algorithm. Typed frame-timecodes remain unsnapped exact user intent, and no renderer-incompatible arbitrary free track editing is exposed. Retains original scene rights and immutable F2 copy, existing HyperFrames final export and source-only default-off live feature switch. Node and mobile Playwright tests verify the actual copied algorithms, same-tenant render draft, navigation, pointer-disabled unsupported split, and snap opt-out.
++
++**Source-only commit does not mean full OpenReel workspace adoption or visual acceptance.** No unsupported effects, GPUs, paid hosting, WineShopPOS or main merge. Exact new-head branch and PR four-job CI required before calling this checkpoint VERIFIED.
++
++
++## F4-44 — independent Timeline Studio visual beat navigation (source-only)
++Proposed audio-beat markers now render on a dedicated read-only timeline lane,
++only for a matching same-shop authorized soundtrack and valid strictly sorted
++millisecond-precision timestamps. Seeking a marker moves the OpenReel frame
++playhead and pointer snapping prefers nearby beat times before the normal
++OpenReel integer grid/cut snapper. At most 120 markers are shown; no changes to
++the server beat-grid, media license, approval, source video or render job occur.
++This is NOT proof of trusted AI viral music selection. Unit tests reject
++unsorted, foreign-shop, unapproved and malformed beat proposals; existing
++React/mobile Playwright tests still cover editor interactions. No new external
++editor fork, paid service, GPU, storage, schema or WineShopPOS modifications.
++
++
++## F4-59 — actual bounded visual duplication (2026-10-29)
++
++- `studioDuplicate` in the already-adopted Timeline Studio bridge implements **repeat the selected visual twice in the same original scene slot** (each half the original scene duration), not lengthening the approved 15/30/60s film or fabricating new source frames. A video repeats from its *approved in-point* for both halves; the compiler and worker still enforce real duration and tenant-granted source bytes.
++- Exact original image/poster/video ID, approved copy, promo and CTA are preserved. Extra clip is not allowed to replay an approved 2s scene SFX, cut that SFX short, create >12 scenes, use a foreign/revoked source, or create sub-0.5s scenes. This is **bounded visual-loop duplication**, not a general infinite-duration timeline. The UI button is disabled on immutable Feature2-approved direction and clearly describes the repeated half-length result.
++- `tests/frontend/timeline-studio-adoption.test.mjs` now tests source in-point restart, exact 30s duration, retained media/promo/rights, one-off SFX and denials. `frontend/e2e/timeline-studio.spec.mjs` tests mobile duplicate → undo → redo → authorized v2 draft submission, time and shop identity, and approval-locked control. Real HyperFrames export consumes this unchanged `rg_video_v2` contract; a separate real encoded duplicate-specific 15/30s media sample is **not claimed**.
++- Commits `cd1f6dec`, `2d5ab41b`, `eff0054a`, `41c171c6`. Exact-head branch/PR CI must be checked. Remaining independent advanced multi-track mix, general effects, real photoreal garment-worn model, narration semantics and hosted deployment stay open; PR #322 remains draft, no GPU/paid resources, PROD/WineShopPOS untouched.
++
++## F4-67 — focused keyboard frame jog on the actual editor tracks (2026-10-29)
++
++The existing imported OpenReel `FrameTimecodeInput` already supported
++Up/Down one-frame stepping while **typing in that input**, but the video-track
++surface could not receive a keyboard focus or step its global playhead. The
++adopted `TimelineStudioSurface.jsx` now gives the tracks a separate focusable
++named region with `aria-keyshortcuts`; left/right step exactly 1 output frame,
++Shift+left/right 10, with the existing 24/30 fps clamp and actual
++`seekToFrame` scene-selection calculation. Source timing, asset grants,
++voice/music, approved promo, submitted draft and history are NOT mutated.
++An immutable Feature2-approved direction still permits this preview-only
++navigation; it does not grant edit permission.
++
++Text/timecode fields, native buttons/links, audio controls and modified
++Ctrl/Meta/Alt keys retain their native behavior. Mobile Playwright tests seek
++00:00:00:01 -> 00:00:00:11 -> 00:00:00:10 -> 00:00:00:09, assert the same 3
++render scenes/15s/shop after submit, and verify approved direction's disabled
++edit controls despite working seek. Commits `4f8c260f`, `ca281aac`,
++`a552dfa8`. Browser/source CI at exact head required before claiming
++verified. This is not a true frame-accurate decoded preview or mobile human
++usability approval; real hosted signed-media preview remains a separate gate.
++
++## 2026-10-30 — Server-only F4-06 bounded audio channel levels; UI control still disabled
++A new **optional trusted** `creative_reel_v1.audio_mix` scalar map is lowered through the existing reviewed source contract to native HyperFrames data-volume for source-video sound, music bed, licensed narration and 2s SFX. Bounded linear gains, original music-under-voice ducking safety cap and rights checks remain mandatory; default render mix is unchanged. The adopted Timeline Studio **still disables** browser gain automation and arbitrary per-clip envelopes: do not enable controls before an authenticated, shop-scoped reviewed change set and actual audio render/FFmpeg decoding prove the same gain. No new source audio, licensing, F2 speech alignment or voice synthesis is inferred. Detailed contract/negatives in `FEATURE4_AUDIO_GAIN_HANDOFF_20261030.md`.
+
+diff --git a/video-engine/feature4_audio_master.py b/video-engine/feature4_audio_master.py
+--- a/video-engine/feature4_audio_master.py
++++ b/video-engine/feature4_audio_master.py
+@@ -0,0 +1,248 @@
++#!/usr/bin/env python3
++"""Bounded audio-only loudness mastering of an ALREADY-AUTHORIZED private Reel.
++
++Not a rights checker, model generator, customer-facing API or public download.
++Preserves the exact verified H264 video packets; normalizes only its AAC sound.
++"""
++from __future__ import annotations
++import argparse
++import hashlib
++import json
++import math
++import os
++import stat
++from pathlib import Path
++import re
++import subprocess
++import sys
++import tempfile
++
++from feature4_private_preview import inspect_mp4, PreviewExportError, _source_fingerprint
++
++
++class AudioMasterError(ValueError):
++    pass
++
++
++def _run(args, *, timeout=50):
++    try:
++        return subprocess.run(args, check=True, capture_output=True,
++                              text=True, timeout=timeout)
++    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
++        raise AudioMasterError("Local media mastering/verification process failed") from exc
++
++
++def _mean_db(path):
++    proc = _run(["ffmpeg","-nostdin","-hide_banner","-loglevel","info",
++                 "-i",str(path),"-map","0:a:0","-vn",
++                 "-af","volumedetect","-f","null","-"],timeout=60)
++    m = re.search(r"mean_volume:\s*([-0-9.]+|[-+]inf)\s*dB",proc.stderr)
++    if not m:
++        raise AudioMasterError("Unable to measure actual decoded audio loudness")
++    mean = float(m.group(1))
++    if not math.isfinite(mean) or mean < -80:
++        raise AudioMasterError("No usable soundtrack to master")
++    return round(mean,2)
++
++
++def _video_packet_hash(path):
++    output = _run(["ffmpeg","-nostdin","-v","error","-i",str(path),
++                   "-map","0:v:0","-c","copy","-f","streamhash",
++                   "-hash","SHA256","-"],timeout=40).stdout
++    m = re.search(r"^0,v,SHA256=([0-9a-f]{64})$",output,re.MULTILINE|re.IGNORECASE)
++    if not m:
++        raise AudioMasterError("Missing immutable H264 packet hash")
++    return m.group(1).lower()
++
++
++def master_private_audio(source: Path, target: Path, *, expected_seconds: int):
++    if type(expected_seconds) is not int or expected_seconds not in (15,30,60):
++        raise AudioMasterError("Unsupported Reel length")
++    source, target = Path(source), Path(target)
++    if target.suffix.lower() != ".mp4" or target.exists() or target.is_symlink():
++        raise AudioMasterError("Master destination must be a new local MP4")
++    if not target.parent.is_dir() or target.parent.is_symlink():
++        raise AudioMasterError("Master destination must be a pre-existing private directory")
++    try:
++        fingerprint = _source_fingerprint(source)
++        original = inspect_mp4(source,max_size=80*1024*1024)
++        if _source_fingerprint(source) != fingerprint:
++            raise AudioMasterError("Authorized source file changed during codec probe")
++    except PreviewExportError as exc:
++        raise AudioMasterError("Source Reel must be a verified H264/AAC MP4") from exc
++    source_sha = fingerprint[0]
++    if abs(original["seconds"]-expected_seconds)>.45 or source.resolve()==target.resolve():
++        raise AudioMasterError("Source does not match approved Reel duration/path")
++    before = _mean_db(source)
++    video_hash = _video_packet_hash(source)
++    partial = None
++    try:
++        with tempfile.NamedTemporaryFile(prefix=".audio-master-",suffix=".mp4",
++                                         dir=str(target.parent),delete=False) as dst:
++            partial=Path(dst.name)
++        _run(["ffmpeg","-nostdin","-hide_banner","-loglevel","error",
++              "-protocol_whitelist","file","-i",str(source),
++              "-map","0:v:0","-map","0:a:0",
++              "-c:v","copy","-c:a","aac","-b:a","128k",
++              "-af","loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000",
++              "-t",str(expected_seconds),
++              "-movflags","+faststart","-map_metadata","-1",
++              "-map_chapters","-1","-threads","2","-y",str(partial)],
++             timeout=180)
++        try:
++            mastered = inspect_mp4(partial,max_size=80*1024*1024)
++        except PreviewExportError as exc:
++            raise AudioMasterError("Mastered MP4 did not pass codec or bounded size checks") from exc
++        if (mastered["width"],mastered["height"])!=(original["width"],original["height"]) or abs(mastered["seconds"]-expected_seconds)>.45:
++            raise AudioMasterError("Audio master changed video output profile or duration")
++        if _video_packet_hash(partial)!=video_hash:
++            raise AudioMasterError("Audio mastering changed original H264 video packets")
++        try:
++            source_unchanged = _source_fingerprint(source) == fingerprint
++        except PreviewExportError as exc:
++            raise AudioMasterError("Authorized source file changed during audio mastering") from exc
++        if not source_unchanged:
++            raise AudioMasterError("Authorized source file changed during audio mastering")
++        after=_mean_db(partial)
++        if after < -32 or after > -10:
++            raise AudioMasterError("Mastered audio is not within reasonable reviewer loudness bounds")
++        if target.exists() or target.is_symlink():
++            raise AudioMasterError("Destination appeared during mastering")
++        # Hard link is atomic no-clobber (unlike os.replace), then cleanup temp.
++        os.link(partial,target)
++        partial.unlink()
++        partial=None
++        return {"status":"PRIVATE_AUDIO_MASTERED_NOT_PUBLISHED",
++                "source_sha256":source_sha,
++                "master_sha256":hashlib.sha256(target.read_bytes()).hexdigest(),
++                "video_packet_sha256":video_hash,
++                "duration_seconds":expected_seconds,
++                "source_audio_mean_db":before,
++                "mastered_audio_mean_db":after,
++                "audio_mastering_profile":"FFmpeg loudnorm I=-16 TP=-1.5 LRA=11",
++                "source_bytes":original["bytes"],
++                "master_bytes":mastered["bytes"],
++                "customer_music_license_checked_here":False,
++                "spoken_narration_semantics_verified":False,
++                "signed_download_ready":False,
++                "commercial_release_eligible":False}
++    except (OSError,subprocess.SubprocessError) as exc:
++        raise AudioMasterError("Audio mastering did not finish safely") from exc
++    finally:
++        if partial is not None:
++            partial.unlink(missing_ok=True)
++
++
++
++def _check_private_receipt_path(proof: Path):
++    """Fail closed on missing/private receipt parents or clobberable destinations."""
++    proof = Path(proof)
++    if (proof.suffix.lower() != ".json" or proof.is_symlink()
++            or proof.exists() or not proof.parent.is_dir()
++            or any(p.is_symlink() for p in (proof.parent, *proof.parent.parents))):
++        raise AudioMasterError("Proof report must be new JSON in a private directory")
++
++
++def _write_private_receipt(proof: Path, report: dict):
++    """Exclusive create: an in-flight second writer cannot overwrite another receipt."""
++    _check_private_receipt_path(proof)
++    owner_inode = None
++    try:
++        # 0600/no-follow/no-clobber from the very first byte, regardless of umask.
++        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
++        fd = os.open(str(proof), flags, 0o600)
++        try:
++            opened = os.fstat(fd)
++            owner_inode = (opened.st_dev, opened.st_ino)
++            with os.fdopen(fd, "w", encoding="utf-8") as handle:
++                json.dump(report, handle, indent=2, allow_nan=False)
++                handle.write("\n")
++                handle.flush()
++                os.fsync(handle.fileno())  # Never acknowledge undurable receipt bytes.
++        except BaseException:
++            # fdopen owns and closes the descriptor only after successful setup.
++            try:
++                os.close(fd)
++            except OSError:
++                pass
++            raise
++    except (OSError, TypeError, ValueError) as exc:
++        # Another writer may have replaced the path during an interrupted write.
++        # Only unlink a regular file still matching our exclusive inode.
++        if owner_inode is not None:
++            try:
++                current = proof.lstat()
++                if (stat.S_ISREG(current.st_mode)
++                        and (current.st_dev, current.st_ino) == owner_inode):
++                    proof.unlink()
++            except OSError:
++                pass
++        raise AudioMasterError("Could not safely create private audio proof") from exc
++
++
++def _master_output_identity(path):
++    """A failed receipt may delete only its own unchanged private master.
++
++    A replaced or symlinked output must not be removed using a stale path.
++    Compare actual inode and streaming bytes, rather than trusting client input.
++    """
++    path = Path(path)
++    fd = None
++    try:
++        fd = os.open(str(path), os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
++        with os.fdopen(fd, "rb") as stream:
++            fd = None
++            st = os.fstat(stream.fileno())
++            if not stat.S_ISREG(st.st_mode) or not 10 <= st.st_size <= 80 * 1024 * 1024:
++                return None
++            sha = hashlib.sha256()
++            for block in iter(lambda: stream.read(1024 * 1024), b""):
++                sha.update(block)
++            after = os.fstat(stream.fileno())
++        current = os.stat(path, follow_symlinks=False)
++        original = (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns)
++        final = (current.st_dev, current.st_ino, current.st_size,
++                 current.st_mtime_ns, current.st_ctime_ns)
++        end = (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns)
++        if not stat.S_ISREG(current.st_mode) or original != final or end != final:
++            return None
++        return (*original, sha.hexdigest())
++    except OSError:
++        return None
++    finally:
++        if fd is not None:
++            os.close(fd)
++
++
++def main():
++    ap=argparse.ArgumentParser(description=__doc__)
++    ap.add_argument("--source",required=True)
++    ap.add_argument("--output",required=True)
++    ap.add_argument("--duration",type=int,choices=(15,30,60),required=True)
++    ap.add_argument("--report",required=True)
++    args=ap.parse_args()
++    proof = Path(args.report)
++    output = Path(args.output)
++    try:
++        _check_private_receipt_path(proof)
++        report=master_private_audio(Path(args.source),output,
++                                    expected_seconds=args.duration)
++        output_identity = _master_output_identity(output)
++        try:
++            _write_private_receipt(proof, report)
++        except AudioMasterError:
++            # Only our exact unchanged local master may be removed. A foreign
++            # replacement/symlink is never deleted because its receipt failed.
++            if output_identity is not None and _master_output_identity(output) == output_identity:
++                output.unlink(missing_ok=True)
++            raise
++        print(json.dumps({"status":report["status"],
++                          "source_mean_db":report["source_audio_mean_db"],
++                          "mastered_mean_db":report["mastered_audio_mean_db"]}))
++    except AudioMasterError as exc:
++        print("PRIVATE MASTERING BLOCKED: "+str(exc),file=sys.stderr)
++        raise SystemExit(2)
++
++
++if __name__=="__main__":
++    main()
+
+diff --git a/video-engine/feature4_beat_edit.py b/video-engine/feature4_beat_edit.py
+--- a/video-engine/feature4_beat_edit.py
++++ b/video-engine/feature4_beat_edit.py
+@@ -0,0 +1,113 @@
++"""Feature4 CPU-only measured music-beat editing for authorized local PCM WAV.
++
++Input must already be authorized and privately staged by the caller. This helper
++does not verify music rights, choose popular songs, infer a product endorsement,
++upload assets, or make public links. The demo soundtrack below is ORIGINAL.
++"""
++from __future__ import annotations
++from array import array
++import math
++from pathlib import Path
++import sys
++import wave
++
++from beat_grid import beat_grid, BeatAnalysisError
++from feature4_stock_showcase import original_music
++
++
++class BeatEditError(ValueError):
++    pass
++
++
++def original_rhythmic_music(path: Path, *, seconds: int = 30):
++    """Add distinct original 1Hz percussion to our own original ambient test bed.
++
++    No third-party music. The existing real beat detector must recover onsets
++    from the actual written PCM, instead of inventing beat timestamps.
++    """
++    if type(seconds) is not int or seconds not in (15, 30, 60):
++        raise BeatEditError("Only 15/30/60-second original music allowed")
++    path = Path(path)
++    if path.exists() or path.is_symlink() or not path.parent.is_dir():
++        raise BeatEditError("Original soundtrack destination must be new/private")
++    original_music(path, seconds=seconds)
++    with wave.open(str(path), "rb") as reader:
++        if (reader.getnchannels() != 1 or reader.getsampwidth() != 2 or
++                reader.getframerate() != 22050 or reader.getnframes() != seconds * 22050):
++            raise BeatEditError("Unexpected original music source format")
++        raw = reader.readframes(reader.getnframes())
++    samples = array("h")
++    samples.frombytes(raw)
++    if sys.byteorder != "little":
++        samples.byteswap()
++    rate = 22050
++    for i in range(len(samples)):
++        t = i / rate
++        # Audible local percussive attack at each second, apart from t=0.
++        phase = t % 1.0
++        pulse = (11000.0 * math.sin(2 * math.pi * 1350 * phase)
++                 * math.exp(-38.0 * phase)) if t >= .95 else 0.0
++        mixed = int(samples[i] + pulse)
++        samples[i] = max(-32768, min(32767, mixed))
++    if sys.byteorder != "little":
++        samples.byteswap()
++    with wave.open(str(path), "wb") as stream:
++        stream.setnchannels(1)
++        stream.setsampwidth(2)
++        stream.setframerate(rate)
++        stream.writeframes(samples.tobytes())
++    # Actually measure the encoded WAV: never substitute declared song tempo.
++    try:
++        beats = beat_grid(path, duration_seconds=seconds)
++    except BeatAnalysisError as exc:
++        raise BeatEditError("Original soundtrack rhythm analysis failed") from exc
++    if len(beats) < 8:
++        raise BeatEditError("Original soundtrack contains too few detectable beats")
++    return beats
++
++
++def snap_scene_cuts(sequence, beats, *, duration_seconds: int, max_distance=.15):
++    """Snap each proposed cut to a DETECTED onset, fail-closed if absent.
++
++    Inputs: (start, duration, asset-id or None, headline) tuples. Returns
++    contiguous scene tuples preserving original assets, order and text. No
++    media rights, copy or speaker content is synthesized by this function.
++    """
++    if type(duration_seconds) is not int or duration_seconds not in (15, 30, 60):
++        raise BeatEditError("Unsupported bounded song length")
++    if not isinstance(sequence, (tuple, list)) or not 2 <= len(sequence) <= 12:
++        raise BeatEditError("Expected 2-12 reviewed scenes")
++    if not isinstance(beats, list) or not 2 <= len(beats) <= 300:
++        raise BeatEditError("Unverified measured beat grid")
++    if (any(type(b) not in (int, float) or not math.isfinite(b) for b in beats)
++            or beats != sorted(set(beats))
++            or not all(0 <= b < duration_seconds for b in beats)):
++        raise BeatEditError("Invalid measured beat timestamps")
++    if type(max_distance) not in (int, float) or not .01 <= max_distance <= .17:
++        raise BeatEditError("Unsafe cut snapping tolerance")
++    previous = 0
++    anchors = []
++    for index, item in enumerate(sequence):
++        if (type(item) is not tuple or len(item) != 4 or
++                type(item[0]) not in (int, float) or
++                type(item[1]) not in (int, float) or
++                not math.isfinite(item[0]) or not math.isfinite(item[1])
++                or abs(item[0] - previous) > .001 or item[1] < .5):
++            raise BeatEditError("Original scene timing not reviewed or contiguous")
++        previous = item[0] + item[1]
++        anchors.append(float(item[0]))
++    if abs(previous - duration_seconds) > .001 or anchors[0] != 0:
++        raise BeatEditError("Original edit must fill complete reviewed duration")
++    cuts = [0.0]
++    for wanted in anchors[1:]:
++        closest = min(beats, key=lambda t: abs(t - wanted))
++        if abs(closest - wanted) > max_distance:
++            raise BeatEditError("No detected music onset near proposed scene cut")
++        if closest - cuts[-1] < .5 or duration_seconds - closest < .5:
++            raise BeatEditError("Beat snapping created sub-half-second scene")
++        cuts.append(round(float(closest), 3))
++    cuts.append(float(duration_seconds))
++    if any(right - left < .5 for left, right in zip(cuts, cuts[1:])):
++        raise BeatEditError("Beat-synchronized scene duration invalid")
++    return [(cuts[i], round(cuts[i+1]-cuts[i], 3), item[2], item[3])
++            for i, item in enumerate(sequence)]
+
+diff --git a/video-engine/feature4_caption_track.py b/video-engine/feature4_caption_track.py
+--- a/video-engine/feature4_caption_track.py
++++ b/video-engine/feature4_caption_track.py
+@@ -0,0 +1,28 @@
++"""Strict timecode validation. Feature2 owns text; Feature4 never infers speech."""
++import math
++
++def checked_caption_cues(cues, duration):
++    if type(duration) is not int or duration not in (15,30,60):
++        raise ValueError("Supported Reel duration required")
++    if type(cues) is not list or not 1 <= len(cues) <= 60:
++        raise ValueError("Expected 1-60 approved timed cues")
++    output=[]
++    prior_ms=0
++    for c in cues:
++        if type(c) is not dict or set(c) != {"start","duration","text"}:
++            raise ValueError("Unknown or missing reviewed caption fields")
++        start,span,text=c["start"],c["duration"],c["text"]
++        if (type(start) not in (int,float) or type(span) not in (int,float)
++            or not math.isfinite(start) or not math.isfinite(span)
++            or start < 0 or span < .2 or span > 6
++            or start != round(start, 3) or span != round(span, 3)
++            or round(start * 1000) < prior_ms
++            or round(start * 1000) + round(span * 1000) > duration * 1000):
++            raise ValueError("Overlapping, invalid or out-of-Reel subtitle timing")
++        if (type(text) is not str or text != text.strip()
++            or not 1 <= len(text) <= 90 or "<" in text or ">" in text
++            or any(ord(x)<32 or ord(x)==127 for x in text)):
++            raise ValueError("Unapproved/unreadable subtitle text")
++        output.append({"start":round(start,3),"duration":round(span,3),"text":text})
++        prior_ms=round(start * 1000) + round(span * 1000)
++    return output
+
+diff --git a/video-engine/feature4_cpu_matrix.py b/video-engine/feature4_cpu_matrix.py
+--- a/video-engine/feature4_cpu_matrix.py
++++ b/video-engine/feature4_cpu_matrix.py
+@@ -0,0 +1,172 @@
++#!/usr/bin/env python3
++"""Offline F4-14 aggregate: immutable actual 15/30/60 MP4s + CPU receipts.
++
++NO render, GPU, Azure, upload, credentials or customer approval is performed.
++A claimed Git checkout SHA is NOT authenticated GitHub Actions provenance.
++"""
++from __future__ import annotations
++
++import argparse
++import json
++import math
++import os
++from pathlib import Path
++import re
++import stat
++import subprocess
++
++from feature4_export_matrix import MatrixEvidenceError, verify_export_matrix
++
++HEAD_RX = re.compile(r"^[0-9a-f]{40}$")
++KINDS = (15, 30, 60)
++MAX_REPORT_BYTES = 64 * 1024
++
++
++class CpuMatrixError(ValueError):
++    pass
++
++
++def _read_report(path):
++    try:
++        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
++        with os.fdopen(fd, "rb") as stream:
++            before = os.fstat(stream.fileno())
++            if not stat.S_ISREG(before.st_mode) or not 20 <= before.st_size <= MAX_REPORT_BYTES:
++                raise CpuMatrixError("Missing or unsafe bounded CPU receipt")
++            data = stream.read(MAX_REPORT_BYTES + 1)
++            after = os.fstat(stream.fileno())
++            current = os.lstat(path)
++            if (len(data) != before.st_size or
++                    (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) !=
++                    (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns) or
++                    not stat.S_ISREG(current.st_mode) or
++                    (current.st_dev, current.st_ino, current.st_size) !=
++                    (after.st_dev, after.st_ino, after.st_size)):
++                raise CpuMatrixError("CPU receipt changed or was replaced")
++            obj = json.loads(data.decode("utf-8"))
++            if type(obj) is not dict:
++                raise CpuMatrixError("CPU receipt must be one JSON object")
++            return obj
++    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
++        raise CpuMatrixError("CPU receipt unavailable, unsafe or malformed") from exc
++
++
++def _positive_number(value):
++    return type(value) in (int, float) and math.isfinite(value) and value > 0
++
++
++def aggregate_cpu_matrix(manifest, root, *, expected_head):
++    """Review three recorded local benchmarks; do not synthesize media or rates."""
++    if type(expected_head) is not str or not HEAD_RX.fullmatch(expected_head):
++        raise CpuMatrixError("Expected one exact git checkout SHA")
++    if (type(manifest) is not dict or set(manifest) != {"schema", "source_commit", "renders"}
++            or manifest["schema"] != "feature4_cpu_matrix_inputs_v1"
++            or manifest["source_commit"] != expected_head):
++        raise CpuMatrixError("Unexpected or cross-commit CPU matrix inputs")
++    rows = manifest["renders"]
++    if type(rows) is not list or len(rows) != 3:
++        raise CpuMatrixError("Three source-linked 15/30/60 receipts required")
++    media_rows = []
++    receipts = {}
++    occupied = set()
++    for row in rows:
++        if type(row) is not dict or set(row) != {"seconds", "path", "sha256", "benchmark"}:
++            raise CpuMatrixError("Invalid CPU matrix input row")
++        duration = row["seconds"]
++        if type(duration) is not int or duration not in KINDS or duration in receipts:
++            raise CpuMatrixError("Missing or repeated duration")
++        report_name = row["benchmark"]
++        if (type(report_name) is not str or len(report_name) > 120 or
++                not report_name.endswith(".json") or report_name in ("", ".", "..")
++                or "/" in report_name or "\\" in report_name or
++                report_name == row["path"] or report_name in occupied):
++            raise CpuMatrixError("CPU receipts must be distinct local JSON basenames")
++        occupied.add(report_name)
++        media_rows.append({key: row[key] for key in ("seconds", "path", "sha256")})
++        receipts[duration] = report_name
++
++    root = Path(root)
++    if not root.is_dir() or root.is_symlink():
++        raise CpuMatrixError("Expected private existing media/benchmark directory")
++    try:
++        media = verify_export_matrix(
++            {"schema": "feature4_export_matrix_inputs_v1",
++             "source_commit": expected_head, "renders": media_rows},
++            root, expected_head=expected_head)
++    except MatrixEvidenceError as exc:
++        raise CpuMatrixError("Actual encoded MP4 profile / immutable SHA verification failed") from exc
++
++    results = []
++    for item in media["renders"]:
++        duration = item["seconds"]
++        receipt = _read_report(root / receipts[duration])
++        if (receipt.get("kind") != "OFFLINE_SYNTHETIC_HYPERFRAMES_CPU_BENCHMARK_NOT_AZURE"
++                or receipt.get("source_commit_claim") != expected_head
++                or receipt.get("output_sha256") != item["sha256"]
++                or receipt.get("output_bytes") != item["bytes"]
++                or receipt.get("output_hash_type") != "SHA256_STABLE_LOCAL_REGULAR_FILE_ONLY"
++                or receipt.get("duration_seconds") != duration
++                or (receipt.get("width"), receipt.get("height"), receipt.get("fps")) !=
++                   (1080, 1920, 24)
++                or receipt.get("cloud_or_gpu_inference") is not False
++                or receipt.get("measured_on_azure_functions") is not False
++                or receipt.get("commercial_visual_quality_accepted") is not False
++                or receipt.get("azure_runtime_memory_verified") is not False
++                or receipt.get("azure_cost_inr") is not None
++                or not _positive_number(receipt.get("wall_seconds"))
++                or not _positive_number(receipt.get("max_sampled_process_tree_rss_bytes"))
++                or not _positive_number(receipt.get("max_sampled_cpu_seconds_lower_bound"))
++                or not _positive_number(receipt.get("sampling_interval_seconds"))
++                or type(receipt.get("samples")) is not int or receipt["samples"] < 1
++                or type(receipt.get("max_observed_process_count")) is not int
++                or receipt["max_observed_process_count"] < 1):
++            raise CpuMatrixError("Benchmark receipt does not match exact encoded profile, source or safe cost scope")
++        results.append({
++            "seconds": duration, "original_mp4_sha256": item["sha256"],
++            "original_mp4_bytes": item["bytes"],
++            "wall_seconds": receipt["wall_seconds"],
++            "sampled_peak_rss_bytes_lower_bound": receipt["max_sampled_process_tree_rss_bytes"],
++            "sampled_cpu_seconds_lower_bound": receipt["max_sampled_cpu_seconds_lower_bound"],
++            "sample_count": receipt["samples"],
++        })
++    results.sort(key=lambda item: item["seconds"])
++    return {
++        "schema": "feature4_cpu_15_30_60_offline_observations_v1",
++        "status": "THREE_ENCODED_LENGTHS_CPU_OBSERVED_NOT_CLOUD_QUALIFIED",
++        "source_commit_claim": expected_head,
++        "code_commit_attested_by_ci": False,
++        "renders": results,
++        "max_measured_wall_seconds": max(x["wall_seconds"] for x in results),
++        "max_sampled_rss_bytes_lower_bound": max(
++            x["sampled_peak_rss_bytes_lower_bound"] for x in results),
++        "cloud_budget_accepted": False,
++        "actual_azure_memory_verified": False,
++        "commercial_release_eligible": False,
++        "human_visual_approval": False,
++        "missing_short_peak_and_child_memory_risk": True,
++    }
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--manifest", required=True)
++    parser.add_argument("--source-root", required=True)
++    parser.add_argument("--report", required=True)
++    args = parser.parse_args()
++    manifest_path, output = Path(args.manifest), Path(args.report)
++    if (output.exists() or output.is_symlink() or output.suffix.lower() != ".json"
++            or not output.parent.is_dir() or output.parent.is_symlink()):
++        raise CpuMatrixError("CPU matrix output must be fresh, private and local")
++    inputs = _read_report(manifest_path)
++    head = subprocess.check_output(
++        ["git", "rev-parse", "--verify", "HEAD"],
++        cwd=Path(__file__).resolve().parents[1], text=True, timeout=5).strip()
++    result = aggregate_cpu_matrix(inputs, args.source_root, expected_head=head)
++    with output.open("x", encoding="utf-8") as out:
++        json.dump(result, out, indent=2)
++        out.write("\n")
++    print(result["status"] + " — NOT cloud or retailer approval")
++
++
++if __name__ == "__main__":
++    main()
+
+diff --git a/video-engine/feature4_duplicate_export_qa.py b/video-engine/feature4_duplicate_export_qa.py
+--- a/video-engine/feature4_duplicate_export_qa.py
++++ b/video-engine/feature4_duplicate_export_qa.py
+@@ -0,0 +1,139 @@
++#!/usr/bin/env python3
++"""CPU-only encoded duplicate proof for one original, owner-rejected 30s fixture.
++
++Uses the *same* JS Timeline Studio duplicate -> trusted v2 compiler ->
++HyperFrames encoded media as the existing split/reorder render. Compares
++two duplicated real-video interior samples at equal relative time, checks
++temporal change and scene separation. This cannot certify exact original
++motion frame identity, art direction, commercial media rights or human QA.
++"""
++from __future__ import annotations
++
++import argparse
++import json
++from pathlib import Path
++import re
++import subprocess
++
++from feature4_edited_export_qa import (
++    EditorExportProofError, _source_fingerprint, _luma_delta,
++)
++from feature4_private_preview import PreviewExportError, inspect_mp4
++
++
++class DuplicateExportProofError(EditorExportProofError):
++    pass
++
++
++def _center_frame(source: Path, sec: float) -> bytes:
++    """Inspect center video pixels; avoid fixed lower-third glass and UI text."""
++    try:
++        result = subprocess.run([
++            "ffmpeg", "-nostdin", "-v", "error", "-protocol_whitelist", "file",
++            "-ss", str(sec), "-i", str(source), "-map", "0:v:0",
++            "-vf", "crop=iw*0.6:ih*0.42:iw*0.2:ih*0.16,scale=72:96,format=gray",
++            "-frames:v", "1", "-f", "rawvideo", "-"
++        ], check=True, capture_output=True, timeout=35)
++    except (OSError, subprocess.SubprocessError) as exc:
++        raise DuplicateExportProofError("Cannot decode duplicate preview video frame") from exc
++    if len(result.stdout) != 72 * 96:
++        raise DuplicateExportProofError("Truncated duplicate scene video frame")
++    return result.stdout
++
++
++def verify_mock_duplicate_output(source: Path, *, expected_sha256: str) -> dict:
++    """Verify synthetic VIDEO duplicate 10..15 -> 15..20 encoded output.
++
++    A one-video/two-asset duplicate must preserve 0s source inpoint twice,
++    produce matching *moving* center pixels at offset 1.5 and 3.5, and retain
++    distinct 0..10 product and 20..30 offer scenes. Thresholds here apply
++    only to the frozen private synthetic fixture, never arbitrary footage.
++    """
++    if type(expected_sha256) is not str or re.fullmatch(
++        r"[0-9a-f]{64}", expected_sha256
++    ) is None:
++        raise DuplicateExportProofError("Trusted final render SHA256 required")
++    source = Path(source)
++    try:
++        fingerprint = _source_fingerprint(source)
++    except EditorExportProofError as exc:
++        raise DuplicateExportProofError("Unsafe encoded duplicate MP4 source") from exc
++    if fingerprint[0] != expected_sha256:
++        raise DuplicateExportProofError("Encoded duplicate source SHA differs from render")
++    try:
++        metadata = inspect_mp4(source, max_size=80 * 1024 * 1024)
++    except PreviewExportError as exc:
++        raise DuplicateExportProofError("Expected private H264/AAC encoded output") from exc
++    if ((metadata["width"], metadata["height"]) != (540, 960)
++            or abs(metadata["seconds"] - 30) > .45):
++        raise DuplicateExportProofError("Expected verified 30s 540p duplicate export")
++
++    # Two SOURCE-INPOINT-0 clips are present at timeline [10,15) and [15,20).
++    # Compare equal relative positions, and require the underlying video to
++    # change within each clip; a repeated still cannot pass as motion.
++    times = (2.0, 11.5, 13.5, 16.5, 18.5, 24.0)
++    photo, first_early, first_late, copy_early, copy_late, offer = [
++        _center_frame(source, sec) for sec in times
++    ]
++    try:
++        unchanged = _source_fingerprint(source) == fingerprint
++    except EditorExportProofError as exc:
++        raise DuplicateExportProofError("Encoded duplicate MP4 changed during QA") from exc
++    if not unchanged:
++        raise DuplicateExportProofError("Encoded duplicate MP4 changed during QA")
++    early_pair = _luma_delta(first_early, copy_early)
++    late_pair = _luma_delta(first_late, copy_late)
++    temporal = min(_luma_delta(first_early, first_late),
++                   _luma_delta(copy_early, copy_late))
++    scene_distance = min(
++        _luma_delta(first_early, photo), _luma_delta(first_early, offer),
++        _luma_delta(copy_early, photo), _luma_delta(copy_early, offer),
++        _luma_delta(photo, offer),
++    )
++    # Only original generated asset: JPEG/codec differences and scene-index
++    # overlays can cause slight disagreement even when source timestamps
++    # match. This does NOT prove frame-exact media-source inpoints.
++    if not (early_pair <= 3.5 and late_pair <= 3.5
++            and temporal >= .5 and scene_distance >= 8):
++        raise DuplicateExportProofError(
++            "Encoded duplicate clip frames, actual motion or scene distinction regressed")
++    return {
++        "schema": "feature4_duplicate_encoded_mock_parity_v1",
++        "status": "ENCODED_DUPLICATE_MOCK_TECHNICALLY_VERIFIED",
++        "source_sha256": fingerprint[0],
++        "profile": "30s/540x960/H264/AAC",
++        "editor_operation": "duplicate",
++        "video_scene_starts_seconds": [10, 15],
++        "source_video_inpoints_seconds": [0, 0],
++        "sample_times_seconds": list(times),
++        "first_duplicate_luma_delta": round(early_pair, 3),
++        "second_duplicate_luma_delta": round(late_pair, 3),
++        "minimum_video_temporal_luma_delta": round(temporal, 3),
++        "minimum_video_vs_photo_luma_delta": round(scene_distance, 3),
++        "exact_source_frame_verified": False,
++        "human_visual_approval": False,
++        "commercial_release_eligible": False,
++    }
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--source", required=True)
++    parser.add_argument("--expected-sha256", required=True)
++    parser.add_argument("--report", required=True)
++    args = parser.parse_args()
++    report = Path(args.report)
++    if (report.exists() or report.is_symlink()
++            or report.suffix.lower() != ".json"
++            or not report.parent.is_dir() or report.parent.is_symlink()):
++        raise DuplicateExportProofError("Expected new private JSON duplicate report")
++    result = verify_mock_duplicate_output(
++        Path(args.source), expected_sha256=args.expected_sha256)
++    with report.open("x", encoding="utf-8") as stream:
++        json.dump(result, stream, indent=2)
++        stream.write("\n")
++    print(json.dumps({"status": result["status"], "commercial_release_eligible": False}))
++
++
++if __name__ == "__main__":
++    main()
+
+diff --git a/video-engine/feature4_edit_execution.py b/video-engine/feature4_edit_execution.py
+--- a/video-engine/feature4_edit_execution.py
++++ b/video-engine/feature4_edit_execution.py
+@@ -0,0 +1,176 @@
++"""F4-15: execute a trusted Feature #7 edit decision through existing Feature #4.
++
++This is a pure, source-only integration seam. Feature #7 owns generating,
++understanding and approving edits; the coordinator owns DB-backed approval,
++JWT/RLS, immutable snapshots, quotas, queue dispatch and any public route.
++
++A browser/model may NEVER supply this trusted record directly. The caller
++must load the reviewed Feature #7 edit decision and approval snapshot in the
++same authorized transaction, then store the returned compiler bundle.
++Only existing rg_video_v2 scene primitives are emitted. No shell, HTML,
++arbitrary media URI, provider call, billing or cloud access occurs here.
++"""
++from __future__ import annotations
++
++import copy
++import hashlib
++import json
++import math
++import re
++
++from creative_contract import CreativeContractError, safe_ref
++from feature4_intent_compiler import compile_approved_storyboard
++
++EDIT_FIELDS = frozenset({
++    "source_feature", "approved", "approval_id", "timeline_version",
++    "shop_id", "campaign_id", "draft_sha256", "scenes",
++})
++EDIT_SCENE_FIELDS = frozenset({
++    "source_scene_index", "duration", "animation_preset", "transition",
++    "trim_start", "mute_source",
++})
++ANIMATIONS = frozenset({"subtle_zoom", "fade", "slide", "pop", "glow"})
++TRANSITIONS = frozenset({"fade", "slide", "cut"})
++SHA256 = re.compile(r"^[0-9a-f]{64}$")
++MAX_SCENES = 12
++
++
++def draft_fingerprint(draft):
++    """Stable binding to the *original* client storyboard, before editing."""
++    try:
++        if type(draft) is not dict:
++            raise ValueError("draft is not an object")
++        data = json.dumps(
++            draft, sort_keys=True, ensure_ascii=False,
++            separators=(",", ":"), allow_nan=False,
++        ).encode("utf-8")
++    except (TypeError, ValueError, OverflowError) as exc:
++        raise CreativeContractError("Invalid original storyboard") from exc
++    return hashlib.sha256(data).hexdigest()
++
++
++def edit_decision_fingerprint(decision):
++    """Canonical SHA of the exact reviewed decision, including every scene edit.
++
++    The caller must retrieve this digest from an independently persisted,
++    authorized server-side review row. Never derive the trusted value from a
++    browser/model payload during the render request.
++    """
++    if type(decision) is not dict:
++        raise CreativeContractError("Invalid Feature7 decision")
++    try:
++        canonical = json.dumps(
++            decision, sort_keys=True, ensure_ascii=False,
++            separators=(",", ":"), allow_nan=False,
++        ).encode("utf-8")
++    except (TypeError, ValueError, OverflowError) as exc:
++        raise CreativeContractError("Invalid Feature7 decision") from exc
++    return hashlib.sha256(canonical).hexdigest()
++
++
++def execute_approved_edit(draft, snapshot, approved_edits):
++    """Compile the same trusted v2 request, after deterministic AI edit choices.
++
++    The source scenes must form a permutation of the already selected scenes:
++    the editor may reorder, retime, change an allowed transition/animation or
++    trim/mute an existing video. It cannot insert/change products, offers,
++    logos, scripts, media rights, output format or soundtrack. Any media
++    selection change must first pass the coordinator's reviewed asset workflow.
++    The existing private-media compiler revalidates every resulting scene.
++    """
++    if type(draft) is not dict or type(snapshot) is not dict:
++        raise CreativeContractError("Server-approved storyboard snapshot required")
++    if type(approved_edits) is not dict or set(approved_edits) != EDIT_FIELDS:
++        raise CreativeContractError("Unexpected Feature7 edit decision fields")
++    if (approved_edits["source_feature"] != "feature7" or
++            approved_edits["approved"] is not True or
++            approved_edits["timeline_version"] != "creative_reel_v1"):
++        raise CreativeContractError("Approved Feature7 timeline required")
++    approval_id = safe_ref(approved_edits["approval_id"], "Feature7 approval")
++    trusted_review = snapshot.get("edit_plan")
++    if (type(trusted_review) is not dict or
++            trusted_review != {
++                "source_feature": "feature7",
++                "approved": True,
++                "approval_id": approval_id,
++                "timeline_version": "creative_reel_v1",
++            }):
++        raise CreativeContractError("Feature7 review must match server snapshot")
++    # The original v1 check authenticated only the review ID and four
++    # metadata fields. It did not bind the *actual scene instructions* to the
++    # independently approved record: a modified trim/reorder could reuse a
++    # valid approval ID. Require the persisted decision hash before compiling.
++    # This local trust-envelope field is stripped before passing the existing
++    # immutable creative_reel_v1 contract to the renderer.
++    stored_digest = snapshot.get("edit_decision_sha256")
++    if (type(stored_digest) is not str or
++            not SHA256.fullmatch(stored_digest) or
++            stored_digest != edit_decision_fingerprint(approved_edits)):
++        raise CreativeContractError(
++            "Feature7 edit commands do not match persisted review")
++    if (approved_edits["shop_id"] != snapshot.get("shop_id") or
++            approved_edits["campaign_id"] != snapshot.get("campaign_id") or
++            draft.get("shop_id") != snapshot.get("shop_id")):
++        raise CreativeContractError("Feature7 approval tenant/campaign mismatch")
++    digest = approved_edits["draft_sha256"]
++    if type(digest) is not str or not SHA256.fullmatch(digest):
++        raise CreativeContractError("Missing canonical draft hash")
++    if digest != draft_fingerprint(draft):
++        raise CreativeContractError("Stale Feature7 edit decision")
++    sources = draft.get("scenes")
++    edits = approved_edits["scenes"]
++    if (type(sources) is not list or type(edits) is not list or
++            not 1 <= len(sources) <= MAX_SCENES or len(edits) != len(sources)):
++        raise CreativeContractError("Every approved original scene must be accounted for")
++
++    new_draft = copy.deepcopy(draft)
++    ordered = []
++    seen = set()
++    elapsed = 0.0
++    for edit in edits:
++        if (type(edit) is not dict or
++                set(edit) - EDIT_SCENE_FIELDS or
++                not {"source_scene_index", "duration"}.issubset(edit)):
++            raise CreativeContractError("Unapproved editor instruction")
++        index = edit["source_scene_index"]
++        if type(index) is not int or not 0 <= index < len(sources) or index in seen:
++            raise CreativeContractError("Duplicate or foreign source scene")
++        seen.add(index)
++        duration = edit["duration"]
++        if (type(duration) not in (int, float) or
++                not math.isfinite(duration) or not .5 <= duration <= 60):
++            raise CreativeContractError("Invalid editor scene duration")
++        scene = copy.deepcopy(sources[index])
++        scene["start"] = round(elapsed, 6)
++        scene["duration"] = duration
++        if "animation_preset" in edit:
++            if type(edit["animation_preset"]) is not str or edit["animation_preset"] not in ANIMATIONS:
++                raise CreativeContractError("Unapproved animation")
++            scene["animation_preset"] = edit["animation_preset"]
++        if "transition" in edit:
++            if type(edit["transition"]) is not str or edit["transition"] not in TRANSITIONS:
++                raise CreativeContractError("Unapproved transition")
++            scene["transition"] = edit["transition"]
++        if "trim_start" in edit:
++            start = edit["trim_start"]
++            if (type(start) not in (int, float) or
++                    not math.isfinite(start) or not 0 <= start <= 3600):
++                raise CreativeContractError("Unapproved trim offset")
++            scene["trim_start"] = start
++        if "mute_source" in edit:
++            if type(edit["mute_source"]) is not bool:
++                raise CreativeContractError("Unapproved audio change")
++            scene["mute_source"] = edit["mute_source"]
++        ordered.append(scene)
++        elapsed = round(elapsed + duration, 6)
++    total = draft.get("duration_seconds")
++    if type(total) is not int or total not in (15, 30, 60) or abs(elapsed - total) > .001:
++        raise CreativeContractError("Feature7 timeline does not fill approved duration")
++    new_draft["scenes"] = ordered
++
++    # The existing compiler is authoritative for Feature2 copy, Feature3/5
++    # media rights/provenance, source audio, transitions, user-supplied IDs and
++    # duration. The lineage it emits records the actual Feature7 approval ID.
++    renderer_snapshot = copy.deepcopy(snapshot)
++    renderer_snapshot.pop("edit_decision_sha256")
++    return compile_approved_storyboard(new_draft, renderer_snapshot)
+
+diff --git a/video-engine/feature4_edited_export_qa.py b/video-engine/feature4_edited_export_qa.py
+--- a/video-engine/feature4_edited_export_qa.py
++++ b/video-engine/feature4_edited_export_qa.py
+@@ -0,0 +1,201 @@
++#!/usr/bin/env python3
++"""Encoded 30s MOCK ONLY editor parity; never a retailer/AI quality approval.
++
++Bounded CPU fixture with exact, frozen JS split/reorder edit layout:
++source-video, product-photo, trimmed source-video, offer-poster scene.
++Full video decoding (not HTML or mock proof) guards gross scene reorder,
++second-video inpoint replay, missing video clip and missing distinct images.
++Not an exact trim-frame correspondence proof or a commercial-quality gate.
++"""
++from __future__ import annotations
++import argparse
++import hashlib
++import json
++from pathlib import Path
++import os
++import re
++import stat
++import subprocess
++
++from feature4_private_preview import inspect_mp4, PreviewExportError
++
++
++class EditorExportProofError(ValueError):
++    pass
++
++
++def _source_fingerprint(path):
++    """Bind decoded QA frames to one bounded MP4 inode, not only file bytes.
++
++    Even an identical-byte atomic replacement invalidates this local test
++    evidence; this does not authorize tenant assets or freeze cloud objects.
++    """
++    path = Path(path)
++    if (path.suffix.lower() != ".mp4" or path.is_symlink()
++            or path.parent.is_symlink()):
++        raise EditorExportProofError("Unsafe encoded editor source path")
++
++    def identity(info):
++        return (info.st_dev, info.st_ino, info.st_size,
++                info.st_mtime_ns, info.st_ctime_ns)
++
++    try:
++        fd = os.open(str(path), os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
++        with os.fdopen(fd, "rb") as data:
++            before = os.fstat(data.fileno())
++            if (not stat.S_ISREG(before.st_mode)
++                    or before.st_size < 10
++                    or before.st_size > 80 * 1024 * 1024):
++                raise EditorExportProofError("Unsafe encoded editor source size/type")
++            digest = hashlib.sha256()
++            for block in iter(lambda: data.read(1024 * 1024), b""):
++                digest.update(block)
++            after = os.fstat(data.fileno())
++        current = os.stat(path, follow_symlinks=False)
++    except OSError as exc:
++        raise EditorExportProofError("Cannot safely read encoded editor source") from exc
++    if (not stat.S_ISREG(current.st_mode)
++            or identity(before) != identity(after)
++            or identity(after) != identity(current)):
++        raise EditorExportProofError("Encoded MP4 source file changed during QA")
++    return digest.hexdigest(), identity(current)
++
++
++def _frame(path, at):
++    try:
++        data = subprocess.run([
++            "ffmpeg", "-nostdin", "-v", "error", "-protocol_whitelist", "file",
++            "-ss", str(at), "-i", str(path), "-map", "0:v:0",
++            "-vf", "scale=72:128,format=gray", "-frames:v", "1",
++            "-f", "rawvideo", "-"
++        ], capture_output=True, check=True, timeout=35).stdout
++    except (OSError, subprocess.SubprocessError) as exc:
++        raise EditorExportProofError("Cannot decode original edited MP4 frame") from exc
++    if len(data) != 72 * 128:
++        raise EditorExportProofError("Truncated encoded editor frame")
++    return data
++
++
++def _luma_delta(a, b):
++    # Prevent zip() silently truncating a forged decoded frame. The split
++    # editor decoder yields 72x128; the separately verified duplicate center
++    # decoder yields 72x96. Both decoders check their own exact frame size.
++    if (type(a) is not bytes or type(b) is not bytes
++            or len(a) != len(b) or len(a) not in (72 * 128, 72 * 96)):
++        raise EditorExportProofError("Malformed encoded editor grayscale frame")
++    return sum(abs(x-y) for x, y in zip(a, b)) / len(a)
++
++
++def verify_mock_editor_output(source: Path, *, expected_sha256: str):
++    """Audit decoded editor output against an independently pinned render hash.
++
++    This fingerprint comes from the trusted render job before QA runs, not
++    from a client/PR sidecar. Local technical-only proof is not tenant approval.
++    """
++    if (type(expected_sha256) is not str
++            or re.fullmatch(r"[0-9a-f]{64}", expected_sha256) is None):
++        raise EditorExportProofError("Expected exact lowercase trusted render SHA256")
++    source = Path(source)
++    source_fingerprint = _source_fingerprint(source)
++    if source_fingerprint[0] != expected_sha256:
++        raise EditorExportProofError("Encoded editor MP4 differs from rendered source SHA")
++    try:
++        metadata = inspect_mp4(source, max_size=80*1024*1024)
++    except PreviewExportError as exc:
++        raise EditorExportProofError("Expected encoded private H264/AAC input") from exc
++    if ((metadata["width"], metadata["height"]) != (540, 960)
++            or abs(metadata["seconds"] - 30) > .45):
++        raise EditorExportProofError("Expected verified 30s 540p editor export")
++    # A parser/ffprobe may observe or replace the source before any FFmpeg
++    # decode begins. Fence that immediately (as well as after all frames).
++    if _source_fingerprint(source) != source_fingerprint:
++        raise EditorExportProofError("Encoded MP4 changed during media probe")
++    source_digest = source_fingerprint[0]
++    # Source storyboard generated by actual Timeline Studio JS editor:
++    # video 0..4, photo 4..14, trimmed same video 14..20,
++    # different product/offer photo 20..30. Interior-only samples.
++    at = (2.0, 7.0, 16.0, 24.0)
++    first_video, first_photo, trimmed_video, offer_photo = [
++        _frame(source, time) for time in at
++    ]
++    # Two intra-video samples deny a frozen shot presented as moving footage.
++    # Four interior near-cut samples deny gross scene-family timing shifts.
++    moving_first, moving_trimmed = (_frame(source, t) for t in (3.0, 17.0))
++    early_photo, late_photo, early_trimmed_video, early_offer = (
++        _frame(source, t) for t in (5.0, 13.0, 15.0, 21.0)
++    )
++    if _source_fingerprint(source) != source_fingerprint:
++        raise EditorExportProofError("Encoded MP4 changed during export QA sampling")
++    video_pair = _luma_delta(first_video, trimmed_video)
++    photo_pair = _luma_delta(first_photo, offer_photo)
++    cross = min(
++        _luma_delta(first_video, first_photo),
++        _luma_delta(first_video, offer_photo),
++        _luma_delta(trimmed_video, first_photo),
++        _luma_delta(trimmed_video, offer_photo),
++    )
++    # Calibrated to this deliberate *original synthetic fixture* only.
++    # The two video segments share footage, but the second is nonidentical
++    # due to its reviewed 4s media in-point, not an exact identical replay.
++    # Both product-photo scenes must remain distinct from each other and video.
++    motion_first = _luma_delta(first_video, moving_first)
++    motion_trimmed = _luma_delta(trimmed_video, moving_trimmed)
++    boundary_photo_delta = max(_luma_delta(early_photo, first_photo),
++                               _luma_delta(late_photo, first_photo))
++    boundary_offer_delta = _luma_delta(early_offer, offer_photo)
++    boundary_video_separation = min(
++        _luma_delta(early_trimmed_video, first_photo),
++        _luma_delta(early_trimmed_video, offer_photo))
++    if not (2.0 < video_pair < .65 * cross and
++            photo_pair >= 10.0 and cross >= 12.0 and
++            motion_first >= .25 and motion_trimmed >= .25 and
++            boundary_photo_delta < .65 * photo_pair and
++            boundary_offer_delta < .65 * photo_pair and
++            boundary_video_separation >= .65 * cross):
++        raise EditorExportProofError(
++            "Actual encoded editor order/inpoint or image distinction regressed")
++    return {
++        "schema": "feature4_edited_30s_pixel_parity_v1",
++        "status": "ENCODED_MOCK_EDITOR_ORDER_TECHNICALLY_VERIFIED",
++        "source_sha256": source_digest,
++        "profile": "30s/540x960/H264/AAC",
++        "timeline_starts_seconds": [0, 4, 14, 20],
++        "pixel_times_seconds": list(at),
++        "repeated_source_video_delta": round(video_pair, 3),
++        "different_photo_scene_delta": round(photo_pair, 3),
++        "minimum_video_vs_photo_delta": round(cross, 3),
++        "first_video_encoded_motion_delta": round(motion_first, 3),
++        "trimmed_video_encoded_motion_delta": round(motion_trimmed, 3),
++        "encoded_motion_threshold": .25,
++        "boundary_probe_times_seconds": [5, 13, 15, 21],
++        "boundary_photo_max_delta": round(boundary_photo_delta, 3),
++        "boundary_offer_delta": round(boundary_offer_delta, 3),
++        "boundary_video_min_separation": round(boundary_video_separation, 3),
++        "boundary_scene_family_verified": True,
++        "exact_transition_frame_verified": False,
++        "exact_inpoint_frame_verified": False,
++        "human_visual_approval": False,
++        "stock_model_product_match_verified": False,
++        "commercial_release_eligible": False,
++    }
++
++
++def main():
++    cli = argparse.ArgumentParser(description=__doc__)
++    cli.add_argument("--source", required=True)
++    cli.add_argument("--expected-sha256", required=True)
++    cli.add_argument("--report", required=True)
++    args = cli.parse_args()
++    report = Path(args.report)
++    if (report.is_symlink() or report.exists() or report.suffix.lower() != ".json"
++            or not report.parent.is_dir() or report.parent.is_symlink()):
++        raise EditorExportProofError("Private QA output must be new JSON")
++    evidence = verify_mock_editor_output(Path(args.source), expected_sha256=args.expected_sha256)
++    with report.open("x", encoding="utf-8") as f:
++        json.dump(evidence, f, indent=2)
++        f.write("\n")
++    print(json.dumps({"status": evidence["status"], "release_eligible": False}))
++
++
++if __name__ == "__main__":
++    main()
+
+diff --git a/video-engine/feature4_encoded_motion_qa.py b/video-engine/feature4_encoded_motion_qa.py
+--- a/video-engine/feature4_encoded_motion_qa.py
++++ b/video-engine/feature4_encoded_motion_qa.py
+@@ -0,0 +1,150 @@
++#!/usr/bin/env python3
++"""Measure motion in an already rendered and locally verified stock test MP4.
++
++This is a technical regression gate for *moving pixels* only: it cannot infer
++identity, garment fidelity, consent, reviewer approval or commercial quality.
++Never derive motion samples from untrusted user/browser timestamp inputs.
++"""
++from __future__ import annotations
++import argparse
++import hashlib
++import json
++import math
++import os
++import stat
++from pathlib import Path
++import subprocess
++
++from feature4_private_preview import inspect_mp4, PreviewExportError
++
++
++class MotionProofError(ValueError):
++    pass
++
++
++def _frame(path: Path, sec: float):
++    try:
++        data = subprocess.run(
++            ["ffmpeg", "-nostdin", "-loglevel", "error",
++             "-protocol_whitelist", "file",
++             "-ss", str(sec), "-i", str(path),
++             "-map", "0:v:0", "-vf", "scale=90:160,format=gray",
++             "-frames:v", "1", "-f", "rawvideo", "-"],
++            capture_output=True, check=True, timeout=35).stdout
++    except (OSError, subprocess.SubprocessError) as exc:
++        raise MotionProofError("Could not decode requested local video frame") from exc
++    if len(data) != 90 * 160:
++        raise MotionProofError("Encoded footage frame not fully decoded")
++    return data
++
++
++def _stable_source(path):
++    """Bind encoded bytes AND local pathname/inode before and after decoding.
++
++    A SHA of the final path alone would miss a same-content atomic swap during
++    inspection. No-follow FD + pre/post fstat/lstat guards fail closed on such
++    local races. Does not independently prove remote storage custody.
++    """
++    path = Path(path)
++    try:
++        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
++        with os.fdopen(fd, "rb") as src:
++            before = os.fstat(src.fileno())
++            if not stat.S_ISREG(before.st_mode) or not 1024 < before.st_size <= 80*1024*1024:
++                raise MotionProofError("Unsafe or oversized original video source")
++            digest = hashlib.sha256()
++            for chunk in iter(lambda: src.read(1024*1024), b""):
++                digest.update(chunk)
++            after = os.fstat(src.fileno())
++            current = os.lstat(path)
++            identity = (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns)
++            if (identity != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
++                    or not stat.S_ISREG(current.st_mode)
++                    or identity != (current.st_dev, current.st_ino, current.st_size,
++                                    current.st_mtime_ns)):
++                raise MotionProofError("Encoded video source changed while hashing")
++            return identity, digest.hexdigest()
++    except MotionProofError:
++        raise
++    except OSError as exc:
++        raise MotionProofError("Unsafe or missing original video source") from exc
++
++
++def verify_moving_scenes(mp4: Path, *, seconds: int, scene_starts,
++                         sample_offset=.8, separation=.7, threshold=5.0):
++    """Measure mean absolute luma differences of reviewed moving scene windows.
++
++    The caller (reviewer/CI) provides fixed expected moving-scene start times.
++    It must NOT auto-trust browser clip tags or arbitrary timestamps.
++    """
++    if type(seconds) is not int or seconds not in (15, 30, 60):
++        raise MotionProofError("Only verified Reel duration allowed")
++    if (type(scene_starts) not in (tuple,list) or
++            not 1 <= len(scene_starts) <= 10 or
++            any(type(s) not in (int,float) or not math.isfinite(s)
++                for s in scene_starts)):
++        raise MotionProofError("Expected explicit trusted moving scene timecodes")
++    if (type(sample_offset) not in (int,float) or not math.isfinite(sample_offset)
++            or not .5 <= sample_offset <= 1.2
++            or type(separation) not in (int,float) or not math.isfinite(separation)
++            or not .3 <= separation <= .9
++            or type(threshold) not in (int,float) or not math.isfinite(threshold)
++            or not 3 <= threshold <= 18):
++        raise MotionProofError("Unsafe motion verification configuration")
++    if (list(scene_starts) != sorted(set(scene_starts)) or
++            any(s < 0 or s + sample_offset + separation >= seconds - .2
++                for s in scene_starts) or
++            any(a + sample_offset + separation >= b - .05
++                for a,b in zip(scene_starts,scene_starts[1:]))):
++        raise MotionProofError("Invalid or repeated moving-scene ranges")
++    try:
++        source = inspect_mp4(Path(mp4), max_size=80*1024*1024)
++    except PreviewExportError as exc:
++        raise MotionProofError("Rendered MP4 failed trusted codec/input preflight") from exc
++    if abs(source["seconds"]-seconds) > .45:
++        raise MotionProofError("Encoded video duration not as expected")
++    original_identity, original_sha = _stable_source(mp4)
++    measured = []
++    for start in scene_starts:
++        a=_frame(Path(mp4),round(start+sample_offset,3))
++        b=_frame(Path(mp4),round(start+sample_offset+separation,3))
++        average=sum(abs(x-y) for x,y in zip(a,b))/len(a)
++        measured.append({"expected_scene_start":start,"luma_difference":round(average,2)})
++        if average < threshold:
++            raise MotionProofError(
++                f"Expected moving scene near {start}s is frozen or insufficiently distinct")
++    final_identity, final_sha = _stable_source(mp4)
++    if (final_identity, final_sha) != (original_identity, original_sha):
++        raise MotionProofError("Encoded video source changed during motion sampling")
++    return {
++        "status":"MOVING_PIXELS_VERIFIED_NOT_CONTENT_APPROVAL",
++        "duration_seconds":seconds,
++        "source_sha256":original_sha,
++        "threshold_luma_difference":threshold,
++        "checked_moving_scenes":measured,
++        "garment_fidelity_verified":False,
++        "human_model_identity_verified":False,
++        "spoken_caption_semantics_verified":False,
++        "commercial_release_eligible":False,
++    }
++
++
++def main():
++    ap=argparse.ArgumentParser(description=__doc__)
++    ap.add_argument("--source",required=True)
++    ap.add_argument("--duration",type=int,choices=(15,30,60),required=True)
++    ap.add_argument("--moving-starts",type=float,nargs="+",required=True)
++    ap.add_argument("--report",required=True)
++    args=ap.parse_args()
++    result=verify_moving_scenes(Path(args.source), seconds=args.duration,
++                                scene_starts=args.moving_starts)
++    path=Path(args.report)
++    if path.exists() or path.is_symlink() or not path.parent.is_dir():
++        raise MotionProofError("Expected new private QA report")
++    path.write_text(json.dumps(result,indent=2)+"\n",encoding="utf-8")
++    print(json.dumps({"status":result["status"],
++                      "motion_luma":result["checked_moving_scenes"]}))
++
++
++if __name__=="__main__":
++    main()
+

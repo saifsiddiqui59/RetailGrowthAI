@@ -1,0 +1,1571 @@
+diff --git a/video-engine/feature4_voicestudio_handoff.py b/video-engine/feature4_voicestudio_handoff.py
+--- a/video-engine/feature4_voicestudio_handoff.py
++++ b/video-engine/feature4_voicestudio_handoff.py
+@@ -0,0 +1,497 @@
++"""Feature4 consumes the existing VoiceStudio private WAV *only after review*.
++
++Pure server-side adapter to existing compile_approved_storyboard contract. Does
++not modify the video renderer, call the VoiceStudio model, authorize a user,
++write Supabase rows or grant publishing permission. The request and trusted
++private readers must originate from current signed tenant/RLS service context.
++"""
++from __future__ import annotations
++
++from copy import deepcopy
++from hashlib import sha256
++import io
++import posixpath
++import re
++import unicodedata
++from uuid import UUID
++import wave
++
++from creative_contract import CreativeContractError
++from feature4_intent_compiler import compile_approved_storyboard
++
++_HASH = re.compile(r"^[0-9a-f]{64}$")
++
++
++def _uuid4(value):
++    try:
++        return type(value) is str and str(UUID(value)) == value and UUID(value).version == 4
++    except (ValueError, TypeError, AttributeError):
++        return False
++
++
++def compile_voicestudio_narrated_reel(*, draft, snapshot,
++                                     read_current_receipt, read_current_private_wav):
++    """Create an F4 compilation using already-approved same-shop WAV.
++
++    Both readers are trusted authenticated service functions; the client cannot
++    supply a source path, receipt, voice content, rights or review state. The
++    current receipt is rechecked after reading bounded original private bytes.
++    """
++    if (type(draft) is not dict or type(snapshot) is not dict
++            or not callable(read_current_receipt)
++            or not callable(read_current_private_wav)
++            or draft.get("voiceover_asset_id") is None):
++        raise CreativeContractError("Current approved private VoiceStudio source required")
++    shop, campaign, asset_id = snapshot.get("shop_id"), snapshot.get("campaign_id"), draft["voiceover_asset_id"]
++    if not (_uuid4(shop) and _uuid4(campaign) and _uuid4(asset_id)):
++        raise CreativeContractError("Canonical private narration scope required")
++    if draft.get("shop_id") != shop:
++        raise CreativeContractError("Voice request tenant mismatch")
++    # Never reinterpret a browser-selected provider or an unrelated campaign
++    # as an approved retailer-owned VoiceStudio narration source.
++    if draft.get("voiceover_source") not in (None, "retailer"):
++        raise CreativeContractError("VoiceStudio narration source must be retailer-approved")
++    if "campaign_id" in draft and draft["campaign_id"] != campaign:
++        raise CreativeContractError("VoiceStudio narration campaign mismatch")
++    # An approved narration receipt authorizes voiceover only. Reusing the same
++    # private WAV as background music or scene SFX would silently broaden its
++    # reviewed purpose and may double-mix the voice into the final Reel.
++    scenes = draft.get("scenes")
++    if draft.get("music_asset_id") == asset_id or (
++        type(scenes) is list and any(
++            type(scene) is dict and (scene.get("sfx_asset_id") == asset_id or scene.get("asset_id") == asset_id or scene.get("poster_overlay_asset_id") == asset_id)
++            for scene in scenes
++        )
++    ):
++        raise CreativeContractError("Approved narration cannot be reused as music, SFX or footage")
++    # Validate the trusted brand shape before dereferencing it. A malformed
++    # snapshot must fail with a contract denial, never an AttributeError that
++    # can escape the media worker boundary before private-read preflight.
++    brand = snapshot.get("brand")
++    if type(brand) is not dict:
++        raise CreativeContractError("Trusted narration brand required")
++    if brand.get("logo_asset_id") == asset_id:
++        raise CreativeContractError("Approved narration cannot be reused as brand logo")
++    duration = draft.get("duration_seconds")
++    if type(duration) is not int or duration not in (15, 30, 60):
++        raise CreativeContractError("Invalid approved narration timeline")
++
++    # Fail before private narration I/O if the reviewed reel references an
++    # absent, cross-tenant or revoked secondary media row. The downstream
++    # compiler remains authoritative for detailed type/rights validation.
++    selected = [asset_id]
++    if draft.get("music_asset_id") is not None:
++        selected.append(draft["music_asset_id"])
++    if type(scenes) is not list or any(type(scene) is not dict for scene in scenes):
++        raise CreativeContractError("Reviewed narration scenes required")
++    for scene in scenes:
++        for key in ("asset_id", "sfx_asset_id", "poster_overlay_asset_id"):
++            if scene.get(key) is not None:
++                selected.append(scene[key])
++    brand = snapshot.get("brand")
++    if type(brand) is not dict:
++        raise CreativeContractError("Trusted narration brand required")
++    if brand.get("logo_asset_id") is not None:
++        selected.append(brand["logo_asset_id"])
++    assets = snapshot.get("assets")
++    if type(assets) is not dict:
++        raise CreativeContractError("Trusted private media manifest required")
++    for selected_id in selected:
++        if type(selected_id) is not str:
++            raise CreativeContractError("Reviewed media ID must be a string")
++        media = assets.get(selected_id)
++        if (type(media) is not dict or media.get("shop_id") != shop
++                or media.get("approved") is not True):
++            raise CreativeContractError("Reviewed media missing, foreign or revoked")
++        if selected_id != asset_id and (
++                media.get("license_name") not in ("owned", "commercial")
++                or type(media.get("rights_source")) is not str
++                or not media["rights_source"].strip()
++                or type(media.get("rights_evidence")) is not str
++                or not media["rights_evidence"].strip()):
++            raise CreativeContractError("Reviewed companion media rights missing")
++
++    def authoritative():
++        record = read_current_receipt(shop, campaign, asset_id)
++        if type(record) is not dict or any(type(record.get(k)) is not type(v) or record.get(k) != v for k, v in (
++            ("shop_id", shop), ("campaign_id", campaign),
++            ("audio_asset_id", asset_id),
++            ("review_status", "APPROVED_FOR_EDITING"),
++            ("private", True), ("rights_reviewed", True),
++            ("revoked_at", None), ("render_duration_seconds", duration),
++        )):
++            raise CreativeContractError("Private VoiceStudio source unapproved or revoked")
++        digest = record.get("feature4_audio_sha256")
++        request_id = record.get("request_id")
++        if type(digest) is not str or not _HASH.fullmatch(digest) or not _uuid4(request_id):
++            raise CreativeContractError("Missing private narration origin digest")
++        assets = snapshot.get("assets")
++        if type(assets) is not dict:
++            raise CreativeContractError("Trusted private media manifest required")
++        row = assets.get(asset_id)
++        expected_path = f"{shop}/voicestudio/{campaign}/{request_id}/render.wav"
++        if (type(row) is not dict or row.get("shop_id") != shop
++                or row.get("approved") is not True
++                or row.get("kind") != "audio"
++                or row.get("source_feature") != "retailer"
++                or row.get("storage_bucket") != "retailgrowth-media"
++                or row.get("object_path") != expected_path
++                or row.get("mime_type") != "audio/wav"
++                or row.get("license_name") not in ("owned", "commercial")
++                or type(row.get("rights_source")) is not str
++                or not row["rights_source"].strip()
++                or type(row.get("rights_evidence")) is not str
++                or not row["rights_evidence"].strip()):
++            raise CreativeContractError("Feature4 trusted media does not match private VoiceStudio asset")
++        # Reject private-object aliasing in the trusted snapshot before any
++        # private WAV bytes are fetched. The compiled-output check below is a
++        # second fence, not a substitute for this pre-I/O tenant/media gate.
++        for other_id, other in assets.items():
++            if other_id == asset_id:
++                continue
++            # Deny alternate spellings of the same private object before I/O.
++            if type(other) is dict and other.get("storage_bucket") == row["storage_bucket"]:
++                other_path = other.get("object_path")
++                if type(other_path) is str:
++                    normalized = posixpath.normpath("/".join(
++                        part if part in (".", "..") else part.rstrip(" .")
++                        for part in unicodedata.normalize("NFKC", other_path)
++                            .replace(chr(92), "/").split("/")
++                    )).casefold()
++                    if normalized == expected_path.casefold():
++                        raise CreativeContractError("Private narration object aliases another media asset")
++        return record
++
++    # Freeze the request before invoking external trusted readers: a callback
++    # must not change duration, source or selected media between approval and
++    # the final compilation (the receipt is bound to the original duration).
++    frozen_draft = deepcopy(draft)
++    # Other approved scene/music/media inputs must remain immutable while
++    # trusted callbacks run; checking only the narration row is insufficient.
++    frozen_snapshot = deepcopy(snapshot)
++    # Freeze the trusted receipt: a service reader may reuse and mutate its dict.
++    # Comparing against a live alias would silently accept in-place revocation.
++    before = deepcopy(authoritative())
++    # A receipt callback is external trusted I/O too: deny mutations before
++    # accessing the private WAV, not only after its bytes have been read.
++    if draft != frozen_draft or snapshot != frozen_snapshot:
++        raise CreativeContractError("Narration scope changed during receipt lookup")
++    # Freeze trusted media metadata as well as approval: a private reader or
++    # compiler must not silently replace the tenant object while processing.
++    before_asset = deepcopy(snapshot["assets"][asset_id])
++    original = read_current_private_wav(shop, campaign, asset_id)
++    if (type(original) is not bytes or not 44 <= len(original)
++            <= 44 + duration * 96000 * 2 * 2):
++        raise CreativeContractError("Bounded private narration bytes required")
++    # wave.open accepts trailing bytes and ignores an inconsistent RIFF length.
++    # A private asset must be one complete, canonical RIFF/WAVE object.
++    if (original[:4] != b"RIFF" or original[8:12] != b"WAVE"
++            or int.from_bytes(original[4:8], "little") != len(original) - 8):
++        raise CreativeContractError("Private narration RIFF length or type invalid")
++    # Validate the complete RIFF chunk walk, not just its outer length.
++    # wave.open can ignore bytes after the PCM data chunk, even when the
++    # forged RIFF length includes them. Reject ambiguous trailing payloads.
++    offset = 12
++    seen_fmt = seen_data = False
++    while offset < len(original):
++        if offset + 8 > len(original):
++            raise CreativeContractError("Truncated private narration WAV chunk")
++        kind = original[offset:offset + 4]
++        size = int.from_bytes(original[offset + 4:offset + 8], "little")
++        end = offset + 8 + size
++        padded_end = end + (size & 1)
++        if padded_end > len(original):
++            raise CreativeContractError("Private narration WAV chunk exceeds RIFF")
++        if size & 1 and original[end] != 0:
++            raise CreativeContractError("Nonzero private narration WAV padding")
++        if kind == b"data" and size == 0:
++            raise CreativeContractError("Empty private narration PCM data")
++        if kind == b"fmt ":
++            if seen_fmt or seen_data or size != 16 or int.from_bytes(original[offset + 8:offset + 10], "little") != 1:
++                raise CreativeContractError("Noncanonical private narration PCM format")
++            channels = int.from_bytes(original[offset + 10:offset + 12], "little")
++            sample_rate = int.from_bytes(original[offset + 12:offset + 16], "little")
++            byte_rate = int.from_bytes(original[offset + 16:offset + 20], "little")
++            block_align = int.from_bytes(original[offset + 20:offset + 22], "little")
++            bits = int.from_bytes(original[offset + 22:offset + 24], "little")
++            if (channels not in (1, 2) or not 8000 <= sample_rate <= 96000
++                    or bits != 16 or block_align != channels * 2
++                    or byte_rate != sample_rate * block_align):
++                raise CreativeContractError("Inconsistent private narration PCM format")
++            seen_fmt = True
++        elif kind == b"data":
++            if not seen_fmt or seen_data or padded_end != len(original):
++                raise CreativeContractError("Private narration WAV data is not terminal")
++            if size != duration * sample_rate * block_align:
++                raise CreativeContractError("Private narration PCM data length mismatch")
++            seen_data = True
++        else:
++            raise CreativeContractError("Unexpected private narration WAV chunk")
++        offset = padded_end
++    if not seen_fmt or not seen_data:
++        raise CreativeContractError("Private narration WAV chunks missing")
++    if sha256(original).hexdigest() != before["feature4_audio_sha256"]:
++        raise CreativeContractError("VoiceStudio private narration bytes changed")
++    try:
++        with wave.open(io.BytesIO(original), "rb") as reader:
++            frames, rate = reader.getnframes(), reader.getframerate()
++            if (reader.getnchannels() not in (1, 2) or reader.getsampwidth() != 2
++                    or rate < 8000 or rate > 96000 or reader.getcomptype() != "NONE"
++                    or frames != duration * rate
++                    or reader.getnframes() * reader.getnchannels() * 2 != size):
++                raise CreativeContractError("Narration timeline/profile does not match approved reel")
++    except (EOFError, wave.Error) as exc:
++        raise CreativeContractError("Malformed private narration WAV") from exc
++    # Never hand unverified private bytes to the compiler: the receipt digest
++    # binds the exact approved PCM object, not merely its WAV header/profile.
++    if sha256(original).hexdigest() != before["feature4_audio_sha256"]:
++        raise CreativeContractError("Private narration digest differs from approved receipt")
++    if authoritative() != before or snapshot["assets"].get(asset_id) != before_asset:
++        raise CreativeContractError("Narration approval or private asset changed during read")
++    if draft != frozen_draft:
++        raise CreativeContractError("Narration draft changed during private read")
++    if snapshot != frozen_snapshot:
++        raise CreativeContractError("Approved reel snapshot changed during private read")
++    output = compile_approved_storyboard(deepcopy(frozen_draft), deepcopy(snapshot))
++    # A compromised or incompatible compiler must fail with a contract error,
++    # never an AttributeError after reading private tenant narration.
++    if (type(output) is not dict or type(output.get("request")) is not dict
++            or type(output.get("bundle")) is not dict
++            or type(output["bundle"].get("assets")) is not dict
++            or type(output.get("manifest")) is not dict
++            or type(output["manifest"].get("assets")) is not dict):
++        raise CreativeContractError("Malformed compiled private narration output")
++    # The compiler must not silently retarget an approved voice to another
++    # tenant, campaign or timeline after the private source has been verified.
++    request = output["request"]
++    if (request.get("shop_id") != shop
++            or request.get("duration_seconds") != duration
++            or ("campaign_id" in request and request["campaign_id"] != campaign)):
++        raise CreativeContractError("Compiled narration request scope changed")
++    if request.get("voiceover_asset_id") != asset_id or request.get("voiceover_source") != "retailer":
++        raise CreativeContractError("Video compiler discarded approved voice source")
++    # Purpose misuse takes precedence over generic media-selection parity.
++    # This preserves a distinct fail-closed worker audit for narration reuse.
++    compiled_scenes = request.get("scenes")
++    if request.get("music_asset_id") == asset_id or (
++        type(compiled_scenes) is list and any(
++            type(scene) is dict and
++            (scene.get("sfx_asset_id") == asset_id or scene.get("asset_id") == asset_id or scene.get("poster_overlay_asset_id") == asset_id)
++            for scene in compiled_scenes
++        )
++    ):
++        raise CreativeContractError("Compiled narration cannot be reused as music, SFX or footage")
++    compiled_brand = output["bundle"].get("brand")
++    # The existing compiler may omit the optional brand in its output bundle.
++    # Reject malformed values only when the compiler actually supplies one.
++    if "brand" in output["bundle"] and type(compiled_brand) is not dict:
++        raise CreativeContractError("Malformed compiled narration brand")
++    if (type(compiled_brand) is dict and compiled_brand.get("logo_asset_id") == asset_id) or request.get("logo_asset_id") == asset_id:
++        raise CreativeContractError("Compiled narration cannot be reused as brand logo")
++    # A compiler must not substitute a different already-trusted media ID:
++    # approval of a private narration does not authorize changing the music
++    # or footage selected by the reviewed storyboard.
++    source_scenes = frozen_draft.get("scenes")
++    rendered_scenes = request.get("scenes")
++    if (request.get("music_asset_id") != frozen_draft.get("music_asset_id")
++            or type(source_scenes) is not list
++            or type(rendered_scenes) is not list
++            or len(source_scenes) != len(rendered_scenes)
++            or any(type(before_scene) is not dict or type(after_scene) is not dict
++                   or before_scene.get("asset_id") != after_scene.get("asset_id")
++                   or before_scene.get("sfx_asset_id") != after_scene.get("sfx_asset_id")
++                   or before_scene.get("poster_overlay_asset_id") != after_scene.get("poster_overlay_asset_id")
++                   for before_scene, after_scene in zip(source_scenes, rendered_scenes))):
++        raise CreativeContractError("Compiled narration changed reviewed media selection")
++    # Recheck purpose at the compiled boundary: a future compiler revision must
++    # not reintroduce approved voice as background music or scene effects.
++    compiled_scenes = request.get("scenes")
++    if request.get("music_asset_id") == asset_id or (
++        type(compiled_scenes) is list and any(
++            type(scene) is dict and (scene.get("sfx_asset_id") == asset_id or scene.get("asset_id") == asset_id or scene.get("poster_overlay_asset_id") == asset_id)
++            for scene in compiled_scenes
++        )
++    ):
++        raise CreativeContractError("Compiled narration cannot be reused as music, SFX or footage")
++    # The worker manifest intentionally replaces private object keys with
++    # sandbox-local paths; verify its rights and identity separately from
++    # the authoritative bundle, which must preserve the private object key.
++    bundle_asset = output.get("bundle", {}).get("assets", {}).get(asset_id)
++    if type(bundle_asset) is not dict or any(
++        bundle_asset.get(key) != before_asset.get(key)
++        for key in ("shop_id", "object_path", "storage_bucket", "mime_type",
++                    "license_name", "rights_source", "rights_evidence",
++                    "source_feature", "kind", "approved")
++    ):
++        raise CreativeContractError("Compiled private narration bundle changed")
++    # The approved private object is purpose-scoped to narration. A second
++    # asset ID must never point at the same private bucket/key: downstream
++    # staging could fetch the approved WAV as unreviewed music or footage.
++    # This also catches forged compiler bundle entries not present in the
++    # original trusted snapshot.
++    for other_id, other in output["bundle"]["assets"].items():
++        if other_id == asset_id or type(other) is not dict:
++            continue
++        if other.get("storage_bucket") == before_asset["storage_bucket"]:
++            other_path = other.get("object_path")
++            if type(other_path) is str:
++                # A compromised compiler can introduce an equivalent key using
++                # dot segments, Windows separators or case-insensitive aliases.
++                # Check the same equivalence already enforced before WAV I/O.
++                normalized = posixpath.normpath("/".join(
++                    part if part in (".", "..") else part.rstrip(" .")
++                    for part in unicodedata.normalize("NFKC", other_path)
++                        .replace(chr(92), "/").split("/")
++                )).casefold()
++                if normalized == before_asset["object_path"].casefold():
++                    raise CreativeContractError("Compiled private narration object aliases another asset")
++    # Only assets selected from the trusted snapshot may enter the worker.
++    # A compromised compiler cannot append an unreviewed media row under a
++    # fresh ID, even if the private narration row itself is unchanged.
++    trusted_ids = set(snapshot["assets"])
++    if (set(output["bundle"]["assets"]) - trusted_ids
++            or set(output["manifest"]["assets"]) - trusted_ids
++            or set(output["bundle"]["assets"]) != set(output["manifest"]["assets"])):
++        raise CreativeContractError("Compiled narration introduced unapproved media asset")
++    # The narration receipt cannot authorize rewriting the rights or private
++    # origin of OTHER reviewed media. The compiler may stage local paths in
++    # its worker manifest, but the immutable bundle must retain each trusted
++    # source row's tenant, object identity and license evidence.
++    for selected_id, compiled_row in output["bundle"]["assets"].items():
++        trusted_row = frozen_snapshot["assets"].get(selected_id)
++        if (type(compiled_row) is not dict or type(trusted_row) is not dict
++                or any(compiled_row.get(field) != trusted_row.get(field)
++                       for field in ("shop_id", "storage_bucket", "object_path",
++                                     "mime_type", "kind", "source_feature",
++                                     "approved", "license_name", "rights_source",
++                                     "rights_evidence"))):
++            raise CreativeContractError("Compiled narration changed reviewed asset rights or origin")
++    # The worker consumes the manifest, not the bundle. A compiler must not
++    # retain an approved bundle while rewriting another asset's tenant, kind,
++    # license or approval in the FFmpeg handoff.
++    for selected_id, worker_row in output["manifest"]["assets"].items():
++        trusted_row = frozen_snapshot["assets"].get(selected_id)
++        if (type(worker_row) is not dict or type(trusted_row) is not dict
++                or worker_row.get("shop_id") != trusted_row.get("shop_id")
++                or worker_row.get("kind") != trusted_row.get("kind")
++                or worker_row.get("source_feature") != trusted_row.get("source_feature")
++                or worker_row.get("approved") is not trusted_row.get("approved")
++                or worker_row.get("rights") != {
++                    "license": trusted_row.get("license_name"),
++                    "commercial_use": True,
++                    "source": trusted_row.get("rights_source"),
++                    "evidence": trusted_row.get("rights_evidence"),
++                }):
++            raise CreativeContractError("Compiled narration changed reviewed worker media rights")
++    # Every selected reviewed asset must survive the compiler-to-worker handoff.
++    # The subset check above prevents injection but cannot detect a compiler
++    # silently dropping music, an overlay, or a scene asset from both maps.
++    selected_ids = {asset_id}
++    if frozen_draft.get("music_asset_id") is not None:
++        selected_ids.add(frozen_draft["music_asset_id"])
++    for scene in frozen_draft["scenes"]:
++        for key in ("asset_id", "sfx_asset_id", "poster_overlay_asset_id"):
++            if scene.get(key) is not None:
++                selected_ids.add(scene[key])
++    logo_id = frozen_snapshot.get("brand", {}).get("logo_asset_id")
++    if logo_id is not None:
++        selected_ids.add(logo_id)
++    if (set(output["bundle"]["assets"]) != selected_ids
++            or set(output["manifest"]["assets"]) != selected_ids):
++        raise CreativeContractError("Compiled narration omitted reviewed media asset")
++    manifest_asset = output.get("manifest", {}).get("assets", {}).get(asset_id)
++    if (type(manifest_asset) is not dict
++            or manifest_asset.get("shop_id") != shop
++            or manifest_asset.get("kind") != "audio"
++            or manifest_asset.get("source_feature") != "retailer"
++            or manifest_asset.get("approved") is not True
++            or type(manifest_asset.get("path")) is not str
++            or not manifest_asset["path"].strip()
++            # Worker paths must stay relative to its sandbox. Never pass an
++            # absolute path, traversal, Windows separator or control byte to FFmpeg.
++            or manifest_asset["path"].startswith(("/", "\\", "-"))
++            or "\\" in manifest_asset["path"]
++            # Reject drive-relative and URI-shaped paths as well as percent-encoded
++            # traversal. Worker paths are literal sandbox paths, never URLs.
++            or ":" in manifest_asset["path"]
++            or "%" in manifest_asset["path"]
++            or any(part in ("", ".", "..") for part in manifest_asset["path"].split("/"))
++            or any(ord(ch) < 32 or ord(ch) == 127 for ch in manifest_asset["path"])
++            # Invisible formatting controls (e.g. bidi overrides) can disguise
++            # the worker path in review logs even when its bytes are relative.
++            or any(unicodedata.category(ch) == "Cf" for ch in manifest_asset["path"])
++            # Restrict the server-created worker path to unambiguous ASCII.
++            # Unicode lookalikes and nonprinting marks are not needed for IDs.
++            or not re.fullmatch(r"[A-Za-z0-9_./-]+", manifest_asset["path"])
++            # Windows device names and trailing-dot components can resolve
++            # differently from the reviewed sandbox path on worker hosts.
++            or any(
++                part.rstrip(" .").upper().split(".")[0] in
++                {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
++                or part.endswith((" ", "."))
++                for part in manifest_asset["path"].split("/")
++            )
++            # A verified PCM/WAV must not be handed to FFmpeg under a
++            # different container extension by a compromised compiler.
++            or not manifest_asset["path"].endswith(".wav")
++            or manifest_asset.get("rights") != {
++                "license": before_asset["license_name"],
++                "commercial_use": True,
++                "source": before_asset["rights_source"],
++                "evidence": before_asset["rights_evidence"],
++            }):
++        raise CreativeContractError("Compiled private narration manifest changed")
++    # A relative path can still alias another approved media asset. Never let
++    # the narration share a staged worker filename with music, SFX or footage:
++    # the worker could then mix or overwrite unrelated tenant-approved bytes.
++    narration_path = manifest_asset["path"]
++    # Preserve dot segments until posixpath.normpath collapses traversal.
++    # rstrip(" .") on ".." would erase it, missing aliases such as
++    # temp/../approved.wav on the worker filesystem.
++    if any(
++        other_id != asset_id and type(other) is dict
++        and type(other.get("path")) is str
++        and posixpath.normpath("/".join((part if part in (".", "..") else part.rstrip(" .")) for part in unicodedata.normalize("NFKC", other["path"]).replace("\\", "/").split("/"))).casefold() == narration_path.casefold()
++        for other_id, other in output["manifest"]["assets"].items()
++    ):
++        raise CreativeContractError("Compiled private narration worker path aliases another asset")
++    # All selected media must stage to distinct worker filenames, not only
++    # narration. A music/footage collision can overwrite reviewed bytes before
++    # FFmpeg opens them even though both IDs retain valid license metadata.
++    staged_paths = set()
++    for worker_row in output["manifest"]["assets"].values():
++        worker_path = worker_row.get("path")
++        if type(worker_path) is not str:
++            raise CreativeContractError("Compiled media worker path missing")
++        # Every worker input, not only narration, must be a safe sandbox path.
++        if (not re.fullmatch(r"[A-Za-z0-9_./-]+", worker_path)
++                or worker_path.startswith(("/", "-"))
++                or any(part in ("", ".", "..") or part.endswith(".")
++                       or part.upper().split(".")[0] in
++                       {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)),
++                        *(f"LPT{i}" for i in range(1, 10))}
++                       for part in worker_path.split("/"))):
++            raise CreativeContractError("Unsafe compiled reviewed media worker path")
++        normalized = posixpath.normpath("/".join(
++            part if part in (".", "..") else part.rstrip(" .")
++            for part in unicodedata.normalize("NFKC", worker_path)
++                .replace("\\", "/").split("/")
++        )).casefold()
++        if normalized in staged_paths:
++            raise CreativeContractError("Compiled reviewed media worker paths alias")
++        staged_paths.add(normalized)
++    # The compiler may perform additional trusted reads. Do not return a reel
++    # compiled from narration whose approval was revoked during that work.
++    if (authoritative() != before or snapshot != frozen_snapshot
++            or draft != frozen_draft):
++        raise CreativeContractError("Narration approval or reviewed media changed during compilation")
++    # Re-read the authoritative private object after compilation. A mutable
++    # storage key could be replaced without changing its approval receipt.
++    final_bytes = read_current_private_wav(shop, campaign, asset_id)
++    if (type(final_bytes) is not bytes or len(final_bytes) != len(original)
++            or sha256(final_bytes).hexdigest() != before["feature4_audio_sha256"]):
++        raise CreativeContractError("Private narration replaced during compilation")
++    if (draft != frozen_draft or snapshot != frozen_snapshot or authoritative() != before
++            or snapshot["assets"].get(asset_id) != before_asset):
++        raise CreativeContractError("Narration changed after final private read")
++    return output
+
+diff --git a/video-engine/feature4_worker_handoff.py b/video-engine/feature4_worker_handoff.py
+--- a/video-engine/feature4_worker_handoff.py
++++ b/video-engine/feature4_worker_handoff.py
+@@ -0,0 +1,319 @@
++"""Feature #4 queue-worker handoff, source-only; no new Azure trigger or public API.
++
++The existing Azure render worker, RLS and billing remain authoritative. This
++adapter is callable ONLY from an already-authenticated backend queue claim. The
++coordinator must implement the explicitly named atomic v2 claim/finalize RPCs.
++The injected 'admin' is a trusted service client; NEVER pass browser objects.
++"""
++from __future__ import annotations
++
++import hashlib
++import math
++import os
++import re
++import stat
++import tempfile
++from pathlib import Path
++from uuid import UUID
++
++from creative_contract import render_inputs, CreativeContractError
++from render_adapter import run_compiled_reel
++from professional import VideoPlanError
++
++BUCKET = "retailgrowth-media"
++PRESET = "feature4_reel_v1"
++MAX_SOURCE_ASSETS = 36
++MAX_TOTAL_STAGED_BYTES = 300 * 1024 * 1024
++LICENSES = {"owned", "cc0", "royalty_free", "commercial"}
++SOURCE_MIME = {
++    "image": {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"},
++    "poster": {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"},
++    "logo": {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"},
++    "video": {"video/mp4": ".mp4", "video/quicktime": ".mov"},
++    "audio": {"audio/mpeg": ".mp3", "audio/wav": ".wav",
++              "audio/mp4": ".m4a", "audio/aac": ".aac", "audio/flac": ".flac"},
++}
++
++
++class Feature4HandoffError(ValueError):
++    """Malformed or unapproved claimed v2 render. No billing changes here."""
++
++
++class Feature4ClaimBusy(RuntimeError):
++    """The job is claimed elsewhere; existing queue retry policy owns this."""
++
++
++def _staged_fingerprint(path):
++    """Hash only a stable regular file without following staged symlinks.
++
++    This prevents a renderer or another local actor from silently replacing
++    downloaded approved bytes during CPU work. It does not independently
++    prove a provider's remote object SHA or grant commercial rights.
++    """
++    try:
++        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
++        with os.fdopen(fd, "rb") as stream:
++            first = os.fstat(stream.fileno())
++            if not stat.S_ISREG(first.st_mode) or not 0 < first.st_size <= MAX_TOTAL_STAGED_BYTES:
++                raise Feature4HandoffError("Private staged asset must be nonempty bounded regular file")
++            digest = hashlib.sha256()
++            for block in iter(lambda: stream.read(1024 * 1024), b""):
++                digest.update(block)
++            last = os.fstat(stream.fileno())
++            if (first.st_dev, first.st_ino, first.st_size, first.st_mtime_ns) != (
++                    last.st_dev, last.st_ino, last.st_size, last.st_mtime_ns):
++                raise Feature4HandoffError("Private staged asset changed while hashing")
++            # An opened descriptor can still contain approved OLD bytes when
++            # the path was atomically replaced with a same-content new inode.
++            current = os.lstat(path)
++            if (not stat.S_ISREG(current.st_mode)
++                    or (last.st_dev, last.st_ino, last.st_size, last.st_mtime_ns) !=
++                       (current.st_dev, current.st_ino, current.st_size, current.st_mtime_ns)):
++                raise Feature4HandoffError("Private staged asset path changed while hashing")
++            # Fingerprint also binds inode/device/mtime across separate reads.
++            # Same-byte os.replace during upload must never pass a SHA-only check.
++            return (first.st_size, digest.hexdigest(), first.st_dev,
++                    first.st_ino, first.st_mtime_ns)
++    except Feature4HandoffError:
++        raise
++    except OSError as exc:
++        raise Feature4HandoffError("Private staged asset cannot be verified") from exc
++
++
++def _uuid(value, label):
++    if type(value) is not str:
++        raise Feature4HandoffError(label + " must be canonical UUID")
++    try:
++        parsed = str(UUID(value))
++    except (TypeError, ValueError, AttributeError) as exc:
++        raise Feature4HandoffError(label + " must be canonical UUID") from exc
++    if parsed != value:
++        raise Feature4HandoffError(label + " must be canonical UUID")
++    return value
++
++
++def _bundle(job, source):
++    """Generate trusted local manifest using DB-sourced, immutable approved rows."""
++    if type(source) is not dict or set(source) != {"request", "assets"}:
++        raise Feature4HandoffError("Authoritative v2 bundle expected")
++    request, records = source["request"], source["assets"]
++    if type(request) is not dict or type(records) is not dict or not 0 <= len(records) <= MAX_SOURCE_ASSETS:
++        raise Feature4HandoffError("Invalid approved v2 source rows")
++    if (request.get("shop_id") != job["shop_id"] or
++            request.get("campaign_id") != job["campaign_id"] or
++            request.get("video_job_id") != job["id"] or
++            request.get("idempotency_key") != job["idempotency_key"]):
++        raise Feature4HandoffError("Claimed job does not match approved v2 request")
++    sid = job["shop_id"]
++    assets = {}
++    names = {}
++    for asset_id, row in records.items():
++        if (type(asset_id) is not str or not asset_id or type(row) is not dict
++                or set(row) != {"shop_id", "kind", "source_feature", "approved",
++                                "storage_bucket", "object_path", "mime_type",
++                                "license_name", "rights_evidence", "rights_source"}):
++            raise Feature4HandoffError("Malformed authoritative asset row")
++        kind = row["kind"]
++        if (row["shop_id"] != sid or row["approved"] is not True or kind not in SOURCE_MIME
++                or row["storage_bucket"] != BUCKET):
++            raise Feature4HandoffError("Cross-shop, unapproved or unsupported asset")
++        suffix = SOURCE_MIME[kind].get(row["mime_type"])
++        license_name = row["license_name"]
++        evidence = row["rights_evidence"]
++        origin = row["rights_source"]
++        if (not suffix or license_name not in LICENSES
++                or type(evidence) is not str or not 0 < len(evidence.strip()) <= 500
++                or type(origin) is not str or not 0 < len(origin.strip()) <= 300):
++            raise Feature4HandoffError("Missing verified commercial rights or MIME")
++        key = row["object_path"]
++        # Canonical same-shop paths only: reject encoded escapes, query
++        # fragments, Unicode controls and empty/dot path components.
++        if (type(key) is not str or not key.startswith(sid + "/")
++                or len(key) > 1000
++                or not re.fullmatch(r"[A-Za-z0-9._/-]+", key)
++                or any(seg in ("", ".", "..") for seg in key.split("/"))):
++            raise Feature4HandoffError("Media storage path escapes tenant")
++        # Use enumeration-generated filenames: no untrusted object keys in local path.
++        rel = "in" + str(len(assets)).zfill(2) + suffix
++        names[asset_id] = key
++        assets[asset_id] = {
++            "shop_id": sid, "kind": kind, "source_feature": row["source_feature"],
++            "approved": True, "path": rel,
++            "rights": {"license": license_name, "commercial_use": True,
++                       "source": origin, "evidence": evidence},
++        }
++    manifest = {"shop_id": sid, "assets": assets}
++    lowered = render_inputs(request, manifest)
++    # No unused tenant-private objects may be downloaded or introduced into HTML.
++    if set(lowered.audit["media_asset_ids"]) != set(assets):
++        raise Feature4HandoffError("Authoritative bundle includes unrelated media")
++    return request, manifest, names, lowered.audit
++
++
++def _verified_render_result(result, output, job, request, audit):
++    """Refuse a forged/fallback relabel or unverifiable media before private upload.
++
++    This is an integrity check of the trusted local renderer return value, not a
++    substitute for the actual ffprobe invoked by run_compiled_reel.
++    """
++    if type(result) is not dict:
++        raise Feature4HandoffError("Renderer did not return verified output")
++    probe = result.get("output_probe")
++    if type(probe) is not dict:
++        raise Feature4HandoffError("Renderer output lacks media verification")
++    try:
++        raw_file = Path(result["file_path"])
++        file = raw_file.resolve(strict=True)
++        expected = (output / (job["id"] + ".mp4")).resolve()
++        if (file != expected or not file.is_file() or raw_file.is_symlink()
++                or result.get("render_job_id") != job["id"]
++                or result.get("idempotency_key") != job["idempotency_key"]
++                or result.get("rendered_as") != audit["rendered_as"]
++                or result.get("fallback_events") != audit["fallback_events"]):
++            raise Feature4HandoffError("Renderer output not bound to approved input and claim")
++        expected_output = request["output"]
++        seconds = probe.get("duration_seconds")
++        if (type(seconds) not in (int, float) or not math.isfinite(seconds)
++                or abs(seconds - request["duration_seconds"]) > .25
++                or probe.get("width") != expected_output["width"]
++                or probe.get("height") != expected_output["height"]
++                or probe.get("fps") != expected_output["fps"]
++                or probe.get("video_codec") != "h264"
++                or probe.get("audio_codec") != "aac"
++                or type(probe.get("bytes")) is not int
++                or probe["bytes"] != file.stat().st_size
++                or not 1024 < probe["bytes"] <= 80 * 1024 * 1024):
++            raise Feature4HandoffError("Renderer media proof contradicts approved output")
++        # Output proof must attest to the actual stable encoded bytes.
++        actual = _staged_fingerprint(file)
++        if (type(probe.get("sha256")) is not str
++                or not re.fullmatch(r"[0-9a-f]{64}", probe["sha256"])
++                or probe["sha256"] != actual[1]
++                or probe["bytes"] != actual[0]):
++            raise Feature4HandoffError("Renderer output SHA disagrees with encoded artifact")
++        return file, probe, actual
++    except Feature4HandoffError:
++        raise
++    except (KeyError, TypeError, ValueError, OSError) as exc:
++        raise Feature4HandoffError("Invalid renderer media output") from exc
++
++
++def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel):
++    """Process one trusted existing-queue attempt; never create an HTTP endpoint.
++
++    Required backend methods (coordinator-provided, atomic):
++      render_status(id) -> 'QUEUED'|'RUNNING'|'SUCCEEDED'|'FAILED'
++      claim_feature4_render(id) -> claim dict, or None
++      render_authorized(claim) -> exactly True only while permission persists
++      load_feature4_bundle(claim) -> authoritative approved source rows
++      feature4_claim_current(claim) -> bool, revalidates lease + rights
++      complete_feature4_render(claim, object_path, proof, rendered_as) -> bool
++      render_failure(claim, stable_error_code, permanent=False)
++    This code never reserves quotas, changes a ledger, retries failed charges,
++    creates queues, signs output, changes RLS, or sends notifications.
++    """
++    jid = _uuid(job_id, "render job ID")
++    status = admin.render_status(jid)
++    if status is None:
++        raise Feature4HandoffError("Unknown render job")
++    if status in ("SUCCEEDED", "FAILED"):
++        return "ALREADY_FINAL"
++    if status not in ("QUEUED", "RUNNING"):
++        raise Feature4HandoffError("Unexpected render-job status")
++    claim = admin.claim_feature4_render(jid)
++    if claim is None:
++        raise Feature4ClaimBusy("Render claimed by another worker")
++    if type(claim) is not dict or not {"id", "shop_id", "campaign_id",
++                                       "idempotency_key", "render_claim_token", "preset"} <= set(claim):
++        raise Feature4HandoffError("Incomplete claimed render")
++    if (claim["id"] != jid or claim["preset"] != PRESET
++            or type(claim["idempotency_key"]) is not str
++            or not 1 <= len(claim["idempotency_key"]) <= 100):
++        raise Feature4HandoffError("Wrong v2 preset or logical claim")
++    for key in ("shop_id", "campaign_id", "render_claim_token"):
++        _uuid(claim[key], key)
++    if admin.render_authorized(claim) is not True:
++        admin.render_failure(claim, "ACCESS_REVOKED", permanent=True)
++        return "DENIED"
++    # A stale lease must not even read the private bundle.
++    if admin.feature4_claim_current(claim) is not True:
++        return "STALE"
++    try:
++        request, manifest, objects, audit = _bundle(claim, admin.load_feature4_bundle(claim))
++        # A rights/lease change during the authoritative bundle lookup must
++        # block all private staging and CPU work, not just output finalization.
++        if (admin.render_authorized(claim) is not True or
++                admin.feature4_claim_current(claim) is not True):
++            return "STALE"
++        with tempfile.TemporaryDirectory(prefix="retailgrowth-f4-") as tmp:
++            root = Path(tmp)
++            staging = root / "media"
++            output = root / "out"
++            staging.mkdir()
++            output.mkdir()
++            staged_bytes = 0
++            staged_fingerprints = {}
++            for asset_id, key in objects.items():
++                # Authorization may expire between separate network downloads.
++                if (admin.render_authorized(claim) is not True or
++                        admin.feature4_claim_current(claim) is not True):
++                    return "STALE"
++                path = staging / manifest["assets"][asset_id]["path"]
++                media.download(claim["shop_id"], key, path)
++                if not path.is_file() or path.is_symlink():
++                    raise Feature4HandoffError("Private media source was not staged safely")
++                fingerprint = _staged_fingerprint(path)
++                staged_bytes += fingerprint[0]
++                staged_fingerprints[asset_id] = fingerprint
++                if staged_bytes > MAX_TOTAL_STAGED_BYTES:
++                    raise Feature4HandoffError("Total staged media exceeds the private worker budget")
++                # A claim can expire or authorization can be revoked while
++                # staged private bytes are being downloaded. Stop fetching
++                # more assets immediately and never start a stale CPU encode.
++                if (admin.render_authorized(claim) is not True or
++                        admin.feature4_claim_current(claim) is not True):
++                    return "STALE"
++            # Also fence a zero-asset montage, and do not rely on the
++            # post-render check to avoid unnecessary expensive CPU work.
++            if (admin.render_authorized(claim) is not True or
++                    admin.feature4_claim_current(claim) is not True):
++                return "STALE"
++            result = render_fn(request, manifest, staging, output)
++            result_path, probe, output_fingerprint = _verified_render_result(
++                result, output, claim, request, audit)
++            # Verify that CPU work did not replace, truncate or swap original staged media.
++            for asset_id, original in staged_fingerprints.items():
++                staged_path = staging / manifest["assets"][asset_id]["path"]
++                if _staged_fingerprint(staged_path) != original:
++                    raise Feature4HandoffError("Private staged media changed during render")
++            if admin.render_authorized(claim) is not True or admin.feature4_claim_current(claim) is not True:
++                # Lease lost while expensive CPU work ran: never publish or bill.
++                return "STALE"
++            # Existing PrivateMedia stores in a lease-token-scoped tenant key with
++            # no upsert. Completion RPC must CAS same claim token and ledger once.
++            key = media.upload(claim["shop_id"], jid, result_path,
++                               lease_token=claim["render_claim_token"])
++            # Detect encoded append/replacement while bytes are uploaded;
++            # orphaned remote bytes must never be finalized or billed.
++            if _staged_fingerprint(result_path) != output_fingerprint:
++                raise Feature4HandoffError("Encoded output changed during private upload")
++            expected_key = (claim["shop_id"] + "/renders/" + jid + "/" +
++                            claim["render_claim_token"] + ".mp4")
++            if type(key) is not str or key != expected_key:
++                raise Feature4HandoffError("Private uploaded object does not match current claim")
++            if (admin.render_authorized(claim) is not True or
++                    admin.feature4_claim_current(claim) is not True):
++                return "STALE"
++            finalized = admin.complete_feature4_render(
++                claim, key, probe, audit["rendered_as"])
++            if finalized is not True:
++                # An orphan private object can be reconciled; no signed URL or
++                # second credit charge is produced by this adapter.
++                return "STALE"
++            return "SUCCEEDED"
++    except (CreativeContractError, VideoPlanError, Feature4HandoffError, ValueError):
++        admin.render_failure(claim, "INVALID_RENDER_INPUT", permanent=True)
++        raise
++    except Exception:
++        admin.render_failure(claim, "RENDER_FAILED")
++        raise
+
+diff --git a/video-engine/hyperframes/README.md b/video-engine/hyperframes/README.md
+--- a/video-engine/hyperframes/README.md
++++ b/video-engine/hyperframes/README.md
+@@ -0,0 +1,7 @@
++# Feature #4 private HyperFrames adapter
++
++Candidate runtime adapter (NOT Azure-deployed). Backend authorizes tenant/media and compiles reviewed templates in video-engine/professional.py. No user HTML, JS or URLs.
++
++Install in isolated no-egress container with Node >=22, Chrome and FFmpeg: npm install --ignore-scripts, then node render.mjs /trusted/compiled-project /trusted/output.mp4.
++
++@hyperframes/producer pinned to 0.8.185. Upstream repository is Apache-2.0; review npm package and transitive dependencies during image promotion. Do not use its public HTTP/hosted rendering modes. Worker needs 780s hard timeout, quota/concurrency/memory/scratch cleanup. Keep FFmpeg fallback active. Actual Chrome MP4, animation/audio, visual QA and cloud costs are NOT yet proven.
+
+diff --git a/video-engine/hyperframes/THIRD_PARTY_LICENSE_REVIEW.md b/video-engine/hyperframes/THIRD_PARTY_LICENSE_REVIEW.md
+--- a/video-engine/hyperframes/THIRD_PARTY_LICENSE_REVIEW.md
++++ b/video-engine/hyperframes/THIRD_PARTY_LICENSE_REVIEW.md
+@@ -0,0 +1,39 @@
++# Feature #4: pinned npm distribution-license review — NOT YET CLEARED
++
++**Source-only review, 2026-10-28. No legal signoff, no Azure deployment.**
++
++## Exact evidence source
++
++- Existing [GitHub Actions #40676843934](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40676843934) passed all four jobs and **121 media tests** on source head `34ef8af7d2f8ae9e90ad6deb782c881650eaf259`.
++- The FFmpeg smoke artifact includes the resolved npm v3 `feature4-review-package-lock.json` (69,904 bytes). Its SHA-256 is `2b4016fde9514ac2771660a3a1e81389ee3b1237c72db6acfa1fc540494948a6`; 138 entries including the root package, 137 installed dependency entries, all with approved npm registry HTTPS URLs and SRI integrity fields.
++- **Current Feature4 branch:** the exact reviewed 69,904-byte `video-engine/hyperframes/package-lock.json` is Git-tracked, and `ci-smoke.sh` invokes `lock_guard.py` **before direct `npm ci`** (without temporary install-time lock generation). Previous CI used the same exact SHA after generating a temporary lock; NEW exact-commit CI is required to certify the clean-checkout approach.
++- The reviewed upstream source tag is [heygen-com/hyperframes v0.8.185](https://github.com/heygen-com/hyperframes/tree/v0.8.185), which contains the repository's Apache-2.0 LICENSE. The pinned npm package manifests for `@hyperframes/producer`, `core`, `engine`, and `studio-server` omit individual `license` metadata. A missing npm license field is **not** evidence of no license, nor proof every bundled file is Apache-2.0.
++
++## License declarations in the resolved npm lock
++
++| License metadata | Package entries |
++| --- | ---: |
++| MIT | 71 |
++| Apache-2.0 | 19 |
++| BSD-2-Clause | 13 |
++| ISC | 9 |
++| LGPL-3.0-or-later | 10 |
++| Apache-2.0 AND LGPL-3.0-or-later | 3 |
++| Apache-2.0 AND LGPL-3.0-or-later AND MIT | 1 |
++| BSD-3-Clause | 3 |
++| Python-2.0 | 1 |
++| 0BSD | 1 |
++| Missing package metadata | 6 |
++
++The 6 missing fields concern pinned `@hyperframes/{core,engine,lint,parsers,producer,studio-server}` at 0.8.185. The LGPL entries are predominantly Sharp's optional platform-specific libvips variants; these are not proof that all variants ship in a Linux Azure deployment. Track the actual runtime contents and native dynamic/static linking before preparing a third-party notice or license-distribution assessment.
++
++## Production packaging obligations still open
++
++1. Export the **exact runtime SBOM** from the actually deployed package/image, not just the cross-platform npm lock. Distinguish optional platforms that were not installed.
++2. Collect upstream notices and full license texts for HyperFrames v0.8.185, npm dependencies, bundled Puppeteer/Chromium Headless Shell and the particular installed Chrome version, and any binary redistribution conditions.
++3. Inspect the exact FFmpeg binary's configured build flags and linked libraries, not only the `ffmpeg` command name. The build could have LGPL/GPL/nonfree consequences.
++4. Determine compliance and notices for Sharp/libvips including LGPL dependency terms in the actual distribution model; consult qualified licensing counsel if required.
++5. **SOURCE IMPLEMENTED; CI verification pending:** exact standard `package-lock.json` is committed to Feature4, temporary lock generation removed, and clean-checkout `npm ci` SHA-verified first. Still review install scripts and all future dependency upgrades under explicit pin-change PRs.
++6. Execute cost-bounded, coordinator-authorized Azure runtime verification separately; source CI does not prove Azure memory, cold start, hosting SLA, access controls or published customer-facing quality.
++
++**Security boundary:** no dynamic dependency drift, arbitrary HTML, public media, external model inference, new GPU, Azure state mutation or WineShopPOS modifications were introduced by F4-12. The automated license report states `legal_signoff_for_commercial_saas=false` and must remain non-approving until reviewed.
+
+diff --git a/video-engine/hyperframes/benchmark_render.py b/video-engine/hyperframes/benchmark_render.py
+--- a/video-engine/hyperframes/benchmark_render.py
++++ b/video-engine/hyperframes/benchmark_render.py
+@@ -0,0 +1,222 @@
++#!/usr/bin/env python3
++"""Low-cost, source-only HyperFrames CPU benchmark for synthetic CI assets.
++
++Measures the actual render.mjs invocation on a Linux runner. Sampled RSS/CPU
++are lower-bound observations, not guaranteed peaks, Azure prices or capacity
++claims. Never accepts arbitrary commands or tenant HTML.
++"""
++from __future__ import annotations
++
++import argparse
++import hashlib
++import json
++import os
++from pathlib import Path
++import platform
++import signal
++import stat
++import subprocess
++import tempfile
++import time
++
++ROOT = Path(__file__).resolve().parent
++NODE_SCRIPT = ROOT / "render.mjs"
++
++
++def parse_proc_stat(raw):
++    """Parse Linux /proc/PID/stat including process names with parentheses."""
++    try:
++        cut = raw.rfind(") ")
++        if cut < 0:
++            return None
++        pid = int(raw[:raw.find(" (")])
++        fields = raw[cut + 2:].split()
++        if len(fields) < 22:
++            return None
++        return (pid, int(fields[1]), int(fields[2]),
++                int(fields[11]) + int(fields[12]), max(0, int(fields[21])))
++    except (ValueError, IndexError):
++        return None
++
++
++def sample_process_group(pgid, *, proc_root=Path("/proc")):
++    """Sum sampled RSS/CPU for a new private session and descendants."""
++    if not proc_root.is_dir():
++        return (0, 0, 0)
++    records = {}
++    for child in proc_root.iterdir():
++        if not child.name.isdecimal():
++            continue
++        try:
++            stat = parse_proc_stat((child / "stat").read_text())
++            if stat is not None:
++                records[stat[0]] = stat
++        except (OSError, UnicodeError):
++            continue
++    active = {pid for pid, stat in records.items() if stat[2] == pgid}
++    active.add(pgid)
++    for _ in range(len(records)):
++        extra = {pid for pid, stat in records.items() if stat[1] in active}
++        if extra <= active:
++            break
++        active.update(extra)
++    page = os.sysconf("SC_PAGE_SIZE")
++    rss = sum(stat[4] * page for pid, stat in records.items() if pid in active)
++    ticks = sum(stat[3] for pid, stat in records.items() if pid in active)
++    return rss, ticks, len(active & records.keys())
++
++
++def verified_output_sha256(path):
++    """Hash exactly one stable regular render file, rejecting symlink swaps.
++
++    The hash binds a *local synthetic benchmark receipt* to the encoded bytes
++    actually left on disk; not cloud artifact custody or a rights approval.
++    """
++    try:
++        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
++        with os.fdopen(fd, "rb") as source:
++            before = os.fstat(source.fileno())
++            if not stat.S_ISREG(before.st_mode) or before.st_size < 1024:
++                raise ValueError("Expected nonempty regular encoded benchmark output")
++            digest = hashlib.sha256()
++            for block in iter(lambda: source.read(1024 * 1024), b""):
++                digest.update(block)
++            after = os.fstat(source.fileno())
++            if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (
++                    after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns):
++                raise ValueError("Benchmark output changed while hashing")
++            # The path itself must still refer to that file, not a late swap.
++            current = os.lstat(path)
++            if (not stat.S_ISREG(current.st_mode) or
++                    current.st_dev != after.st_dev or
++                    current.st_ino != after.st_ino or
++                    current.st_size != after.st_size):
++                raise ValueError("Benchmark output path changed")
++            return after.st_size, digest.hexdigest()
++    except OSError as exc:
++        raise ValueError("Benchmark output could not be safely hashed") from exc
++
++
++def benchmark(project, output, report, *, timeout_seconds=420, use_npm_node22=False,
++              sampling_interval=0.2):
++    if type(timeout_seconds) is not int or not 20 <= timeout_seconds <= 780:
++        raise ValueError("Bounded render timeout must be 20..780 seconds")
++    project, output, report = Path(project), Path(output), Path(report)
++    config = json.loads((project / "render-config.json").read_text())
++    if (config.get("contract_version") != "rg_video_v2" or
++            config.get("renderer") != "hyperframes" or
++            config.get("duration_seconds") not in (15, 30, 60) or
++            (config.get("width"), config.get("height")) not in ((540, 960), (1080, 1920)) or
++            config.get("fps") not in (24, 30) or output.suffix != ".mp4"):
++        raise ValueError("Expected an existing approved local HyperFrames composition")
++    if report.suffix != ".json" or report == output:
++        raise ValueError("Expected separate JSON performance evidence file")
++    if output.exists() or output.is_symlink() or report.exists() or report.is_symlink():
++        raise ValueError("Benchmark output and report destinations must be new")
++    command = (["npm", "exec", "--yes", "--package=node@22", "--", "node"] if use_npm_node22
++               else ["node"]) + [str(NODE_SCRIPT), str(project), str(output)]
++    started = time.monotonic()
++    samples = 0
++    max_rss, max_ticks, max_processes = 0, 0, 0
++    timed_out = False
++    with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
++        process = subprocess.Popen(
++            command, stdout=stdout, stderr=stderr, start_new_session=True,
++            cwd=ROOT,
++        )
++        try:
++            while process.poll() is None:
++                rss, ticks, count = sample_process_group(process.pid)
++                samples += 1
++                max_rss = max(max_rss, rss)
++                max_ticks = max(max_ticks, ticks)
++                max_processes = max(max_processes, count)
++                if time.monotonic() - started > timeout_seconds:
++                    timed_out = True
++                    try:
++                        os.killpg(process.pid, signal.SIGKILL)
++                    except ProcessLookupError:
++                        pass
++                    break
++                time.sleep(sampling_interval)
++            process.wait(timeout=15)
++        finally:
++            if process.poll() is None:
++                try:
++                    os.killpg(process.pid, signal.SIGKILL)
++                except ProcessLookupError:
++                    pass
++                process.wait(timeout=15)
++    if timed_out:
++        raise RuntimeError("Bounded local HyperFrames render exceeded timeout")
++    if process.returncode != 0 or not output.is_file():
++        raise RuntimeError("Local HyperFrames render failed; inspect restricted CI job output")
++    output_bytes, output_sha256 = verified_output_sha256(output)
++    ticks_per_second = os.sysconf("SC_CLK_TCK")
++    report_data = {
++        "kind": "OFFLINE_SYNTHETIC_HYPERFRAMES_CPU_BENCHMARK_NOT_AZURE",
++        "cloud_or_gpu_inference": False,
++        "measured_on_azure_functions": False,
++        "commercial_visual_quality_accepted": False,
++        "duration_seconds": config["duration_seconds"],
++        "width": config["width"],
++        "height": config["height"],
++        "fps": config["fps"],
++        "output_bytes": output_bytes,
++        "output_sha256": output_sha256,
++        # Declared current Git checkout, not a signed CI provenance attestation.
++        "source_commit_claim": subprocess.check_output(
++            ["git", "-C", str(ROOT.parents[1]), "rev-parse", "--verify", "HEAD"],
++            text=True, timeout=5).strip(),
++        "output_hash_type": "SHA256_STABLE_LOCAL_REGULAR_FILE_ONLY",
++        "runtime_platform": platform.platform(),
++        "cpu_count_visible": os.cpu_count(),
++        "wall_seconds": round(time.monotonic() - started, 3),
++        "max_sampled_process_tree_rss_bytes": max_rss,
++        "max_sampled_cpu_seconds_lower_bound": round(max_ticks / ticks_per_second, 3),
++        "max_observed_process_count": max_processes,
++        "samples": samples,
++        "sampling_interval_seconds": sampling_interval,
++        "sampling_limitations": (
++            "Linux /proc periodic samples: short peaks, exited processes and "
++            "detached Chromium/FFmpeg helpers may be missed. CPU is a sampled lower bound."
++        ),
++        "host_timeout_seconds_reference_only": 1200,
++        "render_cap_seconds_reference_only": 780,
++        "azure_cost_inr": None,
++        "azure_runtime_memory_verified": False,
++        "package_lock_present_in_workspace": (ROOT / "package-lock.json").is_file(),
++        "package_lock_tracked_in_git": subprocess.run(
++            ["git", "-C", str(ROOT.parents[1]), "ls-files", "--error-unmatch",
++             "video-engine/hyperframes/package-lock.json"],
++            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5,
++            check=False,
++        ).returncode == 0,
++    }
++    report.parent.mkdir(parents=True, exist_ok=True)
++    # Keep the benchmark receipt from overwriting another job's proof.
++    with report.open("x", encoding="utf-8") as handle:
++        handle.write(json.dumps(report_data, indent=2, sort_keys=True) + "\n")
++    print("PASS: source-only HyperFrames sampled benchmark", json.dumps({
++        k: report_data[k] for k in (
++            "duration_seconds", "width", "height", "wall_seconds",
++            "max_sampled_process_tree_rss_bytes", "samples", "output_bytes",
++        )
++    }), flush=True)
++    return report_data
++
++
++def main():
++    parser = argparse.ArgumentParser(description="Feature4 CPU benchmark; no cloud actions")
++    parser.add_argument("project")
++    parser.add_argument("output")
++    parser.add_argument("report")
++    parser.add_argument("--timeout", type=int, default=420)
++    parser.add_argument("--use-npm-node22", action="store_true")
++    args = parser.parse_args()
++    benchmark(args.project, args.output, args.report,
++              timeout_seconds=args.timeout, use_npm_node22=args.use_npm_node22)
++
++
++if __name__ == "__main__":
++    main()
+
+diff --git a/video-engine/hyperframes/check_feature4_output.py b/video-engine/hyperframes/check_feature4_output.py
+--- a/video-engine/hyperframes/check_feature4_output.py
++++ b/video-engine/hyperframes/check_feature4_output.py
+@@ -0,0 +1,167 @@
++#!/usr/bin/env python3
++"""Offline visual diversity and synthetic source-audio preservation gates.
++
++These low-level checks supplement, not replace, human visual and speech QA.
++The deterministic 480Hz source-clip tone comes from our own test fixture.
++"""
++import array
++import math
++import subprocess
++import sys
++from pathlib import Path
++
++from PIL import Image, ImageChops, ImageStat
++
++FRAME_TIMES = (1, 6, 13, 18, 24, 28)
++
++
++def tone_amplitude(mp4, t, hz=480, sample_rate=8000, window_seconds=1.0):
++    # Windowed PCM checks use actual AAC-decoded bytes, never HTML declarations.
++    if not 0.10 <= window_seconds <= 1.0:
++        raise ValueError("Unsupported bounded AAC inspection window")
++    data = subprocess.check_output(
++        ["ffmpeg", "-nostdin", "-v", "error", "-ss", str(t), "-i", str(mp4),
++         "-t", str(window_seconds), "-ac", "1", "-ar", str(sample_rate), "-f", "s16le", "-"],
++        timeout=25,
++    )
++    samples = array.array("h")
++    samples.frombytes(data)
++    if sys.byteorder != "little":
++        samples.byteswap()
++    if len(samples) < int(sample_rate * window_seconds * .5):
++        raise AssertionError("No usable decoded audio segment")
++    re_part = im_part = 0.0
++    for i, val in enumerate(samples):
++        angle = 2*math.pi*hz*i/sample_rate
++        re_part += val * math.cos(angle)
++        im_part -= val * math.sin(angle)
++    return math.hypot(re_part, im_part) / len(samples)
++
++
++
++def soundtrack_bed_magnitude(mp4, t):
++    """Synthetic soundtrack plays 293.66Hz at both 5s and 12s in this test."""
++    return tone_amplitude(mp4,t,hz=293.66)
++
++
++def check_artifact(media_dir):
++    root = Path(media_dir)
++    clip = root/"feature4-30s-hyperframes-synthetic.mp4"
++    if not clip.is_file():
++        raise AssertionError("Missing REAL HyperFrames MP4")
++    frames=[]
++    for t in FRAME_TIMES:
++        p=root/f"feature4-frame-{t}.jpg"
++        im=Image.open(p).convert("RGB")
++        if im.size != (540,960):
++            raise AssertionError("Wrong preview frame size")
++        if ImageStat.Stat(im.convert("L")).stddev[0] < 15:
++            raise AssertionError(f"Frame {t}s is blank or visually near-uniform")
++        frames.append(im)
++    # Catch invisible hero logo in the real six-scene synthetic video.
++    intro_region = frames[0].crop((155, 170, 385, 540)).convert("L")
++    hero_luma = ImageStat.Stat(intro_region).stddev[0]
++    if hero_luma < 14:
++        raise AssertionError(
++            f"Opening brand hero is invisible or near-uniform ({hero_luma:.1f})"
++        )
++    changes=[
++        ImageStat.Stat(ImageChops.difference(a,b).convert("L")).mean[0]
++        for a,b in zip(frames,frames[1:])
++    ]
++    if sum(d > 9 for d in changes) < 4:
++        raise AssertionError("Scene changes missing or near-identical")
++    with_motion=tone_amplitude(clip,5)
++    without_motion=tone_amplitude(clip,12)
++    # Audibly duck the APPROVED bed only during source-audio scenes.
++    music_during_source=soundtrack_bed_magnitude(clip,5)
++    music_after_source=soundtrack_bed_magnitude(clip,12)
++    if not (music_after_source > 45 and
++            music_after_source > 2.2 * max(1, music_during_source)):
++        raise AssertionError("Approved soundtrack was not ducked during source clip")
++    if not (with_motion >= 30 and with_motion > 8 * max(1,without_motion)):
++        raise AssertionError("Feature #5 fixture source audio lost in the composition mix")
++    return {"intro_logo_luma_stddev": round(hero_luma, 2),
++            "scene_delta": [round(n,2) for n in changes],
++            "source_tone_amplitude": round(with_motion,2),
++            "nonclip_tone_amplitude": round(without_motion,2),
++            "bed_ducked_source_amplitude": round(music_during_source, 2),
++            "bed_nonvoice_amplitude": round(music_after_source, 2)}
++
++
++def check_fullres_artifact(media_dir):
++    """Gate actual 1080p scene diversity; never equate synthetic visuals with fashion realism."""
++    root = Path(media_dir)
++    expected = (1, 6, 13, 18, 28)
++    pictures = []
++    for time in expected:
++        p = root / f"feature4-fullres-frame-{time}.jpg"
++        with Image.open(p) as image:
++            picture = image.convert("RGB")
++        if picture.size != (1080, 1920):
++            raise AssertionError(f"Incorrect full-resolution screenshot at {time}s")
++        variation = ImageStat.Stat(picture.convert("L")).stddev[0]
++        if variation < 12:
++            raise AssertionError(f"1080p scene at {time}s visually blank ({variation:.1f})")
++        pictures.append(picture.resize((270, 480)))
++    scene_changes = [
++        ImageStat.Stat(ImageChops.difference(a, b).convert("L")).mean[0]
++        for a, b in zip(pictures, pictures[1:])
++    ]
++    if sum(d > 8 for d in scene_changes) < 3:
++        raise AssertionError(f"1080p scenes not distinguishable: {scene_changes}")
++    # Distinct fixed 863Hz fixture tone must survive the actual HyperFrames
++    # mix → AAC encode → MP4 demux → PCM decode. This does NOT test speech.
++    encoded_mp4 = root / "feature4-30s-1080p-hyperframes-synthetic.mp4"
++    narr_mid = tone_amplitude(encoded_mp4, 13, hz=863)
++    narr_end = tone_amplitude(encoded_mp4, 27, hz=863)
++    if not (narr_mid > 55 and narr_end > 55):
++        raise AssertionError("Approved synthetic narration track missing in final AAC")
++    # F4-07: inspect actual encoded AAC near the start and end of the Reel,
++    # not merely the renderer's data-fade-* attributes. The fixture's own
++    # deterministic 0.2s envelope contributes to these measurements, so this
++    # checks the combined exported envelope, NOT renderer-only automation.
++    narr_fade_in = tone_amplitude(encoded_mp4, 0, hz=863, window_seconds=.12)
++    narr_fade_out = tone_amplitude(encoded_mp4, 29.88, hz=863, window_seconds=.12)
++    if not (narr_mid > 1.7 * max(1, narr_fade_in, narr_fade_out)):
++        raise AssertionError("Encoded synthetic narration did not preserve audible start/end fades")
++    # Synthetic subtitle is visible at t=1.2s and absent at t=0.6/2.2s.
++    # Compare the same first-scene, fixed region to detect true time-gated
++    # pixels in the FINAL decoded MP4, without OCR or claiming spoken QA.
++    before = Image.open(root / "feature4-caption-frame-0.6.png").convert("RGB")
++    during = Image.open(root / "feature4-caption-frame-1.2.png").convert("RGB")
++    after = Image.open(root / "feature4-caption-frame-2.2.png").convert("RGB")
++    if any(frame.size != (1080, 1920) for frame in (before, during, after)):
++        raise AssertionError("Incorrect decoded caption proof frame size")
++    caption_region = (180, 1060, 900, 1360)
++    def frame_delta(a, b):
++        return ImageStat.Stat(ImageChops.difference(
++            a.crop(caption_region), b.crop(caption_region)).convert("L")).mean[0]
++    visible_delta = frame_delta(before, during)
++    baseline_delta = frame_delta(before, after)
++    if not (visible_delta > 4.0 and visible_delta > 2.5 * max(1.0, baseline_delta)):
++        raise AssertionError(
++            f"Timed subtitle not visible in encoded 1080p MP4: "
++            f"caption_delta={visible_delta:.2f}, same_scene_baseline={baseline_delta:.2f}"
++        )
++    return {"synthetic_caption_encoded_pixel_delta": round(visible_delta, 2),
++            "same_scene_caption_off_delta": round(baseline_delta, 2),
++            "caption_semantic_alignment_accepted": False,
++            "synthetic_narration_mid_amplitude": round(narr_mid, 2),
++            "synthetic_narration_end_amplitude": round(narr_end, 2),
++            "synthetic_narration_fade_in_amplitude": round(narr_fade_in, 2),
++            "synthetic_narration_fade_out_amplitude": round(narr_fade_out, 2),
++            "encoded_aac_envelope_checked_not_spoken_quality": True,
++            "spoken_word_qa_accepted": False,
++            "resolution": "1080x1920", "frames_sampled": len(pictures),
++            "scene_deltas": [round(x, 2) for x in scene_changes],
++            "commercial_fashion_realism_accepted": False}
++
++
++if __name__=="__main__":
++    if len(sys.argv) not in (2, 3) or (len(sys.argv) == 3 and sys.argv[2] != "--fullres"):
++        raise SystemExit("usage: python check_feature4_output.py <ci-artifacts-folder> [--fullres]")
++    if len(sys.argv) == 3:
++        print("PASS: actual 1080p visual diversity only", check_fullres_artifact(sys.argv[1]))
++    else:
++        print("PASS: real HyperFrames frame diversity + synthetic source audio", check_artifact(sys.argv[1]))
+
+diff --git a/video-engine/hyperframes/ci-smoke.sh b/video-engine/hyperframes/ci-smoke.sh
+--- a/video-engine/hyperframes/ci-smoke.sh
++++ b/video-engine/hyperframes/ci-smoke.sh
+@@ -0,0 +1,159 @@
++#!/usr/bin/env bash
++set -euo pipefail
++ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
++TEMP="$(mktemp -d)"
++trap 'rm -rf "$TEMP"' EXIT
++PROJECT="$TEMP/diwali-composition"
++OUTPUT="$ROOT/ci-artifacts/feature4-30s-hyperframes-synthetic.mp4"
++mkdir -p "$ROOT/ci-artifacts"
++python3 "$ROOT/video-engine/demo_feature4_diwali.py" "$PROJECT"
++# Validate the exact committed v3 dependency lock BEFORE npm executes any
++# installation scripts. No network-driven package resolution or lock rewrites.
++python3 "$ROOT/video-engine/hyperframes/lock_guard.py" --lock "$ROOT/video-engine/hyperframes/package-lock.json" --report "$ROOT/ci-artifacts/feature4-npm-dependency-audit.json"
++timeout --signal=TERM --kill-after=10s 180s npm ci --prefix "$ROOT/video-engine/hyperframes" --no-audit --no-fund
++if [ -x "$ROOT/video-engine/hyperframes/node_modules/.bin/puppeteer" ]; then
++  timeout --signal=TERM --kill-after=10s 140s "$ROOT/video-engine/hyperframes/node_modules/.bin/puppeteer" browsers install chrome-headless-shell
++fi
++# Run offline package/browser readiness checks before the full CPU render.
++# The older-node npm-exec fallback is unqualified and remains a DEV blocker.
++NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
++if (( NODE_MAJOR >= 22 )); then
++  python3 "$ROOT/video-engine/hyperframes/qualify_runtime.py" --report "$ROOT/ci-artifacts/feature4-runtime-preflight.json"
++else
++  echo "Feature4 source runtime preflight deferred: runner Node <22, fallback npm exec used" >&2
++fi
++if (( NODE_MAJOR >= 22 )); then
++  timeout --signal=TERM --kill-after=10s 480s node "$ROOT/video-engine/hyperframes/render.mjs" "$PROJECT" "$OUTPUT"
++else
++  timeout --signal=TERM --kill-after=10s 480s npm exec --yes --package=node@22 -- node "$ROOT/video-engine/hyperframes/render.mjs" "$PROJECT" "$OUTPUT"
++fi
++python3 - "$OUTPUT" <<'PY'
++import json,subprocess,sys
++info=json.loads(subprocess.check_output(['ffprobe','-v','error','-show_streams','-show_format','-of','json',sys.argv[1]],text=True))
++v=[s for s in info['streams'] if s.get('codec_type')=='video']
++a=[s for s in info['streams'] if s.get('codec_type')=='audio']
++assert len(v)==1 and v[0]['codec_name']=='h264'
++assert (v[0]['width'],v[0]['height'])==(540,960)
++assert len(a)==1 and a[0]['codec_name']=='aac'
++assert abs(float(info['format']['duration'])-30)<.25
++print('PASS: actual HyperFrames 30s synthetic Diwali MP4 H264/AAC')
++PY
++for sec in 1 6 13 18 24 28; do
++ ffmpeg -nostdin -hide_banner -loglevel error -y -ss "$sec" -i "$OUTPUT" -frames:v 1 "$ROOT/ci-artifacts/feature4-frame-$sec.jpg"
++done
++
++# Quantify scene diversity and prove original 480Hz fixture-track remains in AAC mix.
++python3 "$ROOT/video-engine/hyperframes/check_feature4_output.py" "$ROOT/ci-artifacts"
++# Preserve the exact committed SHA-pinned lock in the CI evidence artifact.
++cp "$ROOT/video-engine/hyperframes/package-lock.json" "$ROOT/ci-artifacts/feature4-review-package-lock.json"
++
++# Acceptance-stage output contract: exercise real 1080x1920 frames, not just
++# 540p upscaling or an HTML plan. The main 30-second mode is required.
++# All materials are original synthetic fixtures, NEVER customer media.
++PROJECT_HD="$TEMP/diwali-1080p"
++OUTPUT_HD="$ROOT/ci-artifacts/feature4-30s-1080p-hyperframes-synthetic.mp4"
++# Exercise actual AAC narration track in the high-resolution render instead
++# of merely verifying the source HTML (synthetic 863Hz tone, NOT a human voice).
++python3 "$ROOT/video-engine/demo_feature4_diwali.py" "$PROJECT_HD" --seconds 30 --width 1080 --with-narration
++if (( NODE_MAJOR >= 22 )); then
++  timeout --signal=TERM --kill-after=10s 440s python3 "$ROOT/video-engine/hyperframes/benchmark_render.py" "$PROJECT_HD" "$OUTPUT_HD" "$ROOT/ci-artifacts/feature4-1080p-cpu-benchmark.json" --timeout 420
++else
++  timeout --signal=TERM --kill-after=10s 440s python3 "$ROOT/video-engine/hyperframes/benchmark_render.py" "$PROJECT_HD" "$OUTPUT_HD" "$ROOT/ci-artifacts/feature4-1080p-cpu-benchmark.json" --timeout 420 --use-npm-node22
++fi
++python3 - "$OUTPUT_HD" <<'PY'
++import json,subprocess,sys
++from pathlib import Path
++sys.path.insert(0,str(Path("video-engine").resolve()))
++from render_adapter import verify_mp4
++proof=verify_mp4(sys.argv[1],duration=30,width=1080,height=1920,fps=24)
++info=json.loads(subprocess.check_output(
++    ["ffprobe","-v","error","-show_streams","-of","json",sys.argv[1]],text=True))
++v=next(s for s in info["streams"] if s.get("codec_type")=="video")
++assert v.get("pix_fmt")=="yuv420p", v.get("pix_fmt")
++assert int(v.get("nb_frames",720)) in range(718,723),v.get("nb_frames")
++print("PASS: actual 1080x1920/24fps/30s HyperFrames encode",proof)
++PY
++for sec in 1 6 13 18 28; do
++ ffmpeg -nostdin -hide_banner -loglevel error -y -ss "$sec" -i "$OUTPUT_HD" -frames:v 1 "$ROOT/ci-artifacts/feature4-fullres-frame-$sec.jpg"
++done
++# Check a synthetic caption is VISIBLY burned into the encoded 1080p MP4.
++# All three frames are within the same 0..3s intro shot to avoid a fake pass
++# from unrelated scene cuts. No speech/text semantic quality is claimed.
++for t in 0.6 1.2 2.2; do
++  ffmpeg -nostdin -hide_banner -loglevel error -y -ss "$t" -i "$OUTPUT_HD" -frames:v 1 "$ROOT/ci-artifacts/feature4-caption-frame-$t.png"
++done
++python3 "$ROOT/video-engine/hyperframes/check_feature4_output.py" "$ROOT/ci-artifacts" --fullres
++
++# Explicit full-minute qualification (full 1080p, CPU, no GPU/provider charges).
++# TRUE editable-timeline export parity: run upstream Timeline Studio JS commands,
++# authorize the resulting 30s draft in trusted Python, stage only original
++# mock media, then render an actual second MP4 with the same HyperFrames engine.
++# Lower-res 540x960 avoids a second costly Full-HD encoding. No GPU/AI call.
++EDITED_PROJECT="$TEMP/edited-30s-composition"
++EDITED_MP4="$ROOT/ci-artifacts/feature4-30s-540p-actual-editor-mock.mp4"
++python3 "$ROOT/video-engine/demo_feature4_edited_reel.py" "$EDITED_PROJECT" --width 540
++if [[ "$NODE_MAJOR" -ge 22 ]]; then
++  timeout --signal=TERM --kill-after=10s 420s node "$ROOT/video-engine/hyperframes/render.mjs" "$EDITED_PROJECT" "$EDITED_MP4"
++else
++  timeout --signal=TERM --kill-after=10s 420s npm exec --yes --package=node@22 -- node "$ROOT/video-engine/hyperframes/render.mjs" "$EDITED_PROJECT" "$EDITED_MP4"
++fi
++python3 - "$ROOT/video-engine" "$EDITED_MP4" <<'PY'
++import sys
++sys.path.insert(0,sys.argv[1])
++from render_adapter import verify_mp4
++proof=verify_mp4(sys.argv[2],duration=30,width=540,height=960,fps=24)
++print("PASS: actual edited JS->trusted Python->HyperFrames MP4",proof)
++PY
++for sec in 2 15 26; do
++  ffmpeg -nostdin -hide_banner -loglevel error -y -ss "$sec" -i "$EDITED_MP4" -frames:v 1 "$ROOT/ci-artifacts/feature4-editor-frame-$sec.jpg"
++done
++# F4-MVP-30: verify ACTUAL encoded editor scene order/trim replay and SHA,
++# not just the 30s H264/AAC container. Original synthetic media only.
++# Capture finished render identity BEFORE invoking the independent decoder QA.
++EDITED_RENDER_SHA256="$(sha256sum "$EDITED_MP4" | cut -d' ' -f1)"
++python3 "$ROOT/video-engine/feature4_edited_export_qa.py" \
++  --source "$EDITED_MP4" \
++  --expected-sha256 "$EDITED_RENDER_SHA256" \
++  --report "$ROOT/ci-artifacts/feature4-30s-editor-encoded-parity.json"
++
++
++# F4-04: one more real 30s encoded, CPU-only synthetic editor operation.
++# The actual Timeline Studio duplicate is compiled by the same trusted Python
++# plan and the same HyperFrames encoder. No customer AI clips/rights are used.
++DUPLICATE_PROJECT="$TEMP/duplicate-30s-composition"
++DUPLICATE_MP4="$ROOT/ci-artifacts/feature4-30s-540p-actual-duplicate-mock.mp4"
++python3 "$ROOT/video-engine/demo_feature4_edited_reel.py" "$DUPLICATE_PROJECT" --width 540 --edit-mode duplicate
++if [[ "$NODE_MAJOR" -ge 22 ]]; then
++  timeout --signal=TERM --kill-after=10s 420s node "$ROOT/video-engine/hyperframes/render.mjs" "$DUPLICATE_PROJECT" "$DUPLICATE_MP4"
++else
++  timeout --signal=TERM --kill-after=10s 420s npm exec --yes --package=node@22 -- node "$ROOT/video-engine/hyperframes/render.mjs" "$DUPLICATE_PROJECT" "$DUPLICATE_MP4"
++fi
++DUPLICATE_SHA256="$(sha256sum "$DUPLICATE_MP4" | cut -d' ' -f1)"
++python3 "$ROOT/video-engine/feature4_duplicate_export_qa.py" \
++  --source "$DUPLICATE_MP4" \
++  --expected-sha256 "$DUPLICATE_SHA256" \
++  --report "$ROOT/ci-artifacts/feature4-30s-editor-duplicate-encoded-parity.json"
++
++# Once the first source benchmark is recorded, keep this as an opt-in gate to
++# avoid paying a 60s full-resolution encode on every unrelated branch change.
++if [[ "${FEATURE4_FULL_MINUTE_CI:-0}" == "1" ]]; then
++  PROJECT_60="$TEMP/diwali-60s-1080p"
++  OUTPUT_60="$ROOT/ci-artifacts/feature4-60s-1080p-hyperframes-synthetic.mp4"
++  python3 "$ROOT/video-engine/demo_feature4_diwali.py" "$PROJECT_60" --seconds 60 --width 1080
++  if (( NODE_MAJOR >= 22 )); then
++    timeout --signal=TERM --kill-after=10s 480s node "$ROOT/video-engine/hyperframes/render.mjs" "$PROJECT_60" "$OUTPUT_60"
++  else
++    timeout --signal=TERM --kill-after=10s 480s npm exec --yes --package=node@22 -- node "$ROOT/video-engine/hyperframes/render.mjs" "$PROJECT_60" "$OUTPUT_60"
++  fi
++  python3 - "$OUTPUT_60" <<'PY'
++import sys
++from pathlib import Path
++sys.path.insert(0,str(Path("video-engine").resolve()))
++from render_adapter import verify_mp4
++proof=verify_mp4(sys.argv[1],duration=60,width=1080,height=1920,fps=24)
++print("PASS: real 60s/1080p/24fps HyperFrames full-minute H264/AAC",proof)
++PY
++  for sec in 1 9 18 29 42 55; do
++    ffmpeg -nostdin -hide_banner -loglevel error -y -ss "$sec" -i "$OUTPUT_60" -frames:v 1 "$ROOT/ci-artifacts/feature4-minute-frame-$sec.jpg"
++  done
++fi
+
+diff --git a/video-engine/hyperframes/lock_guard.py b/video-engine/hyperframes/lock_guard.py
+--- a/video-engine/hyperframes/lock_guard.py
++++ b/video-engine/hyperframes/lock_guard.py
+@@ -0,0 +1,121 @@
++#!/usr/bin/env python3
++"""F4-12: fail closed if npm resolves a different HyperFrames dependency tree.
++
++GitHub Actions produced the exact reviewed npm v3 lockfile from producer 0.8.185.
++This lock is now committed in the Feature4 branch and verified byte-for-byte
++BEFORE npm ci installs package scripts. This is not commercial license clearance,
++Azure runtime packaging or media quality proof.
++"""
++from __future__ import annotations
++
++import argparse
++from collections import Counter
++import hashlib
++import json
++from pathlib import Path
++import re
++from urllib.parse import urlparse
++
++PINNED_SHA256 = "2b4016fde9514ac2771660a3a1e81389ee3b1237c72db6acfa1fc540494948a6"
++PRODUCER_VERSION = "0.8.185"
++PUPPETEER_VERSION = "25.16.0"
++LOCK_PACKAGES = 138
++ALLOWED_REGISTRY = "registry.npmjs.org"
++BASE_DIRECTORY = "node_modules/"
++SRI = re.compile(r"^(?:sha512|sha384|sha256)-[a-zA-Z0-9+/=]+$")
++
++
++class DependencyLockError(ValueError):
++    pass
++
++
++def verify_lock(path):
++    lock_path = Path(path)
++    raw = lock_path.read_bytes()
++    if not 1024 <= len(raw) <= 200_000:
++        raise DependencyLockError("Unexpected npm lockfile size")
++    sha = hashlib.sha256(raw).hexdigest()
++    if sha != PINNED_SHA256:
++        raise DependencyLockError("Dependency graph drifted from previously audited SHA256")
++    try:
++        lock = json.loads(raw)
++    except (UnicodeError, ValueError) as exc:
++        raise DependencyLockError("Invalid npm lockfile JSON") from exc
++    if type(lock) is not dict or lock.get("lockfileVersion") != 3:
++        raise DependencyLockError("Expected npm lockfile v3")
++    packages = lock.get("packages")
++    if type(packages) is not dict or len(packages) != LOCK_PACKAGES:
++        raise DependencyLockError("Unexpected npm dependency count")
++    root = packages.get("")
++    if (type(root) is not dict or
++            root.get("name") != "@retailgrowthai/feature4-render-adapter" or
++            root.get("dependencies") != {"@hyperframes/producer": PRODUCER_VERSION}):
++        raise DependencyLockError("Package root is not the reviewed Feature4 producer")
++    for package, version in (
++        ("node_modules/@hyperframes/producer", PRODUCER_VERSION),
++        ("node_modules/puppeteer", PUPPETEER_VERSION),
++        ("node_modules/puppeteer-core", PUPPETEER_VERSION),
++    ):
++        if packages.get(package, {}).get("version") != version:
++            raise DependencyLockError("Pinned runtime package changed")
++    licenses = Counter()
++    missing = []
++    for name, pkg in packages.items():
++        if not name:
++            continue
++        if type(name) is not str or not name.startswith(BASE_DIRECTORY) or type(pkg) is not dict:
++            raise DependencyLockError("Unexpected dependency entry")
++        uri = pkg.get("resolved")
++        if (type(uri) is not str or urlparse(uri).scheme != "https" or
++                urlparse(uri).hostname != ALLOWED_REGISTRY):
++            raise DependencyLockError("Unapproved remote or local npm dependency")
++        if type(pkg.get("integrity")) is not str or not SRI.fullmatch(pkg["integrity"]):
++            raise DependencyLockError("Package without verified npm SRI")
++        license_id = pkg.get("license")
++        if type(license_id) is not str or not license_id:
++            missing.append(name)
++            licenses["NOT_DECLARED_IN_NPM_LOCK"] += 1
++        else:
++            licenses[license_id] += 1
++    if len(missing) != 6 or not all(name.startswith("node_modules/@hyperframes/") for name in missing):
++        raise DependencyLockError("Unreviewed missing-license package population")
++    return {
++        "kind": "FEATURE4_FROZEN_NPM_RESOLUTION_CHECK_NOT_LEGAL_CLEARANCE",
++        "sha256": sha,
++        "npm_lockfile_version": 3,
++        "package_entries_including_root": len(packages),
++        "producer": PRODUCER_VERSION,
++        "puppeteer": PUPPETEER_VERSION,
++        "allowed_registry": ALLOWED_REGISTRY,
++        "lockfile_committed_to_repository": True,
++        "transitive_license_review_complete": False,
++        "legal_signoff_for_commercial_saas": False,
++        "license_counts": dict(sorted(licenses.items())),
++        "license_metadata_missing": missing,
++        "warning": (
++            "Missing npm license fields do not establish unlicensed code; "
++            "upstream package licenses and all transitive notices must be inspected. "
++            "LGPL libvips, Chromium, FFmpeg builds and redistribution are separate obligations."
++        ),
++    }
++
++
++def main():
++    parser = argparse.ArgumentParser(description="Freeze Feature4 resolution before npm ci")
++    parser.add_argument("--lock", required=True)
++    parser.add_argument("--report", required=True)
++    args = parser.parse_args()
++    try:
++        result = verify_lock(args.lock)
++        report = Path(args.report)
++        if report.suffix != ".json":
++            raise DependencyLockError("Expected local JSON report path")
++        report.parent.mkdir(parents=True, exist_ok=True)
++        report.write_text(json.dumps(result, sort_keys=True, indent=2) + "\n")
++    except (OSError, DependencyLockError) as exc:
++        parser.exit(2, "Feature4 npm dependency gate rejected: " + str(exc) + "\n")
++    print("PASS: complete reviewed npm lock SHA256; npm ci can install exact tree")
++
++
++if __name__ == "__main__":
++    main()
+
