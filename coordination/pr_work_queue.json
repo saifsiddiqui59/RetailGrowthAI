@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 37,
+    "open_prs": 36,
     "by_feature": {
-      "F2": 9,
+      "F2": 8,
       "F3": 3,
       "F4": 5,
       "F5": 5,
@@ -25,33 +25,6 @@
     }
   },
   "entries": [
-    {
-      "pr": 981,
-      "title": "test(feature2): restore offline director CLI, mocked handoff and synthetic B-roll plan",
-      "feature": "F2",
-      "head_sha": "aca4f9f50faccc105a81783bafdb205d743a9c26",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration",
-        "head_sha": "aca4f9f50faccc105a81783bafdb205d743a9c26",
-        "claimed_at": "2026-11-18T12:52:02.612Z",
-        "expires_at": "2026-11-18T14:22:02.612Z"
-      },
-      "checkpoint": {
-        "recorded_at": "2026-11-18T12:52:02.612Z",
-        "owner": "manual-integration",
-        "head_sha": "aca4f9f50faccc105a81783bafdb205d743a9c26",
-        "commits_reported": 1,
-        "tests_reported": "Five exact original offline Node/CPU fixture and source-only tests included; CI pending",
-        "ci_reported": "run #44307957056 queued",
-        "next_action": "Check exact-head CI 4/4, current base, safe merge and fresh-main four jobs",
-        "evidence_status": "worker-reported-unverified"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/981"
-    },
     {
       "pr": 979,
       "title": "fix(testing): reject forged worker event IDs, statuses and media receipts",
@@ -118,15 +91,21 @@
       "work_owner": "manual-integration",
       "priority": "P2",
       "phase": "in-progress",
-      "claim": null,
+      "claim": {
+        "owner": "manual-integration",
+        "head_sha": "93cebf063886eaddf6f8c2076d07fbbfef704747",
+        "claimed_at": "2026-11-18T12:58:57.562Z",
+        "expires_at": "2026-11-18T14:28:57.562Z"
+      },
       "checkpoint": {
-        "recorded_at": "2026-11-18T08:06:42.074Z",
+        "recorded_at": "2026-11-18T12:58:57.562Z",
         "owner": "manual-integration",
         "head_sha": "93cebf063886eaddf6f8c2076d07fbbfef704747",
         "commits_reported": 6,
-        "ci_reported": "run #44264047537 in progress",
-        "tests_reported": "Feature2 #974/#976/#978 exact PR & inclusive fresh-main 4/4 accepted; canonical docs new head pending CI",
-        "next_action": "Verify exact docs final head 4/4, require independent shared-doc review and #966 canonical overlap reconciliation before main"
+        "tests_reported": "F2 PR #980 accepted PR/main 4/4; PR #981 4/4 and merged, postmerge pending",
+        "ci_reported": "docs final-head refresh and rerun pending",
+        "next_action": "Append #980/#981 exact receipt after fresh main CI; independent shared-doc review before merge",
+        "evidence_status": "worker-reported-unverified"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/970"
     },
