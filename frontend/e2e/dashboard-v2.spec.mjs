@@ -22,8 +22,7 @@ async function signedIn(page) {
         checked_at:'2026-10-28T11:00:00Z'
       },
       '/rest/v1/media_assets': [
-        {id: 'a1000000-0000-4000-8000-000000000010', shop_id: SHOP, license_name: 'owned', mime_type:'image/png'},
-        {id: 'a1000000-0000-4000-8000-000000000020', shop_id: 'a1000000-0000-4000-8000-000000000002', license_name:'owned',mime_type:'image/jpeg'}
+        {id: 'a1000000-0000-4000-8000-000000000010', shop_id: SHOP, source:'UPLOAD', license_name: 'owned', mime_type:'image/png',created_at:'2026-10-28T12:00:00Z'}
       ],
     }
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, body: '',
@@ -58,7 +57,7 @@ test('desktop routes show honest unavailable contracts, not invented data', asyn
   await expect(page.getByRole('button', { name: 'Load recent campaign' })).toBeVisible()
   await page.goto('/media-library')
   await expect(page.getByRole('heading', { name: 'Media library' })).toBeVisible()
-  await expect(page.getByRole('region', { name: 'Authorized media records' }).getByText('Image a1000000')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Authorized media records' }).getByText('Image a1000000',{exact:true})).toBeVisible()
   await expect(page.getByText('image/jpeg')).toHaveCount(0)
   expect(calls.some(path => path.includes('/retail_platform_notifications'))).toBe(false)
   expect(calls.some(path => path.includes('/social_accounts'))).toBe(false)
@@ -259,7 +258,7 @@ test('private registered media is read only on preview through user JWT, never p
     const u=new URL(route.request().url())
     const registered={id:image,shop_id:SHOP,storage_bucket:'retailgrowth-media',
       object_path:SHOP+'/uploads/'+upload+'.png',mime_type:'image/png',
-      source:'UPLOAD',license_name:'owned'}
+      source:'UPLOAD',license_name:'owned',created_at:'2026-10-28T12:00:00Z'}
     return route.fulfill({status:200,contentType:'application/json',
       headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
       body:JSON.stringify(u.searchParams.has('id')?[registered]:[registered])})
@@ -296,19 +295,47 @@ test('media library filters business-owned records without public blob URLs', as
   await expect(page.locator('a[href*="/storage/v1/object"]')).toHaveCount(0)
 })
 
+test('Media Library rejects mixed-tenant media responses rather than silently filtering',async({page})=>{
+  await signedIn(page)
+  let privateReads=0
+  await page.route(HOST+'/rest/v1/media_assets**',route=>{
+    expect(route.request().headers().authorization).toBe('Bearer offline-test-JWT')
+    const own={id:'a1000000-0000-4000-8000-000000000010',shop_id:SHOP,
+      source:'UPLOAD',license_name:'owned',mime_type:'image/png',
+      created_at:'2026-10-28T12:00:00Z'}
+    return route.fulfill({status:200,contentType:'application/json',
+      headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+      body:JSON.stringify([own,{...own,id:'a1000000-0000-4000-8000-000000000011',
+        shop_id:'a1000000-0000-4000-8000-000000000002',
+        created_at:'2026-10-28T11:59:00Z'}])})
+  })
+  await page.route(HOST+'/storage/v1/object/authenticated/**',route=>{
+    privateReads++;return route.abort()
+  })
+  await page.setViewportSize({width:320,height:740})
+  await page.goto('/media-library')
+  await expect(page.getByRole('alert').filter({hasText:'Private media metadata could not be verified'})).toBeVisible()
+  await expect(page.getByRole('region',{name:'Authorized media records'})).toHaveCount(0)
+  await expect(page.getByRole('button',{name:/Preview Image/})).toHaveCount(0)
+  expect(privateReads).toBe(0)
+  await expect.poll(()=>page.evaluate(()=>
+    document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true)
+})
+
 test('Media Library pages 27 RLS-verified records locally and resets on filters without more calls', async ({page})=>{
   await signedIn(page)
   let mediaReads=0
   const rows=Array.from({length:27},(_,i)=>({
     id:'a1000000-0000-4000-8000-'+String(i+100).padStart(12,'0'),
-    shop_id:SHOP,license_name:i===26?'owned-special':'owned',mime_type:i===26?'image/webp':'image/png'
+    shop_id:SHOP,source:'UPLOAD',license_name:i===26?'owned-special':'owned',mime_type:i===26?'image/webp':'image/png',
+    created_at:new Date(Date.UTC(2026,9,28,12,0)-i*1000).toISOString()
   }))
   await page.route(HOST+'/rest/v1/media_assets**',route=>{
     mediaReads+=1
     return route.fulfill({
     status:200,contentType:'application/json',
     headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
-    body:JSON.stringify([...rows,{...rows[0],shop_id:'a1000000-0000-4000-8000-000000000002'}])
+    body:JSON.stringify(rows)
   })
   })
   await page.setViewportSize({width:320,height:740})
@@ -619,40 +646,45 @@ test('unverified guest cannot deep-link to dashboard subroutes', async ({ page }
 })
 
 
-test('Media Library loads beyond the first 100 only on request, without cross-shop or public reads',async({page})=>{
+test('Media Library keyset loads 101 records without repeating a row after new uploads',async({page})=>{
   await signedIn(page)
   const rows=Array.from({length:101},(_,i)=>({
     id:'a1000000-0000-4000-8000-'+String(i+100).padStart(12,'0'),
-    shop_id:SHOP,source:'UPLOAD',license_name:'owned',mime_type:'image/png'
+    shop_id:SHOP,source:'UPLOAD',license_name:'owned',mime_type:'image/png',
+    created_at:new Date(Date.UTC(2026,9,28,12,0)-i*1000).toISOString()
   }))
-  const offsets=[]
+  const cursors=[]
   await page.route(HOST+'/rest/v1/media_assets**',route=>{
-    const req=route.request()
+    const req=route.request(),u=new URL(req.url())
     expect(req.headers().authorization).toBe('Bearer offline-test-JWT')
-    const u=new URL(req.url()),offset=Number(u.searchParams.get('offset'))
-    offsets.push(offset)
     expect(u.searchParams.get('shop_id')).toBe('eq.'+SHOP)
+    expect(u.searchParams.get('order')).toBe('created_at.desc,id.desc')
     expect(u.searchParams.get('limit')).toBe('101')
+    expect(u.searchParams.has('offset')).toBe(false)
+    cursors.push(u.searchParams.get('or'))
+    // A freshly added row before the original first row must never shift the
+    // second page: backend keyset returns the 101st original record only.
+    const body=cursors.length===1 ? rows : [rows[100]]
+    if(cursors.length===2){
+      expect(cursors[1]).toContain('created_at.lt.'+rows[99].created_at)
+      expect(cursors[1]).toContain('id.lt.'+rows[99].id)
+    }
     return route.fulfill({status:200,contentType:'application/json',
       headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
-      body:JSON.stringify(offset===0 ? rows : [rows[100],rows[2],{
-        ...rows[100],id:'a1000000-0000-4000-8000-000000009999',
-        shop_id:'a1000000-0000-4000-8000-000000000002'
-      }])})
+      body:JSON.stringify(body)})
   })
   await page.setViewportSize({width:320,height:740})
   await page.goto('/media-library')
   await expect(page.getByText('100 matching registered images')).toBeVisible()
-  expect(offsets).toEqual([0])
+  expect(cursors).toEqual([null])
   await page.getByRole('button',{name:'Load 100 older records'}).click()
   await expect(page.getByText('101 matching registered images')).toBeVisible()
-  expect(offsets).toEqual([0,100])
+  expect(cursors).toHaveLength(2)
   await expect(page.getByRole('button',{name:'Load 100 older records'})).toHaveCount(0)
   await expect(page.locator('a[href*="/storage/v1/object/"]')).toHaveCount(0)
   await expect.poll(()=>page.evaluate(()=>
     document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true)
 })
-
 
 test('retailer inbox uses signed JWT, scoped paging, genuine server states and per-user read update',async({page})=>{
   await signedIn(page)
@@ -699,6 +731,230 @@ test('retailer inbox uses signed JWT, scoped paging, genuine server states and p
   await expect(page.getByText('Verified render 21')).toBeVisible()
   expect(requests.some(r=>r.path==='list'&&r.offset===20)).toBe(true)
   await expect(page.locator('a[href*="/storage/v1/object"]')).toHaveCount(0)
+  await expect.poll(()=>page.evaluate(()=>
+    document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true)
+})
+
+
+test('opt-in offline Feature1 social and publishing showroom is labelled, responsive and never calls provider APIs',async({page})=>{
+  const calls=await signedIn(page)
+  await page.setViewportSize({width:320,height:740})
+  await page.goto('/connections')
+  await expect(page.getByRole('heading',{name:'Connected accounts',exact:true})).toBeVisible()
+  await expect(page.getByText('@aarohi.style')).toHaveCount(0)
+  await expect(page.getByText('No fabricated live data')).toBeVisible()
+  await page.getByRole('button',{name:'Open offline test preview'}).click()
+  await expect(page.getByText('OFFLINE TEST ONLY — NOT LIVE DATA')).toBeVisible()
+  await expect(page.getByText('@aarohi.style')).toBeVisible()
+  await expect(page.getByText('Aarohi Fashion Page')).toBeVisible()
+  await expect(page.getByText('Aarohi Fashion Shorts')).toBeVisible()
+  await expect(page.getByRole('button',{name:'Connect / disconnect unavailable'}).first()).toBeDisabled()
+  await page.getByLabel('Social account status filter').selectOption('REVOKED')
+  await expect(page.getByText('Aarohi Retail')).toBeVisible()
+  await expect(page.getByText('@aarohi.style')).toHaveCount(0)
+  await page.getByLabel('Fictional business scenario').selectOption('f2222222-2222-4222-8222-222222222222')
+  await expect(page.getByText('Green Basket Grocery Page')).toBeVisible()
+  await expect(page.getByText('Aarohi Retail')).toHaveCount(0)
+  await page.goto('/publishing')
+  await expect(page.getByText('OFFLINE TEST ONLY — NOT LIVE DATA')).toHaveCount(0)
+  await page.getByRole('button',{name:'Open offline test preview'}).click()
+  await expect(page.getByText('OFFLINE TEST ONLY — NOT LIVE DATA')).toBeVisible()
+  await expect(page.getByText('26 example events matching')).toBeVisible()
+  await expect(page.getByRole('button',{name:'Next sample page'})).toBeEnabled()
+  await page.getByRole('button',{name:'Next sample page'}).click()
+  await expect(page.getByText('Page 2 of 4')).toBeVisible()
+  await page.getByLabel('Publishing status filter').selectOption('PUBLISHED')
+  await expect(page.getByText('Example provider receipt:',{exact:false}).first()).toBeVisible()
+  await expect(page.getByText('Page 1 of 1')).toBeVisible()
+  await expect(page.getByRole('button',{name:'Next sample page'})).toBeDisabled()
+  await page.getByLabel('Fictional business scenario').selectOption('f2222222-2222-4222-8222-222222222222')
+  await expect(page.getByText('Green Basket fictional channel').first()).toBeVisible()
+  await expect(page.getByText('Aarohi fictional channel')).toHaveCount(0)
+  await expect.poll(()=>page.evaluate(()=>
+    document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true)
+  expect(calls.some(path=>path.includes('/social')||path.includes('/oauth')||
+    path.includes('/publishing')||path.includes('/retail_platform_notifications'))).toBe(false)
+})
+
+
+test('third fictional restaurant exercises disconnected identity and publishing-in-progress without live calls',async({page})=>{
+ const calls=await signedIn(page)
+ await page.setViewportSize({width:320,height:740})
+ await page.goto('/connections')
+ await page.getByRole('button',{name:'Open offline test preview'}).click()
+ await page.getByLabel('Fictional business scenario')
+   .selectOption('f3333333-3333-4333-8333-333333333333')
+ await expect(page.getByText('OFFLINE TEST ONLY — NOT LIVE DATA')).toBeVisible()
+ await page.getByLabel('Social account status filter').selectOption('DISCONNECTED')
+ await expect(page.getByText('Marigold Bistro disconnected sample')).toBeVisible()
+ await expect(page.getByText('@aarohi.style')).toHaveCount(0)
+ await expect(page.getByRole('button',{name:'Connect / disconnect unavailable'})).toBeDisabled()
+ await page.goto('/publishing')
+ await page.getByRole('button',{name:'Open offline test preview'}).click()
+ await page.getByLabel('Fictional business scenario')
+   .selectOption('f3333333-3333-4333-8333-333333333333')
+ await page.getByLabel('Publishing status filter').selectOption('PUBLISHING')
+ await expect(page.locator('.rg-f1-read-card').getByText('PUBLISHING',{exact:true}).first()).toBeVisible()
+ await expect(page.getByText('Example provider receipt:',{exact:false})).toHaveCount(0)
+ await expect.poll(()=>page.evaluate(()=>
+   document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true)
+ expect(calls.some(path=>path.includes('/social')||path.includes('/oauth')||
+   path.includes('/publishing'))).toBe(false)
+})
+
+
+test('private image close revokes blob and a late Storage response cannot reopen the preview',async({page})=>{
+  await signedIn(page)
+  const image='a1000000-0000-4000-8000-000000000010'
+  const upload='a1000000-0000-4000-8000-000000000020'
+  await page.route(HOST+'/rest/v1/media_assets**',route=>{
+    const row={id:image,shop_id:SHOP,storage_bucket:'retailgrowth-media',
+      object_path:SHOP+'/uploads/'+upload+'.png',mime_type:'image/png',
+      source:'UPLOAD',license_name:'owned',created_at:'2026-10-28T12:00:00Z'}
+    return route.fulfill({status:200,contentType:'application/json',
+      headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+      body:JSON.stringify([row])})
+  })
+  const png=Buffer.alloc(256)
+  Buffer.from([137,80,78,71,13,10,26,10]).copy(png)
+  let hold=false,releaseRead,readStarted
+  const started=new Promise(resolve=>{readStarted=resolve})
+  const gate=new Promise(resolve=>{releaseRead=resolve})
+  let privateReads=0
+  await page.route(HOST+'/storage/v1/object/authenticated/**',async route=>{
+    privateReads++
+    expect(route.request().headers().authorization).toBe('Bearer offline-test-JWT')
+    if(hold){readStarted();await gate}
+    await route.fulfill({status:200,body:png,
+      headers:{'Access-Control-Allow-Origin':'*',
+        'Content-Type':'image/png','Content-Length':'256'}})
+  })
+  await page.setViewportSize({width:320,height:740})
+  await page.goto('/media-library')
+  expect(privateReads).toBe(0)
+  await page.getByRole('button',{name:'Preview Image a1000000'}).click()
+  const img=page.getByRole('img',{name:'Authorized private image Image a1000000'})
+  await expect(img).toHaveAttribute('src',/^blob:/)
+  const oldUrl=await img.getAttribute('src')
+  await page.getByRole('button',{name:'Close private preview'}).click()
+  await expect(img).toHaveCount(0)
+  await expect(page.getByRole('link',{name:'Save private image'})).toHaveCount(0)
+  expect(await page.evaluate(async url=>{
+    try {return (await fetch(url)).ok} catch{return false}
+  },oldUrl)).toBe(false)
+
+  hold=true
+  try{
+    await page.getByRole('button',{name:'Preview Image a1000000'}).click()
+    await started
+    await expect(page.getByText('Reading private image with your current session…')).toBeVisible()
+    await page.getByRole('button',{name:'Close private preview'}).click()
+    const delayedResponse=page.waitForResponse(response=>
+      response.url().includes('/storage/v1/object/authenticated/'))
+    releaseRead()
+    await delayedResponse
+    await expect(img).toHaveCount(0)
+    await expect(page.getByRole('button',{name:'Close private preview'})).toHaveCount(0)
+    await expect(page.locator('a[href^="blob:"]')).toHaveCount(0)
+    expect(privateReads).toBe(2)
+  }finally{releaseRead()}
+})
+
+
+test('private preview is revoked if refreshed rights change from UPLOAD to GENERATED',async({page})=>{
+  await signedIn(page)
+  await page.setViewportSize({width:320,height:740})
+  const image='a1000000-0000-4000-8000-000000000010'
+  const upload='a1000000-0000-4000-8000-000000000020'
+  let generated=false,mediaReads=0,privateReads=0
+  await page.route(HOST+'/rest/v1/media_assets**',route=>{
+    const lookup=new URL(route.request().url()).searchParams.has('id')
+    if(!lookup)mediaReads++
+    const registered={id:image,shop_id:SHOP,storage_bucket:'retailgrowth-media',
+      object_path:SHOP+'/uploads/'+upload+'.png',mime_type:'image/png',
+      source:generated&&!lookup?'GENERATED':'UPLOAD',license_name:'owned',
+      created_at:'2026-10-28T12:00:00Z'}
+    return route.fulfill({status:200,contentType:'application/json',
+      headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+      body:JSON.stringify([registered])})
+  })
+  const png=Buffer.alloc(256)
+  Buffer.from([137,80,78,71,13,10,26,10]).copy(png)
+  await page.route(HOST+'/storage/v1/object/authenticated/**',route=>{
+    privateReads++
+    expect(route.request().headers().authorization).toBe('Bearer offline-test-JWT')
+    return route.fulfill({status:200,body:png,headers:{
+      'Access-Control-Allow-Origin':'*','Content-Type':'image/png','Content-Length':'256'}})
+  })
+  await page.goto('/media-library')
+  await expect(page.getByText('1 matching registered images')).toBeVisible()
+  await page.getByRole('button',{name:'Preview Image a1000000'}).click()
+  const img=page.getByRole('img',{name:'Authorized private image Image a1000000'})
+  await expect(img).toHaveAttribute('src',/^blob:/)
+  const oldUrl=await img.getAttribute('src')
+  expect(privateReads).toBe(1)
+  generated=true
+  await page.getByRole('button',{name:'Refresh assets'}).click()
+  await expect.poll(()=>mediaReads).toBeGreaterThanOrEqual(2)
+  await expect(page.getByText('Private preview unavailable until ownership, rights and private access are verified')).toBeVisible()
+  await expect(img).toHaveCount(0)
+  await expect(page.getByRole('link',{name:'Save private image'})).toHaveCount(0)
+  await expect(page.getByRole('button',{name:'Preview Image a1000000'})).toHaveCount(0)
+  await expect.poll(async()=>page.evaluate(async url=>{
+    try{return (await fetch(url)).ok}catch{return false}
+  },oldUrl)).toBe(false)
+  expect(privateReads).toBe(1)
+  await expect.poll(()=>page.evaluate(()=>
+    document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true)
+})
+
+
+test('private preview revokes its Blob when the current UPLOAD licence changes',async({page})=>{
+  await signedIn(page)
+  await page.setViewportSize({width:320,height:740})
+  const image='a1000000-0000-4000-8000-000000000010'
+  const upload='a1000000-0000-4000-8000-000000000020'
+  let changed=false,reads=0,metadataReads=0
+  await page.route(HOST+'/rest/v1/media_assets**',route=>{
+    const request=route.request()
+    const lookup=new URL(request.url()).searchParams.has('id')
+    if(!lookup) metadataReads++
+    const row={id:image,shop_id:SHOP,source:'UPLOAD',
+      storage_bucket:'retailgrowth-media',object_path:SHOP+'/uploads/'+upload+'.png',
+      mime_type:'image/png',license_name:changed&&!lookup?'royalty_free':'owned',
+      created_at:'2026-10-28T12:00:00Z'}
+    return route.fulfill({status:200,contentType:'application/json',
+      headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'*'},
+      body:JSON.stringify([row])})
+  })
+  const png=Buffer.alloc(256)
+  Buffer.from([137,80,78,71,13,10,26,10]).copy(png)
+  await page.route(HOST+'/storage/v1/object/authenticated/**',route=>{
+    reads++
+    expect(route.request().headers().authorization).toBe('Bearer offline-test-JWT')
+    return route.fulfill({status:200,body:png,headers:{
+      'Access-Control-Allow-Origin':'*','Content-Type':'image/png','Content-Length':'256'}})
+  })
+  await page.goto('/media-library')
+  await expect(page.getByText('1 matching registered images')).toBeVisible()
+  await page.getByRole('button',{name:'Preview Image a1000000'}).click()
+  const preview=page.getByRole('img',{name:'Authorized private image Image a1000000'})
+  await expect(preview).toHaveAttribute('src',/^blob:/)
+  const oldUrl=await preview.getAttribute('src')
+  expect(reads).toBe(1)
+
+  // Still a private original UPLOAD with a nonempty licence: the earlier
+  // source-only revocation guard would have retained the old Blob.
+  changed=true
+  await page.getByRole('button',{name:'Refresh assets'}).click()
+  await expect.poll(()=>metadataReads).toBeGreaterThanOrEqual(2)
+  await expect(page.getByText('Licence: royalty_free')).toBeVisible()
+  await expect(preview).toHaveCount(0)
+  await expect(page.getByRole('link',{name:'Save private image'})).toHaveCount(0)
+  await expect.poll(async()=>page.evaluate(async url=>{
+    try{return (await fetch(url)).ok}catch{return false}
+  },oldUrl)).toBe(false)
+  expect(reads).toBe(1)
   await expect.poll(()=>page.evaluate(()=>
     document.documentElement.scrollWidth<=document.documentElement.clientWidth)).toBe(true)
 })

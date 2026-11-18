@@ -88,3 +88,29 @@ test('optional logo is contained and does not overwrite the product cover', () =
   assert.equal(imageOps.find(x => x[1].naturalWidth === 250).length, 6)
   assert.equal(imageOps.find(x => x[1].naturalWidth === 600).length, 10)
 })
+
+test('F3-13 inherited private image-map keys fail before pixels; own prototype-named key is safe', () => {
+  const draft = design({mode: 'image', sourceAssetId: mediaId, authorizedAssetIds: [mediaId]})
+  const source = {complete: true, naturalWidth: 600, naturalHeight: 400}
+  const inherited = Object.create({[mediaId]: source})
+  const deniedCanvas = fakeCanvas()
+  assert.throws(() => renderFeature3LocalDraft(deniedCanvas, draft, inherited), /unavailable/)
+  assert.equal(deniedCanvas.ops.length, 0)
+
+  // A malicious document can use inherited JS map member names as image IDs.
+  // They must never skip the image preflight or draw inherited object pixels.
+  const forged = {...design(), layers: [
+    {id: 'private-photo', type: 'image', asset_id: 'constructor',
+     x: .1, y: .1, w: .8, h: .6},
+  ]}
+  const collisionCanvas = fakeCanvas()
+  assert.throws(() => renderFeature3LocalDraft(collisionCanvas, forged, {}), /unavailable/)
+  assert.equal(collisionCanvas.ops.length, 0)
+
+  const ownMap = Object.create(null)
+  ownMap.constructor = source
+  const validCanvas = fakeCanvas()
+  renderFeature3LocalDraft(validCanvas, forged, ownMap)
+  assert.equal(validCanvas.ops.filter(op => op[0] === 'image').length, 1)
+  assert.equal(validCanvas.ops.find(op => op[0] === 'image')[1], source)
+})

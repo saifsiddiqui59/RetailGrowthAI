@@ -1,0 +1,61 @@
+name: RetailGrowthAI 249 Microsoft.Web official detector read-only history
+# MAIN-ONLY protected one-shot: exact existing Central India tagged RetailGrowthAI
+# DEV app; no deployments, no HTTP requests, no mutations, no customer secrets.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p0-249-azure-rootcause-readonly-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0249-platform-causal-readonly
+  cancel-in-progress: false
+jobs:
+  diagnose:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'audit(dev): RetailGrowthAI 249 official ARM detector evidence')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 23
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Check offline strict scope + typed Kusto + redaction before Azure OIDC
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/p0_249_platform_correlation_readonly.py ops/p0_249_arm_detector_historical_readonly.py
+          python3 - <<'PY'
+          import runpy
+          for path in (
+              "tests/infra/test_p0_249_platform_correlation_readonly.py",
+              "tests/infra/test_p0_249_arm_detector_historical_readonly.py",
+          ):
+              ns=runpy.run_path(path)
+              for name,check in sorted(ns.items()):
+                  if name.startswith("test_") and callable(check):
+                      check()
+                      print("P0249_CAUSAL_OFFLINE_TEST=" + name + "=PASS",flush=True)
+          PY
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Correlate pre-recorded 503 UTC windows with exact DEV host worker logs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0_249_arm_detector_historical_readonly.py
+      - name: Revoke protected DEV Azure CLI session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true

@@ -17,6 +17,7 @@ import './features/dashboard/dashboard-v2.css'
 // public login small and avoids loading video editor and Chart.js on entry.
 const CampaignDashboard = lazy(() => import('./features/campaigns/CampaignDashboard.jsx'))
 const TrendWorkspace = lazy(() => import('./features/trends/TrendWorkspace.jsx'))
+const TestingConsole = lazy(() => import('./features/testing/TestingConsole.jsx'))
 const AccountWorkspace = lazy(() => import('./auth/AccountWorkspace.jsx').then(m => ({ default: m.AccountWorkspace })))
 const DashboardOverview = lazy(() => import('./features/dashboard/DashboardOverview.jsx'))
 const SubscriptionPage = lazy(() => import('./features/subscription/SubscriptionPage.jsx'))
@@ -32,6 +33,7 @@ const links = [
   { to: '/', label: 'Overview', icon: '▦', end: true, group: 'WORKSPACE' },
   { to: '/campaigns', label: 'Campaigns', icon: '▤' },
   { to: '/trends', label: 'Trend Intelligence', icon: '◉', group: 'CREATE & MANAGE' },
+  { to: '/testing-chat', label: 'Testing Chat', icon: '⌘', group: 'QUALITY LAB' },
   { to: '/calendar', label: 'Campaign calendar', icon: '▦' },
   { to: '/creative-studio', label: 'Creative Studio', icon: '✧', group: 'CREATE & MANAGE' },
   { to: '/media-library', label: 'Media library', icon: '▧' },
@@ -199,6 +201,7 @@ function AppShell() {
             <Route path="/business" element={<DashboardOverview />} />
             <Route path="/campaigns" element={<CampaignDashboard />} />
             <Route path="/trends" element={<TrendWorkspace />} />
+            <Route path="/testing-chat" element={<TestingConsole />} />
             <Route path="/subscription" element={<SubscriptionPage />} />
             <Route path="/calendar" element={<RecentCampaignCalendar />} />
             <Route path="/creative-studio" element={<WorkspacePage section="creative" />} />

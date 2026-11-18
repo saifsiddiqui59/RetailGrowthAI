@@ -83,3 +83,29 @@ def test_provider_error_keeps_retry_budget_and_marks_failure():
     with pytest.raises(RuntimeError):
         process_campaign(CID, db, provider=Broken())
     assert db.fail_calls == [("PLANNING_FAILED", False)]
+
+
+def test_trusted_feature2_span_observes_only_verified_worker_outcome():
+    db = FakeAdmin()
+    spans=[]
+    assert process_campaign(CID, db, mock_enabled=True, span_sink=spans.append) == "DRAFT"
+    assert len(db.finish_calls) == 1
+    assert len(spans) == 1
+    assert spans[0]["feature"] == "F2"
+    assert spans[0]["operation"] == "planning.complete"
+    assert spans[0]["status"] == "SUCCEEDED"
+    assert spans[0]["metadata"] == {"planner_mode": "dev_mock", "generated_days": 7}
+    assert spans[0]["persisted"] is False
+    assert process_campaign(CID, db, mock_enabled=True, span_sink=spans.append) == "ALREADY_FINAL"
+    assert len(spans) == 1
+
+
+def test_planning_revocation_span_comes_after_failed_db_claim():
+    db=FakeAdmin()
+    db.authorized=False
+    spans=[]
+    assert process_campaign(CID, db, mock_enabled=True, span_sink=spans.append) == "DENIED"
+    assert db.fail_calls == [("ACCESS_REVOKED", True)]
+    assert len(spans)==1
+    assert spans[0]["status"] == "DENIED"
+    assert spans[0]["operation"] == "planning.denied"

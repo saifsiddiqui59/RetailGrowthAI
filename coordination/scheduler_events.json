@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "description": "Reviewed coding-executor receipts only. Empty means NO coding attempt occurred. Workflow is advisory until executor approval.",
+  "events": []
+}

@@ -1,3 +1,4 @@
+import { verifyRetailerInbox } from '../features/dashboard/retailer-inbox-model.mjs'
 // RetailGrowthAI-only lightweight Supabase Auth v1 + PostgREST client.
 // No service-role keys, no client-side authorization assumptions.
 // Use a publishable key and let PostgreSQL RLS enforce every tenant boundary.
@@ -470,6 +471,42 @@ export function createRetailClient({
       license_name: licenseName, object_path: objectPath }
   }
 
+  // Separate signed model-original upload: never changes /uploads/ behavior
+  // or asserts that licensed source bytes have been reviewed.
+  async function uploadModelOriginal(shopId, {file, modelId, licenseName,
+    licenseUrl = '', attribution = '', confirmedRights = false}) {
+    ensureConfigured()
+    if (!UUID_V4.test(shopId || '') || !UUID_V4.test(modelId || '') ||
+        !confirmedRights || !LICENSES.has(licenseName) ||
+        typeof attribution !== 'string' ||
+        attribution.trim().length < 10 || attribution.trim().length > 200 ||
+        typeof licenseUrl !== 'string' || licenseUrl.length > 500)
+      throw new Error('Valid shop, model and declared source rights required.')
+    if (licenseName !== 'owned') {
+      try {
+        const link = new URL(licenseUrl)
+        if (link.protocol !== 'https:' || !link.hostname || link.username || link.password)
+          throw new Error('Invalid license evidence URL')
+      } catch { throw new Error('HTTPS source license evidence is required.') }
+    }
+    await verifyImageBytes(file)
+    if (file.type !== 'image/png') throw new Error('Model original must be PNG.')
+    if (!globalThis.crypto?.subtle) throw new Error('Secure SHA256 unavailable')
+    const digestBytes = await globalThis.crypto.subtle.digest('SHA-256',await file.arrayBuffer())
+    const digest = Array.from(new Uint8Array(digestBytes), b => b.toString(16).padStart(2,'0')).join('')
+    const objectPath = shopId+'/model-library/'+modelId+'/'+digest+'.png'
+    const response = await fetchImpl(origin+'/storage/v1/object/retailgrowth-media/'+objectPath,{
+      method:'POST',redirect:'error',cache:'no-store',
+      headers:{apikey:key,Authorization:'Bearer '+await accessToken(),
+        'Content-Type':'image/png','x-upsert':'false'},
+      body:file,
+    })
+    if (!response.ok) throw new Error('Private original upload denied or exists')
+    return Object.freeze({shop_id:shopId,model_id:modelId,object_path:objectPath,
+      image_sha256:digest,bytes:file.size,upload_only:true,
+      rights_verified:false,registered:false})
+  }
+
   // Existing campaign_days RLS already checks active shop membership.
   // One read-only, bounded month query; NOT a social posting history endpoint.
   async function listShopCalendarMonth(shopId, month) {
@@ -509,10 +546,14 @@ export function createRetailClient({
     const filePath = new RegExp('^' + shopId +
       '/uploads/[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}' +
       ext.replace('.', '[.]') + '$', 'i')
+    const modelPath = new RegExp('^' + shopId +
+      '/model-library/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/[a-f0-9]{64}[.]png$', 'i')
     if (!row || row.id !== assetId || row.shop_id !== shopId ||
         row.storage_bucket !== 'retailgrowth-media' || row.source !== 'UPLOAD' ||
         !ext || typeof row.license_name !== 'string' || !row.license_name.trim() ||
-        typeof row.object_path !== 'string' || !filePath.test(row.object_path)) {
+        typeof row.object_path !== 'string' ||
+        !(filePath.test(row.object_path) || (row.mime_type === 'image/png' &&
+          modelPath.test(row.object_path)))) {
       throw new Error('This private uploaded image is not registered or authorized')
     }
     const endpoint = origin + '/storage/v1/object/authenticated/retailgrowth-media/' +
@@ -579,20 +620,7 @@ export function createRetailClient({
       method:'POST', token:await accessToken(),
       body:{p_shop_id:shopId,p_view:view,p_category:category,p_limit:limit,p_offset:offset},
     })
-    if (!result || result.shop_id !== shopId || !Array.isArray(result.items) ||
-        result.items.length > limit ||
-        !Number.isSafeInteger(result.unread_total) || result.unread_total < 0 ||
-        !Number.isSafeInteger(result.matching_total) || result.matching_total < 0 ||
-        typeof result.checked_at !== 'string' ||
-        result.items.some(row => !row || row.shop_id !== shopId ||
-          !Number.isSafeInteger(row.id) || row.id < 1 ||
-          !['campaign','video','poster'].includes(row.category) ||
-          !['info','attention'].includes(row.severity) ||
-          typeof row.title !== 'string' || typeof row.detail !== 'string' ||
-          typeof row.created_at !== 'string')) {
-      throw new Error('Retailer inbox records could not be verified')
-    }
-    return result
+    return verifyRetailerInbox(shopId,result,view,category,limit)
   }
   async function setRetailerInboxRead(shopId, id, read) {
     if (!UUID_V4.test(shopId || '') || !Number.isSafeInteger(id) || id < 1 ||
@@ -605,6 +633,75 @@ export function createRetailClient({
       throw new Error('Retailer read status was not confirmed')
     }
     return result
+  }
+  // Server-side keyset history: first 100 visible records anchor the next
+  // window. New uploads cannot move the page boundary as offset paging did.
+  // The DB's (created_at DESC,id DESC) is authoritative; no migration needed.
+  async function listMediaAssetsKeysetPage(shopId, cursor = null) {
+    if (!UUID_V4.test(shopId || '')) throw new Error('Invalid media page scope')
+    // PostgreSQL stores microsecond timestamps. Date.parse loses the final
+    // three fractional digits, which can reject valid same-ms keyset pages.
+    // Compare normalized UTC digits without floating-point or timezone rounding.
+    const timestampKey = value => {
+      if (typeof value !== 'string') return null
+      const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?(?:Z|[+]00:00)$/.exec(value)
+      if (!m) return null
+      const date = new Date(m[1]+'-'+m[2]+'-'+m[3]+'T'+m[4]+':'+m[5]+':'+m[6]+'Z')
+      if (!Number.isFinite(date.getTime()) ||
+          date.getUTCFullYear() !== Number(m[1]) ||
+          date.getUTCMonth()+1 !== Number(m[2]) ||
+          date.getUTCDate() !== Number(m[3]) ||
+          date.getUTCHours() !== Number(m[4]) ||
+          date.getUTCMinutes() !== Number(m[5]) ||
+          date.getUTCSeconds() !== Number(m[6])) return null
+      return m.slice(1,7).join('')+(m[7]||'').padEnd(6,'0')
+    }
+    const timestamp = value => timestampKey(value) !== null
+    if (cursor !== null && (!cursor || !UUID_V4.test(cursor.id || '') ||
+        !timestamp(cursor.created_at))) throw new Error('Invalid media page cursor')
+    const query = {
+      select:'id,shop_id,source,license_name,mime_type,created_at',
+      shop_id:'eq.' + shopId, order:'created_at.desc,id.desc', limit:'101',
+    }
+    if (cursor) {
+      // Use the PostgREST OR expression rather than untrusted URL fragments.
+      // UUID and UTC date are validated before building a filter.
+      query.or = '(created_at.lt.' + cursor.created_at +
+        ',and(created_at.eq.' + cursor.created_at + ',id.lt.' + cursor.id + '))'
+    }
+    const rows = await table('media_assets', {query})
+    if (!Array.isArray(rows) || rows.length > 101 ||
+        rows.some(x => !x || !UUID_V4.test(x.id || '') ||
+          !UUID_V4.test(x.shop_id || '') || x.shop_id !== shopId ||
+          !timestamp(x.created_at) ||
+          typeof x.license_name !== 'string' ||
+          !['UPLOAD','STOCK','GENERATED'].includes(x.source) ||
+          !['image/png','image/jpeg','image/webp'].includes(x.mime_type))) {
+      throw new Error('Media history page could not be verified')
+    }
+    // Fail closed if the database unexpectedly returned out-of-order rows.
+    for (let i=1;i<rows.length;i++) {
+      const first=rows[i-1],next=rows[i]
+      const before=timestampKey(first.created_at), after=timestampKey(next.created_at)
+      if (before < after || (before===after &&
+          first.id.toLowerCase() <= next.id.toLowerCase())) {
+        throw new Error('Media history ordering could not be verified')
+      }
+    }
+    if (cursor && rows.length && (timestampKey(rows[0].created_at)>timestampKey(cursor.created_at) ||
+      (timestampKey(rows[0].created_at)===timestampKey(cursor.created_at) &&
+        rows[0].id.toLowerCase()>=cursor.id.toLowerCase()))) {
+      throw new Error('Media history cursor boundary could not be verified')
+    }
+    // A mixed-tenant RLS response is invalid, never silently filtered.
+    // The 100th raw row still anchors the next keyset window.
+    const page=rows.slice(0,100)
+    const last=page.at(-1)
+    return {
+      items:page.filter(row => row.license_name.trim()),
+      nextCursor:rows.length===101 && last
+        ? {id:last.id,created_at:last.created_at}:null,
+    }
   }
   async function listMediaAssetsPage(shopId, offset = 0) {
     if (!UUID_V4.test(shopId || '') || !Number.isSafeInteger(offset) ||
@@ -639,7 +736,7 @@ export function createRetailClient({
     listShops, createShop, getShopSubscription, getShopMetrics, getShopUsage,
     isPlatformAdmin, getPlatformSummary, listPlatformShops, setPlatformSubscription,
     listPlatformNotifications, setPlatformNotificationRead, listPlatformSubscriptionWatch,
-    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listMediaAssets, listMediaAssetsPage, listRetailerInbox, setRetailerInboxRead, downloadPrivateImage, uploadImageAsset,
+    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listMediaAssets, listMediaAssetsPage, listMediaAssetsKeysetPage, listRetailerInbox, setRetailerInboxRead, downloadPrivateImage, uploadImageAsset, uploadModelOriginal,
   }
 }
 

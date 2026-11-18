@@ -1,0 +1,133 @@
+name: RetailGrowthAI #249 existing Y1 explicit Python v1 indexing recovery (DEV only)
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p0249-dev-y1-v1-index-recovery-once.yml'
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Replace only isolated DEV Y1 canary ZIP with explicit v1 trigger metadata"
+        required: true
+        type: choice
+        options: ["NO", "YES-Y1-ONLY-V1-RECOVERY"]
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0249-existing-y1-v1-recovery
+  cancel-in-progress: false
+jobs:
+  deploy-and-probe:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch' &&
+        inputs.confirm == 'YES-Y1-ONLY-V1-RECOVERY') ||
+       (github.event_name == 'push' &&
+        startsWith(github.event.head_commit.message,
+        'fix(#249): recover DEV Y1 function indexing with Python v1 package')))
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Check exact v1 trigger metadata and no cloud mutators in workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tests/infra -p 'test_p0249_y1_v1_index_recovery.py' -v
+          python3 -m py_compile ops/p0249-y1-v1-canary/p0249_health/__init__.py
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify existing tagged Y1 in DEV with original Flex unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_canary_guard.py verify
+      - name: Linux Python3.12 local build into isolated scratch package
+        shell: bash
+        run: |
+          set -euo pipefail
+          PACKAGE="$RUNNER_TEMP/p0249-y1-v1-package"
+          mkdir -p "$PACKAGE/p0249_health" "$PACKAGE/.python_packages/lib/site-packages"
+          cp ops/p0249-y1-v1-canary/p0249_health/__init__.py "$PACKAGE/p0249_health/"
+          cp ops/p0249-y1-v1-canary/p0249_health/function.json "$PACKAGE/p0249_health/"
+          cp ops/p0249-y1-v1-canary/host.json ops/p0249-y1-v1-canary/requirements.txt "$PACKAGE/"
+          python3 -m pip install --disable-pip-version-check --no-cache-dir \
+            --requirement "$PACKAGE/requirements.txt" \
+            --target "$PACKAGE/.python_packages/lib/site-packages" --quiet
+          test -s "$PACKAGE/.python_packages/lib/site-packages/azure/functions/__init__.py" || \
+            test -s "$PACKAGE/.python_packages/lib/site-packages/azure/functions.py"
+          python3 - "$PACKAGE" <<'PY'
+          import json,sys,pathlib
+          p=pathlib.Path(sys.argv[1])
+          data=json.loads((p/'p0249_health/function.json').read_text())
+          assert data['scriptFile']=='__init__.py'
+          assert any(x['type']=='httpTrigger' and x['route']=='p0249/health'
+                     and x['authLevel']=='anonymous' for x in data['bindings'])
+          assert not (p/'function_app.py').exists()
+          print("P0249_Y1_V1_READY_PACKAGE_WITH_EXPLICIT_TRIGGER_AND_PYTHON_DEPENDENCIES")
+          PY
+          (cd "$PACKAGE" && zip -qr "$RUNNER_TEMP/p0249-y1-v1-package.zip" .)
+      - name: Deploy only to existing exact Y1 DEV site; do not modify any ARM plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          az functionapp deployment source config-zip \
+            -g rg-retailgrowth-dev -n rgai-dev-y1-p0249-d4e5ddbd \
+            --src "$RUNNER_TEMP/p0249-y1-v1-package.zip" \
+            --build-remote false -o none
+      - name: Poll safe indexed function-name count after async ZIP HTTP 202
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 9); do
+            az functionapp function list -g rg-retailgrowth-dev \
+              -n rgai-dev-y1-p0249-d4e5ddbd --query "[].name" -o json \
+              > "$RUNNER_TEMP/p0249-index.json"
+            if python3 - "$RUNNER_TEMP/p0249-index.json" "$attempt" <<'PY'
+          import json,sys
+          rows=json.load(open(sys.argv[1]))
+          names=[str(x).split('/')[-1].casefold() for x in rows]
+          ok=len(names)==1 and names[0]=='p0249_health'
+          print(f"P0249_Y1_V1_INDEX_ATTEMPT={sys.argv[2]} count={len(names)} exact_one={ok}",flush=True)
+          raise SystemExit(0 if ok else 1)
+          PY
+            then
+              echo "P0249_Y1_V1_INDEXED_SUCCESS"
+              break
+            fi
+            if [ "$attempt" -eq 9 ]; then
+              echo "::error::Y1 function index still absent after bounded ZIP poll"
+              exit 2
+            fi
+            sleep 20
+          done
+      - name: Require actual anonymous handler readiness and 20/20 live samples
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_canary_guard.py probe
+      - name: Recheck exact original Flex app and tagged Y1 after deployment
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_canary_guard.py verify
+      - name: Remove Azure CLI login
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true

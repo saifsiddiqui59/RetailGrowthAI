@@ -109,6 +109,9 @@ class RequestDiagnostics:
         headers = {
             "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
             "X-Request-ID": self.trace,
+            # This random non-secret ID is the ONLY custom header exposed to
+            # cross-origin retailer clients. It does not grant any access.
+            "Access-Control-Expose-Headers": "X-Request-ID",
         }
         # Hint only for safe reads; clients still cap attempts and elapsed time.
         if advice == "bounded_read":

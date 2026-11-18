@@ -8,6 +8,7 @@
  * independently verifies image bytes, license, human approval and shop RLS.
  */
 import { useState } from 'react'
+import Feature3SignedModelWorkflow from './Feature3SignedModelWorkflow.jsx'
 import {
   INDIAN_MODEL_CANDIDATES, getIndianModelCandidate,
   indianModelReviewUrl, createIndianModelReviewPacket,
@@ -18,7 +19,7 @@ const controls = { display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'cente
 const card = { border: '1px solid #a8a8a8', borderRadius: 10, padding: 12, display: 'grid', gap: 6 }
 const selector = { width: '100%', maxWidth: 360 }
 
-export default function Feature3ModelLibraryReview({ disabled = false }) {
+export default function Feature3ModelLibraryReview({ disabled = false, shopId = null, workflowApi = null, workflowEnabled = false }) {
   const [presentation, setPresentation] = useState('all')
   const [personId, setPersonId] = useState('P009')
   const [kind, setKind] = useState('studio_posture')
@@ -114,6 +115,8 @@ export default function Feature3ModelLibraryReview({ disabled = false }) {
     <p role="note">After approval, one saved model can be reused as a
       poster image, a virtual try-on person reference and a video reference.
       Try-on and AI motion still require separate licensed inference.</p>
+    {workflowEnabled && workflowApi && <Feature3SignedModelWorkflow key={shopId} shopId={shopId}
+      api={workflowApi} enabled={workflowEnabled} disabled={disabled} />}
     {message && <p role="status">{message}</p>}
   </section>
 }

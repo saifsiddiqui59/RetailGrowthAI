@@ -72,7 +72,7 @@ class OpenPeopleTests(unittest.TestCase):
         self.assertEqual(record["status"], "PENDING_REVIEW")
         self.assertEqual(record["media_asset_id"],self.registered_media_id)
         self.assertEqual([x[0] for x in self.calls], ["write","register"])
-        self.assertTrue(self.calls[0][1].startswith("shops/"+self.shop))
+        self.assertTrue(self.calls[0][1].startswith(self.shop+"/model-library/"))
         self.assertTrue(self.calls[0][2].startswith(b"\x89PNG\r\n\x1a\n"))
         reviewed = {**record, "status": "APPROVED"}
         for purpose in ("poster","try_on","video_reference"):

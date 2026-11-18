@@ -39,6 +39,19 @@ test('poster browser contract blocks arbitrary urls, cross-layer overflow and un
   assert.throws(() => updateFeature3Layer(newFeature3History(design), 'missing', { x: .1 }))
 })
 
+test('poster format and colours reject prototype names and coercible forged values', () => {
+  // Inherited Object.prototype members must never be accepted as formats.
+  for (const format of ['constructor', '__proto__', 'toString', 'valueOf', [], {}]) {
+    assert.throws(() => validateFeature3Design({ ...design, format }), /Invalid design schema/)
+  }
+  assert.throws(() => validateFeature3Design({ ...design,
+    background: { toString: () => '#FFFFFF' } }), /Invalid design schema/)
+  assert.throws(() => validateFeature3Design({ ...design, layers: [
+    { ...design.layers[1], color: { toString: () => '#AA0000' } },
+  ] }), /Invalid typography/)
+  assert.equal(validateFeature3Design({ ...design, format: 'story' }).format, 'story')
+})
+
 test('add, remove, replace authorized image, and undo without overriding previous draft', () => {
   let history = newFeature3History(design)
   history = addFeature3Layer(history, 'text')

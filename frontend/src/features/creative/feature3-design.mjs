@@ -19,8 +19,12 @@ export function validateFeature3Design(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw) ||
     Object.keys(raw).sort().join('|') !==
     ['background', 'format', 'layers', 'schema', 'shop_id', 'template'].sort().join('|') ||
-    raw.schema !== FEATURE3_SCHEMA || !FEATURE3_FORMATS[raw.format] ||
-    !FEATURE3_TEMPLATES.includes(raw.template) || !HEX.test(raw.background)) fail('Invalid design schema')
+    raw.schema !== FEATURE3_SCHEMA ||
+    typeof raw.format !== 'string' ||
+    !Object.hasOwn(FEATURE3_FORMATS, raw.format) ||
+    !FEATURE3_TEMPLATES.includes(raw.template) ||
+    typeof raw.background !== 'string' ||
+    !HEX.test(raw.background)) fail('Invalid design schema')
   if (!ID.test(checkedText(raw.shop_id, 100))) fail('Invalid tenant ID')
   if (!Array.isArray(raw.layers) || raw.layers.length < 1 || raw.layers.length > 24) fail('Invalid layer count')
   const seen = new Set()
@@ -41,11 +45,11 @@ export function validateFeature3Design(raw) {
       item.y + item.h > 1.00001) fail('Layer outside poster')
     if (item.type === 'text') {
       checkedText(item.text, 160)
-      if (!HEX.test(item.color) || !Number.isInteger(item.font_size) ||
+      if (typeof item.color !== 'string' || !HEX.test(item.color) || !Number.isInteger(item.font_size) ||
         item.font_size < 12 || item.font_size > 150 || typeof item.bold !== 'boolean')
         fail('Invalid typography')
     }
-    if (item.type === 'rect' && !HEX.test(item.color)) fail('Invalid fill')
+    if (item.type === 'rect' && (typeof item.color !== 'string' || !HEX.test(item.color))) fail('Invalid fill')
     if (item.type === 'image' && (typeof item.asset_id !== 'string' ||
       !ID.test(item.asset_id))) fail('Image must use an authorized asset ID')
     return { ...item }

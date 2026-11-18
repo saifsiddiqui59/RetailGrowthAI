@@ -1,0 +1,78 @@
+name: Feature3 MIT synthetic input bundle for Feature4 and Feature5
+
+on:
+  push:
+    branches:
+      - main
+      - feat/feature3-pinned-demo-bundle-20261029
+    paths:
+      - .github/workflows/feature3-mit-input-bundle.yml
+      - poster-engine/feature3_demo_inputs.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  produce-mit-input-bundle:
+    name: Pinned upstream bytes, SHA and license (GPU OFF)
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install offline image decoder only
+        run: python -m pip install 'Pillow==11.3.0'
+      - name: Retrieve precisely pinned synthetic source media
+        shell: bash
+        run: |
+          set -euo pipefail
+          python poster-engine/feature3_demo_inputs.py --output test-artifacts/feature3-openvto
+      - name: Save and SHA-pin original upstream MIT attribution
+        shell: bash
+        run: |
+          python - <<'PY'
+          import hashlib, pathlib, urllib.request
+          from urllib.parse import urlparse
+          root='https://raw.githubusercontent.com/Prompt-Haus/OpenVTO/10140178cdb198ff17ad7b226c432bd63d732fc2/LICENSE'
+          with urllib.request.urlopen(urllib.request.Request(root,
+              headers={'User-Agent':'RetailGrowthAI-LicensedDemo/1.0'}), timeout=15) as response:
+              assert response.geturl()==root, 'MIT license redirected'
+              license_bytes=response.read(2048)
+          assert len(license_bytes)==1068, 'MIT license changed'
+          gitsha=hashlib.sha1(b'blob '+str(len(license_bytes)).encode()+b'\0'+license_bytes).hexdigest()
+          assert gitsha=='d246e4160c1d8c59bc9e99a90b095ec42ee5cec5', 'MIT license digest mismatch'
+          assert b'Copyright (c) 2026 Prompt Haus' in license_bytes
+          path=pathlib.Path('test-artifacts/feature3-openvto/LICENSE-openvto.txt')
+          path.write_bytes(license_bytes)
+          print('UPSTREAM_MIT_NOTICE_VERIFIED_SHA1='+gitsha)
+          PY
+      - name: Assert independent Feature4 and Feature5 manifest restrictions
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json, pathlib, hashlib
+          root=pathlib.Path('test-artifacts/feature3-openvto')
+          info=json.loads((root/'manifest.json').read_text())
+          assert info['schema']=='retailgrowth.feature3-demo-input-pack.v1'
+          assert info['model_is_synthetic'] is True
+          assert info['actual_vton_inference_performed'] is False
+          assert info['feature5']['provider_call_permitted'] is False
+          assert info['feature4']['publish_approved'] is False
+          assert info['publish_approved'] is False
+          for image in info['assets']:
+              raw=(root/image['filename']).read_bytes()
+              assert hashlib.sha256(raw).hexdigest()==image['sha256']
+              assert len(raw)==image['bytes']
+              assert image['rights_verified_for_customer'] is False
+          print('FEATURE4_FEATURE5_SYNTHETIC_INPUTS_VERIFIED='+','.join(a['filename'] for a in info['assets']))
+          PY
+      - name: Share exact source bytes with Feature4 and Feature5
+        uses: actions/upload-artifact@v4
+        with:
+          name: feature3-openvto-mit-inputs
+          path: test-artifacts/feature3-openvto/
+          if-no-files-found: error
+          retention-days: 30

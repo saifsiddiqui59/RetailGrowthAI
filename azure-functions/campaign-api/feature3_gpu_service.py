@@ -63,14 +63,21 @@ class Feature3GPUServiceStore:
         })
         # The SQL has already committed an authoritative reservation+outbox.
         # A missing/ambiguous acknowledgment is NOT permission to reserve again.
-        if not isinstance(receipt, dict) or (
-            receipt.get("shop_id") != sid or receipt.get("status") != "QUEUED" or
-            receipt.get("gpu_started") is not False
-        ):
+        if (type(receipt) is not dict or set(receipt) != {
+                "shop_id", "job_id", "reservation_id", "reserved_usd",
+                "status", "gpu_started"} or
+                receipt.get("shop_id") != sid or receipt.get("status") != "QUEUED" or
+                receipt.get("gpu_started") is not False):
             raise StorageUnavailable("unconfirmed GPU reservation; inspect DB before retry")
-        jid = canonical_uuid(receipt.get("job_id"))
-        reservation = canonical_uuid(receipt.get("reservation_id"))
-        confirmed = _money(receipt.get("reserved_usd"), positive=True)
+        try:
+            jid = canonical_uuid(receipt["job_id"])
+            reservation = canonical_uuid(receipt["reservation_id"])
+            confirmed = _money(receipt["reserved_usd"], positive=True)
+        except (ValueError, TypeError, KeyError, AttributeError):
+            # SQL may already have committed the reservation. An invalid
+            # receipt never authorizes an identical second paid request.
+            raise StorageUnavailable(
+                "GPU reservation ACK invalid; reconcile before retry") from None
         if Decimal(confirmed) < Decimal(amount):
             raise StorageUnavailable("GPU reservation below requested bound")
         return {
@@ -85,12 +92,18 @@ class Feature3GPUServiceStore:
         if receipt is None:
             # Already claimed, outbox not SENT, or canceled. Do not requeue.
             return None
-        if not isinstance(receipt, dict) or receipt.get("job_id") != jid or (
-            receipt.get("claim_token") != token or receipt.get("attempt") != 1
-        ):
+        if (type(receipt) is not dict or set(receipt) != {
+                "shop_id", "job_id", "attempt", "claim_token"} or
+                receipt.get("job_id") != jid or
+                receipt.get("claim_token") != token or
+                type(receipt.get("attempt")) is not int or
+                receipt["attempt"] != 1):
             raise StorageUnavailable("untrusted GPU claim response")
-        return {"shop_id": canonical_uuid(receipt.get("shop_id")),
-                "job_id": jid, "attempt": 1, "claim_token": token}
+        try:
+            shop = canonical_uuid(receipt["shop_id"])
+        except (ValueError, TypeError, AttributeError):
+            raise StorageUnavailable("Untrusted GPU claim shop ID") from None
+        return {"shop_id": shop, "job_id": jid, "attempt": 1, "claim_token": token}
 
     def read_prepaid_reservation(self, shop_id, job_id, attempt, claim_token):
         """Read the existing reservation; never insert a second charge.
@@ -107,7 +120,8 @@ class Feature3GPUServiceStore:
             "id": "eq." + jid, "shop_id": "eq." + sid, "limit": "2",
         }), "GPU claim unavailable")
         if (row.get("id") != jid or row.get("shop_id") != sid or
-            row.get("status") != "RUNNING" or row.get("attempts") != 1 or
+            row.get("status") != "RUNNING" or
+            type(row.get("attempts")) is not int or row["attempts"] != 1 or
             row.get("claim_token") != token):
             raise StorageUnavailable("stale GPU claim")
         lease = row.get("lease_until")
@@ -147,3 +161,60 @@ class Feature3GPUServiceStore:
             # Never treat missing ACK as a successful financial settlement.
             raise StorageUnavailable("GPU settlement unconfirmed; do not retry")
         return True
+
+    def commit_private_output(self, shop_id, job_id, attempt, claim_token,
+                              object_path, image_sha256, object_bytes, source_asset_ids):
+        """Bridge an existing trusted private Storage ACK to one-shot SQL CAS.
+
+        The source adapter validates actual PNG bytes before this call. SQL
+        rechecks live claim, registration, original shop, metadata and rights.
+        Missing ACK is UNKNOWN, NOT permission to reupload/retry/settle.
+        """
+        sid, jid, token = map(canonical_uuid, (shop_id, job_id, claim_token))
+        if type(attempt) is not int or attempt != 1:
+            raise ValueError("Only the first immutable GPU attempt can register")
+        if (not isinstance(image_sha256, str) or
+                not _SHA256.fullmatch(image_sha256) or
+                type(object_bytes) is not int or
+                not 100 <= object_bytes <= 25 * 1024 * 1024):
+            raise ValueError("Exact PNG checksum and byte count required")
+        expected = f"{sid}/feature3/gpu/{jid}/{image_sha256}.png"
+        if object_path != expected:
+            raise ValueError("Output Storage path outside immutable job identity")
+        if (not isinstance(source_asset_ids, (tuple, list)) or
+                not 1 <= len(source_asset_ids) <= 12):
+            raise ValueError("Trusted private source IDs required")
+        sources = [canonical_uuid(aid) for aid in source_asset_ids]
+        if len(set(sources)) != len(sources):
+            raise ValueError("Duplicate GPU source IDs")
+        result = self.db.request("rpc/feature3_commit_gpu_private_output",
+                                 method="POST", data={
+            "p_shop_id": sid, "p_job_id": jid, "p_attempt": 1,
+            "p_claim_token": token, "p_object_path": expected,
+            "p_image_sha256": image_sha256, "p_object_bytes": object_bytes,
+            "p_source_asset_ids": sources,
+        })
+        required = {"media_asset_id", "shop_id", "job_id", "claim_token",
+                    "attempt", "image_sha256", "object_path",
+                    "review_status", "source", "private"}
+        if (not isinstance(result, dict) or set(result) != required or
+                result["shop_id"] != sid or result["job_id"] != jid or
+                result["claim_token"] != token or
+                type(result["attempt"]) is not int or result["attempt"] != 1 or
+                result["image_sha256"] != image_sha256 or
+                result["object_path"] != expected or
+                result["review_status"] != "UNREVIEWED" or
+                result["source"] != "GENERATED" or
+                result["private"] is not True):
+            raise StorageUnavailable("GPU output commit unknown; reconcile, do not retry")
+        try:
+            media_id = canonical_uuid(result["media_asset_id"])
+        except (ValueError, TypeError, AttributeError):
+            # The output CAS might have committed despite a malformed HTTP
+            # return; do not treat this as safe to re-upload or charge.
+            raise StorageUnavailable(
+                "GPU output receipt identity unknown; reconcile first") from None
+        return {"shop_id": sid, "job_id": jid, "claim_token": token,
+                "attempt": 1, "media_asset_id": media_id,
+                "image_sha256": image_sha256, "private": True,
+                "review_status": "UNREVIEWED"}

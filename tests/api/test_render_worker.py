@@ -91,3 +91,32 @@ def test_unlicensed_asset_fails_and_does_not_upload():
     with pytest.raises(Exception):
         process_render(JID, admin, Media(), render_fn=fake_render)
     assert admin.failures == [("RENDER_FAILED", False)]
+
+
+def test_worker_success_receipt_only_after_actual_completed_render():
+    db=Admin()
+    spans=[]
+    assert process_render(JID, db, Media(), render_fn=fake_render,
+                          span_sink=spans.append) == "SUCCEEDED"
+    assert db.outputs
+    assert len(spans)==1
+    span=spans[0]
+    assert span["feature"]=="F4"
+    assert span["status"]=="SUCCEEDED"
+    assert span["operation"]=="render.complete"
+    assert span["metadata"] == {
+        "codec":"h264/aac", "video_width":1080, "video_height":1920,
+        "duration_seconds":30,
+    }
+    assert span["persisted"] is False
+    assert not any("/renders/" in str(value) for value in span.values())
+
+
+def test_render_denied_records_no_false_render_success():
+    db=Admin()
+    db.authorized=False
+    spans=[]
+    assert process_render(JID, db, Media(), render_fn=fake_render,
+                          span_sink=spans.append) == "DENIED"
+    assert db.failures == [("ACCESS_REVOKED", True)]
+    assert len(spans)==1 and spans[0]["status"]=="DENIED"

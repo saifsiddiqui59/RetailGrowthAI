@@ -7,10 +7,9 @@ shop IDs or image URLs as proof of access.
 """
 from __future__ import annotations
 
-import re
-from model_library_v2 import ModelLibraryDenied, checked_model_for_use, _uuid
-
-_ASSET = re.compile(r'^[a-zA-Z0-9_-]{1,100}$')
+from uuid import UUID
+from model_library_v2 import (ModelLibraryDenied, checked_model_for_use,
+                              _uuid, _unsafe_review_text)
 
 
 def approved_model_picker_items(*, models, requesting_shop_id,
@@ -34,6 +33,19 @@ def approved_model_picker_items(*, models, requesting_shop_id,
         raise ModelLibraryDenied('Server-authorized bounded catalog required')
     ready, seen = [], set()
     for model in models[:500]:
+        # The catalog may contain one malformed legacy or untrusted row.
+        # Skip that entry without denying the entire otherwise authorized
+        # model picker or attempting a private-media resolution.
+        if not isinstance(model, dict):
+            continue
+        # Reject unsafe UI text before rights and private-media callbacks.
+        # A malformed row must never cause a private lookup only to be
+        # discarded after the sensitive lookup has already happened.
+        label = model.get('label')
+        if (not isinstance(label, str) or
+                not 1 <= len(label.strip()) <= 64 or len(label) > 64 or
+                _unsafe_review_text(label)):
+            continue
         try:
             reference = checked_model_for_use(
                 model=model, requesting_shop_id=shop_id, usage='poster',
@@ -49,13 +61,18 @@ def approved_model_picker_items(*, models, requesting_shop_id,
             receipt.get('private') is not True or
             receipt.get('requesting_shop_id') != shop_id or
             receipt.get('image_sha256') != reference['image_sha256'] or
-            not isinstance(receipt.get('media_asset_id'), str) or
-            not _ASSET.fullmatch(receipt['media_asset_id'])):
+            not isinstance(receipt.get('media_asset_id'), str)):
             # Deny this entry. We cannot assume a model grant also
             # registers private preview media for the requesting tenant.
             continue
-        label = model.get('label')
-        if not isinstance(label, str) or not 1 <= len(label.strip()) <= 64:
+        # A model picker must emit the same canonical registered-media UUID
+        # contract as the signed JWT/RLS catalog adapter, not an arbitrary
+        # identifier-shaped string from an injected private-media resolver.
+        try:
+            media_asset_id = _uuid(receipt['media_asset_id'])
+            if UUID(media_asset_id).version != 4:
+                continue
+        except (ModelLibraryDenied, ValueError):
             continue
         seen.add(reference['model_id'])
         ready.append({
@@ -65,7 +82,7 @@ def approved_model_picker_items(*, models, requesting_shop_id,
             'scope': model['scope'],
             'status': 'APPROVED', 'synthetic_adult': True,
             'image_sha256': reference['image_sha256'],
-            'media_asset_id': receipt['media_asset_id'],
+            'media_asset_id': media_asset_id,
             'label': label.strip(),
             'license_id': model.get('license_id'),
             'attribution': reference['attribution'],

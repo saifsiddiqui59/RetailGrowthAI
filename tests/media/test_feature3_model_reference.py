@@ -27,7 +27,7 @@ class ModelReferenceTests(unittest.TestCase):
             'model_id': self.model_id, 'owner_shop_id': self.shop,
             'status': 'APPROVED', 'scope': 'shop',
             'synthetic_adult': True, 'image_sha256': MODEL_SHA,
-            'storage_key': f'shops/{self.shop}/model-library/{self.model_id}/{MODEL_SHA}.png',
+            'storage_key': f'{self.shop}/model-library/{self.model_id}/{MODEL_SHA}.png',
             'license_id': 'CC-BY-4.0', 'attribution': 'synthetic test — CC BY 4.0',
             'approved_uses': ['poster', 'try_on', 'video_reference'],
         }
@@ -54,7 +54,7 @@ class ModelReferenceTests(unittest.TestCase):
             self.assertFalse(receipt['generation_executed'])
             self.assertFalse(receipt['gpu_spend_authorized'])
             self.assertTrue(receipt['media_access_requires_current_rights'])
-            self.assertTrue(receipt['private_storage_key'].startswith('shops/'))
+            self.assertTrue(receipt['private_storage_key'].startswith(self.shop + '/'))
         self.assertEqual(len({poster['cache_fingerprint'], try_on['cache_fingerprint'],
                               video['cache_fingerprint']}), 3)
         self.assertEqual(poster['cache_fingerprint'], self.prepare()['cache_fingerprint'])
@@ -71,7 +71,7 @@ class ModelReferenceTests(unittest.TestCase):
 
     def test_shared_model_always_shop_fences_cache_and_rights(self):
         self.model['scope'] = 'platform'
-        self.model['storage_key'] = f'model-library/platform/{self.model_id}/{MODEL_SHA}.png'
+        self.model['storage_key'] = f'{self.shop}/model-library/platform/{self.model_id}/{MODEL_SHA}.png'
         a = self.prepare()
         b = self.prepare(requesting_shop_id=self.other)
         self.assertNotEqual(a['cache_fingerprint'], b['cache_fingerprint'])

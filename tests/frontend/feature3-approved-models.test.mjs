@@ -45,6 +45,13 @@ test('reject tenant leakage, no current image, unreviewed or license-invalid mod
     { ...privateModel, synthetic_adult: false },
     { ...privateModel, approved_uses: ['try_on'] },
     { ...privateModel, image_sha256: 'bad-hash' },
+    { ...privateModel, license_id: undefined },
+    { ...privateModel, license_id: 'UNVERIFIED' },
+    { ...privateModel, license_id: 'CC-BY-4.0', attribution: '  ' },
+    { ...privateModel, approved_uses: ['poster', 'unreviewed_paid_inference'] },
+    { ...privateModel, approved_uses: ['poster', 'poster'] },
+    { ...privateModel, approved_uses: ['poster', null] },
+    { ...privateModel, approved_uses: ['poster', 'try_on', 'video_reference', 'poster'] },
     { ...privateModel, media_asset_id: 'unregistered_model' },
     { ...privateModel, attribution: '' },
     { ...privateModel, media_asset_id: '../../escape' },
@@ -84,4 +91,20 @@ test('Studio preserves source-review-only browser catalog but adds approved stil
   assert.match(jsx, /Server must revalidate media and model rights/i)
   assert.ok(!jsx.includes('http://'))
   assert.ok(!jsx.includes('fetch('))
+})
+
+test('model catalog permits only explicitly reviewed license IDs and unique bounded uses', () => {
+  for (const license_id of ['CC0-1.0', 'CC-BY-4.0', 'REVIEWED-COMMERCIAL']) {
+    const row = { ...privateModel, license_id }
+    assert.equal(availableApprovedModels([row], shop, imageMap).length, 1)
+  }
+  assert.equal(availableApprovedModels([
+    { ...privateModel, approved_uses: ['poster', 'try_on', 'video_reference'] },
+  ], shop, imageMap, 'try_on').length, 1)
+  assert.equal(availableApprovedModels([
+    { ...privateModel, approved_uses: ['poster', 'try_on', 'video_reference'] },
+  ], shop, imageMap, 'video_reference').length, 1)
+  assert.equal(availableApprovedModels([
+    { ...privateModel, approved_uses: [] },
+  ], shop, imageMap).length, 0)
 })

@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import re
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 from uuid import UUID
 
@@ -45,8 +45,12 @@ class TenantStore:
         self.transport = transport or urlopen
 
     def _request(self, table, token, *, query=None, method="GET", data=None):
-        if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs", "poster_drafts", "poster_jobs", "business_profiles", "shop_content_drafts"}:
+        if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs", "poster_drafts", "poster_jobs", "business_profiles", "shop_content_drafts", "feature3_gpu_jobs"}:
             raise ValueError("unsupported table")
+        # Browser-JWT job history/status is SELECT-only. Claim, finish,
+        # financial and private-output writes remain service-role RPCs.
+        if table == "feature3_gpu_jobs" and method != "GET":
+            raise ValueError("Feature3 GPU history is read-only")
         if table == "shop_content_drafts" and method != "GET":
             raise ValueError("content drafts are only writable through the backend")
         url = self.origin + "/rest/v1/" + table
@@ -166,9 +170,26 @@ class TenantStore:
         if not isinstance(rows, list) or len(rows) != 1:
             return None
         item = rows[0]
+        if not isinstance(item, dict):
+            return None
         extensions = {"image/png": ".png", "image/jpeg": ".jpg",
                       "image/webp": ".webp"}
-        ext = extensions.get(item.get("mime_type"))
+        mime = item.get("mime_type")
+        ext = extensions.get(mime) if isinstance(mime, str) else None
+        # License provenance is not a rights approval. Reject malformed
+        # authorities rather than accepting any string starting with https://.
+        license_url = item.get("license_url")
+        valid_license_url = False
+        if (isinstance(license_url, str) and 0 < len(license_url) <= 500 and
+                all(32 < ord(ch) < 127 for ch in license_url)):
+            try:
+                parsed = urlsplit(license_url)
+                valid_license_url = (
+                    parsed.scheme == "https" and bool(parsed.hostname) and
+                    parsed.username is None and parsed.password is None
+                )
+            except ValueError:
+                pass
         if not ext or item.get("id") != aid or item.get("shop_id") != sid or (
             item.get("storage_bucket") != "retailgrowth-media" or
             item.get("source") != "UPLOAD" or
@@ -177,9 +198,7 @@ class TenantStore:
                 ("owned", "cc0", "royalty_free", "commercial") or
             not isinstance(item.get("attribution"), str) or
             len(item["attribution"].strip()) < 10 or
-            (item["license_name"] != "owned" and
-             (not isinstance(item.get("license_url"), str) or
-              not item["license_url"].startswith("https://")))
+            (item["license_name"] != "owned" and not valid_license_url)
         ):
             return None
         return {"mime_type": item["mime_type"],

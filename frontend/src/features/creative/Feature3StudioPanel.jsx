@@ -12,6 +12,8 @@ import Feature3CpuEditor from './Feature3CpuEditor.jsx'
 import Feature3ModelLibraryReview from './Feature3ModelLibraryReview.jsx'
 const Feature3KonvaEditor = lazy(() => import('./Feature3KonvaEditor.jsx'))
 import { availableApprovedModels, selectedApprovedModel } from './feature3-approved-models.mjs'
+import { createFeature3ModelWorkflowApi } from './feature3-model-workflow-api.mjs'
+import { getRetailClient } from '../../lib/supabase.js'
 
 const fieldStyle = { display: 'grid', gap: 6, minWidth: 0 }
 const inputStyle = { width: '100%', maxWidth: '100%', boxSizing: 'border-box' }
@@ -20,7 +22,27 @@ const rootStyle = { display: 'grid', gap: 16, width: '100%', minWidth: 0 }
 export default function Feature3StudioPanel({
   shopId, campaignId, dayId, brandKit, imageMap = {}, approvedContent = null,
   onSaveDesign = null, approvedModels = [], restoredDesign = null, disabled = false,
+  modelWorkflowApi = null, modelWorkflowEnabled = false,
 }) {
+  // OFF by default: signed original/review routes are mounted only after
+  // reviewed DEV schema and explicit frontend/backend feature-flag rollout.
+  const signedModelApi=useMemo(()=>{
+    if(modelWorkflowApi)return modelWorkflowApi
+    const env=import.meta.env
+    if(env?.VITE_FEATURE3_V2_ENABLED!=='true' ||
+       env?.VITE_FEATURE3_MODEL_REVIEW_ENABLED!=='true' ||
+       !env?.VITE_CAMPAIGN_API_BASE_URL)return null
+    const client=getRetailClient()
+    if(!client.configured)return null
+    try{
+      return createFeature3ModelWorkflowApi({
+        baseUrl:env.VITE_CAMPAIGN_API_BASE_URL,
+        tokenProvider:()=>client.getAccessToken(),
+      })
+    }catch{return null}
+  },[modelWorkflowApi])
+  const signedWorkflowEnabled=modelWorkflowApi
+    ? modelWorkflowEnabled===true : Boolean(signedModelApi)
   const [mode, setMode] = useState('text')
   const [prompt, setPrompt] = useState('')
   const [template, setTemplate] = useState('auto')
@@ -209,7 +231,8 @@ export default function Feature3StudioPanel({
         onClick={() => setShowModelLibrary(value => !value)}>
         {showModelLibrary ? 'Hide model library review' : 'Explore existing AI fashion models (no GPU)'}
       </button>
-      {showModelLibrary && <Feature3ModelLibraryReview disabled={disabled} />}
+      {showModelLibrary && <Feature3ModelLibraryReview disabled={disabled} shopId={shopId}
+        workflowApi={signedModelApi} workflowEnabled={signedWorkflowEnabled} />}
     </section>
   </section>
 }

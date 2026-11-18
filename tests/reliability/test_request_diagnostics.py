@@ -42,6 +42,7 @@ class DiagnosticsTests(unittest.TestCase):
         self.assertNotIn("private", json.dumps(logger.rows))
         self.assertTrue(re.fullmatch("[0-9a-f]{32}", headers["X-Request-ID"]))
         self.assertEqual(headers["Cache-Control"], "no-store")
+        self.assertEqual(headers["Access-Control-Expose-Headers"], "X-Request-ID")
         self.assertEqual(headers["Retry-After"], "2")
 
     def test_malformed_json_denial_and_config_failure_have_safe_headers(self):

@@ -8,6 +8,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const IMAGE_ID = /^[a-zA-Z0-9_-]{1,100}$/
 const SHA = /^[a-f0-9]{64}$/
 const USES = new Set(['poster', 'try_on', 'video_reference'])
+const LICENSES = new Set(['CC0-1.0', 'CC-BY-4.0', 'REVIEWED-COMMERCIAL'])
 
 export const APPROVED_MODEL_SCHEMA = 'retailgrowth.model-library.v1'
 
@@ -22,7 +23,12 @@ export function availableApprovedModels(rows, shopId, imageMap = {}, usage = 'po
         !UUID.test(row.owner_shop_id) || !SHA.test(row.image_sha256) ||
         (row.scope !== 'shop' && row.scope !== 'platform') ||
         (row.scope === 'shop' && row.owner_shop_id !== shopId) ||
-        !Array.isArray(row.approved_uses) || !row.approved_uses.includes(usage) ||
+        !LICENSES.has(row.license_id) ||
+        !Array.isArray(row.approved_uses) ||
+        row.approved_uses.length < 1 || row.approved_uses.length > USES.size ||
+        row.approved_uses.some(value => typeof value !== 'string' || !USES.has(value)) ||
+        new Set(row.approved_uses).size !== row.approved_uses.length ||
+        !row.approved_uses.includes(usage) ||
         typeof row.label !== 'string' || row.label.trim().length < 1 ||
         row.label.length > 64 || !IMAGE_ID.test(row.media_asset_id) ||
         seen.has(row.model_id)) continue

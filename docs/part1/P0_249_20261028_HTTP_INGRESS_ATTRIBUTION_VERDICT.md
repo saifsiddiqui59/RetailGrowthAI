@@ -1,0 +1,38 @@
+# Azure Issue #249 — original Flex request/worker attribution, 28 October 2026
+
+**Verifiable conclusion: original HTTP503 still UNFIXED; source-layer cause NOT PROVEN.** Protected original existing RetailGrowthAI DEV [hosted evidence #40768869977](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40768869977) was a **successful read-only DIAGNOSTIC**, never HTTP reliability acceptance. Exact [PR #588](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/588) original source commit 381832aa after corrected [4/4 PR CI #40768319593](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40768319593) PASS, squash-merged as `641277c00e207f71e957b039b7b3a430e4ceda47`. Initial source CI #40768128640 failed two overly broad new test expectations; source fix corrected safe intermediate Kusto projection and per-window checks before green CI. No CI bypass.
+
+## What we KNOW from real client requests
+
+In previously protected original Python Flex 20-request same unauthenticated synthetic GET [#40755301253](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40755301253) at 19:35–19:51 UTC, **9/20 actual HTTP 503**, about 60.8–60.9 seconds and **without** Python-generated `X-Request-ID`; **11/20 expected instrumented 401**; no client timeout. The identical static Free SWA Node preview returned 20/20 401 and zero 503. Source import/worker deferral was deployed and tested and did NOT change 9/20 failure count vs earlier baseline; original source ZIP was then restored (not byte-identical historical artifact proof). Postrollback original two fixed GETs [#40759193001](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40759193001) were 401 in 5.021s and genuine unmarked 503 in 61.009s.
+
+## What original Azure logged after independent OIDC identity verification
+
+Source `ops/p0_249_platform_correlation_readonly.py` constrains Azure to existing `rg-retailgrowth-dev` Central India `rgai-dev-functions-d4e5ddbd` + existing DEV Log Analytics, two fixed historical UTC ranges; fixed Kusto allowlist reports only count buckets/class codes and hashes. The query does NOT touch customer URLs, JWTs, raw diagnostic messages, new HTTP requests, SQL, deployment or settings.
+
+| Actual historical Azure result | 19:35–19:51 UTC failed canary | 19:59–20:02 UTC postrollback |
+|---|---:|---:|
+| Application Insights AppRequests (all logged rows) | 25 | 4 |
+| Explicit `ResultCode=401` | **11** | **1** |
+| `ResultCode` missing/zero | **14** | **3** |
+| Explicit `ResultCode=503` | **0** | **0** |
+| Other recognized 4xx/5xx | 0 | 0 |
+| AppTraces `Worker process started` | **25** | **3** |
+| AppTraces containing neutral `host initialization` | **25** | **3** |
+| Worker-start records on role instances ALSO showing a known app 401 during this historical window | **3** | **1** |
+| Worker-start records not linked to an observed same-instance 401 | **22** | **2** |
+| Observed AppTraces matches for `SpecializeAsync`, `PendingItem.OnTimeout`, `StartStream`, `ProcessStartupTimeout`, `Worker process exited`, `RpcException` | **0** | **0** |
+
+**Interpretation limits:**
+- **14 missing/zero results are not 14 HTTP503s.** AppRequests may contain internal/runtime telemetry, and sampled/ingress errors may be absent; without actual per-request gateway/worker IDs, do NOT correlate a specific 503 to these rows.
+- **22 unlinked worker starts are not 22 failed HTTP instances.** Microsoft's [official Flex per-function scaling](https://learn.microsoft.com/en-us/azure/azure-functions/flex-consumption-plan#per-function-scaling) places all HTTP triggers in one `http` group while Queue and Timer functions use independent scale groups. Same instance sharing a known marked 401 supports that instance served HTTP, but no recorded 401 on another instance proves NOTHING about whether it served/failed HTTP. AppInsights sampling/ingestion can omit events. The app's configured `maximumInstanceCount=1` applies to **each group**, not the app's total, and defaults Python HTTP concurrency to **one per instance** unless overridden; explicit HTTP concurrency in original ARM was UNKNOWN. The app's queue/timer functions can explain independent additional starts.
+- **25 ordinary host initialization events are NOT 25 errors or crashes.** No named timeout/exit/gRPC failure signature was found in the allowed AppTraces strings. This does NOT prove Azure platform had no such error outside application telemetry.
+- **Highest-confidence narrowed diagnosis:** real HTTP503 responses are not emitted as application-recorded HTTP503 results for this probe, and failed client responses had no application marker. This is **consistent with** Azure ingress/host specialization/worker-ready routing or missing handler-invocation telemetry; it is NOT confirmation of a specific component, 30s host init timeout, 60s worker startup timeout, Python 3.12 bug, storage failure or one-slot concurrency.
+
+## Required to find *exact* root cause, without speculative fixes
+
+1. In existing original Azure app **Diagnose and solve problems → Function App Down or Reporting Errors (Preview)**, inspect internal failed-request URI/edge routing and HTTP scale group host allocation for **28 Oct 2026 19:35–19:51 UTC** and postrollback **19:59–20:02 UTC**, with correlation to original [client 9/20 unmarked 61s 503s](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40755301253). Obtain a specific HTTP instance / ingress request to worker startup/gRPC/specialization trace; classify whether it was gateway enqueue, host readiness, language worker startup or pre-handler shutdown. This detailed trace is **not exposed by the existing permitted sanitized Log Analytics queries**. If unavailable in the portal, record `AZURE_INTERNAL_TRACE_REQUIRED`; previous owner explicitly requested **no Azure support ticket**, so do not open one unilaterally.
+2. Only with demonstrated origin, test a **minimal reversible existing DEV-only fix** at no unapproved paid tier, with 4/4 source CI, protected original Azure rollback, 20+ first/warm/idle/concurrent HTTP status samples and representative p95/p99 samples sufficient to support the claim. Signed OWNER/EDITOR/VIEWER/foreign/revoked two-shop private image→poster→queued real 30s H.264/AAC MP4→private signed GET is a separate required release gate; a green anonymous 401 is not that gate.
+3. Keep [Issue #249](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/249) OPEN; do not merge source [PR #568](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/568), which was **actual live 9/20 HTTP503 failed** and remains DRAFT. Don't tune AlwaysReady, concurrency, instance count or hosting SKU on a correlation alone. Do not cut over users to the fallback Node preview without signed full tenant/queue/outbox/rights parity.
+
+**Azure changes performed by #588 and this report:** NONE. No new HTTP probes, infrastructure, paid capacity, GPU, customer/tenant data, PROD or WineShopPOS changes. Public official references: [Flex groups](https://learn.microsoft.com/en-us/azure/azure-functions/flex-consumption-plan), [Flex 30s host initialization](https://learn.microsoft.com/en-us/azure/azure-functions/flex-consumption-plan#considerations), [60s language worker startup](https://learn.microsoft.com/en-us/azure/azure-functions/functions-scale), [Python HTTP default concurrency one](https://learn.microsoft.com/en-us/azure/azure-functions/functions-concurrency#http-trigger-concurrency), [Azure Function App troubleshooting](https://learn.microsoft.com/en-us/troubleshoot/azure/azure-functions/availability/functions-troubleshoot-issues).

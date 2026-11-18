@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-10-29",
+  "repository": "saifsiddiqui59/RetailGrowthAI",
+  "source_registry": "coordination/feature_tasks.json",
+  "handoff_dag": "coordination/dependencies.json",
+  "note": "Feature references are coordination contracts, not evidence of actual production output. Verify PR state and latest main each task.",
+  "feature_chats": [
+    {
+      "feature": "2",
+      "chat_name": "reail feature2",
+      "task_count": 38,
+      "source_pr": 551,
+      "ledger": "docs/feature2/FEATURE2_38_TASK_LEDGER_20261029.md",
+      "owns": [
+        "trend signals",
+        "reviewed scripts, dialogue, storyboard, shot plans",
+        "voice specification and approvals"
+      ]
+    },
+    {
+      "feature": "3",
+      "chat_name": "retail feature 3",
+      "task_count": 33,
+      "ledger": "docs/feature3/FEATURE3_33_PACKAGE_STATUS_20261029.md",
+      "owns": [
+        "rights-scoped originals",
+        "private generated posters and model output",
+        "immutable source grants"
+      ]
+    },
+    {
+      "feature": "4",
+      "chat_name": "retail feature 4",
+      "task_count": 31,
+      "source_pr": 322,
+      "ledger": "video-engine/FEATURE4_31_TASK_PARALLEL_TRACKER_20261029.md",
+      "owns": [
+        "final video composition",
+        "FFmpeg render",
+        "signed reviewed output and visual QA"
+      ]
+    },
+    {
+      "feature": "5",
+      "chat_name": "retail feature 5",
+      "task_count": 22,
+      "source_pr": 465,
+      "ledger": "docs/feature5/F5_22_TASK_DEPENDENCIES_20261029.json",
+      "owns": [
+        "bounded motion provider contract",
+        "GPU-OFF CPU pipelines",
+        "real Wan inference only after owner approval"
+      ]
+    },
+    {
+      "feature": "7",
+      "chat_name": "retail feature 7",
+      "task_count": 35,
+      "source_pr": 513,
+      "ledger": "video-engine/feature7/TASKS_20261028.md",
+      "owns": [
+        "source-aware edit proposals",
+        "speech analysis and captions",
+        "rights-fenced human editing decision"
+      ]
+    }
+  ],
+  "reference_edges": [
+    {
+      "producer": "2",
+      "consumer": "4",
+      "dependency_ids": [
+        "F2-CREATIVE-SOURCE",
+        "F4-F2-CREATIVE-ADAPTER"
+      ],
+      "fixture_allowed": true,
+      "required": "versioned reviewed creative direction, scene durations, copy and caption timing",
+      "production_gate": "independent editor approval and genuine audio/music rights"
+    },
+    {
+      "producer": "2",
+      "consumer": "5",
+      "dependency_ids": [
+        "F2-CREATIVE-SOURCE",
+        "PART3-WAN22-CONTRACT"
+      ],
+      "fixture_allowed": true,
+      "required": "versioned motion prompts and frame guidance",
+      "production_gate": "real approved garment/model, bounded inference and rights"
+    },
+    {
+      "producer": "3",
+      "consumer": "5",
+      "dependency_ids": [
+        "F3-ORIGINAL-HANDOFF",
+        "F3-LICENSED-MEDIA"
+      ],
+      "fixture_allowed": true,
+      "required": "immutable original model and separate garment bytes, current grants and SKU ID",
+      "production_gate": "verified commercial rights plus approved garment actually worn"
+    },
+    {
+      "producer": "3",
+      "consumer": "4",
+      "dependency_ids": [
+        "F3-ORIGINAL-HANDOFF",
+        "F3-LICENSED-MEDIA"
+      ],
+      "fixture_allowed": true,
+      "required": "source poster/model/media provenance and licensed private output",
+      "production_gate": "genuine approved generated output, no fixtures as real posters"
+    },
+    {
+      "producer": "5",
+      "consumer": "4",
+      "dependency_ids": [
+        "F5-GPUOFF-SOURCE",
+        "F5-REAL-WAN-MOTION"
+      ],
+      "fixture_allowed": true,
+      "required": "versioned motion receipt, private source SHA and clip specs",
+      "production_gate": "real authorized Wan2.2 output and human garment fidelity review; GPU OFF until separately approved"
+    },
+    {
+      "producer": "7",
+      "consumer": "4",
+      "dependency_ids": [
+        "F7-SEMANTIC-SOURCE",
+        "F4-F7-EDIT-ADAPTER"
+      ],
+      "fixture_allowed": true,
+      "required": "source-timecut, word timing, B-roll plan and reviewer receipt",
+      "production_gate": "real human-reviewed original audio and supported encoded edits"
+    },
+    {
+      "producer": "7",
+      "consumer": "2",
+      "dependency_ids": [
+        "F7-SEMANTIC-SOURCE"
+      ],
+      "fixture_allowed": true,
+      "required": "original-WAV speech transcript / ASR error evidence",
+      "production_gate": "real approved ASR media and current source rights"
+    },
+    {
+      "producer": "1",
+      "consumer": "2",
+      "dependency_ids": [],
+      "fixture_allowed": true,
+      "required": "Creative Studio signed UI mount and roles",
+      "production_gate": "hosted signed JWT/RLS and live voice selection authorization"
+    }
+  ],
+  "shared_blockers": [
+    {
+      "issue": 650,
+      "owner": "coordinator",
+      "required": "safe Azure Functions package <=120 members with approved runtime import closure and protected checks",
+      "may_continue": "all independent source and mock CI except release package signoff"
+    },
+    {
+      "issue": 249,
+      "owner": "Azure reliability lead",
+      "required": "observed signed DEV gateway 503 latency and live post-fix verified E2E",
+      "may_continue": "offline CPU, Playwright mocked UI, contracts and tests"
+    }
+  ],
+  "safety": {
+    "no_user_facing_samples_without_request": true,
+    "no_gpu": true,
+    "no_prod": true,
+    "no_wineshoppos": true,
+    "approval_only_by_human": true
+  }
+}

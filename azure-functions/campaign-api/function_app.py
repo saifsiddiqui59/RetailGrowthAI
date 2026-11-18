@@ -6,10 +6,11 @@ from request_diagnostics import RequestDiagnostics
 import azure.functions as func
 
 from http_api import HTTPAPI
-from security import SupabaseJWTVerifier
+from security import cached_supabase_verifier
 from tenant_store import TenantStore
 from queue_adapter import AzurePlanningQueue, AzureRenderQueue
 from admin_store import AdminStore
+from worker_span_store import configured_worker_span_sink
 from planning_worker import process_campaign
 from render_api import RenderAPI
 from poster_draft_api import PosterDraftAPI
@@ -43,9 +44,12 @@ def build_api():
                   if os.environ.get("RETAIL_ENABLE_POSTER_DRAFTS") == "true" else None)
     poster_render_api = (PosterRenderAPI(store)
                          if os.environ.get("RETAIL_ENABLE_POSTER_RENDERING") == "true" else None)
-    feature3_api = (Feature3V2API(store, Feature3V2Store(url, key))
+    feature3_api = (Feature3V2API(
+                        store, Feature3V2Store(url, key),
+                        model_review_enabled=(
+                            os.environ.get("RETAIL_FEATURE3_MODEL_REVIEW_ENABLED") == "true"))
                     if os.environ.get("RETAIL_FEATURE3_V2_ENABLED") == "true" else None)
-    return HTTPAPI(SupabaseJWTVerifier(url), store, queue, render_api,
+    return HTTPAPI(cached_supabase_verifier(url), store, queue, render_api,
                    failure_store=admin, durable_outbox=bool(connection and admin),
                    poster_api=poster_api, poster_render_api=poster_render_api,
                    feature3_api=feature3_api)
@@ -86,6 +90,14 @@ def feature3_registered_source(req: func.HttpRequest) -> func.HttpResponse:
                     "/feature3-source-assets/" + req.route_params["asset_id"])
 
 
+# Feature3 private generated-image history is GET-only; paid GPU submit is
+# not publicly registered. Inner HTTPAPI verifies signed JWT + current tenant.
+@app.route(route="shops/{shop_id}/feature3-gpu-jobs", methods=["GET"])
+def feature3_private_job_history(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/shops/" + req.route_params["shop_id"] +
+                    "/feature3-gpu-jobs")
+
+
 # No public generated GPU image path; existing Feature3 flag defaults OFF.
 @app.route(route="shops/{shop_id}/feature3-gpu-jobs/{job_id}/download",
            methods=["GET"])
@@ -98,6 +110,40 @@ def feature3_gpu_private_download(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="shops/{shop_id}/feature3-models", methods=["GET"])
 def list_feature3_models(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch(req, "/shops/" + req.route_params["shop_id"] + "/feature3-models")
+
+
+# Signed retailer-only registration for an ALREADY UPLOADED private PNG.
+# No public upload, image approval, service role or GPU generation.
+@app.route(route="shops/{shop_id}/feature3-model-originals/register",
+           methods=["POST"])
+def register_feature3_model_original(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/shops/" + req.route_params["shop_id"] +
+                    "/feature3-model-originals/register")
+
+
+# Source importer route was handled in HTTPAPI but not previously mounted
+# in the Azure Functions route table. Keep review flags OFF by default.
+@app.route(route="shops/{shop_id}/feature3-models/import", methods=["POST"])
+def import_feature3_pending_model(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/shops/" + req.route_params["shop_id"] +
+                    "/feature3-models/import")
+
+
+# Source-only human review routes. Both the general Feature3 and the
+# *separate* model-review activation flags default OFF. Signed user JWT and
+# current role are rechecked in HTTPAPI, Feature3V2API and database RPC.
+@app.route(route="shops/{shop_id}/feature3-models/{model_id}/review",
+           methods=["POST"])
+def review_feature3_model(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/shops/" + req.route_params["shop_id"] +
+                    "/feature3-models/" + req.route_params["model_id"] + "/review")
+
+
+@app.route(route="shops/{shop_id}/feature3-models/{model_id}/revoke",
+           methods=["POST"])
+def revoke_feature3_model(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/shops/" + req.route_params["shop_id"] +
+                    "/feature3-models/" + req.route_params["model_id"] + "/revoke")
 
 
 @app.route(route="campaigns/{campaign_id}/days/{day_id}/feature3-designs",
@@ -153,6 +199,13 @@ def download_poster_render(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch(req, "/poster-jobs/" + req.route_params["job_id"] + "/download")
 
 
+def _trusted_worker_span_sink(admin):
+    # Only a separately reviewed, released SQL schema and explicit DEV flag
+    # may activate service-only worker span persistence. OFF by default.
+    return configured_worker_span_sink(
+        admin, os.environ.get("RETAIL_FEATURE_WORKER_SPANS_ENABLED"))
+
+
 @app.queue_trigger(arg_name="message", queue_name="retail-campaign-planning",
                    connection="RETAIL_STORAGE")
 def plan_campaign(message: func.QueueMessage):
@@ -165,6 +218,7 @@ def plan_campaign(message: func.QueueMessage):
     process_campaign(
         cid, admin,
         mock_enabled=os.environ.get("RETAIL_ENABLE_MOCK_CAMPAIGNS") == "true",
+        span_sink=_trusted_worker_span_sink(admin),
     )
 
 
@@ -199,9 +253,11 @@ def render_campaign_reel(message: func.QueueMessage):
     # Queue message contains only a validated job UUID. No paths, tokens or URLs.
     origin = os.environ["RETAIL_SUPABASE_URL"]
     key = os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]
+    admin = AdminStore(origin, key)
     process_render(
         message.get_body().decode("ascii"),
-        AdminStore(origin, key), PrivateMedia(origin, key),
+        admin, PrivateMedia(origin, key),
+        span_sink=_trusted_worker_span_sink(admin),
     )
 
 

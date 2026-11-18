@@ -1,0 +1,62 @@
+# Feature3 F3-12 / F3-13 — server-side approved model reuse and catalog safety
+
+## Original task coverage and gap
+
+F3-12 is the **approved reusable model library**; F3-13 is its negative rights/security regression package. Existing `checked_model_for_use` accepted any approval-use collection containing a requested use (including duplicates and unknown `admin`/paid permissions) and did not reject missing/unknown model image-license IDs. It also accepted CC-BY attribution of a non-string truthy value. The React browser selector independently rejected these fields, but source authorization must fail closed before backend private-media lookup; browser filtering is not server rights enforcement.
+
+The server helper now accepts only **bounded, nonempty, unique subsets** of the known `poster`, `try_on`, `video_reference` uses; requires an explicitly recognized per-image license ID; rejects unhashable/nonstring license/scope/usage; and requires bounded text attribution including non-whitespace CC-BY credit. Existing independent `authorize_use` callback is still mandatory for actual up-to-date shop/model approval; this source contract does not itself approve any license or likeness.
+
+The server model catalog skips malformed rows that would otherwise crash an entire authorized model picker; no raw URLs, private object keys or media bytes are exposed. Untrusted/forged models never reach the `resolve_private_media` callback. These checks align with the pre-existing strict browser `feature3-approved-models.mjs` contract without changing frontend schema.
+
+## Files, tests, acceptance
+
+- `poster-engine/model_library_v2.py` and `poster-engine/model_catalog_projection_v2.py`: fail-closed server reuse and resilient picker.
+- `tests/media/test_feature3_model_library.py` and `tests/media/test_feature3_model_catalog_projection.py`: negative license/rights/use/attribution, malformed-row isolation and positive bounded subset cases, using only synthetic in-memory model metadata.
+- Required exact FINAL-head 4/4 Part 1 CI; independent model licensing/private-media affected-lead review; main integration and fresh postmerge main 4/4 before source receipt can be marked integrated.
+- This is **source tested only**, not approved likeness, commercially reusable imagery, true service-only license review, signed DEV RLS/Storage or actual generated model output. F3-12/F3-13 original full hosted acceptance remains blocked. Never pretend model code licensing equals per-image licensed use.
+
+No GPU, paid provider, live model-generation, customer photos, hosted SQL, PROD, sample media or WineShopPOS.
+
+## Same PR extension — current signed catalog adapter before user-selected preview
+- `azure-functions/campaign-api/feature3_v2_store.py::list_models` is a second distinct backend trust boundary: an injected/tested PostgREST row previously passed through an unchecked `approved_uses="poster"` string, invalid per-image license, malformed SHA or failed synthetic-adult field. The adapter had hardcoded `synthetic_adult=True` without selecting the actual DB column. It now queries `synthetic_adult` (column exists in the original Feature3 proposed migration) and validates **exact** adult flag, source kind, shop-only status, license ID, immutable SHA, label, attribution and unique bounded poster-use grants before requesting JWT/RLS-owned media. A truthy but non-boolean media callback is never acceptance.
+- `tests/api/test_feature3_model_catalog_current_rights.py` independently exercises the real `Feature3V2Store` adapter with fake RLS/JWT and negative malformed rows: no private asset lookup for invalid metadata, CC-BY attribution and adult status, even with a correctly shaped ID; a malformed row does not block a valid shop model, and duplicate IDs do not create duplicate selectable previews. Source-only fixture proof, **not** a live JWT, approved likeness or deployed migration.
+- This cohesive extension stays inside existing F3-12/F3-13 PR #864 rather than creating a duplicate per-micro-task PR. The old final-head CI from before these commits must be rerun at the **new exact head** and checked 4/4; review is still independent.
+
+## Final negative provenance type fence (same PR #864)
+- Server `ModelCandidate` is untrusted structured input. Lists/dictionaries supplied for `scope`, `source_kind`, `license_id` or `pose` previously raised uncaught Python `TypeError` during membership checks; they now explicitly deny with `ModelLibraryDenied` before any private Storage or model registry operation.
+- New `test_unhashable_model_provenance_never_reaches_storage_or_registry` proves eight malformed type cases, with zero persisted byte/registry side effects. This stays in original F3-12/F3-13 alongside current synthetic-adult JWT catalog and model use validation; requires exact new final-head CI rather than relying on prior green runs.
+
+## 2026-11-02 — F3-12 malformed model provenance URI denial
+
+- Existing `_source_uri` used `urllib.parse.urlsplit` without trapping malformed IPv6/port `ValueError`, and Python silently strips embedded CR/LF/TAB or leading controls. A forged model provenance link could therefore cause an uncaught exception or differ from the URL actually presented to an independent license reviewer.
+- The import boundary now rejects whitespace/control/backslash URL spellings before parsing and maps malformed authority/port parsing to `ModelLibraryDenied` before any private media write or model registration. A valid `https://example.com:443/license` remains supported; a provenance URL is **never** itself proof of license or approval.
+- Added deterministic `test_malformed_https_provenance_denies_before_private_storage` negative cases for malformed port/IPv6, leading space, newline/tab, backslash and DEL, plus a positive explicit-443 case. Existing callback/rights and approved-model catalog behavior is unchanged.
+- **Acceptance:** verify final-head four mandatory CI jobs after this patch, obtain independent model-rights/private-media review of #864, then reconcile current main and merge only when authorized; fresh main 4/4 and separately reviewed original task ledger evidence remain required. Source-only F3-12/F3-13, hosted 0/33; no GPU, paid inference, hosted SQL, PROD or WineShopPOS.
+
+## 2026-11-02 — Model metadata control characters and early private-lookup denial
+
+- The untrusted model importer accepted embedded CR/LF/DEL in model labels and attribution, and accepted overlong raw labels padded with spaces. Reuse could return control-character attribution to a downstream consumer. The server-side picker validated labels **after** resolving private media, causing unnecessary rights/private lookups for rows that could never be shown.
+- F3-12/F3-13 now reject unsafe or overlong label/attribution before storage, reject unsafe reuse attribution before the rights callback, and validate picker labels **before** either authorization or private-media lookup. Tests exercise denial with zero side effects and preserve the existing positive picker/import paths.
+- All changes remain in #864 feature-owned model-library paths, with offline fixtures only. Require new exact-head four-job CI, independent model-rights/private-media review, and fresh-main postmerge CI before any source task completion receipt. No hosted acceptance.
+
+## 2026-11-02 — Canonical private catalog media receipt fence (same PR #864)
+- F3-12/F3-13: `approved_model_picker_items` previously accepted arbitrary identifier-shaped `media_asset_id` values such as `registered_shop_media_123` from an injected private-media resolver. Unlike the signed JWT/RLS `Feature3V2Store.list_models` adapter, it did not require a canonical version-4 registered-media UUID. The picker now rejects malformed/noncanonical IDs before producing any selectable private model; the existing independent current-rights and private-media callbacks remain mandatory.
+- Updated synthetic positive fixture to a canonical UUIDv4 and added malformed, uppercase, non-UUID and nonstring negative receipts. Source-only; not evidence of licensed model bytes, hosted registration or approved commercial rights. Independent model-rights/private-media review and exact-final-head 4/4 CI remain required; no self-merge.
+
+## 2026-11-02 — Unicode model-rights metadata spoof denial (same F3-12/F3-13 PR #864)
+- The independent model importer/reuse helper, server picker and signed JWT/RLS model catalog previously rejected ASCII CR/LF/DEL but accepted invisible Unicode format controls (zero-width and bidirectional overrides) and Unicode line separators in model labels, license attribution or source provenance. These can make a reviewed commercial-rights statement appear different from its stored bytes.
+- All three Feature3-owned boundaries now deny Unicode categories Cc/Cf/Cs/Zl/Zp before rights/private-media lookup or registration; pending model/original registration and review audit text use the same fail-closed rule. Normal visible non-ASCII text remains permitted. Source provenance URLs are still only declarations, not license verification.
+- Added offline negative regression cases for bidi override, zero-width and Unicode line separator, with zero private lookup/storage/registration side effects; existing positive tests remain. This is source-only F3-12/F3-13, not genuine licensed likeness, hosted SQL or signed DEV verification.
+- Merge remains blocked until exact-new-head 4/4 CI, independent model-rights/private-media security review, safe current-main reconciliation and fresh postmerge main 4/4. Do not mark hosted DONE.
+
+## 2026-11-03 — F3-12/F3-13 unambiguous model provenance host
+- Continued existing PR #864 and original F3-12/F3-13, without new task IDs. `_source_uri` now rejects reviewer-facing provenance with local/IP-literal, percent-encoded, empty-label, trailing-dot or invalid DNS authorities, and noncanonical explicit HTTPS port spellings. These declarations are never fetched and never prove a commercial license; independently verified current rights remain mandatory.
+- Extended `tests/media/test_feature3_model_library.py` with eleven malformed/local authority negative cases; each must deny before any private PNG write or model registry operation. Existing canonical `https://example.com:443/license` and public-domain-name controls remain.
+- Source-only; verify exact-final-head 4/4 PR CI, obtain independent private-media/model-rights reviewer approval, recheck current main, and only then consider authorized merge and fresh main 4/4. Hosted 0/33; no GPU, inference, hosted SQL, PROD, licensed-media claims or WineShopPOS changes.
+
+## 2026-11-03 — F3-11 original registration URL canonicalization
+
+- Continued existing PR #864 as a shared **F3-11 / F3-12 / F3-13** code batch because its versioned `feature3_v2_store.py` already owns the private model catalog and original-registration transport. No new PR or public API shape was created.
+- Signed retailer original-model registration now checks that any declared commercial provenance URL is an exact printable HTTPS public-DNS URL (no username/password, IP/localhost, encoded authority, backslash, malformed percent escape, folded control, trailing dot or noncanonical port) **before the SQL RPC is called**. URLs remain untrusted declared provenance, not independent verified commercial rights.
+- Dedicated offline JWT/RLS HTTP mock regressions in `tests/api/test_feature3_model_original_registration.py` cover 13 malformed URL declarations with zero registration RPC calls and three valid HTTPS declarations that remain `SOURCE_REGISTERED_PENDING_EVIDENCE`, `license_verified=False`, GPU OFF.
+- Mandatory full exact-final-head four-job Part 1 CI and independent private-media/rights security review are still required before main integration. Follow with fresh main 4/4 and reviewed canonical status. F3-11/F3-12/F3-13 **source partial**, 0/33 hosted accepted; real signed DEV models, source licences, reviewed grants and approved cloud release are not supplied by this patch.

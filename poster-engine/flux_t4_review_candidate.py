@@ -13,7 +13,7 @@ from pathlib import Path
 
 from ai_providers_v2 import ProviderBlocked
 from flux_t4_snapshot import (MODEL, OFFICIAL_REVISION, REQUIRED_CONFIG_FILES,
-                              SCHEMA, MAX_MANIFEST)
+                              SCHEMA, MAX_MANIFEST, _load_strict_json)
 
 MIN_SHARDS = {
     "text_encoder/model-00001-of-00002.safetensors",
@@ -45,7 +45,7 @@ def build_review_candidate(weights_directory: Path) -> dict:
     if index.is_symlink() or not index.is_file():
         raise ProviderBlocked("Missing private model_index.json")
     try:
-        obj = json.loads(index.read_text("utf-8"))
+        obj = _load_strict_json(index.read_text("utf-8"))
     except (OSError, UnicodeError, ValueError) as exc:
         raise ProviderBlocked("Unparseable FLUX checkpoint index") from exc
     if not isinstance(obj, dict) or obj.get("_class_name") != "Flux2KleinPipeline":
