@@ -783,8 +783,13 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
-      "phase": "blocked",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-e-F5-20261119",
+        "claimed_at": "2026-11-18T19:56:34.665Z",
+        "expires_at": "2026-11-18T21:26:34.665Z",
+        "head_sha": "ffc464c09f719a0bfb6b15b5c34608f89d76234b"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-e-F5-20261119",
         "at": "2026-11-18T19:55:40.532Z",
