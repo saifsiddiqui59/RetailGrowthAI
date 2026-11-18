@@ -93,15 +93,16 @@ def claim_entry(state: dict, pr: int, owner: str, expected_head: str,
             raise QueueError(f"active lease held by {existing['owner']}")
         # The same owner may rebind after independently verifying the new live PR
         # head; a different owner cannot bypass an active lease on a moved head.
-    else:
-        # A GitHub CAS prevents two writers overwriting the same queue revision;
-        # this also bounds the number of independently active PR leases globally.
-        active = sum(
-            1 for other in updated["entries"]
-            if other.get("claim") and timestamp(other["claim"]["expires_at"]) > now
-        )
-        if active >= 10:
-            raise QueueError("global maximum of ten active PR claims reached")
+    # Count all *other* live PR leases, even if this PR holds an expired
+    # claim. Otherwise an expired stale claim can silently bypass the cap.
+    # GitHub Contents SHA CAS separately serializes competing queue writers.
+    other_active = sum(
+        1 for other in updated["entries"]
+        if other["pr"] != pr and other.get("claim")
+        and timestamp(other["claim"]["expires_at"]) > now
+    )
+    if other_active >= 10:
+        raise QueueError("global maximum of ten active PR claims reached")
     item["claim"] = {"owner": owner, "head_sha": expected_head,
                      "claimed_at": iso(now), "expires_at": iso(now + timedelta(minutes=minutes))}
     item["phase"] = "in-progress"
