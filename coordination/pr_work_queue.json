@@ -99,22 +99,27 @@
       "pr": 1007,
       "title": "docs(integration): evidence-backed 10-PR chat D closure checkpoint",
       "feature": "shared",
-      "head_sha": "1bae10cb77a57575ddf56343fd1496006db46867",
+      "head_sha": "5c9cba69eeebb5649771c4cba9fc7755c50d2b77",
       "base_branch": "main",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P2",
       "phase": "in-progress",
       "claim": {
         "owner": "manual-integration-chat-e-docs-20261119",
-        "head_sha": "1bae10cb77a57575ddf56343fd1496006db46867",
+        "head_sha": "5c9cba69eeebb5649771c4cba9fc7755c50d2b77",
         "claimed_at": "2026-11-18T19:50:21.163Z",
         "expires_at": "2026-11-18T21:20:21.163Z"
       },
       "checkpoint": {
         "owner": "manual-integration-chat-e-docs-20261119",
-        "at": "2026-11-18T19:47:34.189Z",
-        "status": "canonical docs PR; independent review pending",
-        "ci": "PR #44380186794 4/4 exact head; current-main compatibility must be rechecked before merge"
+        "at": "2026-11-18T19:54:04.694Z",
+        "status": "four canonical docs updated on review PR #1007; no direct main edit",
+        "ci": "new exact-head PR #44385187317 pending; independent canonical docs review required",
+        "source_prs": [
+          1009,
+          1011
+        ],
+        "tasks_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1007"
     },
