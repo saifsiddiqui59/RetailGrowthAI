@@ -15,39 +15,42 @@
   "summary": {
     "open_prs": 36,
     "by_feature": {
-      "F2": 9,
+      "F2": 8,
       "F3": 3,
       "F4": 5,
       "F5": 5,
       "F7": 1,
       "issue249": 11,
-      "shared": 2
+      "shared": 3
     }
   },
   "entries": [
     {
-      "pr": 978,
-      "title": "test(feature2): recover offline director→F4/F5 and mocked Foundry acceptance",
-      "feature": "F2",
-      "head_sha": "424cf7a6a218765e7180b8389848ea7454c20772",
+      "pr": 979,
+      "title": "fix(testing): reject forged worker event IDs, statuses and media receipts",
+      "feature": "shared",
+      "head_sha": "5bb6d55de7612dbc69872193077098cac642c7d2",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
       "phase": "in-progress",
       "claim": {
         "owner": "manual-integration",
-        "head_sha": "424cf7a6a218765e7180b8389848ea7454c20772",
-        "claimed_at": "2026-11-18T07:56:57.713Z",
-        "expires_at": "2026-11-18T09:26:57.713Z"
+        "head_sha": "5bb6d55de7612dbc69872193077098cac642c7d2",
+        "claimed_at": "2026-11-18T08:04:56.957Z",
+        "expires_at": "2026-11-18T09:34:56.957Z"
       },
       "checkpoint": {
-        "recorded_at": "2026-11-18T07:56:57.713Z",
+        "recorded_at": "2026-11-18T08:04:56.957Z",
         "owner": "manual-integration",
-        "head_sha": "424cf7a6a218765e7180b8389848ea7454c20772",
-        "ci_reported": "run #44262798665 in_progress",
-        "next_action": "Verify exact head four-job CI; safe feature-owned merge, independently fresh main 4/4; canonical docs update later"
+        "head_sha": "5bb6d55de7612dbc69872193077098cac642c7d2",
+        "commits_reported": 2,
+        "tests_reported": "Current signed worker RPC parser strict event UUID, timestamps, metadata and terminal operation/status, with mock negatives; CI pending",
+        "ci_reported": "run #44263860226 pending",
+        "next_action": "Exact latest-head 4/4; independent security/F2/F4 review required before integration; source-only, not real tenant/RLS evidence",
+        "evidence_status": "worker-reported-unverified"
       },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/978"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/979"
     },
     {
       "pr": 977,
