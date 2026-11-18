@@ -1,0 +1,3 @@
+# F4 offline motion-diagnostics source recovery — 2026-11-18
+
+Original Feature4 parent #322 head `b9525a9ea3d5e5aee351edf89a3c011c2314ed2e` retained **two exact original Git blobs** for CPU-only, private-staged video motion checks and synthetic tests. No external network, model inference, GPU, Azure/Supabase/PROD or WineShopPOS changes. This checks whether a rendered fixture is clearly frozen; no claim of garment/product identity, consent, music rights, stylistic QA or video publication. Real F4 pipeline/tenant integration remains pending; exact-head 4/4 PR and fresh main 4/4 are required before accepting this source-only slice.
