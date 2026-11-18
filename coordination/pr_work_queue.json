@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 38,
+    "open_prs": 39,
     "by_feature": {
-      "F2": 11,
+      "F2": 12,
       "F3": 3,
       "F4": 4,
       "F5": 5,
@@ -285,18 +285,22 @@
       "feature": "F2",
       "head_sha": "32cacb8a52b98e83e20afeb18645d2a2ecc54d0a",
       "base_branch": "feat/feature2-source-batch-8pr-consolidation-20261030",
-      "work_owner": "schedule-f2",
+      "work_owner": "manual-integration",
       "priority": "P1",
-      "phase": "ready-for-review",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration",
+        "claimed_at": "2026-11-18T07:18:11.330Z",
+        "expires_at": "2026-11-18T08:48:11.330Z",
+        "head_sha": "32cacb8a52b98e83e20afeb18645d2a2ecc54d0a"
+      },
       "checkpoint": {
-        "owner": "schedule-f2",
-        "at": "2026-11-17T04:30:00Z",
-        "head_after": "32cacb8a52b98e83e20afeb18645d2a2ecc54d0a",
-        "ci": "exact-head push #44010051857 4/4 PASS",
-        "tests": "local not run; remote CI four jobs PASS",
-        "status": "SOURCE ONLY, draft, independent CPU policy/security review and manual integration pending",
-        "next_action": "Independent F2-21 CPU quota security review, then manual integration after keeper #848 reconciliation"
+        "owner": "manual-integration",
+        "head_sha": "32cacb8a52b98e83e20afeb18645d2a2ecc54d0a",
+        "recorded_at": "2026-11-18T07:18:11.330Z",
+        "next_action": "Validate lossless archived patch #973 and close old stacked PR unmerged only after source archive merges & fresh main 4/4",
+        "ci_reported": "Original source under historic head, replacement #973 CI pending",
+        "evidence_status": "worker-reported-unverified"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/917"
     },
@@ -391,11 +395,23 @@
       "feature": "F2",
       "head_sha": "0c79efef7e81bec6a08dcde11601ea43d65764ee",
       "base_branch": "feat/feature2-unified-offline-source-20261028",
-      "work_owner": "schedule-f2",
+      "work_owner": "manual-integration",
       "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration",
+        "claimed_at": "2026-11-18T07:18:11.330Z",
+        "expires_at": "2026-11-18T08:48:11.330Z",
+        "head_sha": "0c79efef7e81bec6a08dcde11601ea43d65764ee"
+      },
+      "checkpoint": {
+        "owner": "manual-integration",
+        "head_sha": "0c79efef7e81bec6a08dcde11601ea43d65764ee",
+        "recorded_at": "2026-11-18T07:18:11.330Z",
+        "next_action": "Validate lossless archived patch #973 and close old stacked PR unmerged only after source archive merges & fresh main 4/4",
+        "ci_reported": "Original source under historic head, replacement #973 CI pending",
+        "evidence_status": "worker-reported-unverified"
+      },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/700"
     },
     {
@@ -404,11 +420,23 @@
       "feature": "F2",
       "head_sha": "26ad0b1539cb1ae5efe9410b64febbb5d66ee7de",
       "base_branch": "feat/feature2-unified-offline-source-20261028",
-      "work_owner": "schedule-f2",
+      "work_owner": "manual-integration",
       "priority": "P1",
-      "phase": "draft",
-      "claim": null,
-      "checkpoint": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration",
+        "claimed_at": "2026-11-18T07:18:11.330Z",
+        "expires_at": "2026-11-18T08:48:11.330Z",
+        "head_sha": "26ad0b1539cb1ae5efe9410b64febbb5d66ee7de"
+      },
+      "checkpoint": {
+        "owner": "manual-integration",
+        "head_sha": "26ad0b1539cb1ae5efe9410b64febbb5d66ee7de",
+        "recorded_at": "2026-11-18T07:18:11.330Z",
+        "next_action": "Validate lossless archived patch #973 and close old stacked PR unmerged only after source archive merges & fresh main 4/4",
+        "ci_reported": "Original source under historic head, replacement #973 CI pending",
+        "evidence_status": "worker-reported-unverified"
+      },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/697"
     },
     {
@@ -622,6 +650,31 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/121"
+    },
+    {
+      "pr": 973,
+      "title": "test(feature2): recover offline PNG/PCM fixtures and preserve 3 historic draft patches",
+      "feature": "F2",
+      "head_sha": "bd3bae598053c8339bb17f24f269e3f94a576831",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P2",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration",
+        "claimed_at": "2026-11-18T07:18:11.330Z",
+        "expires_at": "2026-11-18T08:48:11.330Z",
+        "head_sha": "bd3bae598053c8339bb17f24f269e3f94a576831"
+      },
+      "checkpoint": {
+        "owner": "manual-integration",
+        "head_sha": "bd3bae598053c8339bb17f24f269e3f94a576831",
+        "recorded_at": "2026-11-18T07:18:11.330Z",
+        "next_action": "Verify exact head four jobs, merge source-only PR if green, verify fresh main 4/4",
+        "ci_reported": "Actions #44257725752 in progress",
+        "evidence_status": "worker-reported-unverified"
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/973"
     }
   ]
 }
