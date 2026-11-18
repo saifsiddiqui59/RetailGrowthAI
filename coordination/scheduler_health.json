@@ -2,17 +2,17 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-18T10:03:46Z",
+  "last_written_at": "2026-11-18T11:03:23Z",
   "last_inventory_count": 36,
-  "last_inventory_checked_at": "2026-11-18T10:03:46Z",
+  "last_inventory_checked_at": "2026-11-18T11:03:23Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "adf37307-2324-8328-b783-00e7ac8e771a",
+      "last_run_id": "800158f8-f32c-8324-9f8c-621e1f596c50",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-18T09:26:53.464811Z",
-      "last_end_utc": "2026-11-18T09:27:15.590037Z",
-      "duration_seconds": 22.126,
+      "last_start_utc": "2026-11-18T10:22:34.986130Z",
+      "last_end_utc": "2026-11-18T10:22:58.351889Z",
+      "duration_seconds": 23.366,
       "reported_code_commits": null,
       "local_tests_verified": false,
       "last_pr": 925,
@@ -21,11 +21,11 @@
       "pr_mergeable": true,
       "verified_code_commits": null,
       "ci_run_id": 44002627409,
-      "ci_status": "PASS 4/4 exact-head push #44002627409; four jobs independently inspected",
+      "ci_status": "PASS 4/4 exact-head push #44002627409; current run verified",
       "classification": "REVIEW_BLOCKED",
       "automation_enabled": true,
       "ci_latest_run_id": 44002627409,
-      "ci_latest_status": "PASS 4/4 exact-head push, four jobs inspected",
+      "ci_latest_status": "PASS 4/4 exact-head",
       "executor_status": "EXECUTOR_NOT_PROVISIONED",
       "executor_type": "GITHUB_CONNECTOR_ONLY",
       "environment_selection": "inherited",
@@ -108,18 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f7",
-      "run_id": "d9779d78-9a24-832e-a8a2-ddead6f8a4ae",
-      "started_at": "2026-11-17T15:09:46.698468Z",
-      "completed_at": "2026-11-17T15:10:15.343096Z",
-      "duration_seconds": 28.645,
-      "verified_code_test_commits": null,
-      "ci": "success (4/4)",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "No new source/test commit independently verified; owner run summary reviewed"
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f2",
@@ -420,6 +408,20 @@
       "ci": "PR #925 exact-head push #44002627409 4/4 PASS; four jobs inspected",
       "classification": "REVIEW_BLOCKED",
       "evidence": "Completed F2 run, no new source/test SHA established; protected independent review pending; inherited/null executor"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "800158f8-f32c-8324-9f8c-621e1f596c50",
+      "started_at": "2026-11-18T10:22:34.986130Z",
+      "completed_at": "2026-11-18T10:22:58.351889Z",
+      "duration_seconds": 23.366,
+      "verified_code_test_commits": null,
+      "reported_code_test_commits": null,
+      "local_tests_verified": false,
+      "ci": "PR #925 exact-head #44002627409 PASS 4/4",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "Run completed; no independently verified new source/test SHA; manual review pending; inherited/null environment"
     }
   ],
   "current_review_gates": {
@@ -531,6 +533,6 @@
     "head": "fd9faf468b0229813c21c7fd2e52786401e773de",
     "main_timeout_verified": false,
     "actual_post_merge_video_job_duration_seconds": null,
-    "checked_at": "2026-11-18T10:03:46Z"
+    "checked_at": "2026-11-18T11:03:23Z"
   }
 }
