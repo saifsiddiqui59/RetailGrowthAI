@@ -320,8 +320,13 @@
       "base_branch": "feat/feature2-voicestudio-private-wav-reader-20261111",
       "work_owner": "schedule-f2",
       "priority": "P0",
-      "phase": "blocked",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-e-20261119",
+        "head_sha": "7f899415e3a20c12ea8b14d7c095623291ca5f9a",
+        "claimed_at": "2026-11-18T19:14:03.657Z",
+        "expires_at": "2026-11-18T20:44:03.657Z"
+      },
       "checkpoint": {
         "owner": "schedule-f2",
         "at": "2026-11-15T15:25:00Z",
@@ -480,8 +485,13 @@
       "base_branch": "feat/feature2-unified-offline-source-20261028",
       "work_owner": "schedule-f2",
       "priority": "P0",
-      "phase": "needs-triage",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-e-20261119",
+        "head_sha": "a35a1f171819564bfb3ed00806e4a87545a8a043",
+        "claimed_at": "2026-11-18T19:14:03.657Z",
+        "expires_at": "2026-11-18T20:44:03.657Z"
+      },
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848"
     },
@@ -617,8 +627,13 @@
       "base_branch": "main",
       "work_owner": "schedule-f7",
       "priority": "P0",
-      "phase": "blocked",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-e-20261119",
+        "head_sha": "eb9df22f34604f2ac592e9c1620430a7978794b5",
+        "claimed_at": "2026-11-18T19:14:03.657Z",
+        "expires_at": "2026-11-18T20:44:03.657Z"
+      },
       "checkpoint": {
         "owner": "schedule-f7",
         "at": "2026-11-15T21:15:00Z",
@@ -697,8 +712,13 @@
       "base_branch": "main",
       "work_owner": "schedule-f4",
       "priority": "P0",
-      "phase": "blocked",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-e-20261119",
+        "head_sha": "b9525a9ea3d5e5aee351edf89a3c011c2314ed2e",
+        "claimed_at": "2026-11-18T19:14:03.657Z",
+        "expires_at": "2026-11-18T20:44:03.657Z"
+      },
       "checkpoint": {
         "owner": "schedule-f4",
         "at": "2026-11-15T20:52:00Z",
@@ -722,8 +742,13 @@
       "base_branch": "main",
       "work_owner": "schedule-f5",
       "priority": "P0",
-      "phase": "draft",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-e-20261119",
+        "head_sha": "3d985127e495d839e3e1f657080cbd8885561e6e",
+        "claimed_at": "2026-11-18T19:14:03.657Z",
+        "expires_at": "2026-11-18T20:44:03.657Z"
+      },
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/125"
     }
