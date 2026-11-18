@@ -17,14 +17,27 @@
     "by_feature": {
       "F2": 8,
       "F3": 3,
-      "F4": 5,
+      "F4": 4,
       "F5": 5,
       "F7": 1,
-      "issue249": 11,
+      "issue249": 12,
       "shared": 3
     }
   },
   "entries": [
+    {
+      "pr": 994,
+      "title": "build(#249): fail-closed five-GET Y1 source staging (no deploy)",
+      "feature": "issue249",
+      "head_sha": "6f2a9a652d5bb920b58cc74d4cc413bac517e88e",
+      "base_branch": "feat/p0249-y1-extra-readonly-get-source-20261117",
+      "work_owner": "manual-issue249",
+      "priority": "P2",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/994"
+    },
     {
       "pr": 979,
       "title": "fix(testing): reject forged worker event IDs, statuses and media receipts",
@@ -51,7 +64,7 @@
       "pr": 977,
       "title": "ci(feature4): add on-demand extended CPU 60s acceptance job",
       "feature": "F4",
-      "head_sha": "c6f1cab844156785aa58a518ffce08b7a8976409",
+      "head_sha": "fda5f5f6017748d7ecb01431b78e705d99862a8f",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
@@ -84,9 +97,9 @@
     },
     {
       "pr": 970,
-      "title": "docs(integration): record F2 Pexels source merge and exact main 4/4",
+      "title": "docs(integration): F2/F4 source recovery, 10-PR reconciliation and CI receipts",
       "feature": "F2",
-      "head_sha": "792e053d14078b75ca559e8729f2dc386460c362",
+      "head_sha": "23e52d392d6bc25531c83f92649bd0a13c80865c",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
@@ -116,24 +129,6 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/968"
-    },
-    {
-      "pr": 967,
-      "title": "ci(video): preserve full F4 media acceptance under 25-minute job timeout",
-      "feature": "F4",
-      "head_sha": "fd9faf468b0229813c21c7fd2e52786401e773de",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration",
-        "head_sha": "fd9faf468b0229813c21c7fd2e52786401e773de",
-        "claimed_at": "2026-11-18T18:54:26.331Z",
-        "expires_at": "2026-11-18T20:24:26.331Z"
-      },
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/967"
     },
     {
       "pr": 966,
@@ -174,7 +169,7 @@
       "pr": 964,
       "title": "feat(coordination): serialize main merges and use CAS-backed PR queue",
       "feature": "shared",
-      "head_sha": "f555b162bb89ce09c92025480ecb492f1846d2a5",
+      "head_sha": "ca84a34a6c7ecbb08a8860a099ec7b4753ad0e93",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
