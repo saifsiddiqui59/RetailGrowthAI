@@ -2,17 +2,17 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-18T12:55:00Z",
-  "last_inventory_count": 37,
-  "last_inventory_checked_at": "2026-11-18T12:55:00Z",
+  "last_written_at": "2026-11-18T13:56:02Z",
+  "last_inventory_count": 36,
+  "last_inventory_checked_at": "2026-11-18T13:56:02Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "d4d1d804-9208-8324-81f8-784dfbc03db9",
+      "last_run_id": "c1caca9c-ee1c-8324-9421-150504da77e7",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-18T12:30:46.061786Z",
-      "last_end_utc": "2026-11-18T12:31:12.102401Z",
-      "duration_seconds": 26.041,
+      "last_start_utc": "2026-11-18T13:26:54.424655Z",
+      "last_end_utc": "2026-11-18T13:27:23.917446Z",
+      "duration_seconds": 29.49,
       "reported_code_commits": null,
       "local_tests_verified": false,
       "last_pr": 925,
@@ -21,7 +21,7 @@
       "pr_mergeable": true,
       "verified_code_commits": null,
       "ci_run_id": 44002627409,
-      "ci_status": "PASS 4/4 exact-head #44002627409; current verified",
+      "ci_status": "PASS 4/4 exact-head, jobs independently rechecked",
       "classification": "REVIEW_BLOCKED",
       "automation_enabled": true,
       "ci_latest_run_id": 44002627409,
@@ -108,19 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f7",
-      "run_id": "abbf6624-5fd8-8325-ac16-7c75831e2ff2",
-      "started_at": "2026-11-17T16:08:35.209432Z",
-      "completed_at": "2026-11-17T16:09:11.306644Z",
-      "duration_seconds": 36.097,
-      "verified_code_test_commits": null,
-      "local_tests_verified": null,
-      "ci": "success (4/4); prior verified 4/4 run 43985240207",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "No new source/test SHA independently established; connector-only environment_selection inherited, environments null"
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f2",
@@ -423,6 +410,18 @@
       "ci": "PASS 4/4 exact-head #44002627409",
       "classification": "REVIEW_BLOCKED",
       "evidence": "Automation peek completed; no new source/test SHA established; exact-head four CI jobs verified; inherited/null coding environment."
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "c1caca9c-ee1c-8324-9421-150504da77e7",
+      "started_at": "2026-11-18T13:26:54.424655Z",
+      "completed_at": "2026-11-18T13:27:23.917446Z",
+      "duration_seconds": 29.49,
+      "verified_code_test_commits": null,
+      "ci": "PR #925 exact-head #44002627409 PASS 4/4, jobs rechecked",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "No new source/test SHA independently verified; inherited/null environment; independent VoiceStudio review pending"
     }
   ],
   "current_review_gates": {
@@ -534,6 +533,6 @@
     "head": "fd9faf468b0229813c21c7fd2e52786401e773de",
     "main_timeout_verified": false,
     "actual_post_merge_video_job_duration_seconds": null,
-    "checked_at": "2026-11-18T11:26:34Z"
+    "checked_at": "2026-11-18T13:56:02Z"
   }
 }
