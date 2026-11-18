@@ -2,17 +2,17 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-17T16:04:43.000Z",
+  "last_written_at": "2026-11-18T05:03:18Z",
   "last_inventory_count": 38,
-  "last_inventory_checked_at": "2026-11-18T03:03:19Z",
+  "last_inventory_checked_at": "2026-11-18T05:03:18Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "7e061565-7850-8328-abf0-4550b8c1f585",
+      "last_run_id": "6d602a17-4700-8328-a9f1-d20ee7d55faa",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-18T03:23:23.628861Z",
-      "last_end_utc": "2026-11-18T03:24:11.789957Z",
-      "duration_seconds": 48.161,
+      "last_start_utc": "2026-11-18T04:23:08.130757Z",
+      "last_end_utc": "2026-11-18T04:23:48.259320Z",
+      "duration_seconds": 40.129,
       "reported_code_commits": 0,
       "local_tests_verified": false,
       "last_pr": 925,
@@ -108,18 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "a2ee30e3-76cc-832c-a7b7-41a416e27dbd",
-      "started_at": "2026-11-17T14:28:34.994200Z",
-      "completed_at": "2026-11-17T14:29:08.672174Z",
-      "duration_seconds": 33.678,
-      "verified_code_test_commits": null,
-      "ci": "PASS 4/4 exact-head push",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "No new source/test commit established from GitHub metadata; worker summary is not commit verification"
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f3",
@@ -410,6 +398,20 @@
       "ci": "PR #925 exact-head #44002627409 PASS 4/4; all jobs independently inspected",
       "classification": "REVIEW_BLOCKED",
       "evidence": "Distinct completed run; no new source/test commit independently established; PR head unchanged; inherited/null executor environment"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "6d602a17-4700-8328-a9f1-d20ee7d55faa",
+      "started_at": "2026-11-18T04:23:08.130757Z",
+      "completed_at": "2026-11-18T04:23:48.259320Z",
+      "duration_seconds": 40.129,
+      "verified_code_test_commits": null,
+      "reported_code_test_commits": 0,
+      "local_tests_verified": false,
+      "ci": "PR #925 exact-head push #44002627409 PASS 4/4; four jobs independently inspected",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "No new source/test commits verified; F2 reports #848 failures but PR manual-integration-owned, not a safe F2 coding claim; inherited/null environment"
     }
   ],
   "current_review_gates": {
