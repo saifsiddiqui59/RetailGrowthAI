@@ -33,19 +33,15 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-e-F5-20261119",
       "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-e-F5-20261119",
-        "head_sha": "f561fbbc28100eba32bc33f49fdf0d7b88692692",
-        "claimed_at": "2026-11-18T19:58:05.092Z",
-        "expires_at": "2026-11-18T21:28:05.092Z"
-      },
+      "phase": "ready-for-review",
+      "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-e-F5-20261119",
-        "at": "2026-11-18T19:58:05.092Z",
-        "status": "two exact original F5 QA source/test blobs, CI pending, no tasks DONE",
-        "parent": 323,
-        "ci": "44385923152 PR queued"
+        "at": "2026-11-18T20:04:09.444Z",
+        "status": "source-ready; independent F4 reviewer required before cross-feature handoff",
+        "ci": "exact-head #44385923152 4/4 PASS",
+        "integrated_done": false,
+        "head_sha": "f561fbbc28100eba32bc33f49fdf0d7b88692692"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1013"
     },
@@ -128,10 +124,10 @@
       "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-e-docs-20261119",
-        "at": "2026-11-18T19:55:40.532Z",
-        "status": "four canonical docs updated on review branch; independent reviewer required",
-        "ci": "latest head PR CI triggered; not yet verified",
-        "original_tasks_done": false
+        "at": "2026-11-18T20:04:09.444Z",
+        "status": "canonical docs evidence recorded; independent review missing",
+        "ci": "exact-head #44385438236 4/4 PASS",
+        "integrated_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1007"
     },
@@ -807,22 +803,15 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-e-F5-20261119",
-        "claimed_at": "2026-11-18T19:56:34.665Z",
-        "expires_at": "2026-11-18T21:26:34.665Z",
-        "head_sha": "ffc464c09f719a0bfb6b15b5c34608f89d76234b"
-      },
+      "phase": "blocked",
+      "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-e-F5-20261119",
-        "at": "2026-11-18T19:55:40.532Z",
-        "status": "source subset 4/48 paths recovered; remaining parent still OPEN/DRAFT",
-        "source_pr": 1011,
-        "source_merged_sha": "d22758e2c4c81ac1349f428bd1ddb747f3f12aa6",
-        "ci": "PR+main 4/4",
-        "blockers": "Remaining F5 provider/worker/cost/rights integration, model license and GPU authorization; no direct-main-safe wholesale merge",
-        "original_tasks_done": false
+        "at": "2026-11-18T20:04:09.444Z",
+        "status": "parent F5 #323 remains open/draft; 4 original source blobs accepted #1011 and 2 QA source blobs source-ready #1013 (not merged)",
+        "blockers": "remaining original F5 modules, cross-feature F4 QA independent review, license/GPU and hosted gates",
+        "ci": "F5 #1011 PR/main 4/4; #1013 exact-head PR #44385923152 4/4; no main merge for #1013",
+        "tasks_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/323"
     },
