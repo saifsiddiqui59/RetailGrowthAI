@@ -705,12 +705,24 @@ _CLAIM_MATERIAL = re.compile(r"\b(?:100% pure cotton|genuine silk|authentic gold
 # text before any human review. Preserve legitimate Indic combining marks and
 # joiners (unlike a blanket ban on every Unicode format character).
 def _unsafe_editorial_display(value):
-    import unicodedata
+    """Reject invisible claim spoofing, preserving Indic joiners only in script context."""
     overrides={"RLO","LRO","RLE","LRE","PDF","RLI","LRI","FSI","PDI"}
-    return any(ch in "<>\u200b\u200e\u200f\u061c" or
-               ord(ch)<32 or 0x7f<=ord(ch)<=0x9f or
-               unicodedata.category(ch) in ("Zl","Zp") or
-               unicodedata.bidirectional(ch) in overrides for ch in value)
+    for index,ch in enumerate(value):
+        if (ch in "<>\u200b\u200e\u200f\u061c" or
+            ord(ch)<32 or 0x7f<=ord(ch)<=0x9f or
+            unicodedata.category(ch) in ("Zl","Zp","Cs") or
+            unicodedata.bidirectional(ch) in overrides):
+            return True
+        if unicodedata.category(ch) == "Cf":
+            before = value[index-1] if index else ""
+            after = value[index+1] if index+1<len(value) else ""
+            script_context=(
+                "\u0900"<=before<="\u097f" and
+                (not after or after.isspace() or "\u0900"<=after<="\u097f")
+            )
+            if ch not in ("\u200c","\u200d") or not script_context:
+                return True
+    return False
 
 def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
     """Review-only policy based on authoritative original retailer facts.
@@ -738,13 +750,27 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
             offer.get("shop_id")!=verified_context.get("shop_id")):
             raise EditorialBasisRejected("Offer evidence not approved for shop")
         claim=offer["approved_claim_text"]
+        if "percent_off" in offer:
+            percent=offer["percent_off"]
+            if type(percent) is not int or not 1<=percent<=100:
+                raise EditorialBasisRejected("Unsafe approved retailer offer percentage or SKU")
+            numeric_claims=list(_CLAIM_PERCENT.finditer(claim)) + list(_CLAIM_LOCAL_PERCENT.finditer(claim))
+            for occurrence in numeric_claims:
+                number=re.match(r"\d+",occurrence.group().lstrip())
+                if number and int(number.group()) != percent:
+                    raise EditorialBasisRejected("Unsafe approved retailer offer percentage or SKU")
+        if "eligible_product_skus" in offer:
+            sku_list=offer["eligible_product_skus"]
+            if (type(sku_list) is not list or not sku_list or
+                any(type(sku) is not str or
+                    re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}",sku) is None
+                    for sku in sku_list) or len(set(sku_list)) != len(sku_list)):
+                raise EditorialBasisRejected("Unsafe approved retailer offer percentage or SKU")
         # A signed server row may still contain unsafe/malformed wording.
         # Validate the original approved span before using it as the source
         # authority for exact in-draft discount matching. It must not contain
         # hidden controls, markup, external links or duplicate approvals.
-        if (any(ord(ch)<32 or 0x7f<=ord(ch)<=0x9f or
-                unicodedata.category(ch) in ("Cf","Cs","Zl","Zp")
-                for ch in claim) or "<" in claim or ">" in claim or
+        if (_unsafe_editorial_display(claim) or "<" in claim or ">" in claim or
             re.search(r"(?:https?://|www\.)",claim,flags=re.I) or
             "javascript:" in claim.lower() or
             claim.casefold() in approved_texts or
@@ -781,17 +807,21 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
     issues=set()
     for field,text in copy.items():
         if (type(text) is not str or not 1<=len(text.strip())<=1800 or
-            any(ord(ch)<32 or 0x7f<=ord(ch)<=0x9f or
-                unicodedata.category(ch) in ("Cf","Cs","Zl","Zp")
-                for ch in text) or "<" in text or ">" in text or
+            _unsafe_editorial_display(text) or "<" in text or ">" in text or
             re.search(r"(?:https?://|www\.)", text, flags=re.I) or
             "javascript:" in text.lower()):
             raise EditorialBasisRejected("Unsafe or unbounded retailer copy")
-        if _CLAIM_PRICE.search(text):
+        # NFKC is detection-only; preserve original copy bytes and approved spans.
+        shadow="".join(
+            normalized if len(normalized)==1 else char
+            for char in text
+            for normalized in (unicodedata.normalize("NFKC",char),)
+        )
+        if _CLAIM_PRICE.search(shadow):
             issues.add("UNVERIFIED_CURRENCY_PRICE")
-        if _CLAIM_URGENCY.search(text):
+        if _CLAIM_URGENCY.search(shadow):
             issues.add("UNVERIFIED_URGENCY_OR_TREND")
-        if _CLAIM_MATERIAL.search(text):
+        if _CLAIM_MATERIAL.search(shadow):
             issues.add("PRODUCT_MATERIAL_FACTS_NOT_VERIFIED")
         # Having ONE legitimate offer substring must not launder a second
         # invented percentage in that same sentence, headline or voiceover.
@@ -814,11 +844,7 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
                any(c.isdecimal() or c == "%" for c in
                    unicodedata.normalize("NFKC", ch)) for ch in text):
             issues.add("DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED")
-        shadow="".join(
-            normalized if len(normalized)==1 else char
-            for char in text
-            for normalized in (unicodedata.normalize("NFKC",char),)
-        )
+
         hits=(list(_CLAIM_PERCENT.finditer(shadow)) +
               list(_CLAIM_WORD_PERCENT.finditer(shadow)) +
               list(_CLAIM_LOCAL_PERCENT.finditer(shadow)))
