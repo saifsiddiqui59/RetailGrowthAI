@@ -1503,7 +1503,7 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 5. Continue other independent non-GPU Feature2 source jobs while private hosted test identities/licenses/editor rights are unavailable. No paid provider, Azure SQL/PROD, new GPU or WineShopPOS mutation.
 
 ## 2026-11-19 — After CPU CI runtime integration (#967/#977)
-1. Verify full postmerge **four-job** Part1 CI [#44375688944](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/44375688944) on exact main `cb36c7dac8f6d2ec747685f0d668d1a5cd43c144`. A running/partial result must not be reported green.
+1. **Verified:** full postmerge four-job Part1 CI [#44375688944](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/44375688944) on exact merged main `cb36c7dac8f6d2ec747685f0d668d1a5cd43c144` completed **4/4 PASS**. Retain this evidence; it does not grant hosted/visual rights acceptance.
 2. F4-01/02/03: preserve the proven CPU-only 60s synthetic receipt from [#44261849124](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/44261849124) (382s). This is **engineering format proof**, not native commercial garment/source-motion/human acceptance. Review F4 parent #322, its visual QA, tenant/media rights, and any fresh-main conflicts before promoting source into accepted integration.
 3. F7 #513: reconcile 521-commit historical source branch against moving main by comparing unique approved source/test behavior; get independent auth/media review and exact-head + fresh-main tests. Do not wholesale overwrite current security.
 4. F3 #879/#880/#944: complete independent rights/tenant/auth review and dependency-order source reconciliation; keep offline 4/4 green separate from hosted acceptance. F2 #925/#848 remain separate protected work.
