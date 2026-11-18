@@ -86,25 +86,25 @@
       "pr": 970,
       "title": "docs(integration): record F2 Pexels source merge and exact main 4/4",
       "feature": "F2",
-      "head_sha": "93cebf063886eaddf6f8c2076d07fbbfef704747",
+      "head_sha": "488b51a60e56995c0c9ce959dd3b59802cf4df49",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
       "phase": "in-progress",
       "claim": {
         "owner": "manual-integration",
-        "head_sha": "93cebf063886eaddf6f8c2076d07fbbfef704747",
-        "claimed_at": "2026-11-18T12:58:57.562Z",
-        "expires_at": "2026-11-18T14:28:57.562Z"
+        "head_sha": "488b51a60e56995c0c9ce959dd3b59802cf4df49",
+        "claimed_at": "2026-11-18T13:05:28.185Z",
+        "expires_at": "2026-11-18T14:35:28.185Z"
       },
       "checkpoint": {
-        "recorded_at": "2026-11-18T12:58:57.562Z",
+        "recorded_at": "2026-11-18T13:05:28.185Z",
         "owner": "manual-integration",
-        "head_sha": "93cebf063886eaddf6f8c2076d07fbbfef704747",
-        "commits_reported": 6,
-        "tests_reported": "F2 PR #980 accepted PR/main 4/4; PR #981 4/4 and merged, postmerge pending",
-        "ci_reported": "docs final-head refresh and rerun pending",
-        "next_action": "Append #980/#981 exact receipt after fresh main CI; independent shared-doc review before merge",
+        "head_sha": "488b51a60e56995c0c9ce959dd3b59802cf4df49",
+        "commits_reported": 8,
+        "tests_reported": "F2 #980 PR/main CI 4/4; #981 PR/main CI 4/4; #551 exact blob census 85/76/10; docs PR new CI pending",
+        "ci_reported": "run #44309918072 in progress",
+        "next_action": "Verify exact final docs four jobs, independent shared-doc/F4 review before merging; reconcile overlapping #966",
         "evidence_status": "worker-reported-unverified"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/970"
