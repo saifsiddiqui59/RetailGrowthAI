@@ -79,6 +79,36 @@ class QueueTest(unittest.TestCase):
         newer = queue.claim_entry(state, 551, "manual-integration", OTHER, NOW + timedelta(minutes=11))
         self.assertEqual(queue.find(newer, 551)["claim"]["head_sha"], OTHER)
 
+    def test_global_cap_is_ten_active_pr_claims_even_with_expired_prior_claim(self):
+        state = sample()
+        seed = state["entries"][0]
+        state["entries"] = [{**seed, "pr": n, "claim": None}
+                            for n in range(551, 562)]
+        for n in range(551, 561):
+            state = queue.claim_entry(state, n, "schedule-f2", HEAD, NOW)
+        with self.assertRaisesRegex(queue.QueueError, "global maximum"):
+            queue.claim_entry(state, 561, "schedule-f2", HEAD, NOW)
+        # Same-PR lease renewal must not consume an extra slot.
+        state = queue.claim_entry(state, 551, "schedule-f2", HEAD, NOW)
+        self.assertEqual(sum(bool(x["claim"]) for x in state["entries"]), 10)
+        # Expired lease on the next row cannot be used to bypass ten
+        # concurrently unexpired claims for *different* PRs.
+        expired = queue.claim_entry(sample(), 551, "schedule-f2", HEAD,
+                                    NOW - timedelta(minutes=11), minutes=10)
+        stale = expired["entries"][0]
+        full = sample()
+        full["entries"] = [stale] + [
+            {**seed, "pr": n, "claim": {"owner": "schedule-f2",
+              "head_sha": HEAD, "claimed_at": queue.iso(NOW),
+              "expires_at": queue.iso(NOW + timedelta(minutes=90))}}
+            for n in range(552, 562)]
+        with self.assertRaisesRegex(queue.QueueError, "global maximum"):
+            queue.claim_entry(full, 551, "schedule-f2", HEAD, NOW)
+        # When an existing claim expires, those leases cease to count.
+        later = queue.claim_entry(state, 561, "schedule-f2", HEAD,
+                                  NOW + timedelta(minutes=91))
+        self.assertIsNotNone(queue.find(later, 561)["claim"])
+
     def test_feature5_takes_priority_over_cross_feature3_reference(self):
         self.assertEqual(queue.feature("Feature #5 Wan with Feature3 producer", "feature5-branch"), "F5")
 
