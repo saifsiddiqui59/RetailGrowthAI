@@ -54,6 +54,7 @@ test('forged fields, time, IDs, operation statuses and private metadata fail clo
     { ...good, recorded_at: 'invalid' },
     { ...good, recorded_at: '2099-00-99T00:00:00Z' },
     { ...good, recorded_at: null },
+    { ...good, feature: 'constructor', operation: 'name', status: 'Object' },
     { ...good, feature: 'F4', operation: 'planning.complete' },
     { ...good, operation: 'planning.failed' },
     { ...good, operation: 'planning.denied', status: 'SUCCEEDED' },

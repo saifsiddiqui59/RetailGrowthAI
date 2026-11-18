@@ -27,7 +27,9 @@ function trustedWorkerSpan(row, shopId, jobId) {
       Object.keys(row).some(key => !WORKER_FIELDS.has(key)) ||
       !UUID.test(row.id || '') || row.shop_id !== shopId || row.job_id !== jobId ||
       typeof row.feature !== 'string' ||
-      WORKER_TERMINALS[row.feature]?.[row.operation] !== row.status ||
+      !Object.hasOwn(WORKER_TERMINALS, row.feature) ||
+      !Object.hasOwn(WORKER_TERMINALS[row.feature], row.operation) ||
+      WORKER_TERMINALS[row.feature][row.operation] !== row.status ||
       !Number.isInteger(row.attempt) || row.attempt < 1 || row.attempt > 5 ||
       !Number.isInteger(row.elapsed_ms) || row.elapsed_ms < 0 ||
       row.elapsed_ms > 1800000 ||
