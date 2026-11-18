@@ -13,11 +13,11 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 36,
+    "open_prs": 35,
     "by_feature": {
       "F2": 8,
       "F3": 3,
-      "F4": 4,
+      "F4": 3,
       "F5": 5,
       "F7": 1,
       "issue249": 12,
@@ -26,17 +26,17 @@
   },
   "entries": [
     {
-      "pr": 994,
-      "title": "build(#249): fail-closed five-GET Y1 source staging (no deploy)",
+      "pr": 995,
+      "title": "build(#249): exact five-route Y1 GET staging with deny-list tests",
       "feature": "issue249",
-      "head_sha": "6f2a9a652d5bb920b58cc74d4cc413bac517e88e",
+      "head_sha": "b0bfd329a8a53c7cfab8a21754c01a7d1fe9dce8",
       "base_branch": "feat/p0249-y1-extra-readonly-get-source-20261117",
       "work_owner": "manual-issue249",
       "priority": "P2",
       "phase": "needs-triage",
       "claim": null,
       "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/994"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/995"
     },
     {
       "pr": 979,
@@ -59,24 +59,6 @@
         "evidence_status": "worker-reported-unverified"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/979"
-    },
-    {
-      "pr": 977,
-      "title": "ci(feature4): add on-demand extended CPU 60s acceptance job",
-      "feature": "F4",
-      "head_sha": "fda5f5f6017748d7ecb01431b78e705d99862a8f",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration",
-        "head_sha": "fda5f5f6017748d7ecb01431b78e705d99862a8f",
-        "claimed_at": "2026-11-18T18:59:09.860Z",
-        "expires_at": "2026-11-18T20:29:09.860Z"
-      },
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/977"
     },
     {
       "pr": 972,
