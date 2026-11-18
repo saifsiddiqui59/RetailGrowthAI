@@ -8,11 +8,11 @@
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "332a913d-7a00-8328-89eb-1a509e772433",
+      "last_run_id": "a72aa6e3-cadc-8328-ba07-b8ff680ab269",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-17T23:29:56.911171Z",
-      "last_end_utc": "2026-11-17T23:30:19.137748Z",
-      "duration_seconds": 22.226,
+      "last_start_utc": "2026-11-18T00:26:09.187947Z",
+      "last_end_utc": "2026-11-18T00:26:38.109888Z",
+      "duration_seconds": 28.922,
       "reported_code_commits": 0,
       "local_tests_verified": null,
       "last_pr": 917,
@@ -108,18 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "cfbb18f0-65f8-832c-bdfb-0e26be1ca428",
-      "started_at": "2026-11-17T13:25:38.848039Z",
-      "completed_at": "2026-11-17T13:26:52.179692Z",
-      "duration_seconds": 73.331,
-      "verified_code_test_commits": null,
-      "ci": "4/4 PASS exact-head push",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "No independently verified new source/test commit; GitHub exact-head CI jobs verified"
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f3",
@@ -407,6 +395,19 @@
       "ci": "exact-head #44010051857 4/4 PASS; current new commits UNKNOWN",
       "classification": "REVIEW_BLOCKED",
       "evidence": "GitHub head unchanged; run completed without independently verified source/test delta"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "a72aa6e3-cadc-8328-ba07-b8ff680ab269",
+      "started_at": "2026-11-18T00:26:09.187947Z",
+      "completed_at": "2026-11-18T00:26:38.109888Z",
+      "duration_seconds": 28.922,
+      "verified_code_test_commits": null,
+      "local_tests_verified": null,
+      "ci": "#917 exact-head 44010051857 PASS 4/4; #925 earlier exact-head 44002627409 reported, not rechecked here",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "Automation reports 0 code/test commits; no new commit independently verified; #917 exact-head 4 CI jobs verified; executor environment inherited/null"
     }
   ],
   "current_review_gates": {
