@@ -13,7 +13,7 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 32,
+    "open_prs": 31,
     "by_feature": {
       "issue249": 9,
       "F4": 2,
@@ -33,19 +33,16 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-e-F5-20261119",
       "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-e-F5-20261119",
-        "claimed_at": "2026-11-18T19:45:00.848Z",
-        "expires_at": "2026-11-18T21:15:00.848Z",
-        "head_sha": "7ef8ae66da133f121a712b02ff73e767b30130ce"
-      },
+      "phase": "merged",
+      "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-e-F5-20261119",
-        "at": "2026-11-18T19:45:00.848Z",
-        "status": "source-only 4 original SHA blobs + 1 minimal init + F5 handoff; CI pending",
-        "source_parent": 323,
-        "integrated_done": false
+        "at": "2026-11-18T19:55:40.532Z",
+        "status": "merged exact original artifact-lock code/test only; no F5 task DONE",
+        "merge_sha": "d22758e2c4c81ac1349f428bd1ddb747f3f12aa6",
+        "ci": "PR #44383469750 exact head 4/4; merged main #44384358592 exact sha 4/4",
+        "original_source_blobs": 4,
+        "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1011"
     },
@@ -99,27 +96,18 @@
       "pr": 1007,
       "title": "docs(integration): evidence-backed 10-PR chat D closure checkpoint",
       "feature": "shared",
-      "head_sha": "5c9cba69eeebb5649771c4cba9fc7755c50d2b77",
+      "head_sha": "f9eb9b4993f6fde36f063f0f58089474885ed317",
       "base_branch": "main",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-e-docs-20261119",
-        "head_sha": "5c9cba69eeebb5649771c4cba9fc7755c50d2b77",
-        "claimed_at": "2026-11-18T19:50:21.163Z",
-        "expires_at": "2026-11-18T21:20:21.163Z"
-      },
+      "phase": "ready-for-review",
+      "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-e-docs-20261119",
-        "at": "2026-11-18T19:54:04.694Z",
-        "status": "four canonical docs updated on review PR #1007; no direct main edit",
-        "ci": "new exact-head PR #44385187317 pending; independent canonical docs review required",
-        "source_prs": [
-          1009,
-          1011
-        ],
-        "tasks_done": false
+        "at": "2026-11-18T19:55:40.532Z",
+        "status": "four canonical docs updated on review branch; independent reviewer required",
+        "ci": "latest head PR CI triggered; not yet verified",
+        "original_tasks_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1007"
     },
@@ -795,20 +783,17 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-e-F5-20261119",
-        "head_sha": "ffc464c09f719a0bfb6b15b5c34608f89d76234b",
-        "claimed_at": "2026-11-18T19:41:00.684Z",
-        "expires_at": "2026-11-18T21:11:00.684Z"
-      },
+      "phase": "blocked",
+      "claim": null,
       "checkpoint": {
-        "owner": "manual-integration-chat-d-20261119",
-        "at": "2026-11-18T19:25:14.867Z",
-        "status": "blocked, not task DONE",
-        "blockers": "48-file F5 parent DRAFT, conflicts and rights/licence review; GPU stays OFF",
-        "tests": "No new tests executed",
-        "next_action": "Address review or main-reconciliation gate in feature owner branch; recheck fresh PR and main 4/4 before merging"
+        "owner": "manual-integration-chat-e-F5-20261119",
+        "at": "2026-11-18T19:55:40.532Z",
+        "status": "source subset 4/48 paths recovered; remaining parent still OPEN/DRAFT",
+        "source_pr": 1011,
+        "source_merged_sha": "d22758e2c4c81ac1349f428bd1ddb747f3f12aa6",
+        "ci": "PR+main 4/4",
+        "blockers": "Remaining F5 provider/worker/cost/rights integration, model license and GPU authorization; no direct-main-safe wholesale merge",
+        "original_tasks_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/323"
     },
