@@ -73,10 +73,13 @@ def _validated_manifest(source: Path, route: str) -> None:
 
 
 def stage_sources(repo: Path, target: Path) -> Path:
-    repo, target = repo.resolve(strict=True), target.absolute()
-    # Reject prior or partially assembled packages and repo-relative output.
-    if target.exists() or target.is_symlink():
+    repo = repo.resolve(strict=True)
+    raw_target = target.absolute()
+    # Check symlink itself before resolving parents and dot-dot path segments.
+    if raw_target.exists() or raw_target.is_symlink():
         raise ValueError("staging target already exists")
+    target = raw_target.resolve(strict=False)
+    # Reject prior or partially assembled packages and repo-relative output.
     if repo == target or repo in target.parents or target in repo.parents:
         raise ValueError("staging target overlaps source repository")
     if not target.parent.is_dir() or target.parent.is_symlink():
