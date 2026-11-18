@@ -9,12 +9,7 @@ on:
         type: string
         required: false
         default: ""
-  # One branch-only smoke of this new workflow. Not a recurring paid job.
-  push:
-    branches:
-      - ci/extended-f4-cpu-acceptance-20261118
-    paths:
-      - .github/workflows/retailgrowthai-f4-extended-cpu.yml
+  # Manual dispatch only; the pre-merge branch smoke has passed.
 
 permissions:
   contents: read
