@@ -9,6 +9,7 @@ from __future__ import annotations
 from hashlib import sha256
 import io
 import re
+import struct
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlsplit
 from urllib.request import Request, build_opener, HTTPRedirectHandler
@@ -43,6 +44,39 @@ def _wav(data):
         raise PrivateVoiceStorageDenied("Invalid bounded private WAV")
     if data[:4] != b"RIFF" or data[8:12] != b"WAVE":
         raise PrivateVoiceStorageDenied("Invalid PCM WAVE header")
+    # Deny hidden chunks, trailing data, and impossible frame geometry even
+    # when a WAV decoder could ignore extra content after the RIFF envelope.
+    if struct.unpack_from("<I", data, 4)[0] != len(data) - 8:
+        raise PrivateVoiceStorageDenied("RIFF byte length does not match object")
+    cursor = 12
+    chunks = []
+    while cursor < len(data):
+        if len(data) - cursor < 8:
+            raise PrivateVoiceStorageDenied("Truncated WAV chunk header")
+        kind = data[cursor:cursor + 4]
+        length = struct.unpack_from("<I", data, cursor + 4)[0]
+        end = cursor + 8 + length
+        padded_end = end + (length & 1)
+        if end > len(data) or padded_end > len(data):
+            raise PrivateVoiceStorageDenied("WAV chunk exceeds RIFF envelope")
+        if length & 1 and data[end] != 0:
+            raise PrivateVoiceStorageDenied("Nonzero WAV chunk padding")
+        chunks.append((kind, length))
+        cursor = padded_end
+    if (cursor != len(data) or len(chunks) != 2 or chunks[0][0] != b"fmt "
+            or chunks[1][0] != b"data" or chunks[0][1] not in (16, 18)):
+        raise PrivateVoiceStorageDenied("Noncanonical private PCM WAV chunks")
+    if struct.unpack_from("<H", data, 20)[0] != 1:
+        raise PrivateVoiceStorageDenied("Only PCM private WAV accepted")
+    if chunks[0][1] == 18 and struct.unpack_from("<H", data, 36)[0] != 0:
+        raise PrivateVoiceStorageDenied("Unexpected PCM format extension")
+    channels, rate, byte_rate, block_align, bits = struct.unpack_from("<HIIHH", data, 22)
+    if (channels not in (1, 2) or bits != 16 or not 8000 <= rate <= 96000
+            or block_align != channels * (bits // 8)
+            or byte_rate != rate * block_align
+            or chunks[1][1] == 0 or chunks[1][1] % block_align
+            or chunks[1][1] // block_align > rate * 60):
+        raise PrivateVoiceStorageDenied("Inconsistent private PCM frame geometry")
     try:
         with wave.open(io.BytesIO(data), "rb") as stream:
             channels, width, rate, frames = (stream.getnchannels(),

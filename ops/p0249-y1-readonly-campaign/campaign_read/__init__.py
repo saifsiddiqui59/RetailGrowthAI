@@ -19,9 +19,11 @@ def _build_original_api(origin, publishable_key):
     app with a permissive mock or return customer data.
     """
     from http_api import HTTPAPI
-    from security import SupabaseJWTVerifier
+    from security import cached_supabase_verifier
     from tenant_store import TenantStore
-    return HTTPAPI(SupabaseJWTVerifier(origin), TenantStore(origin, publishable_key))
+    # Reuse only the bounded JWKS verifier in warm workers. NEVER reuse a
+    # JWT, claims, request-scoped TenantStore or current membership decision.
+    return HTTPAPI(cached_supabase_verifier(origin), TenantStore(origin, publishable_key))
 
 
 def handle_campaign_get(authorization, campaign_id, *, environment=None):

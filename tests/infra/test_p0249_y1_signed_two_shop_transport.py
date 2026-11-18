@@ -215,6 +215,27 @@ class Y1SignedOriginalTwoShopParity(TestCase):
                 self.assertEqual(len(self.backend.requests), before,
                                  "rejected JWT must not reach PostgREST")
 
+    def test_y1_reuses_only_bounded_jwks_verifier_not_current_tenant_store(self):
+        from security import cached_supabase_verifier
+
+        cached_supabase_verifier.cache_clear()
+        try:
+            a = shadow._build_original_api(ORIGIN, ENV["RETAIL_SUPABASE_PUBLISHABLE_KEY"])
+            b = shadow._build_original_api(ORIGIN, ENV["RETAIL_SUPABASE_PUBLISHABLE_KEY"])
+            self.assertIs(a.verify_token, b.verify_token,
+                          "warm JWKS verifier should be shared within one project")
+            self.assertIsNot(a.store, b.store,
+                             "current tenant/membership reader is request-scoped")
+            self.assertEqual(cached_supabase_verifier.cache_info().currsize, 1)
+
+            foreign = shadow._build_original_api(
+                "https://different-p0249.supabase.co", ENV["RETAIL_SUPABASE_PUBLISHABLE_KEY"])
+            self.assertIsNot(a.verify_token, foreign.verify_token,
+                             "different project origins must never share a verifier")
+            self.assertEqual(cached_supabase_verifier.cache_info().currsize, 1)
+        finally:
+            cached_supabase_verifier.cache_clear()
+
     def test_disabled_shadow_rejects_even_signed_user_without_jwks_or_sql(self):
         token = make_token(A_USER)
         with patch.object(shadow, "_build_original_api",
