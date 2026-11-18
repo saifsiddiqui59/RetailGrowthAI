@@ -96,7 +96,10 @@ def _validate_import_closure(tree: ast.AST, relative: str) -> None:
         for module in imports:
             root = module.split(".", 1)[0]
             if root == "azure":
-                if module not in {"azure", "azure.functions"}:
+                if (module not in {"azure", "azure.functions"} or
+                        (isinstance(node, ast.ImportFrom) and module == "azure" and
+                         any(item.name != "functions" for item in node.names)) or
+                        (isinstance(node, ast.Import) and module == "azure")):
                     raise ValueError("unvendored Azure SDK import in " + relative)
             elif root not in sys.stdlib_module_names and root not in local and root not in external:
                 raise ValueError("unvendored Y1 Python import in " + relative + ": " + root)
