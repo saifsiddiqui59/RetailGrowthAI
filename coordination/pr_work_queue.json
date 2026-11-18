@@ -91,25 +91,25 @@
       "pr": 970,
       "title": "docs(integration): record F2 Pexels source merge and exact main 4/4",
       "feature": "F2",
-      "head_sha": "ca9c7da74a90abbb7d93f0b69afe5abae16e4418",
+      "head_sha": "93cebf063886eaddf6f8c2076d07fbbfef704747",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
       "phase": "in-progress",
       "claim": {
         "owner": "manual-integration",
-        "head_sha": "ca9c7da74a90abbb7d93f0b69afe5abae16e4418",
-        "claimed_at": "2026-11-18T07:54:56.056Z",
-        "expires_at": "2026-11-18T09:24:56.056Z"
+        "head_sha": "93cebf063886eaddf6f8c2076d07fbbfef704747",
+        "claimed_at": "2026-11-18T08:06:42.074Z",
+        "expires_at": "2026-11-18T09:36:42.074Z"
       },
       "checkpoint": {
-        "recorded_at": "2026-11-18T07:54:56.056Z",
+        "recorded_at": "2026-11-18T08:06:42.074Z",
         "owner": "manual-integration",
-        "head_sha": "ca9c7da74a90abbb7d93f0b69afe5abae16e4418",
-        "commits_reported": 5,
-        "ci_reported": "run #44262501184 in_progress",
-        "tests_reported": "Source PR #974/#976 four CI jobs and latest inclusive main 4/4 verified; docs final head pending",
-        "next_action": "Exact final docs head 4/4; independent shared-doc review before merge; reconcile #966"
+        "head_sha": "93cebf063886eaddf6f8c2076d07fbbfef704747",
+        "commits_reported": 6,
+        "ci_reported": "run #44264047537 in progress",
+        "tests_reported": "Feature2 #974/#976/#978 exact PR & inclusive fresh-main 4/4 accepted; canonical docs new head pending CI",
+        "next_action": "Verify exact docs final head 4/4, require independent shared-doc review and #966 canonical overlap reconciliation before main"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/970"
     },
