@@ -48,5 +48,5 @@ Original Flex `rgai-dev-functions-d4e5ddbd` is unchanged; issue #249 stays OPEN.
 4. Original POST/PATCH, private media, worker ownership, cost/latency and
    signed two-shop E2E must pass before any frontend cutover or #249 closure.
 
-No cloud/Auth/S`L writes, GPU or paid model, PROD or WineShopPOS operations
+No cloud/Auth/SQL writes, GPU or paid model, PROD or WineShopPOS operations
 are performed by this source change.
