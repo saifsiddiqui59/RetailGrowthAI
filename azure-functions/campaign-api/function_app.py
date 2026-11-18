@@ -6,7 +6,7 @@ from request_diagnostics import RequestDiagnostics
 import azure.functions as func
 
 from http_api import HTTPAPI
-from security import SupabaseJWTVerifier
+from security import cached_supabase_verifier
 from tenant_store import TenantStore
 from queue_adapter import AzurePlanningQueue, AzureRenderQueue
 from admin_store import AdminStore
@@ -49,7 +49,7 @@ def build_api():
                         model_review_enabled=(
                             os.environ.get("RETAIL_FEATURE3_MODEL_REVIEW_ENABLED") == "true"))
                     if os.environ.get("RETAIL_FEATURE3_V2_ENABLED") == "true" else None)
-    return HTTPAPI(SupabaseJWTVerifier(url), store, queue, render_api,
+    return HTTPAPI(cached_supabase_verifier(url), store, queue, render_api,
                    failure_store=admin, durable_outbox=bool(connection and admin),
                    poster_api=poster_api, poster_render_api=poster_render_api,
                    feature3_api=feature3_api)
