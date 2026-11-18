@@ -34,6 +34,9 @@ test('valid signed F2 and F4 terminal source rows remain readable without a mode
   const good = sourceRow()
   const rows = await store(async () => web(reply([good]))).listWorkerSpans(SHOP, [JOB])
   assert.deepEqual(rows, [good])
+  const validLeapDay = { ...good, recorded_at: '2024-02-29T23:59:59.123456+05:30' }
+  assert.deepEqual(await store(async () => web(reply([validLeapDay])))
+    .listWorkerSpans(SHOP, [JOB]), [validLeapDay])
   const f4 = {
     ...sourceRow(), feature: 'F4', operation: 'render.complete',
     metadata: {
@@ -53,6 +56,12 @@ test('forged fields, time, IDs, operation statuses and private metadata fail clo
     { ...good, extra_private_token: 'must-not-escape-to-ui' },
     { ...good, recorded_at: 'invalid' },
     { ...good, recorded_at: '2099-00-99T00:00:00Z' },
+    { ...good, recorded_at: '2026-02-30T00:00:00Z' },
+    { ...good, recorded_at: '2026-04-31T07:30:00+00:00' },
+    { ...good, recorded_at: '2025-02-29T07:30:00Z' },
+    { ...good, recorded_at: '2026-11-18T24:00:00Z' },
+    { ...good, recorded_at: '2026-11-18T07:30:00+14:30' },
+    { ...good, recorded_at: '2026-11-18T07:30Z' },
     { ...good, recorded_at: null },
     { ...good, feature: 'constructor', operation: 'name', status: 'Object' },
     { ...good, feature: 'F4', operation: 'planning.complete' },
