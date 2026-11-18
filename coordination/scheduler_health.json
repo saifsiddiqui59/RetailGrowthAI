@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-18T18:04:09Z",
+  "last_written_at": "2026-11-18T19:01:52.332Z",
   "last_inventory_count": 36,
   "last_inventory_checked_at": "2026-11-18T18:04:09Z",
   "owners": {
@@ -510,7 +510,7 @@
     "scope": "Offline extended test, NOT ChatGPT scheduled AI coding duration and NOT approved commercial video",
     "first_attempt": "44261176520 failed: missing FFmpeg",
     "second_attempt": "44261439834 failed: missing pinned Pillow",
-    "next_action": "Independent shared workflow review of #977; do not merge or claim scheduler runtime increase",
+    "next_action": "Verify current main CI #44375688944 four jobs; do not rerun passed CPU proof; keep F4 original tasks IN PROGRESS and coding worker paused if only review/integration blockers remain",
     "job_id": 134656820737,
     "job_result": "success",
     "runner_log_started_utc": "2026-11-18T07:49:15.0119667Z",
@@ -527,7 +527,29 @@
     "artifact_zip_sha256": "dad45fc85440da26fe1ce837001e236e5b5a9fb8d60403a396c793f7a0e769df",
     "artifact_expires_at": "2026-11-21T07:55:31Z",
     "receipt_evidence": "GitHub Actions upload artifact confirmed; internal receipt content not downloaded",
-    "pr_state": "OPEN — independent workflow review required"
+    "pr_state": "MERGED",
+    "integration_phase": "POSTMERGE_MAIN_CI_PENDING",
+    "merged_prs": [
+      {
+        "pr": 967,
+        "merge_sha": "2bb2613c786f36de8cd0357a3f1fa32bbcb5b1ad",
+        "workflow": "frontend-bootstrap.yml",
+        "effect": "video job cap 15=>25 minutes",
+        "fresh_main_ci": 44374847280,
+        "fresh_main_ci_status": "4/4 PASS"
+      },
+      {
+        "pr": 977,
+        "merge_sha": "cb36c7dac8f6d2ec747685f0d668d1a5cd43c144",
+        "workflow": "retailgrowthai-f4-extended-cpu.yml",
+        "effect": "manual-only CPU 60s acceptance workflow, 25m job cap",
+        "fresh_main_ci": 44375688944,
+        "fresh_main_ci_status": "PENDING"
+      }
+    ],
+    "video_job_cap_minutes": 25,
+    "standalone_manual_only": true,
+    "last_verified_utc": "2026-11-18T19:01:52.330Z"
   },
   "extended_execution_watch": {
     "pr": 967,
