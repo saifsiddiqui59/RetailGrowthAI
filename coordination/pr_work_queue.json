@@ -47,7 +47,12 @@
       "work_owner": "manual-integration",
       "priority": "P2",
       "phase": "in-progress",
-      "claim": null,
+      "claim": {
+        "owner": "manual-integrator-c-20261119",
+        "claimed_at": "2026-11-18T19:05:50.993Z",
+        "expires_at": "2026-11-18T20:35:50.993Z",
+        "head_sha": "eacf96335966da414016d3390f746d678b14fd00"
+      },
       "checkpoint": {
         "recorded_at": "2026-11-18T08:04:56.957Z",
         "owner": "manual-integration",
@@ -68,8 +73,13 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "ready-for-review",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integrator-c-20261119",
+        "claimed_at": "2026-11-18T19:05:50.993Z",
+        "expires_at": "2026-11-18T20:35:50.993Z",
+        "head_sha": "a204af9f160e99a808e279f53745b0c5fb60eff7"
+      },
       "checkpoint": {
         "recorded_at": "2026-11-17T17:09:54.512Z",
         "owner": "manual-integration",
@@ -90,8 +100,13 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "ready-for-review",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integrator-c-20261119",
+        "claimed_at": "2026-11-18T19:05:50.993Z",
+        "expires_at": "2026-11-18T20:35:50.993Z",
+        "head_sha": "23e52d392d6bc25531c83f92649bd0a13c80865c"
+      },
       "checkpoint": {
         "recorded_at": "2026-11-18T13:08:57.320Z",
         "owner": "manual-integration",
@@ -160,8 +175,13 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "needs-triage",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integrator-c-20261119",
+        "claimed_at": "2026-11-18T19:05:50.993Z",
+        "expires_at": "2026-11-18T20:35:50.993Z",
+        "head_sha": "ca84a34a6c7ecbb08a8860a099ec7b4753ad0e93"
+      },
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/964"
     },
@@ -186,8 +206,13 @@
       "base_branch": "feat/feature3-f3-08-current-rights-attestation-20261106",
       "work_owner": "schedule-f3",
       "priority": "P0",
-      "phase": "ready-for-review",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integrator-c-20261119",
+        "claimed_at": "2026-11-18T19:05:50.993Z",
+        "expires_at": "2026-11-18T20:35:50.993Z",
+        "head_sha": "7a44c4b0837526f79207c848813cb0206781e9cb"
+      },
       "checkpoint": {
         "owner": "schedule-f3",
         "at": "2026-11-17T02:40:00Z",
@@ -322,8 +347,13 @@
       "base_branch": "main",
       "work_owner": "schedule-f3",
       "priority": "P0",
-      "phase": "ready-for-review",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integrator-c-20261119",
+        "claimed_at": "2026-11-18T19:05:50.993Z",
+        "expires_at": "2026-11-18T20:35:50.993Z",
+        "head_sha": "141860508c1d4592b5fecfcbe0bce9f931a1bfda"
+      },
       "checkpoint": {
         "owner": "schedule-f3",
         "head_after": "141860508c1d4592b5fecfcbe0bce9f931a1bfda",
@@ -342,8 +372,13 @@
       "base_branch": "main",
       "work_owner": "schedule-f3",
       "priority": "P2",
-      "phase": "needs-triage",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integrator-c-20261119",
+        "claimed_at": "2026-11-18T19:05:50.993Z",
+        "expires_at": "2026-11-18T20:35:50.993Z",
+        "head_sha": "60251cf930bb6131bad9e11f0713ca80ba50b12b"
+      },
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/879"
     },
@@ -381,8 +416,13 @@
       "base_branch": "feat/feature5-a100-safe-control-20261028",
       "work_owner": "schedule-f5",
       "priority": "P2",
-      "phase": "draft",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integrator-c-20261119",
+        "claimed_at": "2026-11-18T19:05:50.993Z",
+        "expires_at": "2026-11-18T20:35:50.993Z",
+        "head_sha": "359221f2bd198ce498c01e1807b59f4284fb9227"
+      },
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/724"
     },
@@ -394,8 +434,13 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "draft",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integrator-c-20261119",
+        "claimed_at": "2026-11-18T19:05:50.993Z",
+        "expires_at": "2026-11-18T20:35:50.993Z",
+        "head_sha": "dfa0e58c01f4f961180682f6bedd85c9d308d0e4"
+      },
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/696"
     },
@@ -503,8 +548,13 @@
       "base_branch": "feat/feature5-premium-ai-motion",
       "work_owner": "manual-integration",
       "priority": "P0",
-      "phase": "draft",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integrator-c-20261119",
+        "claimed_at": "2026-11-18T19:05:50.993Z",
+        "expires_at": "2026-11-18T20:35:50.993Z",
+        "head_sha": "2106caa6563f952a6db2942f08bd6701d5f4f9c8"
+      },
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/465"
     },
