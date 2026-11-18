@@ -42,7 +42,7 @@
       "pr": 979,
       "title": "fix(testing): reject forged worker event IDs, statuses and media receipts",
       "feature": "shared",
-      "head_sha": "eacf96335966da414016d3390f746d678b14fd00",
+      "head_sha": "462bb25f4a3bad934edca411f1ca3a7027a76f9b",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
@@ -51,17 +51,24 @@
         "owner": "manual-integrator-c-20261119",
         "claimed_at": "2026-11-18T19:05:50.993Z",
         "expires_at": "2026-11-18T20:35:50.993Z",
-        "head_sha": "eacf96335966da414016d3390f746d678b14fd00"
+        "head_sha": "462bb25f4a3bad934edca411f1ca3a7027a76f9b"
       },
       "checkpoint": {
-        "recorded_at": "2026-11-18T08:04:56.957Z",
-        "owner": "manual-integration",
-        "head_sha": "5bb6d55de7612dbc69872193077098cac642c7d2",
-        "commits_reported": 2,
-        "tests_reported": "Current signed worker RPC parser strict event UUID, timestamps, metadata and terminal operation/status, with mock negatives; CI pending",
-        "ci_reported": "run #44263860226 pending",
-        "next_action": "Exact latest-head 4/4; independent security/F2/F4 review required before integration; source-only, not real tenant/RLS evidence",
-        "evidence_status": "worker-reported-unverified"
+        "at": "2026-11-18T19:09:54.922Z",
+        "owner": "manual-integrator-c-20261119",
+        "head_after": "462bb25f4a3bad934edca411f1ca3a7027a76f9b",
+        "files_changed": [
+          "frontend/src/features/testing/trace-store.mjs",
+          "tests/frontend/feature-testing-worker-current-rpc-integrity.test.mjs"
+        ],
+        "commits": [
+          "e465ccd2506b06f99836a7585c3eb1850504bbbe",
+          "462bb25f4a3bad934edca411f1ca3a7027a76f9b"
+        ],
+        "tests": "Added invalid ISO date/calendar/offset and valid leap-day regression; exact new-head 4-job CI NOT YET VERIFIED",
+        "ci": "pending",
+        "next_action": "Verify exact new HEAD PR four-job CI; independent F2/F4/security review and safe current-main conflict resolution before merge; then post-main 4/4",
+        "status": "source-fix-committed; not merged"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/979"
     },
