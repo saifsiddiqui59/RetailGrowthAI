@@ -13,7 +13,7 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 27,
+    "open_prs": 34,
     "by_feature": {
       "issue249": 9,
       "F4": 2,
@@ -21,10 +21,34 @@
       "F2": 8,
       "F3": 3,
       "F7": 1,
-      "F5": 1
+      "F5": 2
     }
   },
   "entries": [
+    {
+      "pr": 1011,
+      "title": "feat(F5): recover original GPU-OFF manifest lock source and 10 negative tests",
+      "feature": "F5",
+      "head_sha": "7ef8ae66da133f121a712b02ff73e767b30130ce",
+      "base_branch": "main",
+      "work_owner": "manual-integration-chat-e-F5-20261119",
+      "priority": "P1",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-e-F5-20261119",
+        "claimed_at": "2026-11-18T19:45:00.848Z",
+        "expires_at": "2026-11-18T21:15:00.848Z",
+        "head_sha": "7ef8ae66da133f121a712b02ff73e767b30130ce"
+      },
+      "checkpoint": {
+        "owner": "manual-integration-chat-e-F5-20261119",
+        "at": "2026-11-18T19:45:00.848Z",
+        "status": "source-only 4 original SHA blobs + 1 minimal init + F5 handoff; CI pending",
+        "source_parent": 323,
+        "integrated_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1011"
+    },
     {
       "pr": 1009,
       "title": "feat(feature2): preserve all 171 original #551 file patches before stale parent retirement",
