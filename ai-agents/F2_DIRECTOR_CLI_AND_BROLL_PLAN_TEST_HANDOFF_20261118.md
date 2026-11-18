@@ -1,0 +1,12 @@
+# Feature2 source-only director CLI / synthetic B-roll planning regression batch (2026-11-18)
+
+Baseline: current main `343585467c8bc8f0d517c0fff8b90e0d07d7fbf7`. Exact source originals from conflicted [#551](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/551) head `d80d6b50705323290c4b214bf2f006eacef1ef33` (preserve Git blobs byte-for-byte):
+- `ai-agents/test-fixtures/clothing-shop-pexels/render-offline-reference.py` `ab20d08d4932cdbcf57e3cedffca497d08dada85`: opt-in local FFmpeg **5s 1080x1920 H.264/AAC** rendering of original synthetic garment silhouette; without explicit `--render` it is **no-write/no-media plan-only**, no cloud, network, licensed media or model.
+- `ai-agents/tests/test_feature2_broll_local.py` `52c43359d44b95e3c72a1568891efd0b95c6839c`: invoke plan-only mode, assert no files or publication.
+- `ai-agents/tests/test_feature2_real_upstream_demo_cli.py` `7ecb352e98d0035af9a703d05e497290eeaa186d`: existing current pinned Kuble MIT director CLI 15/30/60s source preview, no GPU, 0 paid calls, invalid CLI rejection.
+- `ai-agents/tests/test_feature2_premium_diwali_offline_e2e.py` `38065223823d4bb2c4df89a21868adea67bec583`: existing premium fashion fixture produces offline **storyboard preview only**, not media.
+- `ai-agents/tests/test_feature2_unified_director_offline.py` `ed7d3ce151b225612a9851143887eac5de1d436c`: existing trusted-context, mocked model, HMAC review/quality and nonbillable handoff.
+
+Before port, verified current main matches original Git SHA exactly for actual director CLI `48387b9801850c5ae7e0de2ca6fc87bd6191ca5c`, premium Diwali original test `a4b435b0d362b991fda3a41d2bd89e1750b91d16`, director context `23277033dc2fc1af55172e6a7cf7703909e90e77` and director AI adapter `993b16a55821bb9774a8277bb0ba31db4905b097`. Existing F2 original synthetic image generator from merged #973 remains unchanged.
+
+**Actual acceptance** for these source-only tests requires exact final-head all four GitHub CI jobs, scoped current-main-safe merge and independent fresh main all four jobs. Test readers/voice and fake JWT/model details remain simulated; FFmpeg renderer only works if specifically invoked by an operator with suitable local FFmpeg. This change does not run it, produce user demos, validate commercial rights/publishing, permit inference/GPU/paid calls, perform cloud/PROD/SQL deployment or access WineShopPOS. Original numbered F2 tasks unchanged.
