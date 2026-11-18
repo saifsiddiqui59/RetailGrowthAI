@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 35,
+    "open_prs": 36,
     "by_feature": {
-      "F2": 8,
+      "F2": 9,
       "F3": 3,
       "F4": 5,
       "F5": 5,
@@ -25,6 +25,30 @@
     }
   },
   "entries": [
+    {
+      "pr": 978,
+      "title": "test(feature2): recover offline director→F4/F5 and mocked Foundry acceptance",
+      "feature": "F2",
+      "head_sha": "424cf7a6a218765e7180b8389848ea7454c20772",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P2",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration",
+        "head_sha": "424cf7a6a218765e7180b8389848ea7454c20772",
+        "claimed_at": "2026-11-18T07:56:57.713Z",
+        "expires_at": "2026-11-18T09:26:57.713Z"
+      },
+      "checkpoint": {
+        "recorded_at": "2026-11-18T07:56:57.713Z",
+        "owner": "manual-integration",
+        "head_sha": "424cf7a6a218765e7180b8389848ea7454c20772",
+        "ci_reported": "run #44262798665 in_progress",
+        "next_action": "Verify exact head four-job CI; safe feature-owned merge, independently fresh main 4/4; canonical docs update later"
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/978"
+    },
     {
       "pr": 977,
       "title": "ci(feature4): add on-demand extended CPU 60s acceptance job",
