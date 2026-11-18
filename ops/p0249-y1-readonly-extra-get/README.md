@@ -28,3 +28,22 @@ Both `RGAI_P0249_READONLY_SHADOW=true` **and a separate NEW flag** `RGAI_P0249_E
 **Fresh comparison evidence (2026-11-17):** Original Flex [#40100546239 attempt 3](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40100546239) observed **6/9 anomalies**, including 18-second timeouts on exactly the three new read-status routes. Isolated Y1 [#42964811296 attempt 3](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/42964811296) passed **40/40** health/unknown GETs and **12/12** handler-marked unauthorized GETs across two windows separated by 240 seconds. These are real hosted *anonymous/no-JWT* observations, not proof of hosted authenticated read parity.
 
 No runtime routing, Azure, SQL, Supabase Auth, customer data or WineShopPOS mutations in this source PR. Issue #249 remains OPEN.
+
+## 2026-11-19 — five-route source staging (stacked, no cloud deployment)
+
+`stage_five_get_sources.py --target <new-empty-dir>` now copies only an explicit
+allowlist of the original five Python v1 GET manifests/handlers plus unchanged
+original auth, tenant, render/poster GET APIs and the pinned v1 dependencies
+*requirements file*. It strictly rejects route/verb/trigger/binding changes,
+unknown dependency pins, missing or symlinked originals and pre-existing
+staging destinations **before any staging output is created**. It does not
+install dependencies, create a deployable ZIP, touch Azure app settings or
+start any endpoint. The isolated Y1 still hosts only the existing two routes.
+
+The new `tests/infra/test_p0249_y1_five_get_source_stage.py` exercises the
+real source files, rejects extra queue triggers and unsafe package inputs,
+and checks verbatim bytes of each staged original source. This work is
+*stacked on unmerged #968*; independent source/security review, exact-head
+four-job CI, then a **separately approved** vendored ZIP, indexed five-route
+deployment and real signed two-shop/idle acceptance are still mandatory.
+Do not enable the second flag or cut over the frontend. Issue #249 stays OPEN.
