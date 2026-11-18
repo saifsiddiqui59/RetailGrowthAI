@@ -124,6 +124,19 @@ class Y1FiveGetSourceStageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "already exists"):
             stage.stage_sources(self.repo, self.target)
 
+    def test_reject_dotdot_containment_bypass(self):
+        disguised = self.repo / "unused" / ".." / "stage"
+        with self.assertRaisesRegex(ValueError, "overlaps"):
+            stage.stage_sources(self.repo, disguised)
+        self.assertFalse((self.repo / "stage").exists())
+
+    def test_reject_symlinked_ancestor_into_original_repo(self):
+        alias = self.home / "repo-alias"
+        alias.symlink_to(self.repo, target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, "overlaps"):
+            stage.stage_sources(self.repo, alias / "package")
+        self.assertFalse((self.repo / "package").exists())
+
     def test_reject_staging_under_original_repo(self):
         with self.assertRaisesRegex(ValueError, "overlaps"):
             stage.stage_sources(self.repo, self.repo / "tmp-package")
