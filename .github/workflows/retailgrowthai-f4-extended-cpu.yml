@@ -1,0 +1,141 @@
+name: RetailGrowthAI F4 extended CPU acceptance
+
+# Opt-in, synthetic CPU-only proof. This is NOT an AI coding-agent runner.
+on:
+  workflow_dispatch:
+    inputs:
+      expected_source_sha:
+        description: "Optional exact 40-character F4 branch SHA; refuse if moved"
+        type: string
+        required: false
+        default: ""
+  # One branch-only smoke of this new workflow. Not a recurring paid job.
+  push:
+    branches:
+      - ci/extended-f4-cpu-acceptance-20261118
+    paths:
+      - .github/workflows/retailgrowthai-f4-extended-cpu.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: f4-extended-cpu-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-minute-cpu:
+    name: Native 60s 1080p CPU encode + offline proof (manual/branch smoke)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout existing F4 work without changing main
+        uses: actions/checkout@v7
+        with:
+          ref: feat/feature4-professional-video-studio
+          persist-credentials: false
+
+      - name: Verify exact checked-out source and optional manual SHA
+        shell: bash
+        env:
+          EXPECTED_SOURCE_SHA: ${{ inputs.expected_source_sha }}
+        run: |
+          set -euo pipefail
+          head="$(git rev-parse HEAD)"
+          [[ "$head" =~ ^[0-9a-f]{40}$ ]]
+          if [[ -n "$EXPECTED_SOURCE_SHA" ]]; then
+            [[ "$EXPECTED_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+            test "$head" = "$EXPECTED_SOURCE_SHA"
+          fi
+          printf 'F4_SOURCE_HEAD=%s\n' "$head" >> "$GITHUB_ENV"
+          echo "F4 source checkout: $head"
+          echo "Actual source SHA: $head" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Use Node 22 for pinned HyperFrames tooling
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+
+      - name: Confirm CPU-only local tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v ffmpeg
+          command -v ffprobe
+          command -v python3
+          node -e 'if (Number(process.versions.node.split(".")[0]) < 22) process.exit(2)'
+          ffmpeg -version | head -1
+
+      - name: Validate existing package lock before any npm install
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 video-engine/hyperframes/lock_guard.py \
+            --lock video-engine/hyperframes/package-lock.json \
+            --report "$RUNNER_TEMP/f4-extended-lock-audit.json"
+
+      - name: Install only the existing pinned headless editor dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=10s 180s \
+            npm ci --prefix video-engine/hyperframes --no-audit --no-fund
+          if [[ -x video-engine/hyperframes/node_modules/.bin/puppeteer ]]; then
+            timeout --signal=TERM --kill-after=10s 140s \
+              video-engine/hyperframes/node_modules/.bin/puppeteer browsers install chrome-headless-shell
+          fi
+
+      - name: Render real encoded 60s Full HD synthetic CPU fixture and verify SHA
+        shell: bash
+        timeout-minutes: 18
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/f4-extended-cpu"
+          mkdir -m 700 "$work"
+          start="$(date +%s)"
+          python3 video-engine/demo_feature4_diwali.py "$work/project" \
+            --seconds 60 --width 1080 --with-narration
+          timeout --signal=TERM --kill-after=10s 900s \
+            node video-engine/hyperframes/render.mjs "$work/project" "$work/encoded.mp4"
+          python3 - "$work/encoded.mp4" "$work/receipt.json" <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import sys
+
+          sys.path.insert(0, str(Path("video-engine").resolve()))
+          from render_adapter import verify_mp4
+
+          path = Path(sys.argv[1])
+          proof = verify_mp4(path, duration=60, width=1080, height=1920, fps=24)
+          digest = hashlib.sha256(path.read_bytes()).hexdigest()
+          receipt = {
+              "kind": "F4_EXTENDED_OFFLINE_SYNTHETIC_CPU_NOT_RELEASE_ACCEPTANCE",
+              "source_head": os.environ["F4_SOURCE_HEAD"],
+              "workflow_head": os.environ["GITHUB_SHA"],
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "mp4_sha256": digest,
+              "verification": proof,
+              "gpu_used": False,
+              "hosted_or_customer_test": False,
+              "retailer_visual_approved": False,
+          }
+          Path(sys.argv[2]).write_text(json.dumps(receipt, sort_keys=True, indent=2) + "\n")
+          print("PASS: native 60s/1080x1920/24fps H264+AAC CPU-only synthetic", digest)
+          PY
+          elapsed="$(($(date +%s) - start))"
+          echo "F4 native-minute synthetic CPU render and verification: $elapsed seconds" >> "$GITHUB_STEP_SUMMARY"
+          echo "Source-only CPU proof, not real media/hosted approval." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Retain tiny receipt only, never publish generated media
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: f4-extended-cpu-receipts
+          path: |
+            ${{ runner.temp }}/f4-extended-cpu/receipt.json
+            ${{ runner.temp }}/f4-extended-lock-audit.json
+          retention-days: 3
+          if-no-files-found: warn
