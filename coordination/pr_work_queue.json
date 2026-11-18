@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "ledger_branch": "coordination/pr-execution-ledger",
-  "snapshot_date": "2026-11-19",
+  "snapshot_date": "2026-11-18",
   "data_kind": "Live open-PR search 31 at 2026-11-19 checkpoint; prior closed historical entries retained. Claims remain CAS-only, not approval.",
   "main_merge_owner": "manual-integration",
   "lease_policy": {
@@ -57,19 +57,15 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-d-20261119",
-        "claimed_at": "2026-11-18T19:12:37.250Z",
-        "expires_at": "2026-11-18T20:42:37.250Z",
-        "head_sha": "6ff1a22c6e0ce613368cfef3e8b495048c5943ba"
-      },
+      "phase": "merged",
+      "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-d-20261119",
-        "at": "2026-11-18T19:21:27.166Z",
-        "status": "merged; postmerge main 4/4 pending",
+        "at": "2026-11-18T19:22:35.434Z",
+        "status": "merged; source archive only",
         "merge_sha": "315e5fa5ad1895b8f8fdef285909d816ef6ab271",
-        "ci": "44379097246 in progress",
+        "ci": "44376830005 exact-head 4/4; 44379097246 fresh-main 4/4",
+        "note": "#696 still active elsewhere; archive not task DONE",
         "original_tasks_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1000"
@@ -82,14 +78,16 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-d-20261119",
-        "claimed_at": "2026-11-18T19:12:37.250Z",
-        "expires_at": "2026-11-18T20:42:37.250Z",
-        "head_sha": "36ec943b61b9e8a1b0acd5b7f72213b81cbd5821"
+      "phase": "closed-unmerged",
+      "claim": null,
+      "checkpoint": {
+        "owner": "manual-integration-chat-d-20261119 (observed external closure)",
+        "at": "2026-11-18T19:22:35.434Z",
+        "status": "closed unmerged by another concurrent chat",
+        "ci": "original #998 exact-head 4/4 but not accepted",
+        "note": "Stale historical #724 head 359221f...; live #724 changed, so archive declined; see comment 6989051837",
+        "original_tasks_done": false
       },
-      "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/998"
     },
     {
