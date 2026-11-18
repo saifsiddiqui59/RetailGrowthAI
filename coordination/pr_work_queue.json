@@ -13,15 +13,15 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 33,
+    "open_prs": 27,
     "by_feature": {
-      "F2": 9,
+      "issue249": 9,
+      "F4": 2,
+      "shared": 3,
+      "F2": 8,
       "F3": 3,
-      "F4": 1,
-      "F5": 1,
       "F7": 1,
-      "issue249": 8,
-      "shared": 3
+      "F5": 1
     }
   },
   "entries": [
@@ -107,14 +107,16 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-c-20261119",
       "priority": "P2",
-      "phase": "merged-source-ci-pending",
+      "phase": "source-integrated-main-4of4",
       "claim": null,
       "checkpoint": {
-        "at": "2026-11-18T19:34:40.475Z",
+        "at": "2026-11-18T19:41:41.862Z",
         "owner": "manual-integration-chat-c-20261119",
         "head_after": "667587257dbbe27618c548651f01feb480665273",
-        "status": "merged-source-ci-pending",
-        "next_action": "New isolated 4-blob F5 CPU-only source PR merged as 4a8c9c437909089f21e388a3c884f71edac085bc, PR CI #44379160942 4/4. Exact main #44380019398 attempts 1/2 cancelled by newer pushes; attempt 3 in progress. NOT DONE."
+        "status": "merged source accepted; NOT hosted F5 task DONE",
+        "merge_sha": "4a8c9c437909089f21e388a3c884f71edac085bc",
+        "ci": "PR #44379160942 PASS 4/4; exact merged main #44380019398 attempt 3 PASS 4/4",
+        "next_action": "Maintain GPU OFF; source fixture only, F5 hosted model/rights/mount/inference acceptance separate"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1004"
     },
@@ -245,7 +247,7 @@
       "pr": 970,
       "title": "docs(integration): F2/F4 source recovery, 10-PR reconciliation and CI receipts",
       "feature": "F2",
-      "head_sha": "d735cf48428e6bb11f30995d6dd226bf6eafd73a",
+      "head_sha": "9d5ded4037bc54fb7d3aae7a94831c3f25f85db1",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
@@ -254,14 +256,15 @@
         "owner": "manual-integration-chat-c-20261119",
         "claimed_at": "2026-11-18T19:22:15.904Z",
         "expires_at": "2026-11-18T20:22:15.908Z",
-        "head_sha": "d735cf48428e6bb11f30995d6dd226bf6eafd73a"
+        "head_sha": "9d5ded4037bc54fb7d3aae7a94831c3f25f85db1"
       },
       "checkpoint": {
-        "at": "2026-11-18T19:34:40.475Z",
+        "at": "2026-11-18T19:41:41.862Z",
         "owner": "manual-integration-chat-c-20261119",
-        "head_after": "d735cf48428e6bb11f30995d6dd226bf6eafd73a",
-        "status": "in-progress",
-        "next_action": "Four canonical docs reconciled with moving main by merge commit d735cf4; exact-head run #44381450402 pending, independent shared-doc review before merge."
+        "head_after": "9d5ded4037bc54fb7d3aae7a94831c3f25f85db1",
+        "status": "shared docs reconciled to newer main, source-only",
+        "ci": "Prior exact docs head d735cf4 #44381450402 success 4/4; NEW final head 9d5ded4 requires fresh exact-head 4/4",
+        "next_action": "Wait for latest exact-head CI and independent affected F4/shared docs review; not merged"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/970"
     },
