@@ -90,21 +90,16 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration",
-        "head_sha": "488b51a60e56995c0c9ce959dd3b59802cf4df49",
-        "claimed_at": "2026-11-18T13:05:28.185Z",
-        "expires_at": "2026-11-18T14:35:28.185Z"
-      },
+      "phase": "ready-for-review",
+      "claim": null,
       "checkpoint": {
-        "recorded_at": "2026-11-18T13:05:28.185Z",
+        "recorded_at": "2026-11-18T13:08:57.320Z",
         "owner": "manual-integration",
         "head_sha": "488b51a60e56995c0c9ce959dd3b59802cf4df49",
         "commits_reported": 8,
-        "tests_reported": "F2 #980 PR/main CI 4/4; #981 PR/main CI 4/4; #551 exact blob census 85/76/10; docs PR new CI pending",
-        "ci_reported": "run #44309918072 in progress",
-        "next_action": "Verify exact final docs four jobs, independent shared-doc/F4 review before merging; reconcile overlapping #966",
+        "tests_reported": "Final combined F2 canonical docs exact head 4/4, source #980/#981 each PR+main 4/4",
+        "ci_reported": "success run #44309918072",
+        "next_action": "Independent affected shared-doc/F4 review; reconcile PR #966 overlap; safe main merge then fresh main 4/4",
         "evidence_status": "worker-reported-unverified"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/970"
