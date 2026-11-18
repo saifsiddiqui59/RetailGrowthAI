@@ -157,7 +157,31 @@ jobs:
             rc=$?
             trap - EXIT
             if [ "$rc" -ne 0 ]; then
-              echo "::warning::Y1 5-route failed; trying same-run 2-route rollback"
+              echo "::warning::Y1 5-route failed; checking safe same-run 2-route rollback"
+              # A different actor may have changed DEV after preflight.
+              # Never overwrite unexpected resource, function or config state.
+              python3 -u ops/p0249_y1_canary_guard.py verify || {
+                echo "::error::Y1 identity drifted; refuse same-run rollback"; exit "$rc";
+              }
+              az functionapp function list -g rg-retailgrowth-dev \
+                -n rgai-dev-y1-p0249-d4e5ddbd --query "[].name" \
+                -o json > "$RUNNER_TEMP/y1-pre-revert-index.json" || {
+                echo "::error::Cannot read Y1 function index before rollback"; exit "$rc";
+              }
+              python3 -c 'import json,sys; names=[str(x).split("/")[-1] for x in json.load(open(sys.argv[1]))]; allowed={"p0249_health","campaign_read","render_job_read","poster_job_read","poster_draft_read"}; assert len(names)<=5 and set(names)<=allowed, "unknown Y1 function"' \
+                "$RUNNER_TEMP/y1-pre-revert-index.json" || {
+                echo "::error::Unknown Y1 index; refuse same-run overwrite"; exit "$rc";
+              }
+              names="$(az functionapp config appsettings list \
+                -g rg-retailgrowth-dev -n rgai-dev-y1-p0249-d4e5ddbd \
+                --query "[?name=='RGAI_P0249_READONLY_SHADOW' || name=='RGAI_P0249_EXTRA_GET_SHADOW' || name=='RETAIL_SUPABASE_URL' || name=='RETAIL_SUPABASE_PUBLISHABLE_KEY'].name" -o tsv)" || {
+                echo "::error::Cannot read allowlisted Y1 setting names"; exit "$rc";
+              }
+              if [ -n "$names" ]; then
+                echo "::error::Y1 settings changed; deny same-run rollback"
+                exit "$rc"
+              fi
+              echo "P0249_Y1_SELF_ROLLBACK_PREFLIGHT=EXACT_KNOWN_ROUTES_NO_SHADOW_SETTINGS"
               az functionapp deployment source config-zip -g rg-retailgrowth-dev \
                 -n rgai-dev-y1-p0249-d4e5ddbd \
                 --src "$RUNNER_TEMP/y1-two.zip" --build-remote false -o none || \
