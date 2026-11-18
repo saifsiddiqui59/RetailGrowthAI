@@ -390,20 +390,15 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-d-20261119",
-        "head_sha": "7df64cc70f3fd8bed693dc69d3d0ec83a22df17f",
-        "claimed_at": "2026-11-18T19:24:44.368Z",
-        "expires_at": "2026-11-18T20:54:44.368Z"
-      },
+      "phase": "blocked",
+      "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-d-20261119",
-        "at": "2026-11-18T19:21:27.166Z",
-        "status": "blocked; NOT DONE",
-        "blockers": "Draft SQL/RPC security review and main conflicts",
-        "tests": "No new tests executed in this triage",
-        "next_action": "Address review/compatibility gates in owned feature work; never bypass security or main CI"
+        "at": "2026-11-18T19:25:14.867Z",
+        "status": "blocked, not task DONE",
+        "blockers": "DRAFT: security review of service-only SQL/RPC; main compatibility and hosted approval",
+        "tests": "No new tests executed",
+        "next_action": "Address review or main-reconciliation gate in feature owner branch; recheck fresh PR and main 4/4 before merging"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/923"
     },
@@ -428,20 +423,15 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-d-20261119",
-        "head_sha": "5cb0da47b662a38a40c233feef774624b92d7ce5",
-        "claimed_at": "2026-11-18T19:24:44.368Z",
-        "expires_at": "2026-11-18T20:54:44.368Z"
-      },
+      "phase": "blocked",
+      "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-d-20261119",
-        "at": "2026-11-18T19:21:27.166Z",
-        "status": "blocked; NOT DONE",
-        "blockers": "Draft conflicting VoiceStudio/SQL adapter; #925 depends on parent",
-        "tests": "No new tests executed in this triage",
-        "next_action": "Address review/compatibility gates in owned feature work; never bypass security or main CI"
+        "at": "2026-11-18T19:25:14.867Z",
+        "status": "blocked, not task DONE",
+        "blockers": "DRAFT: six unique paths absent on main; current-main reconciliation and SQL review required",
+        "tests": "No new tests executed",
+        "next_action": "Address review or main-reconciliation gate in feature owner branch; recheck fresh PR and main 4/4 before merging"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/920"
     },
@@ -656,20 +646,15 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-d-20261119",
-        "head_sha": "d80d6b50705323290c4b214bf2f006eacef1ef33",
-        "claimed_at": "2026-11-18T19:24:44.368Z",
-        "expires_at": "2026-11-18T20:54:44.368Z"
-      },
+      "phase": "blocked",
+      "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-d-20261119",
-        "at": "2026-11-18T19:21:27.166Z",
-        "status": "blocked; NOT DONE",
-        "blockers": "171-file F2 conflicted parent; selectively port nonobsolete source only",
-        "tests": "No new tests executed in this triage",
-        "next_action": "Address review/compatibility gates in owned feature work; never bypass security or main CI"
+        "at": "2026-11-18T19:25:14.867Z",
+        "status": "blocked, not task DONE",
+        "blockers": "171-file F2 parent conflicts with latest main; selective compatible source port required",
+        "tests": "No new tests executed",
+        "next_action": "Address review or main-reconciliation gate in feature owner branch; recheck fresh PR and main 4/4 before merging"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/551"
     },
@@ -739,20 +724,15 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-d-20261119",
-        "head_sha": "ffc464c09f719a0bfb6b15b5c34608f89d76234b",
-        "claimed_at": "2026-11-18T19:24:44.368Z",
-        "expires_at": "2026-11-18T20:54:44.368Z"
-      },
+      "phase": "blocked",
+      "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-d-20261119",
-        "at": "2026-11-18T19:21:27.166Z",
-        "status": "blocked; NOT DONE",
-        "blockers": "48-file F5 draft conflicts; license/GPU-off and stacked #465 review",
-        "tests": "No new tests executed in this triage",
-        "next_action": "Address review/compatibility gates in owned feature work; never bypass security or main CI"
+        "at": "2026-11-18T19:25:14.867Z",
+        "status": "blocked, not task DONE",
+        "blockers": "48-file F5 parent DRAFT, conflicts and rights/licence review; GPU stays OFF",
+        "tests": "No new tests executed",
+        "next_action": "Address review or main-reconciliation gate in feature owner branch; recheck fresh PR and main 4/4 before merging"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/323"
     },
