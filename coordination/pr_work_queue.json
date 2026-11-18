@@ -387,25 +387,27 @@
       "pr": 937,
       "title": "feat(feature2): current signed editor and SQL receipt gate for private VoiceStudio review",
       "feature": "F2",
-      "head_sha": "603e6e488085ce78fa4a86e3ef2f4c9bb0c820e2",
+      "head_sha": "77a50b9c7d2fdba52c4ca32d7d9f6dc32522f934",
       "base_branch": "main",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
       "phase": "in-progress",
       "claim": {
         "owner": "manual-integration-chat-d-20261119",
-        "head_sha": "603e6e488085ce78fa4a86e3ef2f4c9bb0c820e2",
+        "head_sha": "77a50b9c7d2fdba52c4ca32d7d9f6dc32522f934",
         "claimed_at": "2026-11-18T19:24:44.368Z",
         "expires_at": "2026-11-18T20:54:44.368Z"
       },
       "checkpoint": {
-        "owner": "manual-integration-chat-e-20261119",
-        "at": "2026-11-18T19:16:44.121Z",
-        "status": "IN_PROGRESS",
-        "summary": "Retargeted to main after source parent #936 was merged. Feature-scoped handoff commit 603e6e488085ce78fa4a86e3ef2f4c9bb0c820e2; draft + non-mergeable with newer main, no new exact-head CI verified.",
-        "next_action": "Owner resolve current-main conflict and protected VoiceStudio review; verify 4/4 exact final head and independent permission/security review",
-        "merged": false,
-        "verified_integrated_done": false
+        "owner": "manual-integration-chat-d-20261119",
+        "at": "2026-11-18T19:53:20.193Z",
+        "status": "SOURCE_RECONCILED_CI_PENDING",
+        "branch_sha": "77a50b9c7d2fdba52c4ca32d7d9f6dc32522f934",
+        "ci_run": 44385075069,
+        "changed_files": 8,
+        "main_newer_deps_preserved": 3,
+        "verified_integrated_done": false,
+        "next_action": "Review exact new-head 4/4, source-only merge eligible when code/permissions verified; hosted rights separate"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/937"
     },
