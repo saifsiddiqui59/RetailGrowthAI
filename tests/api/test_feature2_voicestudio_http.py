@@ -170,3 +170,10 @@ def test_forged_worker_receipt_not_returned_as_client_error():
     api, tenant, sql, calls = fixture(worker=worker)
     status, result = api.generate(SHOP, "Bearer valid-token", body())
     assert status == 503 and result == {"error": "VOICE_PRIVATE_REVIEW_UNVERIFIED"}
+
+def test_missing_reviewed_worker_is_fail_closed_before_sql_or_inference():
+    api, tenant, sql, calls = fixture(worker=None)
+    code, result = api.generate(SHOP, "Bearer valid-token", body())
+    assert code == 503 and result == {"error": "VOICE_WORKER_NOT_REVIEWED"}
+    assert sql.calls == 0 and calls == []
+
