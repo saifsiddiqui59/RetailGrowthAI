@@ -80,6 +80,14 @@ class Y1FiveGetManualReleaseTests(unittest.TestCase):
             else:
                 self.assertIn(proof, self.y)
 
+    def test_real_y1_get_probe_is_redirect_denied_and_closes_http_errors(self):
+        self.assertIn("class NoRedirects(urllib.request.HTTPRedirectHandler)", self.y)
+        self.assertIn("def redirect_request(self, req, fp, code, msg, headers, newurl):", self.y)
+        self.assertIn("return None", self.y)
+        self.assertIn("opener=urllib.request.build_opener(NoRedirects())", self.y)
+        self.assertIn("err.close()", self.y)
+        self.assertIn("status,marker,seconds=guarded_get(path)", self.y)
+
     def test_builder_never_calls_azure_or_queues(self):
         code = PACKAGE.read_text()
         for token in ("subprocess.run(", "az functionapp",
