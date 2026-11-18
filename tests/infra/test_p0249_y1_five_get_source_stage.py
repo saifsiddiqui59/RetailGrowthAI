@@ -99,6 +99,22 @@ class Y1FiveGetSourceStageTests(unittest.TestCase):
             stage.stage_sources(self.repo, self.target)
         self.assertFalse(self.target.exists())
 
+    def test_reject_manifest_that_changes_auth_level(self):
+        source = self.repo / stage.SOURCES["poster_draft_read/function.json"]
+        manifest = json.loads(source.read_text())
+        manifest["bindings"][0]["authLevel"] = "admin"
+        source.write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(ValueError, "GET routes"):
+            stage.stage_sources(self.repo, self.target)
+        self.assertFalse(self.target.exists())
+
+    def test_reject_modified_host_version(self):
+        source = self.repo / stage.SOURCES["host.json"]
+        source.write_text(json.dumps({"version": "3.0"}))
+        with self.assertRaisesRegex(ValueError, "host version"):
+            stage.stage_sources(self.repo, self.target)
+        self.assertFalse(self.target.exists())
+
     def test_reject_preexisting_directory_and_existing_symlink(self):
         self.target.mkdir()
         with self.assertRaisesRegex(ValueError, "already exists"):
