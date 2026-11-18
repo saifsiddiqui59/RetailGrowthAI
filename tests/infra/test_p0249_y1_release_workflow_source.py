@@ -65,6 +65,14 @@ class Y1FiveGetManualReleaseTests(unittest.TestCase):
         self.assertIn("set(names)<=allowed", self.y)
         self.assertIn("RG", (ROOT / "ops/p0249_y1_canary_guard.py").read_text())
 
+    def test_same_run_rollback_revalidates_identity_index_and_settings(self):
+        self.assertIn("P0249_Y1_SELF_ROLLBACK_PREFLIGHT=EXACT_KNOWN_ROUTES_NO_SHADOW_SETTINGS", self.y)
+        self.assertIn("Y1 identity drifted; refuse same-run rollback", self.y)
+        self.assertIn("Unknown Y1 index; refuse same-run overwrite", self.y)
+        self.assertIn("Y1 settings changed; deny same-run rollback", self.y)
+        self.assertIn("y1-pre-revert-index.json", self.y)
+        self.assertIn("set(names)<=allowed", self.y)
+
     def test_read_only_get_after_idle_no_positive_claim(self):
         for proof in (
             "P0249_Y1_START_IDLE_SECONDS=240",
