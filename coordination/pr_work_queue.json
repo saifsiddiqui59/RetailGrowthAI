@@ -13,7 +13,7 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 31,
+    "open_prs": 32,
     "by_feature": {
       "issue249": 9,
       "F4": 2,
@@ -21,10 +21,34 @@
       "F2": 8,
       "F3": 3,
       "F7": 1,
-      "F5": 2
+      "F5": 3
     }
   },
   "entries": [
+    {
+      "pr": 1013,
+      "title": "feat(F5): restore original GPU-off human visual QA gate and negative tests",
+      "feature": "F5",
+      "head_sha": "f561fbbc28100eba32bc33f49fdf0d7b88692692",
+      "base_branch": "main",
+      "work_owner": "manual-integration-chat-e-F5-20261119",
+      "priority": "P1",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-e-F5-20261119",
+        "head_sha": "f561fbbc28100eba32bc33f49fdf0d7b88692692",
+        "claimed_at": "2026-11-18T19:58:05.092Z",
+        "expires_at": "2026-11-18T21:28:05.092Z"
+      },
+      "checkpoint": {
+        "owner": "manual-integration-chat-e-F5-20261119",
+        "at": "2026-11-18T19:58:05.092Z",
+        "status": "two exact original F5 QA source/test blobs, CI pending, no tasks DONE",
+        "parent": 323,
+        "ci": "44385923152 PR queued"
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1013"
+    },
     {
       "pr": 1011,
       "title": "feat(F5): recover original GPU-OFF manifest lock source and 10 negative tests",
