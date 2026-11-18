@@ -83,7 +83,11 @@ def claim_entry(state: dict, pr: int, owner: str, expected_head: str,
         raise QueueError("lease must be 10-180 minutes")
     updated = deepcopy(state)
     item = find(updated, pr)
-    if owner not in {item["work_owner"], "manual-integration", "schedule-integration"}:
+    # Distinct manual chats must not share the same re-entrant lease identity.
+    # A shared "manual-integration" owner allows separate chats to silently
+    # overwrite each other's active claim; isolate them by stable chat suffix.
+    manual_chat = re.fullmatch(r"manual-integration-chat-[a-z0-9][a-z0-9-]{0,47}", owner)
+    if owner not in {item["work_owner"], "manual-integration", "schedule-integration"} and not manual_chat:
         raise QueueError("claimant is not assigned to this feature/PR")
     if not SHA.fullmatch(expected_head) or item["head_sha"] != expected_head:
         raise QueueError("stale PR head; refresh and reconcile first")
