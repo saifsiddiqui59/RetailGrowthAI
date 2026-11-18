@@ -72,6 +72,34 @@ class Y1FiveRouteReleaseSourceTests(unittest.TestCase):
             self.assertFalse((stage / "function_app.py").exists())
             self.assertFalse(any(p.suffix == ".zip" for p in stage.rglob("*")))
 
+    def test_unvendored_original_http_dependency_rejected_before_stage(self):
+        source = self.repo / "azure-functions/campaign-api/http_api.py"
+        source.write_text(source.read_text() + "\nimport requests\n")
+        with self.assertRaisesRegex(ValueError, "unvendored Y1 Python import"):
+            stage_release(self.repo, self.root / "no-unpinned-import", "five")
+        self.assertFalse((self.root / "no-unpinned-import").exists())
+
+    def test_privileged_worker_dependency_rejected_before_stage(self):
+        source = self.repo / "azure-functions/campaign-api/render_api.py"
+        source.write_text(source.read_text() + "\nfrom admin_store import AdminStore\n")
+        with self.assertRaisesRegex(ValueError, "unvendored Y1 Python import"):
+            stage_release(self.repo, self.root / "no-admin-store", "five")
+        self.assertFalse((self.root / "no-admin-store").exists())
+
+    def test_unpinned_azure_storage_import_rejected_before_stage(self):
+        source = self.repo / "ops/p0249-y1-readonly-extra-get/p0249_readonly_jobs.py"
+        source.write_text(source.read_text() + "\nfrom azure.storage.queue import QueueClient\n")
+        with self.assertRaisesRegex(ValueError, "unvendored Azure SDK import"):
+            stage_release(self.repo, self.root / "no-azure-queue", "five")
+        self.assertFalse((self.root / "no-azure-queue").exists())
+
+    def test_relative_import_rejected_before_stage(self):
+        source = self.repo / "azure-functions/campaign-api/http_api.py"
+        source.write_text(source.read_text() + "\nfrom .unsafe import anything\n")
+        with self.assertRaisesRegex(ValueError, "unreviewed relative Y1 import"):
+            stage_release(self.repo, self.root / "no-relative-import", "rollback-two")
+        self.assertFalse((self.root / "no-relative-import").exists())
+
     def test_no_http_write_or_worker_route_in_either_mode(self):
         for mode in MODES:
             stage = self.stage(mode)
