@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 37,
+    "open_prs": 38,
     "by_feature": {
-      "F2": 9,
+      "F2": 10,
       "F3": 3,
       "F4": 4,
       "F5": 5,
@@ -25,6 +25,30 @@
     }
   },
   "entries": [
+    {
+      "pr": 976,
+      "title": "test(feature2): recover offline Pexels discovery fixture plan, no media downloads",
+      "feature": "F2",
+      "head_sha": "892530314c521dd5151cb77f9269b9cf793bb7b0",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P2",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration",
+        "head_sha": "892530314c521dd5151cb77f9269b9cf793bb7b0",
+        "claimed_at": "2026-11-18T07:44:05.595Z",
+        "expires_at": "2026-11-18T09:14:05.595Z"
+      },
+      "checkpoint": {
+        "recorded_at": "2026-11-18T07:44:05.595Z",
+        "owner": "manual-integration",
+        "head_sha": "892530314c521dd5151cb77f9269b9cf793bb7b0",
+        "ci_reported": "run 44261077357 executing",
+        "next_action": "Verify exact final head 4/4 then safe merge and fresh main 4/4 for non-network Pexels plan-only test code"
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/976"
+    },
     {
       "pr": 975,
       "title": "test(testing): current signed worker RPC tenant negatives + preserve historical #627",
