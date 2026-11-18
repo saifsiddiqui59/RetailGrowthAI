@@ -25,7 +25,7 @@ const browserEvents=[
 ]
 const workerFor=(id)=>({
   shop_id:SHOP,job_id:id,source:'trusted_backend_persisted',
-  events:[{id:'e1000000-0000-4000-8000-000000000001',shop_id:SHOP,
+  events:[{id:id===RENDER?'e1000000-0000-4000-8000-000000000001':'e3000000-0000-4000-8000-000000000001',shop_id:SHOP,
     job_id:id,feature:id===RENDER?'F4':'F2',
     operation:id===RENDER?'render.complete':'planning.complete',
     status:'SUCCEEDED',attempt:1,elapsed_ms:3100,
