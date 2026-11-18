@@ -128,6 +128,34 @@ def checked_video(path):
         raise VideoPlanError("Invalid or unprobeable staged source video") from exc
 
 
+def checked_narration_duration(path):
+    """Fail closed on real staged narration length without changing shared preflight API.
+
+    The current asset_preflight.inspect_staged_audio intentionally returns codec,
+    channels and sample rate but not duration. Verify duration independently;
+    never treat unknown probe metadata as an approved full-length voice track.
+    """
+    try:
+        result = subprocess.run(
+            ["ffprobe", "-v", "error", "-protocol_whitelist", "file",
+             "-show_format", "-of", "json", str(path)],
+            capture_output=True, text=True, check=True, timeout=18,
+        )
+        if len(result.stdout) > 200_000:
+            raise VideoPlanError("Approved narration duration unavailable")
+        metadata = json.loads(result.stdout)
+        raw = metadata.get("format", {}).get("duration")
+        if raw is None:
+            raise VideoPlanError("Approved narration duration unavailable")
+        seconds = float(raw)
+        if not math.isfinite(seconds) or not 0 < seconds <= 3600:
+            raise VideoPlanError("Approved narration duration unavailable")
+        return seconds
+    except (OSError, subprocess.TimeoutExpired, subprocess.CalledProcessError,
+            TypeError, ValueError, OverflowError) as exc:
+        raise VideoPlanError("Approved narration duration unavailable") from exc
+
+
 def validate(plan, manifest, asset_root, allow_test_media=False):
     fields(plan, {"version", "shop_id", "mode", "template", "duration_seconds", "output",
                   "scenes", "cta", "music_asset_id", "voiceover_asset_id", "audio_mix", "caption_cues", "beats", "brand", "logo_asset_id"},
@@ -278,8 +306,8 @@ def validate(plan, manifest, asset_root, allow_test_media=False):
             raise VideoPlanError("Narration media must be audio")
         validate_rights(voice["rights"], voice_id, allow_test_media)
         voice_path = checked_path(asset_root, voice["path"], voice_id, AUDIO)
-        info = inspect_staged_audio(voice_path)
-        if info["duration_seconds"] is None or info["duration_seconds"] + .06 < duration:
+        inspect_staged_audio(voice_path)
+        if checked_narration_duration(voice_path) + .06 < duration:
             raise VideoPlanError("Approved narration is shorter than the Reel")
         ordered[voice_id] = (voice_path, "audio")
     beats = plan.get("beats", [])
