@@ -13,7 +13,7 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 36,
+    "open_prs": 35,
     "by_feature": {
       "F2": 8,
       "F3": 3,
@@ -21,7 +21,7 @@
       "F5": 5,
       "F7": 1,
       "issue249": 11,
-      "shared": 3
+      "shared": 2
     }
   },
   "entries": [
@@ -441,30 +441,6 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/639"
-    },
-    {
-      "pr": 627,
-      "title": "feat(testing): signed backend-verified worker evidence in Testing Chat",
-      "feature": "shared",
-      "head_sha": "6ef9788a26661c07a3feb851dfe1cb0209b310da",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration",
-        "head_sha": "6ef9788a26661c07a3feb851dfe1cb0209b310da",
-        "claimed_at": "2026-11-18T07:41:21.307Z",
-        "expires_at": "2026-11-18T09:11:21.307Z"
-      },
-      "checkpoint": {
-        "recorded_at": "2026-11-18T07:41:21.307Z",
-        "head_sha": "6ef9788a26661c07a3feb851dfe1cb0209b310da",
-        "owner": "manual-integration",
-        "next_action": "Original 5 source patches archived in #975; retire UNMERGED only after accepted archive and direct head/path parity",
-        "ci_reported": "historic draft protected"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/627"
     },
     {
       "pr": 551,
