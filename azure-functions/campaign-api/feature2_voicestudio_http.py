@@ -8,8 +8,6 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from ai_agents.feature2_voicestudio_registration import run_verified_private_voice_job
-from ai_agents.feature2_voicestudio_adapter import VoiceStudioUnavailable
 from security import AuthenticationError
 from tenant_store import StorageUnavailable, canonical_uuid
 from feature2_voicestudio_sql import VoiceStudioSqlDenied
@@ -28,7 +26,7 @@ class VoiceStudioSignedAPI:
     def __init__(
         self, verify_token, tenant_store, sql_store_factory, storage,
         *, base_url, api_key, enabled=False, commercial_model_verified=False,
-        worker=run_verified_private_voice_job, transport=None,
+        worker=None, transport=None,
     ):
         self.verify_token = verify_token
         self.tenant_store = tenant_store
@@ -63,6 +61,11 @@ class VoiceStudioSignedAPI:
                 return 404, {"error": "NOT_FOUND"}
             if self.enabled is not True or self.commercial_model_verified is not True:
                 return 503, {"error": "VOICESTUDIO_NOT_LICENSED_OR_ENABLED"}
+            # The Functions runtime intentionally cannot import undeclared AI
+            # packages. A separately reviewed, packaged worker must be injected
+            # explicitly; missing injection never claims SQL or invokes a model.
+            if not callable(self.worker):
+                return 503, {"error": "VOICE_WORKER_NOT_REVIEWED"}
             if not callable(self.sql_store_factory) or self.storage is None:
                 return 503, {"error": "VOICE_PRIVATE_DB_NOT_CONFIGURED"}
             sql = self.sql_store_factory(uid)
@@ -113,8 +116,8 @@ class VoiceStudioSignedAPI:
             }
         except (AuthenticationError,):
             return 401, {"error": "UNAUTHORIZED"}
-        except (VoiceStudioUnavailable, VoiceStudioSqlDenied, PrivateVoiceStorageDenied,
-                StorageUnavailable, TimeoutError, OSError):
+        except (VoiceStudioSqlDenied, PrivateVoiceStorageDenied,
+                StorageUnavailable, TimeoutError, OSError, RuntimeError):
             return 503, {"error": "VOICE_STUDIO_UNAVAILABLE"}
         except (ValueError, TypeError, KeyError):
             return 400, {"error": "INVALID_REQUEST"}
