@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "ledger_branch": "coordination/pr-execution-ledger",
-  "snapshot_date": "2026-11-17",
+  "snapshot_date": "2026-11-18",
   "data_kind": "GitHub live PR inventory; not proof of review/CI or an active lease",
   "main_merge_owner": "manual-integration",
   "lease_policy": {
@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 39,
+    "open_prs": 35,
     "by_feature": {
-      "F2": 12,
+      "F2": 8,
       "F3": 3,
       "F4": 4,
       "F5": 5,
@@ -280,31 +280,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/920"
     },
     {
-      "pr": 917,
-      "title": "Feature2 F2-21: recheck authoritative CPU policy after lease from original #758",
-      "feature": "F2",
-      "head_sha": "32cacb8a52b98e83e20afeb18645d2a2ecc54d0a",
-      "base_branch": "feat/feature2-source-batch-8pr-consolidation-20261030",
-      "work_owner": "manual-integration",
-      "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration",
-        "claimed_at": "2026-11-18T07:18:11.330Z",
-        "expires_at": "2026-11-18T08:48:11.330Z",
-        "head_sha": "32cacb8a52b98e83e20afeb18645d2a2ecc54d0a"
-      },
-      "checkpoint": {
-        "owner": "manual-integration",
-        "head_sha": "32cacb8a52b98e83e20afeb18645d2a2ecc54d0a",
-        "recorded_at": "2026-11-18T07:18:11.330Z",
-        "next_action": "Validate lossless archived patch #973 and close old stacked PR unmerged only after source archive merges & fresh main 4/4",
-        "ci_reported": "Original source under historic head, replacement #973 CI pending",
-        "evidence_status": "worker-reported-unverified"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/917"
-    },
-    {
       "pr": 887,
       "title": "ci(#249): review isolated DEV-only manual Azure incident workflow",
       "feature": "issue249",
@@ -388,56 +363,6 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/724"
-    },
-    {
-      "pr": 700,
-      "title": "fix(feature2 #20): block original WAV storage success after tenant revocation",
-      "feature": "F2",
-      "head_sha": "0c79efef7e81bec6a08dcde11601ea43d65764ee",
-      "base_branch": "feat/feature2-unified-offline-source-20261028",
-      "work_owner": "manual-integration",
-      "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration",
-        "claimed_at": "2026-11-18T07:18:11.330Z",
-        "expires_at": "2026-11-18T08:48:11.330Z",
-        "head_sha": "0c79efef7e81bec6a08dcde11601ea43d65764ee"
-      },
-      "checkpoint": {
-        "owner": "manual-integration",
-        "head_sha": "0c79efef7e81bec6a08dcde11601ea43d65764ee",
-        "recorded_at": "2026-11-18T07:18:11.330Z",
-        "next_action": "Validate lossless archived patch #973 and close old stacked PR unmerged only after source archive merges & fresh main 4/4",
-        "ci_reported": "Original source under historic head, replacement #973 CI pending",
-        "evidence_status": "worker-reported-unverified"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/700"
-    },
-    {
-      "pr": 697,
-      "title": "fix(feature2 #27): one-shot private sentence retake job/tenant binding",
-      "feature": "F2",
-      "head_sha": "26ad0b1539cb1ae5efe9410b64febbb5d66ee7de",
-      "base_branch": "feat/feature2-unified-offline-source-20261028",
-      "work_owner": "manual-integration",
-      "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration",
-        "claimed_at": "2026-11-18T07:18:11.330Z",
-        "expires_at": "2026-11-18T08:48:11.330Z",
-        "head_sha": "26ad0b1539cb1ae5efe9410b64febbb5d66ee7de"
-      },
-      "checkpoint": {
-        "owner": "manual-integration",
-        "head_sha": "26ad0b1539cb1ae5efe9410b64febbb5d66ee7de",
-        "recorded_at": "2026-11-18T07:18:11.330Z",
-        "next_action": "Validate lossless archived patch #973 and close old stacked PR unmerged only after source archive merges & fresh main 4/4",
-        "ci_reported": "Original source under historic head, replacement #973 CI pending",
-        "evidence_status": "worker-reported-unverified"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/697"
     },
     {
       "pr": 696,
@@ -650,31 +575,6 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/121"
-    },
-    {
-      "pr": 973,
-      "title": "test(feature2): recover offline PNG/PCM fixtures and preserve 3 historic draft patches",
-      "feature": "F2",
-      "head_sha": "bd3bae598053c8339bb17f24f269e3f94a576831",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration",
-        "claimed_at": "2026-11-18T07:18:11.330Z",
-        "expires_at": "2026-11-18T08:48:11.330Z",
-        "head_sha": "bd3bae598053c8339bb17f24f269e3f94a576831"
-      },
-      "checkpoint": {
-        "owner": "manual-integration",
-        "head_sha": "bd3bae598053c8339bb17f24f269e3f94a576831",
-        "recorded_at": "2026-11-18T07:18:11.330Z",
-        "next_action": "Verify exact head four jobs, merge source-only PR if green, verify fresh main 4/4",
-        "ci_reported": "Actions #44257725752 in progress",
-        "evidence_status": "worker-reported-unverified"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/973"
     }
   ]
 }
