@@ -87,14 +87,14 @@
       "priority": "P2",
       "phase": "in-progress",
       "claim": {
-        "owner": "manual-integrator-c-20261119",
+        "owner": "manual-integration-chat-c-20261119",
         "claimed_at": "2026-11-18T19:05:50.993Z",
         "expires_at": "2026-11-18T20:35:50.993Z",
         "head_sha": "462bb25f4a3bad934edca411f1ca3a7027a76f9b"
       },
       "checkpoint": {
         "at": "2026-11-18T19:09:54.922Z",
-        "owner": "manual-integrator-c-20261119",
+        "owner": "manual-integration-chat-c-20261119",
         "head_after": "462bb25f4a3bad934edca411f1ca3a7027a76f9b",
         "files_changed": [
           "frontend/src/features/testing/trace-store.mjs",
@@ -121,7 +121,7 @@
       "priority": "P2",
       "phase": "in-progress",
       "claim": {
-        "owner": "manual-integrator-c-20261119",
+        "owner": "manual-integration-chat-c-20261119",
         "claimed_at": "2026-11-18T19:05:50.993Z",
         "expires_at": "2026-11-18T20:35:50.993Z",
         "head_sha": "a204af9f160e99a808e279f53745b0c5fb60eff7"
@@ -148,7 +148,7 @@
       "priority": "P2",
       "phase": "in-progress",
       "claim": {
-        "owner": "manual-integrator-c-20261119",
+        "owner": "manual-integration-chat-c-20261119",
         "claimed_at": "2026-11-18T19:05:50.993Z",
         "expires_at": "2026-11-18T20:35:50.993Z",
         "head_sha": "23e52d392d6bc25531c83f92649bd0a13c80865c"
@@ -217,18 +217,27 @@
       "pr": 964,
       "title": "feat(coordination): serialize main merges and use CAS-backed PR queue",
       "feature": "shared",
-      "head_sha": "ca84a34a6c7ecbb08a8860a099ec7b4753ad0e93",
+      "head_sha": "b8fd5ed5471a7a184bac55673dc09868886fbf71",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
       "phase": "in-progress",
       "claim": {
-        "owner": "manual-integrator-c-20261119",
+        "owner": "manual-integration-chat-c-20261119",
         "claimed_at": "2026-11-18T19:05:50.993Z",
         "expires_at": "2026-11-18T20:35:50.993Z",
-        "head_sha": "ca84a34a6c7ecbb08a8860a099ec7b4753ad0e93"
+        "head_sha": "b8fd5ed5471a7a184bac55673dc09868886fbf71"
       },
-      "checkpoint": null,
+      "checkpoint": {
+        "recorded_at": "2026-11-18T19:11:33.476Z",
+        "owner": "manual-integration-chat-c-20261119",
+        "head_sha": "b8fd5ed5471a7a184bac55673dc09868886fbf71",
+        "commits_reported": 2,
+        "tests_reported": "Added manual-chat lease collision regression; exact head CI pending",
+        "ci_reported": "pending",
+        "next_action": "Verify new-head 4/4 CI; independent shared coordination review and rebase/compatibility before merge",
+        "evidence_status": "worker-reported-unverified"
+      },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/964"
     },
     {
@@ -254,7 +263,7 @@
       "priority": "P0",
       "phase": "in-progress",
       "claim": {
-        "owner": "manual-integrator-c-20261119",
+        "owner": "manual-integration-chat-c-20261119",
         "claimed_at": "2026-11-18T19:05:50.993Z",
         "expires_at": "2026-11-18T20:35:50.993Z",
         "head_sha": "7a44c4b0837526f79207c848813cb0206781e9cb"
@@ -395,7 +404,7 @@
       "priority": "P0",
       "phase": "in-progress",
       "claim": {
-        "owner": "manual-integrator-c-20261119",
+        "owner": "manual-integration-chat-c-20261119",
         "claimed_at": "2026-11-18T19:05:50.993Z",
         "expires_at": "2026-11-18T20:35:50.993Z",
         "head_sha": "141860508c1d4592b5fecfcbe0bce9f931a1bfda"
@@ -420,7 +429,7 @@
       "priority": "P2",
       "phase": "in-progress",
       "claim": {
-        "owner": "manual-integrator-c-20261119",
+        "owner": "manual-integration-chat-c-20261119",
         "claimed_at": "2026-11-18T19:05:50.993Z",
         "expires_at": "2026-11-18T20:35:50.993Z",
         "head_sha": "60251cf930bb6131bad9e11f0713ca80ba50b12b"
@@ -464,7 +473,7 @@
       "priority": "P2",
       "phase": "in-progress",
       "claim": {
-        "owner": "manual-integrator-c-20261119",
+        "owner": "manual-integration-chat-c-20261119",
         "claimed_at": "2026-11-18T19:05:50.993Z",
         "expires_at": "2026-11-18T20:35:50.993Z",
         "head_sha": "359221f2bd198ce498c01e1807b59f4284fb9227"
@@ -482,7 +491,7 @@
       "priority": "P2",
       "phase": "in-progress",
       "claim": {
-        "owner": "manual-integrator-c-20261119",
+        "owner": "manual-integration-chat-c-20261119",
         "claimed_at": "2026-11-18T19:05:50.993Z",
         "expires_at": "2026-11-18T20:35:50.993Z",
         "head_sha": "dfa0e58c01f4f961180682f6bedd85c9d308d0e4"
@@ -596,7 +605,7 @@
       "priority": "P0",
       "phase": "in-progress",
       "claim": {
-        "owner": "manual-integrator-c-20261119",
+        "owner": "manual-integration-chat-c-20261119",
         "claimed_at": "2026-11-18T19:05:50.993Z",
         "expires_at": "2026-11-18T20:35:50.993Z",
         "head_sha": "2106caa6563f952a6db2942f08bd6701d5f4f9c8"
