@@ -93,6 +93,13 @@ class Y1FiveRouteReleaseSourceTests(unittest.TestCase):
             stage_release(self.repo, self.root / "no-azure-queue", "five")
         self.assertFalse((self.root / "no-azure-queue").exists())
 
+    def test_azure_namespace_import_cannot_bypass_pinned_sdk(self):
+        source = self.repo / "ops/p0249-y1-readonly-extra-get/p0249_readonly_jobs.py"
+        source.write_text(source.read_text() + "\nfrom azure import storage\n")
+        with self.assertRaisesRegex(ValueError, "unvendored Azure SDK import"):
+            stage_release(self.repo, self.root / "no-unpinned-azure-module", "five")
+        self.assertFalse((self.root / "no-unpinned-azure-module").exists())
+
     def test_relative_import_rejected_before_stage(self):
         source = self.repo / "azure-functions/campaign-api/http_api.py"
         source.write_text(source.read_text() + "\nfrom .unsafe import anything\n")
