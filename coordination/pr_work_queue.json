@@ -13,12 +13,12 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 24,
+    "open_prs": 21,
     "by_feature": {
       "F5": 2,
       "issue249": 8,
       "shared": 3,
-      "F2": 7,
+      "F2": 4,
       "F3": 3,
       "F4": 1
     }
@@ -238,34 +238,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/939"
     },
     {
-      "pr": 937,
-      "title": "feat(feature2): current signed editor and SQL receipt gate for private VoiceStudio review",
-      "feature": "F2",
-      "head_sha": "f5fe92b4e0c87538953cb8e548a51e67c22e79b9",
-      "base_branch": "main",
-      "work_owner": "manual-integration-chat-d-20261119",
-      "priority": "P0",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-d-20261119",
-        "head_sha": "77a50b9c7d2fdba52c4ca32d7d9f6dc32522f934",
-        "claimed_at": "2026-11-18T19:24:44.368Z",
-        "expires_at": "2026-11-18T20:54:44.368Z"
-      },
-      "checkpoint": {
-        "owner": "manual-integration-chat-d-20261119",
-        "at": "2026-11-18T19:53:20.193Z",
-        "status": "SOURCE_RECONCILED_CI_PENDING",
-        "branch_sha": "77a50b9c7d2fdba52c4ca32d7d9f6dc32522f934",
-        "ci_run": 44385075069,
-        "changed_files": 8,
-        "main_newer_deps_preserved": 3,
-        "verified_integrated_done": false,
-        "next_action": "Review exact new-head 4/4, source-only merge eligible when code/permissions verified; hosted rights separate"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/937"
-    },
-    {
       "pr": 925,
       "title": "review(feature2): OFF-by-default signed VoiceStudio Azure Functions route",
       "feature": "F2",
@@ -286,31 +258,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/925"
     },
     {
-      "pr": 923,
-      "title": "review(feature2): service-only VoiceStudio original-key plan/claim/register/receipt SQL",
-      "feature": "F2",
-      "head_sha": "291835bf521a99dbd1bb258b24de02e323b6da28",
-      "base_branch": "main",
-      "work_owner": "manual-integration-chat-g-20261119",
-      "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-g-20261119",
-        "head_sha": "7df64cc70f3fd8bed693dc69d3d0ec83a22df17f",
-        "claimed_at": "2026-11-18T19:54:24.861Z",
-        "expires_at": "2026-11-18T21:24:24.861Z"
-      },
-      "checkpoint": {
-        "owner": "manual-integration-chat-d-20261119",
-        "at": "2026-11-18T19:25:14.867Z",
-        "status": "blocked, not task DONE",
-        "blockers": "DRAFT: security review of service-only SQL/RPC; main compatibility and hosted approval",
-        "tests": "No new tests executed",
-        "next_action": "Address review or main-reconciliation gate in feature owner branch; recheck fresh PR and main 4/4 before merging"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/923"
-    },
-    {
       "pr": 921,
       "title": "audit(#249): inspect Y1 remote build and deployment logs",
       "feature": "issue249",
@@ -322,31 +269,6 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/921"
-    },
-    {
-      "pr": 920,
-      "title": "feat(F2-19/F2-20): join VoiceStudio one-shot job to private WAV and SQL review receipts",
-      "feature": "F2",
-      "head_sha": "e4df6c8e7a2468259a3501abac5640ec277caf1d",
-      "base_branch": "main",
-      "work_owner": "manual-integration-chat-g-20261119",
-      "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-g-20261119",
-        "head_sha": "5cb0da47b662a38a40c233feef774624b92d7ce5",
-        "claimed_at": "2026-11-18T19:54:24.861Z",
-        "expires_at": "2026-11-18T21:24:24.861Z"
-      },
-      "checkpoint": {
-        "owner": "manual-integration-chat-d-20261119",
-        "at": "2026-11-18T19:25:14.867Z",
-        "status": "blocked, not task DONE",
-        "blockers": "DRAFT: six unique paths absent on main; current-main reconciliation and SQL review required",
-        "tests": "No new tests executed",
-        "next_action": "Address review or main-reconciliation gate in feature owner branch; recheck fresh PR and main 4/4 before merging"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/920"
     },
     {
       "pr": 887,
@@ -408,12 +330,7 @@
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
       "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-d-20261119",
-        "head_sha": "a3e52192308f47a399bcea94fe5e87627e577b6e",
-        "claimed_at": "2026-11-18T19:24:44.368Z",
-        "expires_at": "2026-11-18T20:54:44.368Z"
-      },
+      "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-d-20261119",
         "at": "2026-11-18T19:39:30.547Z",
@@ -464,12 +381,7 @@
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
       "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-d-20261119",
-        "head_sha": "b9525a9ea3d5e5aee351edf89a3c011c2314ed2e",
-        "claimed_at": "2026-11-18T19:24:44.368Z",
-        "expires_at": "2026-11-18T20:54:44.368Z"
-      },
+      "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-e-20261119",
         "at": "2026-11-18T19:16:44.121Z",
