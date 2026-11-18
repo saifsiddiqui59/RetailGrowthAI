@@ -33,3 +33,11 @@ OpenAI documentation: https://learn.chatgpt.com/docs/environments/cloud-environm
 ## Current status
 
 Prepared migration plan only. Environment selection requires user action in Work/Codex or desktop Scheduled UI; no cloud instance has been provisioned by this document. No feature code, Azure/PROD, or WineShopPOS changes.
+
+
+## 2026-11-18 — Non-Codex alternative implemented as a reviewable PR
+
+- PR [#977](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/977) adds an on-demand **GitHub Actions extended F4 CPU runner**, which checks out the current F4 branch, verifies exact source SHA, installs bounded dependencies and executes the existing 60-second/1080p synthetic HyperFrames encode and H.264/AAC hash proof. Runner job cap: **25 minutes**, actual runtime measured from GitHub, not promised.
+- The initial branch push [#44261176520](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/44261176520) failed because FFmpeg was absent; next run [#44261439834](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/44261439834) installed FFmpeg but exposed missing Pillow; both setup issues have narrowly scoped corrections. Third run [#44261849124](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/44261849124) started for patched head `c6f1cab844156785aa58a518ffce08b7a8976409`; **outcome must be verified**, not assumed.
+- No secret-based AI coding engine is involved; this provides real **longer CPU testing**, not a longer ChatGPT automated reasoning session. After independent shared-workflow review, GitHub Actions manual dispatch can run it on demand. No GPU, licensed customer asset, hosted model, or paid cloud activation.
+- PR #967 remains the separate existing-core-CI video-job 15-to-25-minute cap proposal; do not conflate PR #967 with #977. Neither proposal is integrated or DONE merely by creating the PR.
