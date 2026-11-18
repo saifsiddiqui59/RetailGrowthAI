@@ -2,17 +2,17 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-18T13:56:02Z",
+  "last_written_at": "2026-11-18T15:04:13Z",
   "last_inventory_count": 36,
-  "last_inventory_checked_at": "2026-11-18T13:56:02Z",
+  "last_inventory_checked_at": "2026-11-18T15:04:13Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
-      "last_run_id": "c1caca9c-ee1c-8324-9421-150504da77e7",
+      "last_run_id": "0a2c0018-744c-8324-8d3d-e3a8b03bc842",
       "last_run_status": "completed",
-      "last_start_utc": "2026-11-18T13:26:54.424655Z",
-      "last_end_utc": "2026-11-18T13:27:23.917446Z",
-      "duration_seconds": 29.49,
+      "last_start_utc": "2026-11-18T14:23:50.434019Z",
+      "last_end_utc": "2026-11-18T14:24:26.137576Z",
+      "duration_seconds": 35.7,
       "reported_code_commits": null,
       "local_tests_verified": false,
       "last_pr": 925,
@@ -108,19 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "ff79cad2-c588-832c-b361-2dad6d117631",
-      "started_at": "2026-11-17T17:23:55.783513Z",
-      "completed_at": "2026-11-17T17:24:26.775068Z",
-      "duration_seconds": 30.99,
-      "verified_code_test_commits": null,
-      "local_tests_verified": null,
-      "ci": "PASS 4/4",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "Automation latest run observed; no new source/test commit SHA established. Exact-head CI jobs verified; environment inherited/null."
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f4",
@@ -422,6 +409,19 @@
       "ci": "PR #925 exact-head #44002627409 PASS 4/4, jobs rechecked",
       "classification": "REVIEW_BLOCKED",
       "evidence": "No new source/test SHA independently verified; inherited/null environment; independent VoiceStudio review pending"
+    },
+    {
+      "event": "worker_run",
+      "owner": "schedule-f2",
+      "run_id": "0a2c0018-744c-8324-8d3d-e3a8b03bc842",
+      "started_at": "2026-11-18T14:23:50.434019Z",
+      "completed_at": "2026-11-18T14:24:26.137576Z",
+      "duration_seconds": 35.7,
+      "verified_code_test_commits": null,
+      "local_tests_verified": null,
+      "ci": "PASS 4/4 exact-head #44002627409",
+      "classification": "REVIEW_BLOCKED",
+      "evidence": "Automation peek completed; no new source/test SHA verified; exact-head four jobs rechecked; inherited/null environment."
     }
   ],
   "current_review_gates": {
@@ -530,9 +530,26 @@
   "extended_execution_watch": {
     "pr": 967,
     "state": "PENDING_REVIEW",
-    "head": "fd9faf468b0229813c21c7fd2e52786401e773de",
-    "main_timeout_verified": false,
-    "actual_post_merge_video_job_duration_seconds": null,
-    "checked_at": "2026-11-18T13:56:02Z"
+    "head_sha": "fd9faf468b0229813c21c7fd2e52786401e773de",
+    "github_actions_timeout_change": "25 minutes proposed; not merged",
+    "chatgpt_scheduler_runtime_increased": false
+  },
+  "long_cpu_acceptance": {
+    "pr": 977,
+    "state": "TEST_VERIFIED_REVIEW_BLOCKED",
+    "workflow_head_sha": "c6f1cab844156785aa58a518ffce08b7a8976409",
+    "smoke_run_id": 44261849124,
+    "smoke_status": "completed",
+    "smoke_conclusion": "success",
+    "job_id": 134656820737,
+    "job_conclusion": "success",
+    "runner_duration_seconds_last_verified": 378.15,
+    "artifact_id": 14408966277,
+    "artifact_name": "f4-extended-cpu-receipts",
+    "artifact_expired": false,
+    "part1_ci_run_id": 44261855098,
+    "part1_ci": "PASS 4/4",
+    "independent_shared_workflow_review": "PENDING",
+    "chatgpt_scheduler_runtime_increased": false
   }
 }
