@@ -138,41 +138,41 @@ jobs:
           uv venv .poster-media-venv
           uv pip install --python .poster-media-venv/bin/python "Pillow==13.0.0"
           echo "$GITHUB_WORKSPACE/.poster-media-venv/bin" >> "$GITHUB_PATH"
-      - name: Install pinned FFmpeg and ffprobe without Ubuntu apt
+      - name: Install SHA256-pinned full-filter FFmpeg and ffprobe without Ubuntu apt
         shell: bash
         run: |
           set -euo pipefail
-          # Avoid timed-out Ubuntu mirrors (#44479880315). Pin public
-          # static binaries; actual codec/30s rendering tests stay mandatory.
+          # Known source: immutable FFmpeg-Builds release 2026-11-18.
+          # GPL Linux x64 static includes libx264/AAC AND libfreetype drawtext,
+          # required by REAL Pexels caption/reel tests. John Van Sickle binary
+          # from ffmpeg-static@5.3.0 lacked drawtext (#44483223193).
           test "$(uname -m)" = x86_64
-          timeout --signal=TERM --kill-after=10s 240s npm install \
-            --prefix "$RUNNER_TEMP/rgai-media-tools" --no-save --no-audit --no-fund \
-            "ffmpeg-static@5.3.0" "@derhuerst/ffprobe-static@5.3.0"
-          mkdir -p "$RUNNER_TEMP/rgai-media-bin"
-          node <<'NODE'
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const base = path.join(process.env.RUNNER_TEMP, 'rgai-media-tools', 'node_modules');
-          const dest = path.join(process.env.RUNNER_TEMP, 'rgai-media-bin');
-          for (const [pkg, executable] of [
-            ['ffmpeg-static', 'ffmpeg'],
-            ['@derhuerst/ffprobe-static', 'ffprobe'],
-          ]) {
-            const resolved = require(path.join(base, pkg));
-            const binary = typeof resolved === 'string' ? resolved : resolved?.path;
-            if (!binary || !path.isAbsolute(binary) ||
-                !fs.existsSync(binary) || !fs.statSync(binary).isFile()) {
-              throw new Error('Pinned ' + executable + ' binary unavailable');
-            }
-            fs.symlinkSync(binary, path.join(dest, executable));
-          }
-          NODE
+          tag=autobuild-2026-11-18-12-39
+          archive=ffmpeg-n8.1.3-36-ge22a4510c9-linux64-gpl-8.1.tar.xz
+          digest=fce424851b0a982bdd4ac4e96f0e7b32cf29de999e54500676d41ad175ed0c79
+          asset="$RUNNER_TEMP/$archive"
+          timeout --signal=TERM --kill-after=10s 320s curl \
+            --fail --location --silent --show-error --retry 2 --retry-delay 2 \
+            --connect-timeout 15 --max-time 300 \
+            "https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/$tag/$archive" \
+            --output "$asset"
+          printf '%s  %s\n' "$digest" "$asset" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/rgai-media-extract" "$RUNNER_TEMP/rgai-media-bin"
+          tar --extract --xz --file "$asset" --directory "$RUNNER_TEMP/rgai-media-extract" \
+            --no-same-owner --no-same-permissions
+          mapfile -t ffmpegs < <(find "$RUNNER_TEMP/rgai-media-extract" -type f -path '*/bin/ffmpeg')
+          mapfile -t ffprobes < <(find "$RUNNER_TEMP/rgai-media-extract" -type f -path '*/bin/ffprobe')
+          test "${#ffmpegs[@]}" -eq 1
+          test "${#ffprobes[@]}" -eq 1
+          install -m 0755 "${ffmpegs[0]}" "$RUNNER_TEMP/rgai-media-bin/ffmpeg"
+          install -m 0755 "${ffprobes[0]}" "$RUNNER_TEMP/rgai-media-bin/ffprobe"
           echo "$RUNNER_TEMP/rgai-media-bin" >> "$GITHUB_PATH"
           export PATH="$RUNNER_TEMP/rgai-media-bin:$PATH"
           timeout --signal=TERM --kill-after=5s 20s ffmpeg -version | sed -n '1p'
           timeout --signal=TERM --kill-after=5s 20s ffprobe -version | sed -n '1p'
           ffmpeg -hide_banner -encoders | grep -Eq 'libx264([[:space:]]|$)'
           ffmpeg -hide_banner -encoders | grep -Eq '[[:space:]]aac([[:space:]]|$)'
+          ffmpeg -hide_banner -filters | grep -Eq '[[:space:]]drawtext[[:space:]]'
       - name: Encode and verify synthetic H.264/AAC sample
         shell: bash
         run: |
