@@ -18,8 +18,12 @@ concurrency:
 jobs:
   frontend:
     name: Frontend build + contract tests
-    # Playwright 1.56.1 supports Ubuntu 24.04; ubuntu-latest moved to unsupported 26.04.
+    # Official matching image preinstalls Chromium AND its OS dependencies.
+    # Keep real browser E2E; avoid the failing Ubuntu apt mirrors.
     runs-on: ubuntu-24.04
+    container: mcr.microsoft.com/playwright:v1.56.1-noble
+    env:
+      PLAYWRIGHT_BROWSERS_PATH: /ms-playwright
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v7
@@ -47,27 +51,24 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-      - name: Install Chromium for offline browser E2E (when present)
+      - name: Verify preinstalled real Chromium for offline browser E2E (when present)
         if: ${{ hashFiles('frontend/e2e/package.json') != '' }}
-        working-directory: frontend
+        working-directory: frontend/e2e
         shell: bash
         run: |
-          # Network mirrors occasionally stall; fail visibly, never skip browser tests.
-          timeout --signal=TERM --kill-after=10s 180s npm install --prefix e2e --no-audit --no-fund
-          # GitHub Ubuntu runners route apt via mirror+file:/etc/apt/apt-mirrors.txt.
-          # An unhealthy Azure archive caused browser setup to reach the 420s
-          # timeout in main run #39826247419. Switch the ephemeral runner to
-          # Ubuntu's official archive before installing Playwright dependencies.
-          # Do not disable Chromium installation or the actual browser tests.
-          if [ -f /etc/apt/apt-mirrors.txt ]; then
-            printf '%s\n' 'http://archive.ubuntu.com/ubuntu/' |
-              sudo tee /etc/apt/apt-mirrors.txt >/dev/null
-          fi
-          if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
-            sudo sed -i 's#http://azure.archive.ubuntu.com/ubuntu#http://archive.ubuntu.com/ubuntu#g' \
-              /etc/apt/sources.list.d/ubuntu.sources
-          fi
-          timeout --signal=TERM --kill-after=10s 420s ./e2e/node_modules/.bin/playwright install --with-deps chromium
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=10s 180s npm install --no-audit --no-fund
+          # Version-matched Playwright container provides real browser+libs.
+          # Fail if browser missing; the NEXT step still executes every E2E.
+          node --input-type=module -e '
+            import { chromium } from "playwright";
+            import { existsSync } from "node:fs";
+            const path = chromium.executablePath();
+            if (!path.startsWith("/ms-playwright/") || !existsSync(path)) {
+              throw new Error("Version-matched Chromium executable absent from image");
+            }
+            console.log("RGAI_CI_REAL_CHROMIUM_PRESENT=true");
+          '
       - name: Execute mocked React browser E2E (when present)
         if: ${{ hashFiles('frontend/e2e/package.json') != '' }}
         working-directory: frontend
@@ -137,36 +138,41 @@ jobs:
           uv venv .poster-media-venv
           uv pip install --python .poster-media-venv/bin/python "Pillow==13.0.0"
           echo "$GITHUB_WORKSPACE/.poster-media-venv/bin" >> "$GITHUB_PATH"
-      - name: Verify FFmpeg availability (install only if missing)
+      - name: Install pinned FFmpeg and ffprobe without Ubuntu apt
         shell: bash
         run: |
           set -euo pipefail
-          if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
-            # A stalled package mirror must fail this job in a bounded time,
-            # not strand CI indefinitely. Failures stay visible; never skip media tests.
-            # GitHub's Ubuntu source often uses mirror+file:/etc/apt/apt-mirrors.txt.
-            # Changing ubuntu.sources alone did not remove azure.archive.ubuntu.com
-            # (post-merge main run #39810509471 failed after 480s of slow downloads).
-            # Pin the ephemeral runner mirror list to the Ubuntu archive; keep
-            # every H.264/AAC and full 30s render assertion mandatory below.
-            if [ -f /etc/apt/apt-mirrors.txt ]; then
-              printf '%s\n' 'http://archive.ubuntu.com/ubuntu/' |
-                sudo tee /etc/apt/apt-mirrors.txt >/dev/null
-            fi
-            if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
-              sudo sed -i 's#http://azure.archive.ubuntu.com/ubuntu#http://archive.ubuntu.com/ubuntu#g' \
-                /etc/apt/sources.list.d/ubuntu.sources
-            fi
-            timeout --signal=TERM --kill-after=10s 150s sudo apt-get \
-              -o Acquire::Retries=2 -o Acquire::http::Timeout=25 \
-              -o Acquire::https::Timeout=25 update -qq
-            timeout --signal=TERM --kill-after=10s 480s sudo env \
-              DEBIAN_FRONTEND=noninteractive apt-get \
-              -o Acquire::Retries=2 -o Acquire::http::Timeout=25 \
-              -o Acquire::https::Timeout=25 install -y --no-install-recommends ffmpeg
-          fi
-          timeout --signal=TERM --kill-after=5s 20s ffmpeg -version | head -n 1
-          timeout --signal=TERM --kill-after=5s 20s ffprobe -version | head -n 1
+          # Avoid timed-out Ubuntu mirrors (#44479880315). Pin public
+          # static binaries; actual codec/30s rendering tests stay mandatory.
+          test "$(uname -m)" = x86_64
+          timeout --signal=TERM --kill-after=10s 240s npm install \
+            --prefix "$RUNNER_TEMP/rgai-media-tools" --no-save --no-audit --no-fund \
+            "ffmpeg-static@5.3.0" "@derhuerst/ffprobe-static@5.3.0"
+          mkdir -p "$RUNNER_TEMP/rgai-media-bin"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const base = path.join(process.env.RUNNER_TEMP, 'rgai-media-tools', 'node_modules');
+          const dest = path.join(process.env.RUNNER_TEMP, 'rgai-media-bin');
+          for (const [pkg, executable] of [
+            ['ffmpeg-static', 'ffmpeg'],
+            ['@derhuerst/ffprobe-static', 'ffprobe'],
+          ]) {
+            const resolved = require(path.join(base, pkg));
+            const binary = typeof resolved === 'string' ? resolved : resolved?.path;
+            if (!binary || !path.isAbsolute(binary) ||
+                !fs.existsSync(binary) || !fs.statSync(binary).isFile()) {
+              throw new Error('Pinned ' + executable + ' binary unavailable');
+            }
+            fs.symlinkSync(binary, path.join(dest, executable));
+          }
+          NODE
+          echo "$RUNNER_TEMP/rgai-media-bin" >> "$GITHUB_PATH"
+          export PATH="$RUNNER_TEMP/rgai-media-bin:$PATH"
+          timeout --signal=TERM --kill-after=5s 20s ffmpeg -version | sed -n '1p'
+          timeout --signal=TERM --kill-after=5s 20s ffprobe -version | sed -n '1p'
+          ffmpeg -hide_banner -encoders | grep -Eq 'libx264([[:space:]]|$)'
+          ffmpeg -hide_banner -encoders | grep -Eq '[[:space:]]aac([[:space:]]|$)'
       - name: Encode and verify synthetic H.264/AAC sample
         shell: bash
         run: |
