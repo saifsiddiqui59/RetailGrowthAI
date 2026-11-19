@@ -13,7 +13,7 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 21,
+    "open_prs": 20,
     "by_feature": {
       "F5": 2,
       "issue249": 8,
@@ -409,31 +409,17 @@
       "base_branch": "feat/feature2-unified-offline-source-20261028",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-f-20261119",
-        "claimed_at": "2026-11-19T04:27:18.533Z",
-        "expires_at": "2026-11-19T05:57:18.533Z",
-        "head_sha": "a3e52192308f47a399bcea94fe5e87627e577b6e"
-      },
+      "phase": "closed-unmerged",
+      "claim": null,
       "checkpoint": {
-        "owner": "manual-integration-chat-d-20261119",
-        "at": "2026-11-18T19:39:30.547Z",
-        "status": "SOURCE_CI_PASS_REVIEW_PENDING",
-        "commit": "a3e52192308f47a399bcea94fe5e87627e577b6e",
-        "ci_run": 44381016829,
-        "ci": "Part 1 exact-branch-head 4/4 SUCCESS; 11 editorial regressions repaired",
-        "blockers": "stacked #551, current-main reconciliation, shared route/SQL independent review",
-        "verified_integrated_done": false,
-        "previous": {
-          "owner": "manual-integration-chat-e-20261119",
-          "at": "2026-11-18T19:16:44.121Z",
-          "status": "IN_PROGRESS",
-          "summary": "Unique Feature2 Creative Director source batch (85 files) stacked onto #551's currently claimed parent. Child is mergeable with its old base but NOT direct-main-ready. Avoid concurrent modifications to parent; no child merge authorized by source-only evidence.",
-          "next_action": "After parent #551 owner releases its claim, compare/merge ten-source batch on owned integration branch and rerun 4/4",
-          "merged": false,
-          "verified_integrated_done": false
-        }
+        "owner": "manual-integration-chat-f-20261119",
+        "at": "2026-11-19T04:42:58.871Z",
+        "status": "original old stacked PR #848 closed UNMERGED after archive 85/85 exact patches",
+        "archive_pr": 1015,
+        "archive_merge_sha": "6be6d86b5f121c29272bccd7748a679fd52dc203",
+        "ci": "archive PR 44458787522 4/4; exact archived-main 44459473304 4/4",
+        "original_tasks_done": false,
+        "unported_runtime_still_pending": true
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848"
     },
