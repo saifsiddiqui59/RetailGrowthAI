@@ -318,15 +318,18 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "ready-for-review",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-primary-20261119",
+        "head_sha": "98577b57b76e8ad7f60fd9ec79aca82b6d59c05e",
+        "claimed_at": "2026-11-19T18:02:11.534Z",
+        "expires_at": "2026-11-19T19:32:11.538Z"
+      },
       "checkpoint": {
-        "at": "2026-11-19T05:02:32.695Z",
-        "owner": "manual-integration-chat-c-20261119",
-        "head_after": "09087f4f63786a40cedbcd851fd750a0c78f12cf",
-        "status": "ready-for-review",
-        "ci": "#44461595042 exact-head Part1 4/4 SUCCESS",
-        "next_action": "Nine governance paths reconciled onto merged #970 main; review/merge if repo rules permit; new main 4/4 after merge."
+        "owner": "manual-integration-chat-primary-20261119",
+        "head_sha": "98577b57b76e8ad7f60fd9ec79aca82b6d59c05e",
+        "at": "2026-11-19T18:02:11.534Z",
+        "status": "reviewing token-safe redirect transport in queue client"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/964"
     },
