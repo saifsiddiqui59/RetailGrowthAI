@@ -49,3 +49,13 @@ cover the above and the existing manual-only protected workflow remains
 unchanged. Green source CI, independent shared diagnostic review and actual
 protected DEV read-only execution are distinct gates; no five-GET live
 deployment or signed two-shop acceptance is claimed.
+
+## 2026-11-20 — owner-delegated failed-release readout and next safe check
+
+Original five-route trial #44618073780 passed resource identity, five/rollback ZIP validation and JWT transport checks but **failed** indexing (only 2, not 5, on 12 checks). Independent restore verified the original 2 routes and 20/20 health responses.
+
+Protected read-only diagnostic #44621448507 verified original Flex unaffected and Y1 still EXACT_TWO. SCM_DO_BUILD_DURING_DEPLOYMENT is true; ENABLE_ORYX_BUILD is absent; WEBSITE_RUN_FROM_PACKAGE is present with an **unclassified value**. No entries appeared in the deployment-history API and the permitted log-category checks revealed no specific startup or build error. Empty history does not prove ZIP upload failed.
+
+The next read-only diagnostic emits only a fixed value class for WEBSITE_RUN_FROM_PACKAGE (ABSENT / DISABLED / LOCAL_PACKAGE / EXTERNAL_HTTPS_URL / UNRECOGNIZED), and a fixed mixed-versus-aligned build flag class. It never prints package URLs, SAS tokens, account names, raw deployment logs, or secret values. Microsoft guidance for Linux Consumption remote build requires SCM_DO_BUILD_DURING_DEPLOYMENT=true, ENABLE_ORYX_BUILD=true and no active run-from-package; external package URL is a separate mode. A mixed configuration is a **hypothesis**, not proof of the root cause or permission for another deployment or app-setting change.
+
+No second ZIP deploy, GPU/paid inference, PROD, SQL, customer Auth, original Flex, WineShopPOS or frontend cutover.
