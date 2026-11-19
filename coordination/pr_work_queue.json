@@ -174,14 +174,19 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P2",
-      "phase": "ci-review-pending",
-      "claim": null,
+      "phase": "ready-for-merge",
+      "claim": {
+        "owner": "manual-integration-chat-primary-20261120",
+        "head_sha": "0aeaaedc426cdc83925869025acf97f2a005759a",
+        "claimed_at": "2026-11-19T18:45:24.410Z",
+        "expires_at": "2026-11-19T20:15:24.410Z"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-primary-20261120",
-        "at": "2026-11-19T18:42:13.741Z",
+        "at": "2026-11-19T18:45:24.410Z",
         "head_sha": "0aeaaedc426cdc83925869025acf97f2a005759a",
-        "ci": "#44590187279 in progress",
-        "status": "Current-main documentation reconciliation of #1007 + #1022; original #1022 additions checked fully present; merge only after exact-head 4/4"
+        "status": "Exact-head Part1 #44590187279 4/4 PASS, source/docs-only; wait concurrent #1018 exact-main CI then serialized docs merge",
+        "ci": "44590187279 4/4"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1007"
     },
