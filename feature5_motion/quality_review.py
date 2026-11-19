@@ -51,10 +51,17 @@ class VisualReview:
         if type(self.ai_disclosure_approved) is not bool:
             raise MotionError("Disclosure review required")
 
-    def approved_for_feature4(self, *, authoritative_shop_id: str, actual_media_sha256: str,
+    def approved_for_feature4(self, *, authoritative_shop_id: str,
+                              authoritative_reviewer_user_id: str,
+                              actual_media_sha256: str,
                               reviewer_has_write_role: bool) -> bool:
+        # Both identities must come from the current server-side JWT/RLS
+        # authorization lookup, not from a browser review payload.
         canonical_uuid(authoritative_shop_id)
-        if authoritative_shop_id != self.shop_id or reviewer_has_write_role is not True:
+        canonical_uuid(authoritative_reviewer_user_id)
+        if (authoritative_shop_id != self.shop_id or
+                authoritative_reviewer_user_id != self.reviewer_user_id or
+                reviewer_has_write_role is not True):
             raise MotionError("Reviewer is not authorized for this tenant")
         if actual_media_sha256 != self.reviewed_sha256:
             raise MotionError("Clip changed after the visual review")
