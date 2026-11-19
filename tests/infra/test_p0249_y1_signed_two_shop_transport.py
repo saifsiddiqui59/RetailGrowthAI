@@ -158,7 +158,8 @@ class Y1SignedOriginalTwoShopParity(TestCase):
             patch("security.PyJWKClient", return_value=SimpleNamespace(
                 get_signing_key_from_jwt=lambda _t: SimpleNamespace(key=RSA_KEY.public_key())
             )),
-            patch("tenant_store.urlopen", side_effect=self.backend),
+            # Intercept the new no-redirect opener, not urllib's unsafe global urlopen.
+            patch("tenant_store._NO_REDIRECT_OPENER.open", side_effect=self.backend),
         )
         for p in self.patches:
             p.start()
