@@ -7,11 +7,21 @@ claims are accepted as dependencies. Hosted integration remains gated.
 from __future__ import annotations
 
 from uuid import UUID
+from base64 import urlsafe_b64decode, urlsafe_b64encode
+from binascii import Error as Base64Error
+import json
+import re
 
 from feature3_current_output_rights import Feature3CurrentOutputRights
 from feature3_private_png_reader import Feature3RevocablePNGReader
 from security import SupabaseJWTVerifier
 from tenant_store import TenantStore
+
+# Match the authenticated Storage reader's bounded private PNG contract.
+_MAX_PRIVATE_PNG_BYTES = 25 * 1024 * 1024
+# Validate server configuration before constructing any network-capable adapter.
+_PROJECT_ORIGIN = re.compile(r"https://[a-z0-9][a-z0-9-]{0,62}\.supabase\.co(?::443)?/?")
+_PUBLIC_KEY = re.compile(r"sb_publishable_[A-Za-z0-9_-]{6,4090}")
 
 
 def build_private_png_reader_factory(*, supabase_origin, publishable_key,
@@ -27,7 +37,10 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
     """
     if not callable(authoritative_rights_read):
         raise ValueError("Trusted current output-rights provider required")
-    if type(supabase_origin) is not str or type(publishable_key) is not str:
+    if (type(supabase_origin) is not str or
+            _PROJECT_ORIGIN.fullmatch(supabase_origin) is None or
+            type(publishable_key) is not str or
+            _PUBLIC_KEY.fullmatch(publishable_key) is None):
         raise ValueError("Trusted Supabase project configuration required")
     # Validate the actual project origin and public key before returning a
     # callable. No service-role key or HTTP client-provided credentials.
@@ -37,6 +50,27 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
         supabase_origin)
     if not callable(verifier):
         raise ValueError("Trusted JWT verifier required")
+    # The live composition path must use the concrete asymmetric verifier and
+    # its real JWKS client. Callable fixtures and inert clients are permitted
+    # only when an isolated test store is explicitly injected. An attacker-
+    # controlled callable or fake JWKS client must not become live authority.
+    if tenant_store is None:
+        from jwt import PyJWKClient
+        if (type(verifier) is not SupabaseJWTVerifier or
+                type(getattr(verifier, "client", None)) is not PyJWKClient):
+            raise ValueError("Live private PNG requires trusted JWT/JWKS verifier")
+    # A preconstructed verifier must never authenticate tokens issued by a
+    # different Supabase project. Synthetic test callables intentionally have
+    # no issuer; real verifier instances always expose the pinned issuer.
+    if isinstance(verifier, SupabaseJWTVerifier) and (
+            type(verifier.issuer) is not str or
+            verifier.issuer != supabase_origin.rstrip("/") + "/auth/v1" or
+            type(getattr(getattr(verifier, "client", None), "uri", None)) is not str or
+            verifier.client.uri != supabase_origin.rstrip("/") + "/auth/v1/.well-known/jwks.json"):
+        raise ValueError("JWT verifier must match configured project")
+    # Pin the exact JWKS client object; replacing it with a same-URI client 
+    # must not silently rotate the trust authority of a cached reader.
+    pinned_jwks_client = verifier.client if isinstance(verifier, SupabaseJWTVerifier) else None
     # Do not permit equality-overloaded objects or string subclasses to
     # impersonate the configured project or public key at this trust boundary.
     store_origin = getattr(store, "origin", None)
@@ -63,7 +97,32 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
             post_key_origin = store.origin
         except Exception:
             return False
-        return (type(first_origin) is str and type(first_key) is str and
+        # A real verifier can rotate after composition or during backend IO.
+        # Deny both cases before private bytes can leave this boundary.
+        try:
+            issuer_matches = True
+            if isinstance(verifier, SupabaseJWTVerifier):
+                # Snapshot both verifier trust anchors twice. Stateful or
+                # swapped JWKS clients must not authenticate a foreign project.
+                issuer_a, client_a = verifier.issuer, verifier.client
+                jwks_a = getattr(client_a, "uri", None)
+                issuer_b, client_b = verifier.issuer, verifier.client
+                jwks_b = getattr(client_b, "uri", None)
+                from jwt import PyJWKClient
+                issuer_matches = (
+                    type(verifier) is SupabaseJWTVerifier and
+                    (tenant_store is not None or
+                     (type(client_a) is PyJWKClient and type(client_b) is PyJWKClient)) and
+                    type(issuer_a) is str and type(issuer_b) is str and
+                    type(jwks_a) is str and type(jwks_b) is str and
+                    issuer_a == issuer_b == supabase_origin.rstrip("/") + "/auth/v1" and
+                    client_a is client_b and client_a is pinned_jwks_client and
+                    jwks_a == jwks_b == supabase_origin.rstrip("/") + "/auth/v1/.well-known/jwks.json"
+                )
+        except Exception:
+            return False
+        return (issuer_matches and
+                type(first_origin) is str and type(first_key) is str and
                 type(second_origin) is str and type(second_key) is str and
                 type(last_origin) is str and type(last_key) is str and
                 type(post_key_origin) is str and
@@ -123,6 +182,97 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                         any(ch in user_token for ch in (",", ";", '"', "\\"))):
                     raise PrivateGeneratedDownloadDenied(
                         "Private generated output unavailable")
+                # Only the live route accepts compact, three-part JWS tokens.
+                # Synthetic fixture stores retain their isolated dummy tokens;
+                # this framing check is not a substitute for JWT verification.
+                if tenant_store is None:
+                    parts = user_token.split(".")
+                    # Compact JWS base64url segments cannot have length 1 mod 4.
+                    # Bound each component independently so an attacker cannot
+                    # hide an enormous header/signature inside a valid total size.
+                    if (len(parts) != 3 or any(not part for part in parts) or
+                            len(parts[0]) > 2048 or len(parts[1]) > 6144 or
+                            len(parts[2]) > 2048 or
+                            any(len(part) % 4 == 1 for part in parts) or
+                            any(any(not (ch.isascii() and
+                                         (ch.isalnum() or ch in "-_"))
+                                    for ch in part) for part in parts)):
+                        raise PrivateGeneratedDownloadDenied(
+                            "Private generated output unavailable")
+                if tenant_store is None:
+                    # Noncanonical base64url can have ignored padding bits or
+                    # invalid encodings. Reject before any JWT/RLS/Storage IO;
+                    # cryptographic signature verification still happens below.
+                    try:
+                        for segment in parts:
+                            decoded = urlsafe_b64decode(segment + "=" * (-len(segment) % 4))
+                            if urlsafe_b64encode(decoded).decode("ascii").rstrip("=") != segment:
+                                raise ValueError("Noncanonical compact JWS")
+                    except (ValueError, Base64Error):
+                        raise PrivateGeneratedDownloadDenied(
+                            "Private generated output unavailable") from None
+                if tenant_store is None:
+                    # Reject unsigned, symmetric or malformed JOSE headers
+                    # before requesting any remote signing keys. The real
+                    # verifier still checks signature, issuer, audience and
+                    # claims; header inspection is never authorization.
+                    try:
+                        header_bytes = urlsafe_b64decode(
+                            parts[0] + "=" * (-len(parts[0]) % 4))
+                        # Reject duplicate JOSE fields before key lookup: different
+                        # JWT parsers may interpret ambiguous headers differently.
+                        def unique_header_pairs(pairs):
+                            result = {}
+                            for key, value in pairs:
+                                if key in result:
+                                    raise ValueError("Duplicate JOSE header field")
+                                result[key] = value
+                            return result
+
+                        def reject_nonfinite_constant(value):
+                            raise ValueError("Non-JSON numeric constant in JWT")
+
+                        header = json.loads(
+                            header_bytes, object_pairs_hook=unique_header_pairs,
+                            parse_constant=reject_nonfinite_constant)
+                        if (type(header) is not dict or
+                                type(header.get("alg")) is not str or
+                                header["alg"] not in ("RS256", "ES256") or
+                                type(header.get("kid")) is not str or
+                                not 1 <= len(header["kid"]) <= 256 or
+                                any(ord(ch) < 33 or ord(ch) > 126
+                                    for ch in header["kid"]) or
+                                any(field in header for field in
+                                    ("jku", "jwk", "x5u", "x5c", "crit", "b64")) or
+                                ("typ" in header and header["typ"] != "JWT")):
+                            raise ValueError("Untrusted JOSE header")
+                    except (ValueError, UnicodeError, TypeError, Base64Error):
+                        raise PrivateGeneratedDownloadDenied(
+                            "Private generated output unavailable") from None
+                if tenant_store is None:
+                    # Reject ambiguous JSON claims before the cryptographic
+                    # verifier parses them. Duplicate claims can cause two
+                    # parsers to authorize different subjects or tenants.
+                    # This is framing only; signature and claims validation
+                    # remain exclusively the responsibility of the verifier.
+                    try:
+                        payload_bytes = urlsafe_b64decode(
+                            parts[1] + "=" * (-len(parts[1]) % 4))
+                        def unique_claim_pairs(pairs):
+                            claims = {}
+                            for key, value in pairs:
+                                if key in claims:
+                                    raise ValueError("Duplicate JWT claim")
+                                claims[key] = value
+                            return claims
+                        payload = json.loads(
+                            payload_bytes, object_pairs_hook=unique_claim_pairs,
+                            parse_constant=reject_nonfinite_constant)
+                        if type(payload) is not dict:
+                            raise ValueError("JWT claims must be an object")
+                    except (ValueError, UnicodeError, TypeError, Base64Error):
+                        raise PrivateGeneratedDownloadDenied(
+                            "Private generated output unavailable") from None
                 # Revalidate at use time as well as construction time: a
                 # cached scoped reader may outlive a rotated/mutated store.
                 # Deny before invoking JWT verification or any RLS/byte read.
@@ -131,6 +281,14 @@ def build_private_png_reader_factory(*, supabase_origin, publishable_key,
                         "Private generated output unavailable")
                 result = reader.read(user_token=user_token,
                                      shop_id=bound_shop, job_id=bound_job)
+                # Never hand a response-like object, generator, mutable buffer,
+                # or custom bytes subclass to the HTTP adapter. The private
+                # reader contract returns immutable PNG bytes only; otherwise
+                # a lazy body could execute after the final rights check.
+                if (type(result) is not bytes or
+                        not 100 <= len(result) <= _MAX_PRIVATE_PNG_BYTES):
+                    raise PrivateGeneratedDownloadDenied(
+                        "Private generated output unavailable")
                 # Deny bytes if the backend changed project during JWT/RLS/IO.
                 if not project_matches():
                     raise PrivateGeneratedDownloadDenied(

@@ -45,6 +45,7 @@ F3_SOURCE_ONLY_MODULES = frozenset({
     "feature3_current_output_rights",
     "feature3_private_png_binding",
     "feature3_private_png_factory",
+    "feature3_private_png_http_adapter",
     "feature3_private_png_route_registration",
     "feature3_private_png_runtime",
     "feature3_private_png_tenant",
