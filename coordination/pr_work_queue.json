@@ -13,10 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 5,
+    "open_prs": 4,
     "by_feature": {
       "issue249": 3,
-      "F2": 1,
       "shared": 1
     }
   },
@@ -56,29 +55,6 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1028"
-    },
-    {
-      "pr": 1019,
-      "title": "feat(F2): port default-off signed VoiceStudio route from stacked #925 onto current main",
-      "feature": "F2",
-      "head_sha": "1067d9eb2945f38e962bd859de81da5688c98292",
-      "base_branch": "main",
-      "work_owner": "manual-integration-chat-f-20261119",
-      "priority": "P1",
-      "phase": "ci-review-pending",
-      "claim": {
-        "owner": "manual-integration-chat-primary-group2-20261120",
-        "head_sha": "1067d9eb2945f38e962bd859de81da5688c98292",
-        "claimed_at": "2026-11-19T21:21:11.970Z",
-        "expires_at": "2026-11-19T22:58:32.934Z"
-      },
-      "checkpoint": {
-        "owner": "manual-integration-chat-primary-group2-20261120",
-        "head_sha": "1067d9eb2945f38e962bd859de81da5688c98292",
-        "at": "2026-11-19T21:28:32.934Z",
-        "next_action": "VoiceStudio default-off source root current main reconciliation with cached JWT verifier bugfix; fresh exact-head 4/4 CI #44618670490 in progress; keep signed/license/worker gates"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1019"
     },
     {
       "pr": 939,
@@ -124,5 +100,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1034"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T21:35:05.222Z"
+  "last_inventory_checked_at": "2026-11-19T21:38:05.658Z"
 }
