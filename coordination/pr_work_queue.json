@@ -21,19 +21,6 @@
   },
   "entries": [
     {
-      "pr": 1029,
-      "title": "fix(#249): recover protected original Flex incident diagnostics (manual only)",
-      "feature": "issue249",
-      "head_sha": "81f914a2045c209f1b9864edca2e4918323f3667",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P2",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1029"
-    },
-    {
       "pr": 939,
       "title": "ops(#249): bounded DEV Y1 public-only JWT shadow trial with rollback",
       "feature": "issue249",
@@ -53,20 +40,28 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/939"
     },
     {
+      "pr": 1029,
+      "title": "fix(#249): recover protected original Flex incident diagnostics (manual only)",
+      "feature": "issue249",
+      "head_sha": "81f914a2045c209f1b9864edca2e4918323f3667",
+      "base_branch": "main",
+      "work_owner": "manual-issue249",
+      "priority": "P2",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1029"
+    },
+    {
       "pr": 1034,
       "title": "docs(group2): record F3 private-PNG source integration and remaining review gates",
       "feature": "shared",
-      "head_sha": "01697a7ff3126e627d72bc62e0faa944c1e7d1f5",
+      "head_sha": "126652e496336f5c4933910f89f1068dea40ec7f",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
       "phase": "ci-review-pending",
-      "claim": {
-        "owner": "manual-integration-chat-a-20261120",
-        "head_sha": "01697a7ff3126e627d72bc62e0faa944c1e7d1f5",
-        "claimed_at": "2026-11-19T21:52:47.651Z",
-        "expires_at": "2026-11-19T23:22:47.651Z"
-      },
+      "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-a-20261120",
         "head_sha": "01697a7ff3126e627d72bc62e0faa944c1e7d1f5",
@@ -76,18 +71,18 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1034"
     },
     {
-      "pr": 1038,
-      "title": "docs(#249): real Y1 five-route failure, successful rollback and deployment-mode investigation",
+      "pr": 1039,
+      "title": "fix(#249): read-only Y1 package-mode classification after failed five-route ZIP",
       "feature": "issue249",
-      "head_sha": "86902c032ae2895aaf9969536ba9e6291a37c9fc",
+      "head_sha": "9e359272bc8bb8596f5da139a5d26a165b61130b",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P2",
       "phase": "needs-triage",
       "claim": null,
       "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1038"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1039"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T21:52:47.651Z"
+  "last_inventory_checked_at": "2026-11-19T21:55:00Z"
 }
