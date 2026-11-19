@@ -51,6 +51,40 @@ class Y1FiveGetSourceStageTests(unittest.TestCase):
         self.assertFalse(any("queue" in p.name.lower() or "timer" in p.name.lower()
                              for p in actual.rglob("function.json")))
 
+    def test_preflight_to_copy_swap_keeps_validated_get_only_bytes(self):
+        # Regression: previously source manifests were validated then copied
+        # again from the live checkout. Swapping the source at mkdir() could
+        # copy a POST/queue handler that had never passed GET-only validation.
+        from unittest.mock import patch
+        manifest_source = self.repo / stage.SOURCES["render_job_read/function.json"]
+        originally_approved = manifest_source.read_bytes()
+        original_mkdir = Path.mkdir
+        mutated = []
+
+        def mutate_after_preflight(path, *args, **kwargs):
+            if path == self.target and not mutated:
+                unexpected = json.loads(originally_approved)
+                unexpected["bindings"][0]["methods"] = ["post"]
+                manifest_source.write_text(json.dumps(unexpected))
+                mutated.append(True)
+            return original_mkdir(path, *args, **kwargs)
+
+        with patch.object(Path, "mkdir", mutate_after_preflight):
+            staged = stage.stage_sources(self.repo, self.target)
+        self.assertTrue(mutated)
+        self.assertNotEqual(manifest_source.read_bytes(), originally_approved)
+        self.assertEqual((staged / "render_job_read/function.json").read_bytes(),
+                         originally_approved)
+        self.assertEqual(json.loads((staged / "render_job_read/function.json").read_text())
+                         ["bindings"][0]["methods"], ["get"])
+
+    def test_reject_oversized_source_before_creating_stage(self):
+        source = self.repo / stage.SOURCES["security.py"]
+        source.write_bytes(b"x" * (stage.MAX_SOURCE_BYTES + 1))
+        with self.assertRaisesRegex(ValueError, "size"):
+            stage.stage_sources(self.repo, self.target)
+        self.assertFalse(self.target.exists())
+
     def test_reject_post_trigger_before_writing(self):
         source = self.repo / stage.SOURCES["poster_job_read/function.json"]
         manifest = json.loads(source.read_text())
