@@ -1,0 +1,1034 @@
+diff --git a/ai-agents/FEATURE2_CPU_CACHE_BENCHMARK_INTEGRITY_20261030.md b/ai-agents/FEATURE2_CPU_CACHE_BENCHMARK_INTEGRITY_20261030.md
+--- a/ai-agents/FEATURE2_CPU_CACHE_BENCHMARK_INTEGRITY_20261030.md
++++ b/ai-agents/FEATURE2_CPU_CACHE_BENCHMARK_INTEGRITY_20261030.md
+@@ -0,0 +1,11 @@
++# Feature #2 F2-09 / F2-15: CPU Kokoro safety and benchmark integrity
++
++Date 2026-10-30. Original ledger tasks #9 (CPU startup/cache) and #15 (time/RSS benchmark) remain **IN PROGRESS**, source-only.
++
++One coherent offline batch hardens verified Kokoro model cache hashing to a single no-follow regular-file descriptor (detect symlink substitution before hashing) and maps missing operator cache to a bounded error. The model runner still requires an **operator-enforced immutable cache while the upstream ONNX loader opens paths**; no claim of fully transactional filesystem immutability is made.
++
++Benchmark receipt verification now requires full PCM16 mono 24kHz WAV framing, actual accessible sample frames and matching measured duration. It also refuses test-synthesizer receipts claiming publishing, verified speech/transcripts or word timestamps. Zero billable calls remain mandatory; no mock is promoted to real model proof.
++
++Injected negative fixtures test attempted model-path symlink replacement, unavailable cache, fake RIFF, forged duration, claimed publishing, transcript and fabricated timing. Existing waveform and CLI positive tests are retained. This is offline source QA, **not** a genuine CPU speed/memory/cost measurement or a real approved spoken result.
++
++Coordinator must reconcile the owner draft branch with unified #551 and sibling #684/#697/#700/#704/#780/#807/#809, protect #650 ZIP package and Azure #249 reliability, verify 4/4 exact-head and fresh postmerge main 4/4. GPU OFF, paid inference disabled, no customer samples, hosted writes, PROD or WineShopPOS.
+
+diff --git a/ai-agents/FEATURE2_DICTIONARY_CAS_HARDENING_20261030.md b/ai-agents/FEATURE2_DICTIONARY_CAS_HARDENING_20261030.md
+--- a/ai-agents/FEATURE2_DICTIONARY_CAS_HARDENING_20261030.md
++++ b/ai-agents/FEATURE2_DICTIONARY_CAS_HARDENING_20261030.md
+@@ -0,0 +1,11 @@
++# Feature #2 / F2-10: reviewed Kokoro spelling correction hardening
++
++Date 2026-10-30. **CODE IMPLEMENTED, TASK STILL IN PROGRESS** until real JWT/RLS, rights and protected CI acceptance.
++
++Changes in existing module `feature2_pronunciation_dictionary.py`: valid canonical same-shop UUID v4 required; reviewed `word` must be exactly one matchable source token (a multiword spelling cannot match the existing one-token substitution regex); `spoken_as` may be a bounded phonetic phrase, but no untrusted markup, hidden spaces or control characters. This prevents silent reports of "approved" replacements that cannot be applied.
++
++Signed editor and exact source preferences are checked before the DB CAS. The returned receipt must match shop, word, spoken hint and exactly the next integer revision, and cannot claim paid inference, publishing, automated retry or verified audio quality. The current editor is rechecked **after** CAS before a successful approval is returned; source-only callbacks do NOT implement transactional rollback, which the trusted server/DB must independently ensure. The private read projector also rejects unsigned/unmatchable correction records and forged publish/retry flags, preserves the reviewed original script, and never labels the changed text as proof of correct audio.
++
++Added targeted offline negative tests for revocation after save, invalid UUID, multiword source, hidden/markup spelling, forged paid/publish/phoneme results, and one positive multiword phonetic hint. No real Kokoro model, OpenPronounce or Feature7 ASR inference, human pronunciation decision, hosted private write, or rights release was performed. Coordinator: reconcile current F2 parent #551 with new source branch, maintain the protected ZIP 120-member invariant under issue #650, resolve Azure DEV #249 separately, verify exact-head all four CI checks and fresh postmerge main four checks, then test real signed editor and F4/F7 retake handoff.
++
++GPU OFF, all paid models OFF, no new deployment, PROD or WineShopPOS modification.
+
+diff --git a/ai-agents/FEATURE2_EDITORIAL_UNICODE_SPOOF_HANDOFF_20261029.md b/ai-agents/FEATURE2_EDITORIAL_UNICODE_SPOOF_HANDOFF_20261029.md
+--- a/ai-agents/FEATURE2_EDITORIAL_UNICODE_SPOOF_HANDOFF_20261029.md
++++ b/ai-agents/FEATURE2_EDITORIAL_UNICODE_SPOOF_HANDOFF_20261029.md
+@@ -0,0 +1,11 @@
++# Feature #2 fixed tasks #2/#4 — human-readable retailer copy and signed RSS display safety
++
++2026-10-29 · **IN PROGRESS**, branch `feat/feature2-mp3-dual-private-receipt-20261029`, stacked PR #684, source/fixture only.
++
++## Scope
++The existing reviewer-only `feature2_creative_quality` audit now fails closed on Unicode bidirectional overrides/isolates, invisible source separators, C1 text controls and Unicode line/paragraph separators in retailer headline/caption/CTA/narration and both standalone verified RSS rows and signed private XML RSS2 headlines. It deliberately permits Indic combining marks and ordinary Devanagari conjunct ZWJ, preserving Marathi/Hindi feed relevance. This reduces human-review deception but is **not** a full content-sanitization renderer and grants no publishing/real-trend authority.
++
++Tests assert outright denial of six display spoof classes in the three ingress points plus preserved legitimate Indic joiner relevance. No live feed was fetched, paid LLM called or original commercial source approved. Actual RSS feed source allowlist, independent signed private snapshot, authenticated API, human editorial review, locale UI rendering and Azure reliability are still coordinator-owned.
++
++## Acceptance
++Require targeted `ai-agents/tests/test_feature2_editorial_basis.py`, exact-head four-job CI of stacked PR, coordinator source review, safe reconciliation into unified #551 and fresh postmerge main 4/4. Existing coordinator issue #650 ZIP package and Azure #249 remain separate. The original register does **not** advance source COMPLETE or integrated DONE on these source-only assertions. No GPU/PROD/WineShopPOS changes.
+
+diff --git a/ai-agents/FEATURE2_EIGHT_PR_SOURCE_BATCH_HANDOFF_20261030.md b/ai-agents/FEATURE2_EIGHT_PR_SOURCE_BATCH_HANDOFF_20261030.md
+--- a/ai-agents/FEATURE2_EIGHT_PR_SOURCE_BATCH_HANDOFF_20261030.md
++++ b/ai-agents/FEATURE2_EIGHT_PR_SOURCE_BATCH_HANDOFF_20261030.md
+@@ -0,0 +1,85 @@
++# Feature2 — eight-PR source integration handoff (2026-10-30)
++
++**Source code consolidated, not integrated or approved.** This batch is based on original F2 unified draft parent PR #551 head `f38bf815cad7d77b7cadd9aa8bff55759e86947c`. It combines eight independent owner-written draft PRs into one Feature2-only review branch. No main merge or hosted release was performed.
++
++| PR | Original F2 task IDs | Integrated source |
++|---|---|---|
++| #807 | F2-03 / F2-31 | reviewed prompt revision, safe retailer claim checks and script A/B |
++| #809 | F2-17 / F2-18 / F2-26 | signed F7 ASR review + offline OpenPronounce Unicode safety |
++| #814 | F2-09 / F2-15 | local Kokoro CPU cache lease and CPU evidence validation |
++| #817 | F2-17 / F2-26 | private WAV/signed WER reviewer UI bounds |
++| #821 | F2-19 / F2-21 | private original voice job-status source adapter |
++| #826 | F2-30 | explicit opt-in Indian regional neural voice catalog verification |
++| #829 | F2-12 / F2-32 | signed private trace UI session/change revocation fence |
++| #836 | F2-10 | reviewed pronunciation dictionary CAS and phonetic input boundaries |
++
++Exactly two overlaps were reconciled: the original immutable `docs/feature2/FEATURE2_38_TASK_LEDGER_20261029.md` had eight append-only task progress records, all retained; `ai-agents/tests/test_feature2_voice_quality.py` had independent append-only new tests in #809 and #836, both retained in the combined file. All other source/test/handoff paths were nonoverlapping and copied from the corresponding exact PR source head. Original 38 IDs, task states and external dependencies are unchanged.
++
++**Coordinator acceptance:** run full exact-head 4 GitHub Actions jobs for this combined branch; inspect test evidence and reject new regressions. Do not bypass the protected Azure Functions 120-member ZIP rule for #650, and do not merge with failing required CI. Reconcile this single review branch into unified #551 and any other stacked branches (#704 MP3 remains outside this eight-source set); only coordinator may merge to main and update canonical docs/coordination task registry. After approved merge, require fresh main 4/4. Real signed JWT/RLS, live #249 503, licenses, genuine original WAV, approved retailer human sign-off and actual worker usage are independent blocks, not fixture achievements.
++
++**Original tracker:** 6 historically source-complete, 20 in progress, 12 blocked; **0/38 verified integrated DONE** before coordinator acceptance. No GPU, paid inference, hosted writes, PROD or WineShopPOS.
++
++
++## 2026-10-30 integration checkpoint — two additional existing PRs
++
++This existing batch now also incorporates the **exact source and offline regression test blobs** from stacked PRs **#842 (F2-08)** and **#844 (F2-01)**, with no newly invented feature. Their four source/test paths were disjoint from the eight-PR batch and unchanged from parent #551 before reconciliation. This extends the candidate to **ten** source PRs (#807, #809, #814, #817, #821, #826, #829, #836, #842, #844). The original two source PRs remain open for traceability; they are **not independently integrated**.
++
++| Additional PR | Task | Copied source and tests | Verification |
++|---|---|---|---|
++| #842 | F2-08 | `ai-agents/src/ai_agents/feature2_creative_quality.py`, `ai-agents/tests/test_feature2_creative_quality.py` | Exact Git blob matches original source; tests **not executed** on combined head |
++| #844 | F2-01 | `ai-agents/src/ai_agents/feature2_director_runtime_gate.py`, `ai-agents/tests/test_feature2_director_runtime_gate.py` | Exact Git blob matches original source; tests **not executed** on combined head |
++
++Four source/test commits were added in sequence; last pre-checkpoint head: `d1ff77b4d522afb0f96869118a7e2f0d748f7b77`. No protected coordinator scripts, canonical registry or main branch were changed.
++
++**CI gate:** no PR-triggered workflow run was returned for the new combined head at inspection; do **not** claim tested or PR-ready. The existing parent #551 exact-head workflow [#40994887695](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40994887695) on `f38bf815cad7d77b7cadd9aa8bff55759e86947c` had frontend, FFmpeg and Supabase SUCCESS, Python FAILURE: 4 packaging/rollback tests rejected the ZIP member count >120 in protected `scripts/deploy/package.py` (coordinator issue #650). This is a **parent CI diagnosis**, not proof that the new batch passed or failed.
++
++**NEXT integration task:** verify current #848 exact-head four-job CI and reconcile remaining independently reviewed F2 PRs by conflict-aware file inventory (not blind copy); coordinator to resolve #650 without weakening ZIP protections, review source and then integrate into #551/main with fresh postmerge four-job CI. F2-37 remains BLOCKED on coordinator acceptance, #650, #249 and live gates. Source-complete **6/38 (historic registry snapshot)**; tested **unverified**, PR-ready **unverified**, integrated **0/38 verified**, blocked **12/38 (snapshot)**. No GPU, paid inference, PROD, hosted write, or WineShopPOS.
++
++
++## 2026-10-30 integration-first checkpoint — existing F2-30 PR #833
++
++- **Action:** reconciled existing F2-30 source and seven offline regression cases from draft PR #833 into batch PR #848; **no new feature or micro-PR**. The two original source/test paths were absent from this batch at the corresponding locations and were applied without overwriting the existing regional catalog code. Original #833 remains open for attribution/review.
++- **Task:** F2-30 (voice selector validation). Updated `ai-agents/src/ai_agents/feature2_azure_speech.py` and `ai-agents/tests/test_feature2_azure_speech.py`. Commits: source `3f5233ed2915e0ca9c446b241c13d6d667a49a92`, test `f555b3619ba2fe3f99957cfe50459151507b8de9`.
++- **Verification:** inspected source/test diff against PR #833 and pre-existing batch; no tests were executed in this invocation. Four-job exact-head CI on updated batch remains **unverified**; do not mark tested or PR-ready.
++- **Coordinator gate #650:** PR #665 (`9ac121811e32896f3606c9314728d7be71fdc047`) has a verified four-job SUCCESS run [#40936307548](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40936307548), but it is **open, not merged**. Parent F2 PR #551 at `f38bf815cad7d77b7cadd9aa8bff55759e86947c` still has Python FAILURE [#40994887695](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40994887695). A green coordinator PR is not proof that the current F2 batch passes.
++- **Stack awareness:** PR #849 already stacks F2-29 private MP3/WAV integration on PR #848; do not duplicate it. PR #704 has overlapping creative-quality and voiceover paths requiring conflict-aware reconciliation; do not blindly copy its entire branch.
++- **NEXT:** obtain and inspect exact-head push/PR CI for updated #848 (the GitHub commit workflow lookup returns PR-event runs only, so absence is not evidence of no push CI). Coordinator to review #665, fix parent #551's packaging gate and then integrate compatible batch/stack in order; verify postmerge main 4/4. Feature2 task registry remains historical 6 source-complete, 12 blocked, 0 integrated DONE.
++
++
++## 2026-10-31 integration-first checkpoint — source PRs #797 and #810
++
++- **Existing work reconciled into PR #848:** #797 F2-10 local voice UI revocation (3 code/test files + original handoff), and #810 F2-32 offline readiness anti-spoof guard (3 code/test files). No new feature or new PR. Original PRs remain open for source attribution.
++- **Exact source blob equality verified** for all seven transferred files, including `LocalVoicePanel.jsx`, `local-voice-scope.mjs`, its Node tests, `offline-acceptance.js`, the Diwali offline Node tests, and the Python wrapper. The pre-existing unified handoff file from #810 was NOT overwritten because it is shared historical context; its F2-32 rationale is recorded here instead.
++- **Last source commit before this checkpoint:** `9b946f04eb8c6ca72afc64ff295816fb412c492c`. PR #848 base `feat/feature2-unified-offline-source-20261028` at `f38bf815cad7d77b7cadd9aa8bff55759e86947c`; compare showed ahead 24 / behind 0 and 42 changed files. GitHub initially briefly reported mergeable=false during refresh, then rechecked mergeable=true. This is not a review/merge approval.
++- **Verification:** blob equality and PR graph verified; NO tests executed on this combined head. The commit workflow lookup returned no PR-event CI runs and combined status had no checks; push CI may not be visible through this endpoint. Therefore tested and PR-ready are **not verified**. Parent #551's prior Python packaging failure remains unresolved (#650), while coordinator fix #665 remains open and separate.
++- **NEXT integration task:** F2-27 / source PR #788, inspect against current batch and stack before any copy; verify #848 exact-head CI and coordinate #650 repair. Other unmerged source PRs #849 and #704 have overlapping/stacked paths; do not blindly overwrite them.
++- **Progress labels:** source-complete 6/38 (historical registry), blocked 12/38 (historical registry), integrated DONE 0/38 (no reviewed receipts); tested and PR-ready not verified. GPU OFF, no paid model, PROD, SQL or WineShopPOS.
++
++
++## 2026-10-31 integration checkpoint — existing PR #788 / F2-27
++
++- Reconciled source-only post-write private sentence-retake revocation fence from PR #788 into existing batch PR #848; copied `ai-agents/src/ai_agents/feature2_sentence_retake.py`, `ai-agents/tests/test_feature2_sentence_retake.py`, and its original F2-27 handoff. Verified all three Git blob SHA values exactly match PR #788 source. Original PR stays open for traceability.
++- Last source commit before this checkpoint: `25b62d8a4e0e070333280a0a88638d931ee6af4e`. PR #848 had 45 changed files against unchanged parent PR #551 base `f38bf815cad7d77b7cadd9aa8bff55759e86947c`. Mergeability transiently reported false immediately after source commit; recheck before review.
++- **No combined-head test execution verified.** Commit workflow lookup returned no PR-triggered run; it does not expose all push runs. The original PR's deterministic fixture tests were copied, not executed here. Exact-head CI, coordinator #650 packaging resolution, live tenant/rights, and fresh main CI remain gates. No automatic retry of ambiguous storage writes.
++- **NEXT:** verify current #848 exact-head CI and parent #551 packaging gate; inspect PR #797/#810/#788 source provenance already copied and prioritize other independent, non-overlapping source PRs (candidate F2-02 PR #832 has a stacked base and overlapping creative-quality path, requiring a careful diff). Do not overwrite #849's MP3/WAV stacked source or #704's overlapping audit paths.
++- **Progress:** historical source-complete 6/38; tested not verified; PR-ready not verified; integrated DONE 0/38; historical blocked 12/38. The 14 source PRs now reconciled into #848 are NOT 14 accepted task completions. GPU OFF; no paid inference, cloud deployment, PROD or WineShopPOS.
++
++
++## 2026-10-31 integration-first checkpoint — F2-02 source PR #832
++
++- **Existing code reconciled, no new PR:** applied the source-only Unicode invisible commercial-claim guard from [PR #832](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/832) into the existing Feature2 batch [PR #848](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848). Preserved the more recent batch version of `ai-agents/src/ai_agents/feature2_creative_quality.py` rather than replacing it with the older stacked branch. Added `unicodedata` import and denial of Cf/Cs/Zl/Zp in copy fields, while allowing Indic combining marks. Reconciled the seven existing hostile/positive fixtures from PR #832 into `ai-agents/tests/test_feature2_editorial_basis.py`. Original PR #832 remains open for provenance.
++- **Commits before checkpoint:** code `c50ec688806bef480c7522d7e4458f599c61d281`, tests `c01e9c052a6d65a710d5d95b9da95409c7254996`. Branch `feat/feature2-source-batch-8pr-consolidation-20261030`; parent `feat/feature2-unified-offline-source-20261028` / PR #551. These are source changes only, not F2-02 acceptance or a live commercial claim certification.
++- **Verified exact-head CI on preceding batch head** `e99548891e0aa02b1af10c9c9ec519d66770c40a`: [run #41112325647](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/41112325647), 3/4 jobs passed; Python FAILED with **4 release ZIP member-count failures** (1614 passed, 6 skipped), in `ai-agents/test_gate2_release.py` and `ai-agents/test_release_preflight.py`. Failure: `scripts/deploy/package.py` rejects more than 120 ZIP members. This is shared coordinator [Issue #650](https://github.com/saifsiddiqui59/RetailGrowthAI/issues/650), NOT evidence of a new F2-02 test failure.
++- **Coordinator dependency:** [PR #665](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/665), head `9ac121811e32896f3606c9314728d7be71fdc047`, had 4/4 CI green on its own head [#40936307548](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40936307548), but remains open and unmerged. The coordinator must review actual ZIP import closure and integrate the approved fix; a green PR #665 does not make #848 green.
++- **New combined head CI:** pending fresh push/PR run after these code/test and checkpoint commits. No local pytest or paid inference executed. Do not mark tested/PR-ready until the exact new head is verified; no main merge, no integrated DONE.
++- **NEXT:** check fresh #848 CI and parent #551 packaging gate; then reconcile the already-written F2-08 history receipt security patch from PR #842 (carefully preserve current batch changes) or F2-01 ELF gate PR #844, one at a time. PR #849 is a separate stacked MP3/WAV change and should not be overwritten.
++- **Snapshot progress:** source-complete 6/38; blocked 12/38; integrated DONE 0/38 (empty reviewed ledger). Tested/PR-ready not verified for this new head. GPU OFF, no paid model, PROD, SQL or WineShopPOS.
++
++
++## 2026-11-06 — feature-owned private endpoint adapter handoff (source only)
++
++Entry: `azure-functions/campaign-api/feature2_adapter.py`. New read APIs are `Feature2RetailCopyReviewAdapter.get`, `Feature2BlindHistoryAdapter.get`, `Feature2PrivateTraceAdapter.get`, and `Feature2PrivateWavAdapter.get` (the last returns raw WAV bytes and mandatory `Cache-Control: private, no-store` headers). New explicit write/reservation APIs: `Feature2ReviewedDraftAdapter.post`, `Feature2LocalCpuReservationAdapter.post`, `Feature2SentenceRetakeAdapter.post` (disabled by default), `Feature2PrivateMp3UploadAdapter.post`. None is an activated Functions route.
++
++**Coordinator/affected-lead integration contract**: inject current JWT verifier and USER-context RLS member/plan/draft/proposal/trend/media/trace/score readers. For reviewed prompt draft, backend must supply independently signed editor proof and atomic revision CAS keyed by request UUID. Trace HMAC secret stays on server and is supplied as a trusted partially-bound verifier, never in browser. Voice job budget must reserve quota and one-shot idempotency/lease fencing atomically. MP3 must use reviewed local FFmpeg with atomic two-object private storage; WAV read must be sent as raw HTTP body with returned no-store headers. Never trust browser rights approvals, generated account identities, client paths or URLs. Real model inference is independently operator-gated and needs CPU budget + signed F7 review. Protected packaged Functions module additions and router wiring require independent review.
++
++Tests: `tests/api/test_feature2_private_batch_adapters.py`, `tests/api/test_feature2_private_upload_cpu_batch.py`, `tests/api/test_feature2_copy_retake_adapters.py`. Batch CIs above are source-only and do not prove live endpoints. The final code+docs checkpoint adds two aliased current-source revocation tests and requires new exact-head CI. Original 38-task classification unchanged.
+
+diff --git a/ai-agents/FEATURE2_F2_10_LOCAL_SCOPE_HANDOFF_20261030.md b/ai-agents/FEATURE2_F2_10_LOCAL_SCOPE_HANDOFF_20261030.md
+--- a/ai-agents/FEATURE2_F2_10_LOCAL_SCOPE_HANDOFF_20261030.md
++++ b/ai-agents/FEATURE2_F2_10_LOCAL_SCOPE_HANDOFF_20261030.md
+@@ -0,0 +1,17 @@
++# Feature #2 F2-10 — in-flight local voice UI revocation fence (2026-10-30)
++
++**Status:** IN PROGRESS / source-only, original task `F2-10` (38-task tracker); no integrated DONE claim. Dedicated branch based on unified draft #551, disjoint from existing file-upload replacement PR #759.
++
++## Change
++- LocalVoicePanel now invalidates all pending private voice, status, quality, revision, sentence retake and playback responses if the signed UI enablement changes, the voice/language/speed changes, the reviewed source changes, or a trusted callback is replaced/revoked.
++- Disabled signed UI scope clears stale private audio/status/review state. It never silently retries an uncertain speech request.
++- Extracted a deterministic pure scope comparison helper and added Node regression tests for role revocation, shop/campaign/plan/source changes, voice changes and callback identity replacement.
++- No model inference, GPU, paid API, deployment, PROD, SQL, rights approval or WineShopPOS change. These tests use synthetic function identities, not real authenticated users or audio.
++
++## Verification and blockers
++- Targeted: `node --test tests/frontend/feature2-local-voice-scope.test.mjs`; component compilation: `node --test tests/frontend/feature2-voiceover-component.test.mjs`. CI execution/results must be inspected; this handoff does not claim passing tests.
++- Parent PR #551 remains draft and coordinator-owned ISSUE-650 Azure package constraint is unresolved; do not merge with failing protected checks. Coordinator must review this source PR, integrate on main and verify fresh 4/4 CI before updating `coordination/task_progress.json`.
++- **Dependency:** F2-CREATIVE-SOURCE (coordinator) — current accepted F2 Creative Studio signed mount and source contracts on main; acceptance: exact-head 4/4 and postmerge main 4/4.
++- **Dependency:** F2-19 (coordinator + F2) — actual tenant JWT/RLS protected speech callback and durable job readback; acceptance: real DEV authenticated current editor and role revocation checks with two isolated shop owners, no secret exposure.
++- **Dependency:** ISSUE-249 (Azure reliability lead) — signed DEV gateway 503 fix; acceptance: live protected speech/readback E2E without 503.
++- A client-side fence is defense-in-depth only, never an authorization grant. Real hosted verification remains blocked.
+
+diff --git a/ai-agents/FEATURE2_F2_27_POSTWRITE_RETAKE_HANDOFF_20261030.md b/ai-agents/FEATURE2_F2_27_POSTWRITE_RETAKE_HANDOFF_20261030.md
+--- a/ai-agents/FEATURE2_F2_27_POSTWRITE_RETAKE_HANDOFF_20261030.md
++++ b/ai-agents/FEATURE2_F2_27_POSTWRITE_RETAKE_HANDOFF_20261030.md
+@@ -0,0 +1,14 @@
++# Feature #2 F2-27 — private sentence-retake post-write fence
++
++Scope: one source-only, GPU-OFF security regression for existing F2-27. This is layered on the existing Feature #2 PR #551 branch; it does not reopen source-complete tasks or edit coordinator-owned files.
++
++- `ai-agents/src/ai_agents/feature2_sentence_retake.py`: after the trusted pending-private writer returns, independently recheck the current editor role and exact authoritative creative plan. Reject writer receipts that claim publishable/approved output or skip fresh Feature #7 transcription.
++- `ai-agents/tests/test_feature2_sentence_retake.py`: offline deterministic callback tests for post-write role revocation, changed plan, forged approved receipt, skipped ASR and a still-unapproved successful synthetic path. The test stubs trusted Kokoro metadata and does **not** execute inference, demonstrate audio quality or register production media.
++- Ambiguous storage writes are **not retried**. An actual backend still needs transactional commit-time tenant/RLS authorization, durable one-shot reservation, orphan cleanup and signed original-WAV registration.
++- No cloud, Supabase SQL, paid AI, GPU, PROD, WineShopPOS or user-facing samples.
++
++Task: `F2-27`, **IN PROGRESS** until reviewed integration, exact-head four-job CI, real signed backend and fresh postmerge main CI. Do not mark integrated DONE from this source PR.
++
++Coordinator proposed status receipt (not an authoritative shared registry write): `F2-27` remains `IN PROGRESS`; evidence is this PR, its head SHA and any verified CI result. Existing `coordination/task_progress.json` remains coordinator-owned.
++
++Cross-feature dependencies: Feature #7 must provide a genuine tenant-signed new original-WAV transcript and human listening evidence; Feature #4 must assemble a reviewed corrected scene; coordinator must implement current-role/plan-fenced private transaction and approval API. Acceptance requires each producer's signed source/asset SHA, current tenant authorization, explicit human review and approved integration.
+
+diff --git a/ai-agents/FEATURE2_MP3_DUAL_ASSET_RECEIPT_20261030.md b/ai-agents/FEATURE2_MP3_DUAL_ASSET_RECEIPT_20261030.md
+--- a/ai-agents/FEATURE2_MP3_DUAL_ASSET_RECEIPT_20261030.md
++++ b/ai-agents/FEATURE2_MP3_DUAL_ASSET_RECEIPT_20261030.md
+@@ -0,0 +1,16 @@
++# Feature #2 F2-29 — private MP3 dual-asset registration receipt (2026-10-30)
++
++**IN PROGRESS, source-only.** This is a stacked proposal on draft #551, not a merged feature or a live authenticated upload.
++
++## Change and fixture verification
++The trusted storage callback for unreviewed retailer MP3 must confirm two distinct UUID private asset IDs, both exact byte SHA-256 digests, a same-shop/campaign receipt, pending-rights state, and `atomic_pair_committed=true`. Previously a writer could omit the derived WAV asset ID and still obtain a successful receipt; that made the derivative's private registration unverifiable. New negative fixture tests reject missing/foreign/aliased derivative IDs, false atomic-commit flag, wrong SHA and nonprivate receipts. The positive fixture explicitly supplies both IDs. A browser rights checkbox is never accepted as commercial permission.
++
++Source: `ai-agents/src/ai_agents/feature2_voiceover_upload.py`, `ai-agents/tests/test_feature2_voiceover_upload.py`.
++
++## Remaining evidence and gates
++- Fresh exact-head CI: **pending verification**, and parent #551 has shared packaging issue #650; no passing CI is asserted here.
++- Coordinator must implement a durable transactional private storage writer with atomic pair receipt, same-tenant RLS, signed user JWT, rollback and uncertain-write reconciliation, then review and merge with postmerge main 4/4.
++- Original MP3 and derived WAV remain **unreviewed**, not original recorded F7 ASR proof, not approved F4 narration, not publishable and not model output.
++- No paid models, GPU, PROD, deployment or WineShopPOS changes.
++
++Proposed task-manager status: F2-29 remains `IN PROGRESS`; this PR is source evidence only, not an integrated DONE receipt.
+
+diff --git a/ai-agents/FEATURE2_MP3_DUAL_PRIVATE_RECEIPT_HANDOFF_20261029.md b/ai-agents/FEATURE2_MP3_DUAL_PRIVATE_RECEIPT_HANDOFF_20261029.md
+--- a/ai-agents/FEATURE2_MP3_DUAL_PRIVATE_RECEIPT_HANDOFF_20261029.md
++++ b/ai-agents/FEATURE2_MP3_DUAL_PRIVATE_RECEIPT_HANDOFF_20261029.md
+@@ -0,0 +1,20 @@
++# Feature #2 / original task #29 — private MP3 + derived WAV registration receipt
++
++2026-10-29 · source-only, **IN PROGRESS**. Scoped continuation of Feature2 unified draft PR #551, with a separate nonconflicting branch. Does **not** claim hosted tenant reads, real approved model audio or commercial rights.
++
++## Change
++`feature2_voiceover_upload.accept_unreviewed_mp3` now refuses a trusted storage callback that only returns an MP3 asset ID. It requires a **different** valid private derived WAV asset ID, original and derived byte SHA-256, same shop/campaign, `derived_wav_private: true`, explicit `atomic_pair_registered: true` and pending review. A callback claiming publishing, motion, commercial-use rights or human speech verification is denied. The return remains pending review with no signed URL, F7 source registration or paid work.
++
++Regression tests contain synthetic/monkeypatched local FFmpeg-decoder bytes only; they deny missing, aliased, malformed, public, non-atomic, cross-shop, changed SHA and elevated callback receipts. Existing real FFmpeg synthetic MP3 decode test is preserved and its trusted storage test double now returns the explicitly required second object.
++
++## Integration/acceptance
++The coordinator must connect a **server-trusted atomic two-object private store** that independently commits both bytes and their immutable metadata, validates tenant membership and revocation, and supplies this receipt only after the transaction is durable. Do not trust browser JSON as a backend receipt. Need actual signed DEV tests for simultaneous private object visibility, rollback on one failed write, rights denial, and F7 original-WAV registration; no live implementation is present in this source change.
++
++Source tests, exact-head four-job CI, coordinator review, parent #551 integration, fresh main 4/4, #650 ZIP release and #249 live route remain gates. No new paid models, GPU, PROD or WineShopPOS changes.
++
++
++## 2026-10-30 — In-flight revocation response fence (source-only)
++- Added a **third** current signed editor and exact-plan read after a valid atomic two-object MP3/WAV storage receipt. A writer that loses current rights/plan during its call cannot return a successful client registration response. This is not a substitute for commit-time atomic RLS fencing and rollback/orphan cleanup inside the real trusted storage transaction.
++- The existing original-WAV private intake receives the same post-write check, so the F7 original source is not returned as accepted after in-flight revocation.
++- Four offline negative cases cover editor revocation and source-plan change during WAV/MP3 storage using synthetic bytes and fake storage receipts; no real audio or hosted backend was exercised.
++- Status: task **#29 IN_PROGRESS**, task **#20 IN_PROGRESS**, no new source COMPLETE or integrated DONE. Verify exact-head four-job CI after this documentation commit; coordinator still owns protected #650 ZIP, live storage/RLS and main integration.
+
+diff --git a/ai-agents/FEATURE2_MP3_STACKED_INTEGRATION_HANDOFF_20261030.md b/ai-agents/FEATURE2_MP3_STACKED_INTEGRATION_HANDOFF_20261030.md
+--- a/ai-agents/FEATURE2_MP3_STACKED_INTEGRATION_HANDOFF_20261030.md
++++ b/ai-agents/FEATURE2_MP3_STACKED_INTEGRATION_HANDOFF_20261030.md
+@@ -0,0 +1,17 @@
++# Feature2 private MP3 stacked source integration — 2026-10-30
++
++**Integration branch ONLY, not main/hosted DONE**. Source is copied from stacked [PR #704](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/704) at verified `4403b147cd24cd734dcdaf8dd60885b5d1309b18` onto the verified Feature #2 eight-PR batch [#848](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848) head `8dbb1bae15525c3aea44e9454bdd692c6785f1f0`.
++
++This scoped integration imports exactly two existing Feature2 source/test paths:
++- `ai-agents/src/ai_agents/feature2_voiceover_upload.py` — original MP3 source and PCM16 derived WAV remain distinct SHA/asset IDs; 2 private objects atomically registered; rights/voice quality remain PENDING; editor and authoritative plan checked again after storage; offline FFmpeg decoder bounded to operator binary.
++- `ai-agents/tests/test_feature2_voiceover_upload.py` — actual licensed local FFmpeg test conditional on host binary and deterministic no-FFmpeg negative/positive fallback. Asserts malformed RIFF, duplicate streams, wrong rights and mismatched registered pair.
++The two original audit/handoff records for MP3 rights and RIFF boundaries are preserved verbatim from PR #704. Existing consolidated #848 branches and their voice-quality/tests are untouched.
++
++**Important excluded scope:** PR #704 contains earlier stacked F2 editorial Unicode and private blind A/B audit changes in `feature2_creative_quality.py`, `test_feature2_creative_quality.py`, `test_feature2_editorial_basis.py` and distinct source handoffs. Those remain on their source PR for later source reconciliation. This integration does NOT claim #704 entirely merged.
++
++Coordinator acceptance: verify 4 exact-head PR CI jobs, reconcile latest parent #848 head then #551 and source PR #704 remaining audit diffs, preserve #650 ZIP 120-entry security invariant and unblock #249. The trusted actual private store must enforce transaction-level JWT/RLS and rollback; source mock callbacks are not durable signed storage. Real original commercial/media rights and human spoken approval must be verified independently. No paid AI, GPU, PROD or WineShopPOS; **0/38 verified integrated DONE** until approved main merge and fresh main four jobs.
++
++
++## 2026-10-31 — Reconciled into current #848 batch
++
++The source and test files were copied from this original stacked PR #849 into #848 on the newer branch head, preserving the exact Git blobs. The original stacked PR is retained for provenance and must not be independently double-merged into main. Exact-head CI on the combined #848 batch remains mandatory; the earlier #849 run had a failing shared Python packaging job (#650), not a green four-job gate. Actual trusted atomic store/JWT/RLS and approved media remain unverified. This document is a source handoff, not a claim of production readiness.
+
+diff --git a/ai-agents/FEATURE2_PRIVATE_AUDIO_RIFF_BOUNDARY_20261030.md b/ai-agents/FEATURE2_PRIVATE_AUDIO_RIFF_BOUNDARY_20261030.md
+--- a/ai-agents/FEATURE2_PRIVATE_AUDIO_RIFF_BOUNDARY_20261030.md
++++ b/ai-agents/FEATURE2_PRIVATE_AUDIO_RIFF_BOUNDARY_20261030.md
+@@ -0,0 +1,9 @@
++# Feature2 F2-29 — private MP3/WAV RIFF boundary security (2026-10-30)
++
++**Source implementation, not hosted acceptance or commercially approved media.**
++
++The previously implemented private original WAV reader and FFmpeg-derived MP3 WAV validator consumed only the first WAV `data` chunk through `wave.open`. This did not ensure RIFF's declared byte extent matched the uploaded blob, or refuse an additional `fmt ` or `data` chunk that could hide unreviewed media in a registered original. The amended `_inspect` insists that the physical byte length and RIFF header agree; limits chunks to 32, each ancillary metadata chunk to 64KiB, checks chunk-header bounds plus odd-size padding, denies duplicate/reordered audio format/data, and compares complete data-chunk payload against expected mono/stereo PCM frames.
++
++The same verifier applies to signed-editor original WAV uploads and private FFmpeg-derived WAV bytes. New existing-file offline Python tests use stdlib WAVs to show appended bytes, length-corrected duplicate data, duplicate format and malformed internal sizes are denied; fake FFmpeg success tests prove the decoder refuses a hidden trailer, and valid **fixture-only** PCM preserves original/derived hashes while all review/publishing rights remain FALSE. Actual FFmpeg tests on hosts with the binary remain separately conditional; none of these mocks proves actual MP3 codec decoding or human voice fidelity.
++
++Deployment/approval remains blocked: coordinator #650 immutable 120-entry Functions ZIP gate (repair PR #665 unmerged), live #249 DEV HTTP 503, authenticated multi-tenant JWT/RLS, atomic private dual-asset registration, human/commercial rights review, exact-head four-job CI and fresh postmerge main 4/4. This work adds **no new Python source module** to the protected Functions ZIP and does not modify coordinator-owned workflow or shared contracts. GPU and paid models OFF, no DEV writes, PROD or WineShopPOS changes.
+
+diff --git a/ai-agents/FEATURE2_PRIVATE_AUDIT_CAS_RECHECK_HANDOFF_20261030.md b/ai-agents/FEATURE2_PRIVATE_AUDIT_CAS_RECHECK_HANDOFF_20261030.md
+--- a/ai-agents/FEATURE2_PRIVATE_AUDIT_CAS_RECHECK_HANDOFF_20261030.md
++++ b/ai-agents/FEATURE2_PRIVATE_AUDIT_CAS_RECHECK_HANDOFF_20261030.md
+@@ -0,0 +1,18 @@
++# Feature #2 #8/#12: private audit and blind human-review post-CAS revocation
++
++Date: 2026-10-30. **Source-only, IN PROGRESS**.
++
++## Reason and change
++
++Feature2's existing HMAC-linked trace writer (`append_feature2_trace`) and blind reviewer scoring CAS (`stage_blind_human_review_revision`) validated current tenant/source before private writes, but a revoked membership or changed candidates *during* a trusted writer callback could return an apparently valid success receipt. The source now revalidates current signed scope or editor+immutable candidate identity after write, and rejects any returned storage receipt asserting paid motion, publication or a promoted review status. Do **not** recheck the previous CAS revision after a successful increment; that would reject valid writes.
++
++Regression cases use injected fake callbacks: revoked immediately after writing a private trace, revoked after writing a signed human-score revision, and writer receipts with elevated publish/payment/review flags. Tests preserve existing successful private proof behavior and never equate fixture signatures with actual human reviewers or worker/model activity.
++
++## Integration requirements
++
++This Python source check cannot undo DB writes already committed before revocation. The coordinator owns real authenticated JWT/RLS, transactional lease/role/candidate fencing, immutable unique event/CAS store, partial-write cleanup, independently signed human reviews, authorization-by-read and live acceptance. Review [parent PR #684](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/684) and [unified F2 draft #551](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/551) as a stack; this change must be merged only after branch exact-head 4/4, protected packager issue #650, accepted integration and fresh main 4/4. Feature2 original tasks #8 and #12 remain IN PROGRESS; don't infer product DONE. GPU OFF; no paid inference/hosted SQL/PROD/WineShopPOS.
++
++
++## Reconciliation checkpoint — 2026-10-31
++
++The existing source/test post-CAS scope and elevated-receipt changes from #704 were selectively integrated into #848 while preserving newer batch Creative Director and Unicode logic. The original #704 remains open for provenance. No actual DB transaction, signed reviewer or production authorization was exercised. Combined exact-head CI must be checked after this integration; #650 packaging is a separate coordinator gate.
+
+diff --git a/ai-agents/FEATURE2_PRIVATE_JOB_STATUS_BACKEND_HANDOFF_20261030.md b/ai-agents/FEATURE2_PRIVATE_JOB_STATUS_BACKEND_HANDOFF_20261030.md
+--- a/ai-agents/FEATURE2_PRIVATE_JOB_STATUS_BACKEND_HANDOFF_20261030.md
++++ b/ai-agents/FEATURE2_PRIVATE_JOB_STATUS_BACKEND_HANDOFF_20261030.md
+@@ -0,0 +1,32 @@
++# Feature #2 #19/#21 — authenticated private voice status server adapter
++
++Date 2026-10-30. **SOURCE IN PROGRESS; no live endpoint/worker/DB approval**.
++
++Adds `read_private_local_voice_job_status` to the existing `feature2_local_voice_workflow.py` to avoid increasing the protected deployment ZIP's Python module count. The backend takes a shop/campaign, **original request UUID**, current approved source plan and trusted signed JWT/RLS callbacks. It validates exact immutable script/plan/request SHA, current OWNER/EDITOR membership, Kokoro provider/voice/language, lease fence and private zero-paid/no-auto-retry state. Terminal review status is not a publishing right. For `AWAITING_HUMAN_REVIEW`, it additionally requires a same-request UUID-linked private original WAV registration, SHA, plan/script and unrevoked pending-rights state. It reads source/job/registration twice to refuse stale success after in-flight mutation, returning only the existing minimal browser status schema. Does **not** create a new job, reserve CPU, poll automatically or emit a URL.
++
++The `source_request_key` in a trusted original WAV registration is an **integration requirement**, not yet stored by the real service. The coordinator must reconcile that with the authoritative unique job/asset transaction and existing `PRIVATE_SPEECH_JOB_STATUS_HANDOFF_20261029.md`. Tests contain injected deterministic fictitious receipts only, including six safe states, wrong tenant/plan/voice/paid/billed/retry, forged original media, revoked editor and concurrent job/media mutation. No real signed JWT, user-provided test login, hosted storage, Kokoro inference, model rights or successful production speech claimed.
++
++Keep dependency #650 (coordinator, protected Functions ZIP package accepted under existing immutable limit), #249 (Azure DEV HTTP 503 signed reliable API), and Feature7 signed real original WAV ASR separate. All user approval and commercial rights remain blocked. No GPU, paid AI, PROD, WineShopPOS, or user-visible samples. Coordinator reconciles with existing unified draft PR #551 and sibling drafts; only accepted main merge + fresh 4/4 CI earns DONE.
++
++
++## 2026-11-05 — F2-19 signed private voice status server adapter (source substep CLOSED)
++- Existing `azure-functions/campaign-api/feature2_adapter.py` now implements `PrivateVoiceStatusAdapter.get`, a GET-only status boundary. It verifies canonical shop/campaign/original request UUID, actual trusted JWT validator, same-shop OWNER/EDITOR write membership before read, deep-copied server plan, and repeated current membership around the original trusted private-job status verifier. Job, plan and private audio readers must be injected from the server with the signed user's token; no client-supplied callbacks.
++- Reuses original `ai_agents.feature2_local_voice_workflow.read_private_local_voice_job_status` via a **trusted injected** callback. It deliberately does NOT introduce a new `ai_agents` import or expand the protected immutable ZIP runtime manifest, whose initial failure correctly caught this. The production router must only wire the callback after independently approved runtime packaging. No live HTTP route, worker, model, private storage or cloud deployment was activated.
++- New `tests/api/test_feature2_private_voice_status_adapter.py` covers six bounded states, original request-UUID retention, invalid JWT/cross-shop/viewer, absent backend, forged paid/public URLs, revoked editor, changing job lease and changing source plan. Pure in-memory synthetic RLS and job receipts; not a real DEV shop session or real Kokoro.
++- The initial source head `c24396c3` failed Python (test fixture comparison and undeclared packaged module); corrected `f5c2d5370fcd75c603f1306ba53936f0edc9a761` passed [Actions #41985198673](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/41985198673) **4/4 SUCCESS** (Python/uv + protected packaging, frontend, FFmpeg and disposable Supabase). The added source substep is **CLOSED_VERIFIED_OFFLINE_SUBSTEP**; original F2-19 stays `SOURCE_IN_PROGRESS` until real route/JWT-RLS readers/worker settlement pass. All original totals unchanged: **9 SOURCE_COMPLETE / 17 SOURCE_IN_PROGRESS / 12 EXTERNALLY_BLOCKED; main-integrated DONE 0/38**. Parent PR #551 independent package/security review pending, child PR #848 stacked/unmerged. No GPU, paid inference, hosted writes, PROD or WineShopPOS.
++- NEXT: reviewed route+runtime allowlist approval and real tenant-private job/asset reader implementation with live signed DEV identities. **This documentation commit also requires new exact-head 4/4 CI before final branch acceptance.**
++
++
++## 2026-11-09 — Feature2 code-first JWT/trace/review integration continuation
++
++**Original ledger unchanged: 9 SOURCE_COMPLETE / 17 SOURCE_IN_PROGRESS / 12 EXTERNALLY_BLOCKED, 0/38 main-integrated DONE.** Eight affected original IDs have additional tested source-only substeps, not eight newly completed tasks. We tested three prior F2-10/19/20/26 phases from November 6 plus F2-08/12 and F2-03/31 in two new batches. Exact source heads:
++
++- #42283898465 at `71f9733b` — 4/4: current JWT/RLS voice plan/job and private registered original WAV storage readers; isolated signed HTTP tests.
++- #42284871646 at `bfb6e66a` — 4/4: GET-only voice status and WAV routes (default OFF); undeclared protected ZIP import rejected by earlier CI #42284505820 and removed. No package guard bypass.
++- #42285862962 at `090d67d8` — 4/4: bounded original SHA-bound WAV browser reader; initial false-negative status-only assertion corrected.
++- #42571554660 at `bb7b53db` — 4/4: F2-08 independent HMAC private score history and F2-12 ordered original private trace source/event store, signed JWT RLS tests.
++- #42572366036 at `6461acc0` — 4/4: F2-03/F2-31 signed prompt editor evidence and default-disabled atomic CAS gateway; fixed one bad test assertion that confused SHA field with leaked original text.
++
++**No hosted service/migration, actual approved human review, Kokoro/ASR inference, licensed customer asset, real audio or signed browser release is claimed.** Source-only review SQL lives under `ai-agents/sql/*_REVIEW_ONLY.sql` and has not been applied; actual tenant protections, immutable CAS, key handling, private blob bucket and real work require independent review. The `function_app.py` routes are still 503 fail-closed until packaged dependencies are explicitly approved; no paid model, GPU, PROD, WineShopPOS or Azure DB changes.
++
++**Protected integration remains open:** Child [PR #848](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/848) stacked behind parent [PR #551](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/551); parent has no recorded independent reviews. Do not self-approve the protected package/root/API or treat these tests as accepted main-integrated DONE. After code review: enable reviewed source validators, implement durable authenticated atomic CAS and ledger, mount the existing signed voice selector in Creative Studio, and run actual separate two-shop DEV negative tests with test accounts and synthetic media. No new sample or user preview required.
+
+diff --git a/ai-agents/FEATURE2_REGIONAL_VOICE_ROUTING_HANDOFF_20261030.md b/ai-agents/FEATURE2_REGIONAL_VOICE_ROUTING_HANDOFF_20261030.md
+--- a/ai-agents/FEATURE2_REGIONAL_VOICE_ROUTING_HANDOFF_20261030.md
++++ b/ai-agents/FEATURE2_REGIONAL_VOICE_ROUTING_HANDOFF_20261030.md
+@@ -0,0 +1,7 @@
++# Feature2 F2-30: regional voice routing proof (2026-10-30)
++
++**Original task F2-30: source IN PROGRESS, not DONE.** Offline contract-only safety improvements; no real Speech API voice list was queried and no neural synthesis was invoked.
++
++The existing server-produced `published_voices_in_region` output is the *only* acceptable readback shape for `route_voice_selection`. The selector now requires the current region-string shape, source-list evidence, matching configured curated voice count, no TTS call, no publication, a complete curated row with matching locale/gender and unique entries. A misleading public `Standard` voice record cannot be relabeled one of the six documented `Neural` voices. The free Kokoro English-US/GB path still uses no region or paid call. Deterministic test stubs exercise en-IN/hi-IN/mr-IN locale/voice routing, a real source-to-selector shape composition, fabricated region readback and duplicate/foreign gender, and no automatic paid fallback.
++
++The trusted backend callback must separately bind its list to the shop's signed current resource/region, current editor and fresh authenticated JWT; shape validation is *not* cryptographic proof, billing consent, legal rights or a deployed endpoint. Coordinator still owns #650 protected Functions ZIP, #249 live Azure DEV 503, actual signed regional inventory caching policy and all four main integration checks. Do not call model, activate paid inference/GPU, deploy PROD or touch WineShopPOS.
+
+diff --git a/ai-agents/FEATURE2_REVIEWED_PROMPT_CAS_BATCH_20261030.md b/ai-agents/FEATURE2_REVIEWED_PROMPT_CAS_BATCH_20261030.md
+--- a/ai-agents/FEATURE2_REVIEWED_PROMPT_CAS_BATCH_20261030.md
++++ b/ai-agents/FEATURE2_REVIEWED_PROMPT_CAS_BATCH_20261030.md
+@@ -0,0 +1,9 @@
++# Feature #2 reviewed-prompt source/CAS batch — 2026-10-30
++
++Original assigned tasks **F2-03 and F2-31 IN PROGRESS**. Source only; no real LLM billed or independent signer connected.
++
++1. Approved-provider test callback can no longer add new price/offer/stock/delivery claims not present in the vetted canonical prompt, even if it preserves the original exact retailer request. A multiset of bounded claim tokens is compared; legitimate original claims remain flagged for review rather than certified.
++2. Server-side private prompt revision CAS receipt must echo exact original SHA, source revision, proposal ID, review-event ID, pending DRAFT status, private/committed flags and NO publish, motion, or provider-call authority. Recheck signed current editor after storage callback; the DB must transactionally fence authorization and clean up changes on revocation.
++3. Existing browser reviewer receipt verifier now binds proposal ID/source revision/original request SHA, not just improved SHA and next revision. Existing receipt and injected test fixtures updated and extended with negative cases. This verifier is for presentation only; backend signed human review remains authoritative.
++
++All changes grouped in ONE branch commit and one CI boundary with existing offline retailer tests; do not call a fixture a verified retailer approval. Parent unified PR #551, other F2 draft branches, coordinator issue #650 immutable Azure Functions package limit and #249 DEV HTTP 503 are separate integration gates. Coordinator owns merge to latest main and fresh 4/4. No paid models, GPU, PROD, hosted writes or WineShopPOS changes.
+
+diff --git a/ai-agents/FEATURE2_SPEECH_REVIEW_UNICODE_BATCH_20261030.md b/ai-agents/FEATURE2_SPEECH_REVIEW_UNICODE_BATCH_20261030.md
+--- a/ai-agents/FEATURE2_SPEECH_REVIEW_UNICODE_BATCH_20261030.md
++++ b/ai-agents/FEATURE2_SPEECH_REVIEW_UNICODE_BATCH_20261030.md
+@@ -0,0 +1,9 @@
++# Feature2 signed speech-review Unicode safety batch (2026-10-30)
++
++Original task IDs **F2-17, F2-18 and F2-26**: source IN PROGRESS, not DONE.
++
++The single existing Feature2 voice quality source module now declines transcription token text and English phoneme review hints containing Unicode bidi override/isolate, zero-width separators, Unicode paragraph breaks or active markup. Independently signed human transcript WER references also receive the same bounded safety check. Legitimate Hindi/Marathi combining marks and Unicode ZWJ/ZWNJ joiners remain eligible in whole word tokens. We intentionally do not remove suspicious characters and then silently call the words verified; the source fails closed.
++
++Existing mocked Feature7 receipt fixtures now include synthetically **re-signed** transcripts to ensure a matching HMAC alone never certifies a safe reviewer display. An additional set of fake quality and OpenPronounce negative tests covers unsafe display, with a positive Indic conjunct token test. All tests are offline; no actual STT/ASR, real human listening, deployed model/rights, or licensed source media is implied.
++
++One coherent branch change invokes full four-job CI at the batch boundary. No isolated paid GPU, provider inference, PROD or WineShopPOS, and no user-visible samples. Coordinator owns real audio source rights and output proofs, F7 signed original-WAV worker, issue #650 immutable Functions ZIP, issue #249 Azure HTTP 503, merge to latest main and fresh postmerge 4/4. 
+
+diff --git a/ai-agents/FEATURE2_UNICODE_CLAIM_HARDENING_20261030.md b/ai-agents/FEATURE2_UNICODE_CLAIM_HARDENING_20261030.md
+--- a/ai-agents/FEATURE2_UNICODE_CLAIM_HARDENING_20261030.md
++++ b/ai-agents/FEATURE2_UNICODE_CLAIM_HARDENING_20261030.md
+@@ -0,0 +1,21 @@
++# Feature #2 F2-02 — Unicode discount-scope hardening (2026-10-30)
++
++Status: **IN PROGRESS / SOURCE ONLY**. Owner: Feature #2. Parent source PR: #551. This stacked change proposes review, not coordinator acceptance or an integrated DONE event.
++
++## Change
++- Extend the existing deterministic, review-only retailer copy claim guard to detect long numeric percentages, fullwidth/small/Arabic percent signs, and compatibility-width spelled percentages.
++- Reject invisible formatting and control characters that could hide an unapproved discount from a reviewer.
++- Compare all detected discount occurrences with exact source-approved claim spans; normalization is detection-only and **never** transforms a retailer's legal approved wording into an authorization.
++- Add isolated negative fixtures for extra 50/1000 percent offers, Arabic-Indic/fullwidth symbols, hidden zero-width/bidi characters, and a permitted exact 20% scoped claim.
++
++## Evidence / acceptance
++- Source files: `ai-agents/src/ai_agents/feature2_creative_quality.py`, `ai-agents/tests/test_feature2_unicode_discount_scope.py`.
++- Branch: `feat/feature2-copy-unicode-claims-20261030` stacked on `feat/feature2-unified-offline-source-20261028`.
++- CI: **pending fresh exact-head four-job evidence**; do not infer success from an earlier #551 run.
++- Coordinator must review stacked PR, reconcile against #551, integrate into main, and verify fresh main 4/4 before marking F2-02 DONE in `coordination/task_progress.json`.
++- No real retailer facts, current JWT/RLS, independent offer approval, hosted acceptance, commercial content, or model output is verified by these fixtures. No paid model, GPU, PROD, Azure deployment or WineShopPOS change.
++
++## Remaining blockers
++- F2-02 live acceptance: coordinator-owned authoritative current shop offer and rights read-model, signed reviewer approval, actual hosted route and tenant/role revocation tests.
++- ISSUE-650: coordinator-owned Azure package <=120 members and protected release checks.
++- ISSUE-249: Azure reliability lead must verify signed DEV 503 fix.
+
+diff --git a/ai-agents/FEATURE2_UNICODE_COPY_CLAIM_HANDOFF_20261030.md b/ai-agents/FEATURE2_UNICODE_COPY_CLAIM_HANDOFF_20261030.md
+--- a/ai-agents/FEATURE2_UNICODE_COPY_CLAIM_HANDOFF_20261030.md
++++ b/ai-agents/FEATURE2_UNICODE_COPY_CLAIM_HANDOFF_20261030.md
+@@ -0,0 +1,16 @@
++# Feature #2 — retailer-copy Unicode claim hardening (2026-10-30)
++
++- Original task: **F2-02** in the pinned 38-task tracker.
++- Ownership: Feature #2. Stacked draft PR **#707** onto existing Feature #2 integration draft **#551**. No merge or deployment.
++- Scope: offline source review in `ai-agents/src/ai_agents/feature2_creative_quality.py` and negative tests in `ai-agents/tests/test_feature2_editorial_basis.py`.
++- Detect NFKC/fullwidth commercial percentage, currency, free-shipping and material claims that ASCII-only matching missed. Continue requiring exact *original* approved offer wording rather than silently normalizing it into a new approval.
++- Reject unsafe invisible/bidi/word-break control characters; preserve valid Indic ZWJ/ZWNJ. Verify that signed percentage offer records agree with the numeric claim and carry a nonempty bounded SKU scope.
++- Offline test cases cover forged/mismatched percent-off, empty SKU scope, Unicode-disguised discounts/prices/claims, invisible controls, and legitimate Hindi joiners. **Tests are not real model or live retailer evidence.**
++- Source task status: **IN_PROGRESS**; no integrated DONE credit. Actual CI must be read from the exact PR head. Do not mark this as passed merely because tests were added.
++- Required coordinator follow-up: review stacked PR #707 and choose the unified #551 integration path; resolve protected **COORD-PACKAGE-650** (owner: shared coordinator/Azure packager; acceptance: all four protected ZIP limit preflight tests pass without weakening limits); verify four-job exact-head CI and fresh postmerge main CI.
++- Additional live gates: current tenant JWT/RLS, signed approved offers/SKUs, editor review, and Azure #249 reliability. Fixtures never authorize publication, paid inference, or customer claims.
++- No GPU, paid model, PROD, hosted SQL, or WineShopPOS changes.
++
++## Additional independent F2-04 source hardening
++
++The same reviewed bounded private RSS snapshot and relevance scorer now reject invisible word-break and bidi controls inside source headlines. Tests exercise both the direct verified trend-row path and original signed RSS2 XML parsing path; legitimate Marathi relevance remains unchanged. This is **source-only IN_PROGRESS**, not a verified live trend, signed hosted feed fetch, or integrated task completion. The trusted private source, licensing and allowlist readers remain coordinator-owned.
+
+diff --git a/ai-agents/creative-director/offline-acceptance.js b/ai-agents/creative-director/offline-acceptance.js
+--- a/ai-agents/creative-director/offline-acceptance.js
++++ b/ai-agents/creative-director/offline-acceptance.js
+@@ -81,9 +81,31 @@ function previewOffline(bundle,{gpuEnabled=false}={}){
+   };
+ }
+ function readinessFromOffline(preview){
++  // This is a source-only readiness summary, never a signed approval or a
++  // dispatch credential. Reject a mutated preview that upgrades mock/blocked
++  // consumers, speech, rendering or reviewer state to a false success.
++  const shots=preview?.editor_timeline;
++  const count=preview?.duration_seconds/5;
+   if(!preview||preview.contract!=='feature2_offline_acceptance_v1'||
+-     preview.hardware?.gpu!=='OFF'||preview.billable_calls!==0||
+-     preview.can_start_gpu!==false||preview.generated_video_files!==0)
++     preview.hardware?.gpu!=='OFF'||preview.hardware?.premium_model!=='NOT_STARTED'||
++     preview.billable_calls!==0||preview.generated_video_files!==0||
++     preview.approved!==false||preview.can_publish!==false||
++     preview.can_start_gpu!==false||
++     preview.feature4!=='MOCK_ONLY_CONSUMER_NOT_RATIFIED'||
++     preview.feature5!=='MOCK_ONLY_NO_PROVIDER_CALL'||
++     !['ESTIMATED_PENDING_REAL_SPEECH_ALIGNMENT',
++       'WORD_TIMES_MATCH_PENDING_AUDIO_PROVENANCE'].includes(preview.voice_sync)||
++     ![15,30,60].includes(preview.duration_seconds)||
++     !/^[a-f0-9]{64}$/.test(preview.original_editorial_sha256||'')||
++     !Array.isArray(shots)||shots.length!==count||
++     preview.source_storyboard_scenes!==count||
++     shots.some((shot,i)=>!shot||shot.start_seconds!==i*5||
++       shot.duration_seconds!==5||
++       shot.edit_status!=='PREVIEW_ONLY_NO_REAL_CLIP'||
++       shot.inference_status!=='SKIPPED_GPU_OFF'||
++       !/^[a-f0-9]{64}$/.test(shot.original_generation_prompt_sha256||'')||
++       typeof shot.shot_id!=='string'||!shot.shot_id||
++       typeof shot.source_media_id!=='string'||!shot.source_media_id))
+     error('Missing zero-cost offline acceptance proof');
+   return {
+     feature:'Feature2',
+
+diff --git a/ai-agents/creative-director/tests/test-diwali-offline-e2e.js b/ai-agents/creative-director/tests/test-diwali-offline-e2e.js
+--- a/ai-agents/creative-director/tests/test-diwali-offline-e2e.js
++++ b/ai-agents/creative-director/tests/test-diwali-offline-e2e.js
+@@ -46,6 +46,27 @@ for(const duration of [15,30,60]){
+   assert.equal(ready.feature2_production_ready,false);
+   assert.equal(ready.ready_to_activate_gpu,false);
+   assert.ok(ready.blocking_gates.length>=6);
++  // A source fixture must never be promoted into a genuine model/media,
++  // editorial approval or renderer success merely by changing its summary.
++  const forgedReadiness=[
++    ['human approval',p=>{p.approved=true;}],
++    ['publication',p=>{p.can_publish=true;}],
++    ['real editor',p=>{p.feature4='LIVE_RENDER_SUCCEEDED';}],
++    ['real motion',p=>{p.feature5='WAN_VIDEO_SUCCEEDED';}],
++    ['paid model',p=>{p.hardware.premium_model='STARTED';}],
++    ['real speech',p=>{p.voice_sync='REAL_AUDIO_VERIFIED';}],
++    ['missing shot',p=>{p.editor_timeline.pop();}],
++    ['forged shot status',p=>{p.editor_timeline[0].inference_status='SUCCEEDED';}],
++    ['forged rendered clip',p=>{p.editor_timeline[0].edit_status='RENDERED';}],
++    ['timeline gap',p=>{p.editor_timeline[1].start_seconds+=1;}],
++    ['missing original plan hash',p=>{p.original_editorial_sha256='0';}],
++    ['source scene mismatch',p=>{p.source_storyboard_scenes+=1;}]
++  ];
++  for(const [label,mutate] of forgedReadiness){
++    const forged=structuredClone(summary);
++    mutate(forged);
++    deny(()=>readinessFromOffline(forged),'offline readiness rejects '+label);
++  }
+   deny(()=>previewOffline(plan,{gpuEnabled:true}),'GPU opt-in never succeeds');
+   const altered=structuredClone(plan);
+   altered.motion_direction_v1[0].generation_prompt+=' secretly swap approved image';
+
+diff --git a/ai-agents/feature2_dependency_handoff_v1.json b/ai-agents/feature2_dependency_handoff_v1.json
+--- a/ai-agents/feature2_dependency_handoff_v1.json
++++ b/ai-agents/feature2_dependency_handoff_v1.json
+@@ -1,13 +1,13 @@
+ {
+   "schema": "retailgrowth.feature2-dependency-handoff.v1",
+-  "snapshot_date": "2026-10-29",
++  "snapshot_date": "2026-11-05",
+   "tracking_issue": 403,
+   "unified_draft_pr": 551,
+   "source_branch": "feat/feature2-unified-offline-source-20261028",
+   "fixed_total_tasks": 38,
+   "task_status_counts": {
+-    "COMPLETE_SOURCE_SCOPED": 6,
+-    "IN_PROGRESS": 20,
++    "COMPLETE_SOURCE_SCOPED": 9,
++    "IN_PROGRESS": 17,
+     "BLOCKED": 12
+   },
+   "scope": "Read-only coordinator dependency routing; no production authority, budget authorization or acceptance implied.",
+
+diff --git a/ai-agents/sql/feature2_private_audit_REVIEW_ONLY.sql b/ai-agents/sql/feature2_private_audit_REVIEW_ONLY.sql
+--- a/ai-agents/sql/feature2_private_audit_REVIEW_ONLY.sql
++++ b/ai-agents/sql/feature2_private_audit_REVIEW_ONLY.sql
+@@ -0,0 +1,145 @@
++-- RetailGrowthAI F2-08/F2-12 audited source schema proposal.
++-- REVIEW ONLY: do not run in DEV/PROD; do not create hosted test identities,
++-- disable RLS, approve reviewer identities, publish media or enable paid models.
++-- This is NOT a durable CAS implementation. An independently reviewed
++-- SERIALIZABLE/unique/immutable service writer and human-attestation signer
++-- must exist BEFORE accepting real review or workflow append evidence.
++-- Uses the existing OWNER/EDITOR tenant role function.
++--
++-- Intended downstream use:
++--  Feature2PrivateAuditStore -> Feature2PrivateAuditGateway ->
++--  existing ai_agents.feature2_creative_quality HMAC validators,
++--  subject to protected ZIP allowlist, secret and operator security review.
++
++create table public.feature2_private_trace_sources (
++  shop_id uuid not null references public.shops(id),
++  campaign_id uuid not null references public.campaigns(id),
++  workflow_id uuid not null,
++  source_sha256 text not null check (source_sha256 ~ '^[0-9a-f]{64}$'),
++  private boolean not null default true check (private is true),
++  can_publish boolean not null default false check (can_publish is false),
++  revoked_at timestamptz,
++  revision bigint not null default 0 check (revision >= 0),
++  primary key (shop_id,campaign_id,workflow_id)
++);
++create index feature2_private_trace_sources_campaign_idx on
++  public.feature2_private_trace_sources(shop_id,campaign_id);
++alter table public.feature2_private_trace_sources enable row level security;
++revoke all on public.feature2_private_trace_sources from public,anon,authenticated;
++grant select on public.feature2_private_trace_sources to authenticated;
++grant all on public.feature2_private_trace_sources to service_role;
++create policy feature2_private_trace_source_reader
++on public.feature2_private_trace_sources for select to authenticated
++using (revoked_at is null and
++  retail_private.has_role(shop_id,array['OWNER','EDITOR']::text[]));
++
++create table public.feature2_private_trace_events (
++  shop_id uuid not null,
++  campaign_id uuid not null,
++  workflow_id uuid not null,
++  sequence smallint not null check (sequence between 1 and 100),
++  event_id uuid not null unique,
++  event_json jsonb not null check (
++    jsonb_typeof(event_json)='object' and
++    event_json->>'schema'='retailgrowth.feature2-private-trace.v1' and
++    event_json->>'shop_id'=shop_id::text and
++    event_json->>'campaign_id'=campaign_id::text and
++    event_json->>'workflow_id'=workflow_id::text and
++    event_json->>'sequence'=sequence::text and
++    event_json->>'event_id'=event_id::text and
++    event_json->'can_publish'='false'::jsonb and
++    event_json->'customer_data_in_event'='false'::jsonb and
++    event_json->>'server_mac' ~ '^[0-9a-f]{64}$' and
++    event_json->>'event_sha256' ~ '^[0-9a-f]{64}$'
++  ),
++  primary key(shop_id,campaign_id,workflow_id,sequence),
++  foreign key(shop_id,campaign_id,workflow_id)
++  references public.feature2_private_trace_sources(
++    shop_id,campaign_id,workflow_id
++  )
++);
++create index feature2_private_trace_events_scope_idx on
++  public.feature2_private_trace_events(shop_id,campaign_id,workflow_id,sequence);
++alter table public.feature2_private_trace_events enable row level security;
++revoke all on public.feature2_private_trace_events from public,anon,authenticated;
++grant select on public.feature2_private_trace_events to authenticated;
++grant all on public.feature2_private_trace_events to service_role;
++create policy feature2_private_trace_event_reader
++on public.feature2_private_trace_events for select to authenticated
++using (retail_private.has_role(shop_id,array['OWNER','EDITOR']::text[])
++  and exists (select 1 from public.feature2_private_trace_sources s
++    where s.shop_id=feature2_private_trace_events.shop_id
++      and s.campaign_id=feature2_private_trace_events.campaign_id
++      and s.workflow_id=feature2_private_trace_events.workflow_id
++      and s.revoked_at is null));
++
++create table public.feature2_private_blind_scores (
++  shop_id uuid not null references public.shops(id),
++  campaign_id uuid not null references public.campaigns(id),
++  experiment_id text not null check (
++    length(experiment_id) between 10 and 120 and
++    experiment_id ~ '^[A-Za-z0-9_-]+$'
++  ),
++  revision smallint not null check (revision between 1 and 50),
++  review_record jsonb not null check (
++    jsonb_typeof(review_record)='object' and
++    review_record->>'shop_id'=shop_id::text and
++    review_record->>'campaign_id'=campaign_id::text and
++    review_record->>'experiment_id'=experiment_id and
++    review_record->>'revision'=revision::text and
++    review_record->>'review_status'='HUMAN_SCORE_ONLY' and
++    review_record->'private'='true'::jsonb and
++    review_record->'can_publish'='false'::jsonb
++  ),
++  primary key(shop_id,campaign_id,experiment_id,revision)
++);
++create index feature2_private_blind_scores_scope_idx on
++  public.feature2_private_blind_scores(shop_id,campaign_id,experiment_id,revision);
++alter table public.feature2_private_blind_scores enable row level security;
++revoke all on public.feature2_private_blind_scores from public,anon,authenticated;
++grant select on public.feature2_private_blind_scores to authenticated;
++grant all on public.feature2_private_blind_scores to service_role;
++create policy feature2_private_blind_score_reader
++on public.feature2_private_blind_scores for select to authenticated
++using (retail_private.has_role(shop_id,array['OWNER','EDITOR']::text[]));
++
++create table public.feature2_private_blind_attestations (
++  shop_id uuid not null,
++  campaign_id uuid not null,
++  experiment_id text not null,
++  revision smallint not null check (revision between 1 and 50),
++  receipt_digest text not null check (receipt_digest ~ '^[0-9a-f]{64}$'),
++  candidate_digests jsonb not null check (
++    jsonb_typeof(candidate_digests)='object' and
++    candidate_digests ? 'A' and candidate_digests ? 'B'
++  ),
++  review_record jsonb not null,
++  server_mac text not null check (server_mac ~ '^[0-9a-f]{64}$'),
++  revoked_at timestamptz,
++  primary key(shop_id,campaign_id,experiment_id,revision),
++  foreign key(shop_id,campaign_id,experiment_id,revision)
++  references public.feature2_private_blind_scores(
++    shop_id,campaign_id,experiment_id,revision
++  )
++);
++alter table public.feature2_private_blind_attestations enable row level security;
++revoke all on public.feature2_private_blind_attestations from public,anon,authenticated;
++grant select on public.feature2_private_blind_attestations to authenticated;
++grant all on public.feature2_private_blind_attestations to service_role;
++create policy feature2_private_blind_attestation_reader
++on public.feature2_private_blind_attestations for select to authenticated
++using (revoked_at is null and
++  retail_private.has_role(shop_id,array['OWNER','EDITOR']::text[]));
++
++-- Mandatory independently reviewed production follow-up:
++-- (1) Authoritative writer must verify actual signed human scores from
++--     separate reviewer identity, sign the COMPLETE frozen score record using
++--     a private operator-managed key, and commit score+attestation atomically.
++-- (2) Immutable trace append via SQL RPC transaction: one event ID, monotonic
++--     sequence, previous_sha256 CAS, HMAC and source revision fence.
++-- (3) Revoke/grant changes must atomically invalidate readback and audit keys;
++--     immutable rows must reject UPDATE/DELETE for all normal roles.
++-- (4) No user-facing route should return raw event_json, review_record,
++--     server_mac, signatures or internal reviewer IDs.
++-- (5) Secure signer's key rotation, RLS policy tests, migration review and
++--     fresh DEV signed two-shop negative verification required before deploy.
+
+diff --git a/ai-agents/sql/feature2_private_cpu_budget_REVIEW_ONLY.sql b/ai-agents/sql/feature2_private_cpu_budget_REVIEW_ONLY.sql
+--- a/ai-agents/sql/feature2_private_cpu_budget_REVIEW_ONLY.sql
++++ b/ai-agents/sql/feature2_private_cpu_budget_REVIEW_ONLY.sql
+@@ -0,0 +1,72 @@
++-- Feature2 F2-21 private CPU-only local voice budget PREP proposal.
++-- REVIEW ONLY. Do not apply to hosted DEV/PROD, start Kokoro, GPU or paid AI.
++-- Not an atomic budget/worker lease implementation by itself.
++-- Required: reviewed serializable CAS transaction plus immutable request UUID,
++-- claim/renew/settle fence, signed user membership, worker budget accounting.
++
++create table public.feature2_private_cpu_budgets (
++  shop_id uuid not null references public.shops(id),
++  campaign_id uuid not null references public.campaigns(id),
++  quota_policy jsonb not null check (
++    jsonb_typeof(quota_policy)='object' and
++    quota_policy->>'shop_id'=shop_id::text and
++    quota_policy->>'campaign_id'=campaign_id::text and
++    quota_policy->>'provider'='kokoro-onnx' and
++    quota_policy->'paid_api_calls_allowed'='false'::jsonb and
++    quota_policy->>'policy_state'='ACTIVE'
++  ),
++  revoked_at timestamptz,
++  primary key(shop_id,campaign_id)
++);
++alter table public.feature2_private_cpu_budgets enable row level security;
++revoke all on public.feature2_private_cpu_budgets
++  from public,anon,authenticated;
++grant select on public.feature2_private_cpu_budgets to authenticated;
++grant all on public.feature2_private_cpu_budgets to service_role;
++create policy feature2_private_cpu_editor_read
++on public.feature2_private_cpu_budgets for select to authenticated
++using (revoked_at is null and
++  retail_private.has_role(shop_id,array['OWNER','EDITOR']::text[]));
++
++create table public.feature2_private_cpu_reservations (
++  shop_id uuid not null,
++  campaign_id uuid not null,
++  job_key uuid not null,
++  request_sha256 text not null check(request_sha256 ~ '^[0-9a-f]{64}$'),
++  budget_revision bigint not null check(budget_revision >= 0),
++  reserved_cpu_ms integer not null check(
++    reserved_cpu_ms between 2000 and 180000),
++  lease_fence bigint not null check(lease_fence > 0),
++  lease_expires_ms bigint not null check(lease_expires_ms > 0),
++  period_id text not null check(period_id ~ '^\d{4}-(0[1-9]|1[0-2])$'),
++  status text not null check(
++    status in ('RESERVED','RUNNING','SETTLED','FAILED','DENIED','BLOCKED')),
++  paid_api_calls integer not null default 0 check(paid_api_calls=0),
++  can_publish boolean not null default false check(can_publish is false),
++  private boolean not null default true check(private is true),
++  primary key(shop_id,campaign_id,job_key),
++  foreign key(shop_id,campaign_id)
++  references public.feature2_private_cpu_budgets(shop_id,campaign_id)
++);
++create index feature2_cpu_reservations_active_scope on
++  public.feature2_private_cpu_reservations(shop_id,campaign_id,status);
++alter table public.feature2_private_cpu_reservations enable row level security;
++revoke all on public.feature2_private_cpu_reservations
++  from public,anon,authenticated;
++grant select on public.feature2_private_cpu_reservations to authenticated;
++grant all on public.feature2_private_cpu_reservations to service_role;
++create policy feature2_private_cpu_reservation_editor_read
++on public.feature2_private_cpu_reservations for select to authenticated
++using (retail_private.has_role(shop_id,array['OWNER','EDITOR']::text[]));
++
++-- Production work not included in this review-only proposal:
++-- 1. Reuse the reviewed durable Supabase lease/claim/outbox transaction
++--    implementation, or implement a proper SECURITY DEFINER RPC with
++--    verified auth.uid(), locked quota row, current plan/source SHA check,
++--    unique job UUID and exact request fingerprint under a single commit.
++-- 2. Atomically increment reserved CPU and active worker count, never merely
++--    trust caller's earlier policy SELECT; independently checked tenant rates.
++-- 3. Lease token must fence claim/renew/settle and original WAV write.
++-- 4. A 503/timeout must be reconciled with signed GET by original job UUID,
++--    NOT blindly re-reserved with a new UUID or auto-promoted to Azure.
++-- 5. No upload, private bucket, model weights, commercial or publishing grant.
+
+diff --git a/ai-agents/sql/feature2_private_prompt_review_REVIEW_ONLY.sql b/ai-agents/sql/feature2_private_prompt_review_REVIEW_ONLY.sql
+--- a/ai-agents/sql/feature2_private_prompt_review_REVIEW_ONLY.sql
++++ b/ai-agents/sql/feature2_private_prompt_review_REVIEW_ONLY.sql
+@@ -0,0 +1,98 @@
++-- RetailGrowthAI F2-03/F2-31 signed reviewed-prompt source proposal.
++-- REVIEW ONLY. DO NOT APPLY TO DEV OR PROD IN THIS CODE SPRINT.
++-- No real signed human decision, model inference, provider charges, automatic
++-- publishing, customer approval, or migration is created by this file.
++-- Review tenant constraints with security lead before any execution.
++
++create table public.feature2_private_prompt_drafts (
++  shop_id uuid not null references public.shops(id),
++  campaign_id uuid not null references public.campaigns(id),
++  revision integer not null default 0 check (revision between 0 and 99999),
++  brief text not null check (length(brief) between 1 and 1500),
++  review_status text not null default 'DRAFT' check (review_status='DRAFT'),
++  private boolean not null default true check (private is true),
++  can_publish boolean not null default false check (can_publish is false),
++  revoked_at timestamptz,
++  primary key(shop_id,campaign_id)
++);
++alter table public.feature2_private_prompt_drafts enable row level security;
++revoke all on public.feature2_private_prompt_drafts from public,anon,authenticated;
++grant select on public.feature2_private_prompt_drafts to authenticated;
++grant all on public.feature2_private_prompt_drafts to service_role;
++create policy feature2_private_prompt_draft_editor_read
++on public.feature2_private_prompt_drafts for select to authenticated
++using (revoked_at is null and
++       retail_private.has_role(shop_id,array['OWNER','EDITOR']::text[]));
++
++create table public.feature2_private_prompt_proposals (
++  shop_id uuid not null,
++  campaign_id uuid not null,
++  proposal_id uuid not null,
++  creative_plan_sha256 text not null check (
++    creative_plan_sha256 ~ '^[0-9a-f]{64}$'),
++  source_revision integer not null check (source_revision between 0 and 99999),
++  original_prompt text not null check(length(original_prompt) between 1 and 1500),
++  improved_prompt text not null check(length(improved_prompt) between 1 and 1500),
++  original_prompt_sha256 text not null check(
++    original_prompt_sha256 ~ '^[0-9a-f]{64}$'),
++  improved_prompt_sha256 text not null check(
++    improved_prompt_sha256 ~ '^[0-9a-f]{64}$'),
++  review_status text not null default 'NEEDS_REVIEW'
++    check (review_status='NEEDS_REVIEW'),
++  private boolean not null default true check(private is true),
++  can_publish boolean not null default false check(can_publish is false),
++  revoked_at timestamptz,
++  primary key(shop_id,campaign_id,proposal_id),
++  foreign key(shop_id,campaign_id)
++    references public.feature2_private_prompt_drafts(shop_id,campaign_id)
++);
++create index feature2_private_prompt_proposals_scope_idx on
++  public.feature2_private_prompt_proposals(shop_id,campaign_id,source_revision);
++alter table public.feature2_private_prompt_proposals enable row level security;
++revoke all on public.feature2_private_prompt_proposals from public,anon,authenticated;
++grant select on public.feature2_private_prompt_proposals to authenticated;
++grant all on public.feature2_private_prompt_proposals to service_role;
++create policy feature2_private_prompt_proposal_editor_read
++on public.feature2_private_prompt_proposals for select to authenticated
++using (revoked_at is null and
++       retail_private.has_role(shop_id,array['OWNER','EDITOR']::text[]));
++
++create table public.feature2_private_editor_decisions (
++  shop_id uuid not null,
++  campaign_id uuid not null,
++  proposal_id uuid not null,
++  review_event_id uuid not null,
++  reviewer_user_id uuid not null,
++  source_revision integer not null check(source_revision between 0 and 99999),
++  original_prompt_sha256 text not null check(
++    original_prompt_sha256 ~ '^[0-9a-f]{64}$'),
++  improved_prompt_sha256 text not null check(
++    improved_prompt_sha256 ~ '^[0-9a-f]{64}$'),
++  decision_state text not null check(
++    decision_state='SIGNED_EDITOR_DRAFT_ONLY'),
++  server_mac text not null check(server_mac ~ '^[0-9a-f]{64}$'),
++  revoked_at timestamptz,
++  primary key(shop_id,campaign_id,proposal_id,review_event_id),
++  foreign key(shop_id,campaign_id,proposal_id)
++    references public.feature2_private_prompt_proposals(
++      shop_id,campaign_id,proposal_id
++    )
++);
++alter table public.feature2_private_editor_decisions enable row level security;
++revoke all on public.feature2_private_editor_decisions from public,anon,authenticated;
++grant select on public.feature2_private_editor_decisions to authenticated;
++grant all on public.feature2_private_editor_decisions to service_role;
++create policy feature2_private_editor_decision_read
++on public.feature2_private_editor_decisions for select to authenticated
++using (revoked_at is null and auth.uid()=reviewer_user_id and
++       retail_private.has_role(shop_id,array['OWNER','EDITOR']::text[]));
++
++-- Independently reviewed atomic backend RPC still REQUIRED, and deliberately
++-- NOT included in this proposed schema:
++-- 1. Verify current JWT reviewer identity and exact immutable source hashes.
++-- 2. Verify the separately signed real reviewer decision BEFORE transaction.
++-- 3. Atomically CAS source_revision->revision+1 with source shop/campaign,
++--    grant/current plan, and exactly-one request UUID idempotency.
++-- 4. Fence role revocation and no-publishing/no-billing DRAFT attributes.
++-- 5. On uncertain ACK do NOT reissue POST; use a signed GET by request UUID.
++-- 6. No browser-supplied raw rights, reviewer approval, path or trusted keys.
+
+diff --git a/ai-agents/sql/feature2_private_voice_REVIEW_ONLY.sql b/ai-agents/sql/feature2_private_voice_REVIEW_ONLY.sql
+--- a/ai-agents/sql/feature2_private_voice_REVIEW_ONLY.sql
++++ b/ai-agents/sql/feature2_private_voice_REVIEW_ONLY.sql
+@@ -0,0 +1,117 @@
++-- RetailGrowthAI Feature #2 / F2-19+F2-20 proposed PRIVATE source tables.
++-- CODE REVIEW PROPOSAL ONLY. DO NOT APPLY IN DEV OR PROD IN THIS SPRINT.
++-- Needs independent tenant/security/finance reviewer; requires existing
++-- public shops/campaigns, retail_private.has_role and an operator-provisioned
++-- PRIVATE Supabase Storage bucket named feature2-private-voice.
++-- User JWT has SELECT only; all INSERT/UPDATE/DELETE and outbox/leases must
++-- be performed by independently reviewed, atomic, service-side transactions.
++-- Source, job and audio records are NOT publish/rights/model approvals.
++
++create table public.feature2_private_voice_plans (
++    shop_id uuid not null references public.shops(id),
++    campaign_id uuid not null references public.campaigns(id),
++    source_plan jsonb not null,
++    private boolean not null default true check (private is true),
++    revoked_at timestamptz,
++    revision bigint not null default 0 check (revision >= 0),
++    primary key (shop_id,campaign_id),
++    constraint feature2_voice_source_contract check (
++        jsonb_typeof(source_plan) = 'object'
++        and jsonb_typeof(source_plan->'creative_direction_v1') = 'object'
++        and jsonb_typeof(source_plan->'approval_record') = 'object'
++        and source_plan->'creative_direction_v1'->>'shop_id' = shop_id::text
++        and source_plan->'creative_direction_v1'->>'campaign_id' = campaign_id::text
++        and source_plan->'approval_record'->'can_publish' = 'false'::jsonb
++    )
++);
++create index feature2_private_voice_plans_campaign_shop_idx
++    on public.feature2_private_voice_plans(campaign_id,shop_id);
++alter table public.feature2_private_voice_plans enable row level security;
++revoke all on public.feature2_private_voice_plans
++    from public, anon, authenticated;
++grant select on public.feature2_private_voice_plans to authenticated;
++grant all on public.feature2_private_voice_plans to service_role;
++create policy feature2_voice_plan_editor_read on public.feature2_private_voice_plans
++    for select to authenticated using (
++        revoked_at is null and
++        retail_private.has_role(shop_id,array['OWNER','EDITOR']::text[])
++    );
++
++create table public.feature2_private_voice_jobs (
++    shop_id uuid not null references public.shops(id),
++    campaign_id uuid not null references public.campaigns(id),
++    request_key uuid not null,
++    job_receipt jsonb not null,
++    revoked_at timestamptz,
++    primary key (shop_id,campaign_id,request_key),
++    constraint feature2_voice_job_contract check (
++        jsonb_typeof(job_receipt) = 'object'
++        and job_receipt->>'shop_id'=shop_id::text
++        and job_receipt->>'campaign_id'=campaign_id::text
++        and job_receipt->>'request_key'=request_key::text
++        and job_receipt->>'provider'='kokoro-onnx'
++        and job_receipt->'private'='true'::jsonb
++        and job_receipt->'can_publish'='false'::jsonb
++        and job_receipt->'paid_api_calls'='0'::jsonb
++    )
++);
++create index feature2_private_voice_jobs_campaign_idx
++    on public.feature2_private_voice_jobs(shop_id,campaign_id);
++alter table public.feature2_private_voice_jobs enable row level security;
++revoke all on public.feature2_private_voice_jobs
++    from public, anon, authenticated;
++grant select on public.feature2_private_voice_jobs to authenticated;
++grant all on public.feature2_private_voice_jobs to service_role;
++create policy feature2_voice_job_editor_read on public.feature2_private_voice_jobs
++    for select to authenticated using (
++        revoked_at is null and
++        retail_private.has_role(shop_id,array['OWNER','EDITOR']::text[])
++    );
++
++create table public.feature2_private_voice_assets (
++    shop_id uuid not null references public.shops(id),
++    campaign_id uuid not null references public.campaigns(id),
++    audio_asset_id uuid not null,
++    -- Exact shape checked by source reader:
++    -- {shop_uuid}/{campaign_uuid}/{audio_asset_uuid}.wav
++    object_path text not null,
++    asset_receipt jsonb not null,
++    revoked_at timestamptz,
++    primary key (shop_id,campaign_id,audio_asset_id),
++    unique (object_path),
++    constraint feature2_voice_asset_path check (
++        object_path = shop_id::text||'/'||campaign_id::text||'/'||
++            audio_asset_id::text||'.wav'
++    ),
++    constraint feature2_voice_asset_contract check (
++        jsonb_typeof(asset_receipt) = 'object'
++        and asset_receipt->>'shop_id'=shop_id::text
++        and asset_receipt->>'campaign_id'=campaign_id::text
++        and asset_receipt->>'audio_asset_id'=audio_asset_id::text
++        and asset_receipt->>'mime_type'='audio/wav'
++        and asset_receipt->'private'='true'::jsonb
++        and asset_receipt->'can_publish'='false'::jsonb
++    )
++);
++create index feature2_private_voice_assets_campaign_idx
++    on public.feature2_private_voice_assets(shop_id,campaign_id);
++alter table public.feature2_private_voice_assets enable row level security;
++revoke all on public.feature2_private_voice_assets
++    from public, anon, authenticated;
++grant select on public.feature2_private_voice_assets to authenticated;
++grant all on public.feature2_private_voice_assets to service_role;
++create policy feature2_voice_asset_editor_read on public.feature2_private_voice_assets
++    for select to authenticated using (
++        revoked_at is null and
++        retail_private.has_role(shop_id,array['OWNER','EDITOR']::text[])
++    );
++
++-- Review requirements before executing:
++-- 1. A DB transaction must atomically reserve budget and job uniqueness,
++--    source revision and lease fencing. The above tables do NOT implement it.
++-- 2. A trusted server writer registers exact WAV SHA, duration and private
++--    object path only after the underlying object upload succeeds.
++-- 3. A genuine signed role is required; no seed customer/OWNER identities.
++-- 4. Provision bucket separately with private=true, no public policies;
++--    access must be authorized by owner/editor + exact shop/campaign/asset.
++-- 5. No provider fallback, auto-publish, GPU, Azure deployment or paid model.
+
+diff --git a/ai-agents/src/ai_agents/feature2_azure_speech.py b/ai-agents/src/ai_agents/feature2_azure_speech.py
+--- a/ai-agents/src/ai_agents/feature2_azure_speech.py
++++ b/ai-agents/src/ai_agents/feature2_azure_speech.py
+@@ -14,6 +14,7 @@
+ import io
+ import os
+ import re
++import unicodedata
+ import uuid
+ import wave
+ from urllib.request import Request, build_opener, HTTPRedirectHandler
+@@ -57,7 +58,13 @@ def catalog():
+ def _text(value, label, limit):
+     if not isinstance(value, str) or not value.strip() or len(value) > limit:
+         raise SpeechRejected("Invalid " + label)
+-    if any(ord(c) < 32 and c not in "\n\t" for c in value):
++    # Fail before a cost reservation on hidden script controls, malformed
++    # surrogate code points or bidi/paragraph formatting. Ordinary Indic
++    # vowel marks remain accepted (Mn/Mc) for Hindi/Marathi narration.
++    if any((ord(c) < 32 and c not in "\n\t") or
++           0x7f <= ord(c) <= 0x9f or
++           unicodedata.category(c) in {"Cf", "Cs", "Zl", "Zp"}
++           for c in value):
+         raise SpeechRejected("Unsafe " + label)
+     return value.strip()
+ 
+@@ -178,6 +185,12 @@ def synthesize(self, *, plan: dict, request: VoiceRequest) -> dict:
+             raise SpeechRejected("Trusted voice request required")
+         creative, review, script = _plan(plan, shop_id=request.shop_id,
+                                           campaign_id=request.campaign_id)
++        # JSON-derived dataclass fields are not runtime type-checked.
++        # Deny malformed selectors before dictionary lookups or billing.
++        if (type(request.voice_id) is not str or
++            type(request.language) is not str or
++            type(request.speed) is not str):
++            raise SpeechRejected("Voice selection or explicit approval invalid")
+         selected = _VOICES.get(request.voice_id)
+         if (not selected or request.language != selected[1] or
+             request.speed not in _RATES or type(request.preview) is not bool or
+@@ -310,7 +323,7 @@ def published_voices_in_region(*, region, api_key, shop_id, actor_may_read_shop,
+             if curated is not None:
+                 if (ident in found or row.get("Locale") != curated["locale"] or
+                     row.get("Gender") != curated["gender"] or
+-                    row.get("VoiceType") not in ("Neural", "Standard", "NeuralHD")):
++                    row.get("VoiceType") != "Neural"):
+                     raise VoiceCatalogUnavailable("Provider voice identity differs")
+                 found[ident] = row
+         if actor_may_read_shop(shop_id) is not True:
+@@ -375,14 +388,29 @@ def uid(s):
+             raise VoiceCatalogUnavailable(
+                 "Indian language needs opted-in verified paid-region voice")
+         checked=read_verified_region_voices(shop_id,campaign_id)
++        # The source must be the exact sanitized server-generated regional
++        # snapshot, never an unchecked UI list with a forged availability flag.
++        # The trusted reader must additionally bind its shop, credential and
++        # current resource region to the signed backend session.
+         if (type(checked) is not dict or
+             checked.get("schema")!="retailgrowth.feature2-speech-voices.v1" or
++            type(checked.get("region")) is not str or
++            not _REGION.fullmatch(checked["region"]) or
+             checked.get("resource_catalog_queried") is not True or
++            checked.get("tts_call_made") is not False or
++            checked.get("published") is not False or
++            type(checked.get("configured_voice_candidates")) is not int or
++            checked["configured_voice_candidates"]!=len(VOICES) or
+             type(checked.get("available_voices")) is not list or
+-            not any(type(row) is dict and row.get("id")==voice_id and
+-                    row.get("locale")==locale and
+-                    row.get("region_verified") is True
+-                    for row in checked["available_voices"])):
++            not 1<=len(checked["available_voices"])<=len(VOICES)):
++            raise VoiceCatalogUnavailable("Trusted regional voice catalog required")
++        expected_by_id={v["id"]:{**v,"region_verified":True} for v in catalog()}
++        returned=checked["available_voices"]
++        if (any(type(row) is not dict or
++                type(row.get("id")) is not str or
++                expected_by_id.get(row["id"])!=row for row in returned) or
++            len({row["id"] for row in returned})!=len(returned) or
++            not any(row["id"]==voice_id for row in returned)):
+             raise VoiceCatalogUnavailable("Voice not validated in configured region")
+         output={"provider":"azure-speech-opt-in","voice_id":voice_id,
+                 "locale":locale,"region_verified":True,
+

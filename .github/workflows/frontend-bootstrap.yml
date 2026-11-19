@@ -119,7 +119,10 @@ jobs:
     name: FFmpeg codecs + renderer tests
     # Pin a verified media toolchain runner; ubuntu-latest upgraded FFmpeg mid-branch.
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # Full offline HyperFrames CI executes multiple real synthetic 15/30s
+    # CPU encodes after 700+ media unit tests; prior 15m budget truncated
+    # verified runs. Preserve ALL tests and extend only this CPU job cap.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
         with:
