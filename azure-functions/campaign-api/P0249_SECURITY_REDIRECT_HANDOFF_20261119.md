@@ -11,3 +11,13 @@ Existing newer current-main RPC allowlists, tenant membership, method restrictio
 Run `python -m unittest tests.infra.test_p0249_admin_store_redirects tests.infra.test_p0249_tenant_store_redirects` and mandatory exact-head 4/4 CI. Global auth/privileged service transport requires **independent affected lead/security review** before merge; no self-approval based only on green CI. This source fix does NOT resolve original markerless Flex HTTP 503 or certify DEV live RLS, p95/p99, old or new Y1 production endpoints.
 
 GPU/OPEX paid model OFF; Azure/DEV/PROD resources and WineShopPOS untouched.
+
+## Same-current-main batch: isolated JWKS outage classification
+
+Source-only extension from original #965 to the existing already-cached project verifier: `security.py` distinguishes `PyJWKClientConnectionError` (sanitized `SigningKeysUnavailable`) from `jwt.PyJWTError` invalid signature/kid (401); the original `HTTPAPI` and Feature2 trend/draft reader map the temporary outage to fixed sanitized 503 bodies. Every JWT is still signature/issuer/audience/role/expiry checked; this is NEVER an unsigned fallback or provider retry. Existing `function_app.py` uses `cached_supabase_verifier` on current main and is **not replaced** by older root code.
+
+Restored exact original negative regression files:
+- `tests/infra/test_p0249_jwks_outage_classification.py` old SHA `5ad89e93b7476a34a0ae28360d3d944c4919757a`.
+- `tests/infra/test_p0249_feature2_cached_verifier.py` old SHA `b1ead1811989cff4e963671dba4a4a688f875a8f`.
+
+Prior PR CI #44460641511 **4/4** predates this extension; it MUST NOT be counted for the new head. Run focused Python suites and all four required exact new-head CI jobs, then obtain independent JWT/RLS service-role security review before any source merge and new exact-main CI. This source-only change does not fix original Flex 503, deploy cloud routes, activate Y1, or establish hosted customer proof.
