@@ -47,9 +47,12 @@ def request(url, method="GET", data=None, headers=None, expected=(200,), timeout
             headers_out = response.headers
             body_raw = response.read(32768)
     except urllib.error.HTTPError as response:
-        status = response.code
-        headers_out = response.headers
-        body_raw = response.read(32768)
+        try:
+            status = response.code
+            headers_out = response.headers
+            body_raw = response.read(32768)
+        finally:
+            response.close()
     elapsed = time.monotonic() - started
     if status not in expected:
         # No token, private payload, service key or response body in errors.
