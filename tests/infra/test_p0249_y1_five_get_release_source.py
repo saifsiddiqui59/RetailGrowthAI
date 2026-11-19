@@ -227,6 +227,17 @@ class Y1FiveRouteReleaseSourceTests(unittest.TestCase):
             self.assertIn("P0249_Y1_FRESH_INDEX_AND_DENIAL=PASS", proc.stdout)
             self.assertIn("SDK_MODE=" + ("real" if azure_present else "stub"), proc.stdout)
 
+    def test_sparse_multigigabyte_source_refused_before_zip_staging(self):
+        # A sparse fixture does not allocate or transfer three gigabytes;
+        # the size must be checked before reading any source into memory.
+        source = self.repo / "azure-functions/campaign-api/security.py"
+        with source.open("wb") as stream:
+            stream.truncate(3 * 1024 * 1024 * 1024)
+        target = self.root / "reject-sparse-source"
+        with self.assertRaisesRegex(ValueError, "size outside approved limit"):
+            stage_release(self.repo, target, "five")
+        self.assertFalse(target.exists())
+
     def test_no_http_write_or_worker_route_in_either_mode(self):
         for mode in MODES:
             stage = self.stage(mode)
