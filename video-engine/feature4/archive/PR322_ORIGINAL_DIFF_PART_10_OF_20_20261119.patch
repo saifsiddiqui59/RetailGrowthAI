@@ -1,0 +1,367 @@
+diff --git a/video-engine/FEATURE4_OFFLINE_ACCEPTANCE_MATRIX.md b/video-engine/FEATURE4_OFFLINE_ACCEPTANCE_MATRIX.md
+--- a/video-engine/FEATURE4_OFFLINE_ACCEPTANCE_MATRIX.md
++++ b/video-engine/FEATURE4_OFFLINE_ACCEPTANCE_MATRIX.md
+@@ -0,0 +1,104 @@
++# Feature #4 — Offline work versus actual release gates (2026-10-28)
++
++**PR #322 draft**, branch `feat/feature4-professional-video-studio`. No main merge, GPU billing, cloud/PROD deploy, or WineShopPOS writes. The user authorized realistic **mock** Feature2/3/5/7 inputs without waiting for sibling implementation. These do not become real tenant-approved media solely by appearing in tests.
++
++| Proof | Current status / evidence | Must happen before commercial launch |
++|---|---|---|
++| Reuse actual upstream `MartinDelophy/ai-video-editor` | Imported MIT source modules, attribution; original upstream pinned CI #40501035304 pass; partial editor integration | Full timeline + preview UI/effects parity; upstream whole app not launched in network-restricted development |
++| Scene editing/trim/split/undo/redo, snapping/ruler/zoom | Browser and pure editor tests run in 4-job GitHub CI | Human production usability, keyboard/a11y and real complex timelines |
++| JS editor command → trusted Python renderer plan | `test_feature4_editor_to_render_contract.py`: exact approved caption/offer/CTA, F3/F5 mock source and private manifest | Real source durations/frames and final rendered edit-by-edit comparison |
++| Licensed source audio/music/SFX | Existing engine renders authentic synthetic source sound, music duck and short SFX | Music rights and measured actual voice/audio clarity |
++| Optional full-Reel narration | New fail-closed private audio, length check and deterministic HyperFrames track; **code-head 4/4 CI #40689046813/#40689055698 PASSED** | Real spoken VO, intelligibility and word-accurate caption sync, full output audio QA |
++| Final H.264/AAC 1080×1920/30s MP4 | Actual full 30s synthetic CPU render and ffprobe from earlier source CI #40684322439 (4/4), code-head 30s/1080p synthetic MP4 #40689046813 PASSED; voice-in-final MP4 separately unverified | Exact current-head codec and real garment footage signoff, production runtime SLA |
++| Cross-shop/revocation/approval/idempotency | Negative tests for F2 intent, F3/F5 media grants, F7 edits, once-only outbox callbacks; v2 transport default OFF | Real JWT/RLS DB transaction, claim/lease/quota and hosted tenant-negative acceptance |
++| Cinematic moving human in matching kurti | **NOT DEMONSTRATED**; existing 30s demo is synthetic/illustrated | Real F3 approved reference, actual F5 Wan clip and human garment/fabric/anatomy/flicker approval |
++| Reproducible legal runtime | SHA256-guarded temporary npm lock / pinned upstream notice | Git-tracked lockfile, full libvips/Chromium/FFmpeg/commercial notices, Azure Node/CPU benchmark |
++| Production publish | **NOT READY**; PR draft and Azure issue #249 unresolved | Coordinator integration, reliable hosted gateway, authenticated E2E and release approvals |
++
++**Owner-ready definition:** Offline engineering can be called independently verified only after the latest exact-head 4/4 CI + browser/full-HD audio/video/tenant gates pass. The end-to-end retailer SaaS experience cannot be called complete without the right column's real source, infrastructure, and reviewer acceptance. Do not mark any outstanding part complete on simulated evidence.
++
++## Latest measured CI proof
++- Code SHA: `b6b926d26125df5a531dc688fe62849eefda4239`
++- [Push Actions #40689046813](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40689046813): 4/4 SUCCESS, 50 browser tests, 138 media tests, actual 30s/1080×1920/24fps H.264/AAC synthetic MP4 (5,449,687 B).
++- [PR Actions #40689055698](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40689055698): independent exact code SHA 4/4 SUCCESS.
++- Reviewed renderer keeps `commercial_fashion_realism_accepted=False`; the 30-second encoded output remains a synthetic illustrated fixture, not approved cloth/fashion footage. New narration test proves trusted composition XML/HTML and waveform-duration gates but not final spoken-audio QA. Azure issue #249 unresolved.
++
++## F4-20 — Actual encoded narration-track AAC parity test, 2026-10-28
++- **Implemented and verified on code SHA `9fa5b7d41083aafaa3848c5d7586ee51a2e24304`**: `demo_feature4_diwali.py --with-narration` adds an original, explicitly non-spoken 863 Hz test-only voice recording to the same 30s synthetic, authorized Feature4 private media pipeline. `hyperframes/ci-smoke.sh` enables it in the **existing** 30s/1080p HyperFrames output, not an extra paid renderer or provider call.
++- `hyperframes/check_feature4_output.py` Fourier-analyzes actual final MP4→AAC→PCM audio at 13s and 27s, failing when the voice signal disappears. Real [push CI #40690471199](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40690471199) **4/4 PASS**: 138 Python media tests, actual MP4 **30.000s, 1080×1920, 24fps, H264+AAC, 5,450,263 bytes**; decoded synthetic narrator amplitudes **1,898.71 / 1,898.83**. The standard non-narration 540p render independently preserves 480Hz source video sound and background music ducking. [PR CI #40690478611](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40690478611) is a separately observed check.
++- **Not accepted as authentic spoken narration**: no real TTS or human speech, word timings, spoken comprehension, exact text audio matching, reviewer approval or photoreal retailer garments. `spoken_word_qa_accepted=False`, `commercial_fashion_realism_accepted=False`. This is proof only that approved separate narration **can survive existing HyperFrames export**.
++
++## 2026-10-28 — F4-21/F4-22/F4-23: mock-first security, source preview and F2 edit preservation
++- **F4-21 P0 code completed, final exact-head CI pending:** `compatibleMedia` and `makeVideoDraft` now enforce the *selected* shop before placing source assets in the editor. `validateVideoDraft` rejects foreign/revoked product image or poster, music/audio of the wrong kind/shop, invalid video source in-points/mute flags and advertised source-duration overruns; it also rejects a clearly too-short full-Reel narration when trusted source duration is supplied. Server-side `compile_approved_storyboard` / `_bundle` / `professional.validate` remain the final independent authority and actual ffprobe source-length gate.
++- **F4-22 P0 source-level preview fidelity:** The authenticated source-footage preview seeks to the selected `trim_start` and stops at `trim_start + scene.duration`. Re-selecting/splitting the clip resets the excerpt; it remains *muted, clearly labeled source footage*, not a fake final color/transition/overlay render. Invalid cross-shop or expired private URLs still cannot be used as source HTML. Added pure source-window tests for valid, negative and overrun offsets.
++- **F4-22 P1 keyboard access:** React editor supports Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z on the focused timeline while explicitly respecting native text-input undo, F2 approved read-only, and undo/redo history. Added Playwright mobile keyboard acceptance.
++- **F4-23 P0 approved direction preservation:** `inspectCreativeDirection` now carries optional F2-reviewed `poster_overlay_asset_id`, `trim_start`, and `mute_source` into the existing v2 editor plan; requires same-shop approved F3 poster and valid actual F5/retailer video source, rejects illegal types/negative starts/source-bound overruns, and never rewrites copy/offer/CTA or the original approved package. Motion generation prompts remain stored in the trusted F2 package rather than reparsed by the browser.
++- All acceptance tests use explicitly authorized synthetic fixtures only, not user media or actual Wan human motion. **Do not mark P0 fully accepted until the new source-head 4/4 push/PR CI passes.**
++
++## 2026-10-28 — F4-24: split clip SFX preservation, source-only pending exact CI
++An approved sound effect belongs to one source scene and is rendered as a max-2-second sound at that scene's start. The adapted Timeline Studio clip split used to copy `sfx_asset_id` to both children, duplicating the original sound; splitting within its active two seconds also changed the actual audible duration. **Fixed** `studioSplit` to refuse a boundary within that approved 2-second window and retain the sound only on the first new clip. Unit tests cover one SFX, split at 3 seconds, invalid split at 1 second, source identity and original draft immutability. Expanded `test_feature4_editor_to_render_contract.py` checks the same sole SFX persists through upstream JS split/reorder, authoritative Python approval compiler and HyperFrames plan. This remains an explicitly synthetic, source-only acceptance; no customer audio, new service or GPU. Exact new commit CI required before the F4-24 signoff.
++
++## 2026-10-28 — Verified F4-21 to F4-24 source/CI acceptance (not product release)
++Exact **code** SHA `9fdd205c72820b6affe5591db47c8aca07a64162` passed both [GitHub branch CI #40702356085](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40702356085) and independent [PR CI #40702364957](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40702364957), **4/4 SUCCESS on each**. The branch job logs recorded **54 Playwright browser tests passed**, **138 media tests passed**, plus a real synthetic **30.000s 1080×1920 24fps H.264/AAC MP4 (5,450,263 bytes)**. Existing source tone/music-duck and 863Hz test-narration signals survived AAC decoding. The revised Node Timeline Studio clip-split/SFX contract tests passed in the media suite.
++
++**Implementation verified offline:** shop-scoped image/poster/video/music/narration selection and trim/source-duration checks; signed private source clip preview time window; desktop/mobile timeline Undo/Redo; preservation of approved Feature2 poster overlays and original-video trim/mute fields; fail-closed SFX splitting without replay; Node client edit→trusted Python approved compiler→existing HyperFrames plan; allowed transitions and truthful unsupported effect disclosure.
++
++**Never infer:** real spoken-word/word-timed subtitle acceptance, retailer fashion photorealism, generated Wan F5 movement, actual F3 product identity, commercial music/license signoff, whole upstream project's every editor control, Azure worker memory/cost/runtime, hosted JWT/RLS/lease/quota end-to-end or production release. The release flag remains OFF. Full-size 60s source had earlier opt-in evidence but no same-head commercial human proof. The reviewed SHA-guarded npm dependency lock remains temporary, not committed. Coordinator owns shared `docs/**` reconciliation and main merge; no WineShopPOS/PROD/cloud mutation occurred.
++
++## 2026-10-28 — F4-12 dependency-lock reproducibility closure candidate
++**Commit candidate, pending exact code-head CI:** Recovered the **actual** SHA-reviewed `feature4-review-package-lock.json` from existing GitHub CI artifact (69,904 bytes, npm v3, 138 entries, exact SHA-256 `2b4016fde9514ac2771660a3a1e81389ee3b1237c72db6acfa1fc540494948a6`). Added it unmodified as Git-tracked `video-engine/hyperframes/package-lock.json`, removed `npm install --package-lock-only` from smoke CI, and retained the pre-`npm ci` SHA256 + registry + SRI + package-license metadata audit. New media unit test reads the source-tracked file, verifies SHA, 138 packages, and asserts `legal_signoff_for_commercial_saas=false`. Build/install after this commit must actually pass the latest Actions matrix before this task is marked verified. **This is not proof of complete transitive commercial notices, packaging licenses, Azure fit or real-video visual acceptance**.
++
++## 2026-10-28 — F4-25 ACTUAL EDITOR→ENCODED VIDEO VERIFIED (offline, original fixtures)
++- Source head `2dc971bbe97b7258e7175b0e835bfbf99a97b74b` verified [push CI #40725721193](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40725721193) and independent [PR CI #40725731267](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40725731267), **4/4 SUCCESS each**. Branch recorded **54 Playwright** and **139 media** tests; PR media run recorded 307 tests due to independently changing other test suites. Both passed their actual audio/video/codec and tenant isolation jobs; no bypass, paid inference, Azure deployment or public endpoints.
++- New `video-engine/demo_feature4_edited_reel.py` invokes the **actual borrowed JS Timeline Studio** operations (split original video at +4sec, reorder four resulting scenes) via `tests/media/test_feature4_editor_to_render_contract.py`. Its output is accepted by `compile_approved_storyboard`, `creative_reel_v1`/private-manifest rights checks and the **same existing HyperFrames compositor**. Mock F3 kurti image/poster and F5 moving human are generated with deterministic original illustrated fixture media and a **clearly disclosed repeated 8→10sec** synthetic walking clip. It preserves two source-video in-points (0/4 seconds), exactly one approved 2-second scene SFX, source authorization, CTA and `20% OFF`, and fails closed if HyperFrames HTML loses these attributes.
++- `ci-smoke.sh` now **actually encodes a second 30-second MP4** based on that edited timeline (540×960, 24fps, H.264/AAC, 2,382,922 bytes); ffprobe and 2/15/26s visual frames are archived. Separate existing source benchmark still exports genuine Full-HD synthetic 30s 1080×1920/24fps H.264/AAC MP4 (5,450,263 bytes) and proves 863Hz narrator test tone survives AAC at 13s/27s. The previous handoff was only source/plan parity; this demonstrates **real edited-frame/video export** for the supported subset without a second renderer.
++- **Manual visual QA:** frames demonstrate changing illustrated garment/motion/poster scenes and an exact `20% OFF` plus approved store CTA. Not photoreal (faceless vector-style garment fixture) and not human approval. `commercial_fashion_realism_accepted=False`, `real_ai_motion=False`, `spoken_word_qa_accepted=False` remain explicit. No rights/voice/garment fidelity claim can be inferred from synthetic assets.
++- **F4-12 reproducibility confirmed**: the *actual Git-tracked* 69,904-byte HyperFrames npm v3 lock hash `2b4016fde9514ac2771660a3a1e81389ee3b1237c72db6acfa1fc540494948a6` passed before direct `npm ci` in both latest exact-head runs (no install-time lock generation). Full library/Chromium/FFmpeg/libvips redistribution-license signoff, Azure Node/Chromium RAM/cold-start and commercial asset licenses still unresolved.
++- **Clear scope boundary:** This validates F4-25 mock **edit→approved source staging→30s MP4 export** for currently supported commands. It does not establish full upstream `Timeline.jsx`/advanced PreviewStage, word-level captions and intelligible spoken narration, genuinely approved Feature3 garment + Feature5 AI motion, Azure HTTP #249 reliability, coordinator JWT/RLS/claim/usage/outbox integration or authenticated hosted retailer E2E. Keep PR #322 DRAFT and main untouched; coordinator owns shared docs.
++
++## 2026-10-28 — F4-26/27 exact-code-head verified, offline readiness (NO production release)
++- At source commit `bc1a63412b3871e0c7db4c7a43bebdf2aadebe3a`, [GitHub PR CI #40728552814](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40728552814) PASSED **all 4 jobs**: Python, isolated Supabase, Frontend/**97 Playwright tests**, FFmpeg/**307 media tests**. The original 30s Full-HD synthetic Reel passed H.264/AAC verification (1080×1920, 24fps, 5,449,447 bytes) and the **actually edited** 30s 540×960 synthetic Reel passed H.264/AAC verification (2,392,330 bytes). The lockfile was Git-tracked and exact SHA-256 checked before direct `npm ci`. The branch-push equivalent [#40728539257](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40728539257) must be independently observed before claiming a second green run.
++- **F4-26 visual compositor bug CLOSED for video-led openings**: previously a 44%-width root `hero-logo` covered the actor face in the actual editor-driven first scene. `professional.py` now shows that giant logo ONLY for text/brand-only intros while retaining a small corner logo on all compositions. The actual edited mock project fails compilation if the big logo appears over a video-led scene or the small brand logo disappears. Reviewed 2s updated MP4 frame shows unobscured stylized model and corner branding. Text-only intro fixture still retains hero logo.
++- **F4-27 stale signed-preview bug CLOSED in tested UI**: `VideoStudio.jsx` now displays a completed private MP4 as the CURRENT composition only when its draft remains in the submitted state; editing/retiming/source switching invalidates current-display status instead of silently replaying an older signed result. Playwright exercises prior job vs new submission vs changed timeline draft. Backend job snapshot/tenant authorization remains independently authoritative; no new public endpoint.
++- This establishes **Feature4 offline source/editor/mock-render acceptance for the supported subset** and a genuine inspected video artifact, NOT the full professional product definition. Original MIT Timeline Studio full application/advanced PreviewStage tools are not completely adopted. User-specific garment detail, authentic human motion from Feature5, spoken real-voice subtitle sync, live JWT/RLS claim/quota/outbox, issue #249 HTTP reliability, third-party commercial licenses, signed-in hosted DEV E2E, and final commercial human visual signoff remain **OPEN**. The illustrated media and test sine-wave narration are explicitly synthetic and do not meet professional retailer quality. Do not enable paid GPU/cloud deployment, merge or declare production-ready.
++
++## 2026-10-28 — OWNER QUALITY REJECTION: do not present synthetic illustrated Reel again
++
++**Owner verdict: REJECTED.** The sample previously shared as an edited fashion Reel is not an acceptable Reel or even a showcase placeholder. It is composed of elementary vector-style/faceless illustrated fashion assets, repeated synthetic walking animation, simple visual sequencing and a sine-wave instead of spoken narration. The owner's later explicit rejection overrides any earlier positive engineering or partial visual language. **Discard the sample as product demo/showcase evidence.** It may remain privately in CI as a deterministic regression fixture for split/reorder, offer preservation, SFX/audio mix, codec and timing; a passing MP4 or frame-diversity test is categorically *not* visual-quality acceptance.
++
++- **Marketing/showcase status: FAIL / no artifact approved.** No link to this mocked MP4 should be offered as a professional retail demo.
++- **Feature4 commercial quality status: NOT COMPLETE.** No owner-reviewed real footage + product identity + movement + edit rhythm + sound/dialogue + legible offer/CTA + final render.
++- **New technical safeguard:** `demo_feature4_edited_reel.py` explicitly returns `visual_quality_status=OWNER_REJECTED`, `showcase_eligible=false`, `commercial_release_eligible=false`; tests assert this and confirm the real `feature4_release_gate` rejects synthetic product and motion even with a nominal successful H264/AAC encoding.
++- **Replacement bar:** a genuinely licensed, portrait real-human fashion clip or verified approved provider output (not a repeated still/cartoon), visible textile weave/embroidery and garment fidelity to tenant product; deliberate opening hook, scene-based pacing and editorial rhythm; non-obscuring designed brand/offer typography, human-intelligible voice (when scripted), correctly aligned subtitles and music ducking; real 9:16 Full-HD encoded Reel; explicit owner review on the exact finished MP4. No false claim that generic stock footage is the retailer's real garment/model.
++- **Cost restriction:** GPU stays disabled. For interim engineering quality checks, use approved and license-verified **real stock footage** with clearly stated stock provenance, not claim Feature5 generated it. Source/acquisition rights and feature handoffs must be verified before any demo can be called accepted.
++- **Product decision:** remove the rejected sample from demo/promotional discussion and any release claim. Keep technical regression tests and existing CI, no new renderer. PR #322 stays draft and unmerged; no WineShopPOS, cloud, or coordinator-owned files changed.
++
++## F4-31 verified — real encoded Full-HD timecoded subtitle proof (2026-10-28)
++**Exact source SHA:** `c2c0786710939c27cd167d564aa57f05899f22ba`. [Branch CI #40746342531](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40746342531) and [PR CI #40746345804](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40746345804) each **4/4 SUCCESS** (Python, React/browser, isolated Supabase, real FFmpeg/HyperFrames). The branch job passed **145 media tests**; independent PR job passed **320 media tests**. Both actually encoded the existing 30s/1080×1920/24fps H264/AAC synthetic test Reel with approved timecoded subtitle test cue, decoded 0.6/1.2/2.2s PNG frames, and measured **caption-window pixel difference 16.82 versus same-shot caption-off baseline 0.19** in the fixed subtitle region; the check would fail if caption appears only in HTML or at the wrong time. Existing original narration 863Hz test tone survived AAC and edited 30s/540p real JS→Python→HyperFrames MP4 also passed. The demonstration media is **OWNER_REJECTED, showcase_eligible=false, commercial_fashion_realism_accepted=false, spoken_word_qa_accepted=false, caption_semantic_alignment_accepted=false**. This proves *temporal overlay encoding only*, not realistic human/garment footage, actual speech alignment, visual aesthetics, producer rights, or production deploy. Keep draft PR / no paid GPU.
++
++
++## 2026-10-29 — MVP Batch 1: 30s real encoded editor scene-family parity
++
++The prior CI script asserted actual H264/AAC codec, 30s duration and initial
++caption/offer HTML, but could still accept an exported MP4 with four grossly
++misordered visual shots or a replay starting from the wrong media position.
++We now invoke an immutable, **fixture-specific** 4-frame FFmpeg pixel proof in
++`hyperframes/ci-smoke.sh` after its existing real JS→Python→HyperFrames edited
++30s 540p MP4. The four fixed sample times are 2s (video 0–4s), 7s (first
++product photo 4–14s), 16s (second approved video at source inpoint 4s, timeline
++14–20s), 24s (offer/photo 20–30s). The test demands shared footage similarity
++but a nonidentical repeated source inpoint, photo-vs-video contrast and a
++distinct end photo. It SHA-hashes the same final MP4 before/after decoding.
++This is a *heuristic* for the current synthetic source (not a universal scene
++classifier or precise-frame inpoint comparator); fixed thresholds MUST NOT
++be used on customer artwork. A schema-labeled JSON receipt records false
++`human_visual_approval`, `exact_inpoint_frame_verified` and
++`commercial_release_eligible` flags. It adds no renderer/download/cost.
++
++Local pre-commit inspection of the existing real edited synthetic MP4 from
++prior CI archive: 30.000s 540p H264/AAC, SHA
++`1c69ede47eac07a2dba118ceca59beca118f337d67e801b7eecc4bbe94b57153`;
++video-repeat delta 3.53, photo-photo 19.017 and minimum video-photo 21.095.
++The standalone helper and four mocked negative/positive unit tests pass locally.
++CI at the resulting branch head is the next acceptance gate. This does NOT
++supersede OWNER_REJECTED fashion visual quality or live DEV security/release.
+
+diff --git a/video-engine/FEATURE4_OUTPUT_SHA_FENCE_HANDOFF_20261030.md b/video-engine/FEATURE4_OUTPUT_SHA_FENCE_HANDOFF_20261030.md
+--- a/video-engine/FEATURE4_OUTPUT_SHA_FENCE_HANDOFF_20261030.md
++++ b/video-engine/FEATURE4_OUTPUT_SHA_FENCE_HANDOFF_20261030.md
+@@ -0,0 +1,19 @@
++# Feature #4 F4-15 — verified encoder bytes, original object and upload boundary (2026-10-30)
++
++**IN PROGRESS / Feature4 source-only.** New stacked `feat/feature4-output-integrity-fence-20261030` after #850. Never implies a production MP4 approval.
++
++## Verified code-level defect
++The previously trusted FFprobe `output_probe` carried only codec, width/height, FPS, duration and file length. The local worker verified those scalar values, but did **not** compare a SHA256 of the verified encoder output with the exact file later handed to the private media upload adapter. An equal-size post-probe media mutation could therefore be published using a truthful but obsolete profile receipt. Original staged sources also tracked only SHA/length across CPU; identical-byte atomic inode replacement could evade the cross-stage comparison.
++
++## Source repair
++- `render_adapter.py` verifies the original no-follow bounded regular MP4 scratch inode+bytes **before and after actual FFprobe**, before/after private copy, and the original final no-clobber hard-linked encoded path. Its private metadata proof now includes computed `sha256` for the actual emitted media; this is not a claim of ownership or commercial licensing.
++- `feature4_worker_handoff.py` `_staged_fingerprint` now compares dev/inode/size/mtime **and** SHA across stages. It requires the renderer digest as lowercase 64-character SHA, recomputes the authorized final output's original bytes/inode at the worker boundary, and fences local original-output mutation during `media.upload` before calling coordinator's `complete_feature4_render`.
++- An upload may have already staged a private object when local tampering is noticed: that object is an **orphan**, not a completed or signed customer Reel. Coordinator must reconcile or purge it. Stronger source checking never grants rights, cancels jobs, reclaims quota, or prevents external storage objects changing independently.
++- Python real CPU H264/AAC synthetic 2s probe checks content hash and same-content new inode divergence; fake-service worker tests assert no completion for missing or forged hash, in-CPU original same-byte swaps and post-read upload mutations including byte-identical `os.replace`. We do not claim a real 60s approved garment render, remote checksum or hosted signed lease evidence.
++
++## Pending acceptance
++Exact-head four-job GitHub Actions CI (especially 267+ media tests) then coordinator review/merge in existing Feature4 parent chain, fresh main four-job CI, #650 deterministic Azure package and #249 Azure 503 recovery, and signed DEV operator-owned inputs with rights, full reel audio/visual/cost review. Original F4-15 remains IN PROGRESS until hosted atomic claims/cleanup are tested. No GPU, paid inference, PROD, WineShopPOS, cross-feature merge or user-facing sample.
++
++## 2026-10-31 — F4-15 per-asset claim/rights pre-transfer follow-up
++
++The existing Feature4 private render worker now checks render_authorized and feature4_claim_current immediately **before every approved private media download**, including after potentially slow authoritative bundle loading. This closes the window in which a revoked claim could continue to fetch other tenant-private media until the previous post-staging guard. Offline negative tests inject lease and rights revocation during the first of two transfers, and lease loss while loading the authoritative bundle; no subsequent download, CPU call, private upload, completion or signed URL may follow. This is deterministic fake-service test evidence only; coordinator-owned hosted worker/RLS/lease and rights integration still require independent review. Task #15 is IN PROGRESS.
+
+diff --git a/video-engine/FEATURE4_POINTER_LIFECYCLE_HANDOFF_20261029.md b/video-engine/FEATURE4_POINTER_LIFECYCLE_HANDOFF_20261029.md
+--- a/video-engine/FEATURE4_POINTER_LIFECYCLE_HANDOFF_20261029.md
++++ b/video-engine/FEATURE4_POINTER_LIFECYCLE_HANDOFF_20261029.md
+@@ -0,0 +1,15 @@
++# Feature4 F4-10 timeline pointer lifecycle handoff — 2026-10-29
++
++**Status:** IN PROGRESS, not integrated DONE. Branch: `feat/feature4-drag-tenant-fence-20261029` (separate from F4-04, F4-13/F4-15, F4-14 branches, all based on existing #322 head `e32a8da61a6272666d757b6c51b0ec2576d7602f`).
++
++## Exact source change
++
++The existing modified MIT Timeline Studio caption-boundary resize registered a global pointer-up callback that could outlive the selected shop, approved-direction lock, or original draft. We now cancel an outstanding resize on draft/tenant/approval updates and unmount; require the original primary pointer ID and left button; remove listeners on pointercancel and completion; reject any completion if the live draft/approval differs from the pointer-down snapshot. This stops stale client edits and overlapping listeners, without claiming backend authorization: the trusted compiler still controls tenant/rights.
++
++Actual React/Playwright fixture asserts no `onChange` after a synthetic tenant switch, an approval lock introduced during drag, or pointercancel then late release. Existing legal split/resize logic and no-freeform-FX contract are unchanged. Fixture is mocked, no hosted sign-in, actual customer media or real encoded-frame equivalence.
++
++## Verification / release
++
++Run existing Playwright timeline suite (and full four-job CI at batch boundary); coordinator reviews/merges to latest main with fresh postmerge 4/4 before counting any accepted task. F4-10 requires additional manual touch, accessibility and signed DEV acceptance and therefore remains IN PROGRESS after this source hardening.
++
++No paid GPU/AI, PROD, hosted migrations, WineShopPOS or user-facing media.
+
+diff --git a/video-engine/FEATURE4_PRIVATE_PREVIEW.md b/video-engine/FEATURE4_PRIVATE_PREVIEW.md
+--- a/video-engine/FEATURE4_PRIVATE_PREVIEW.md
++++ b/video-engine/FEATURE4_PRIVATE_PREVIEW.md
+@@ -0,0 +1,58 @@
++# F4-41 — private download-friendly 540p preview
++
++Owner reported inability to download the 30s original full-HD sample. The
++verified F4-40 1080x1920/24fps H264/AAC GitHub MP4 was 19,888,931 bytes;
++manually derived 540x960 30s H264/AAC copy was 1,351,663 bytes (2026-10-28).
++
++**Product reuse:** \`video-engine/feature4_private_preview.py\` is a CPU-only,
++FFmpeg-backed preview helper for **already authorized** 15/30/60s MP4s.
++It requires an existing safe local input and private output directory, validates
++source codecs, 9:16 resolution and expected duration, refuses symlinks and
++overwrite, bounds output to 8 MiB, copies no external URLs, writes an atomic
++temporary MP4 and returns input/output SHA-256 plus measured size, format and
++explicit \`signed_download_ready=false\`. Original is not edited. Preserves AAC
++sound and provides faststart for normal mobile download/playback.
++
++\`\`\`sh
++python3 video-engine/feature4_private_preview.py \
++  --source /private/authorized-original.mp4 --duration 30 \
++  --output /private/authorized-preview.mp4 \
++  --report /private/reviewer-preview-proof.json
++\`\`\`
++
++Scope: F4-only helper, **not** a public web path, an auth layer, a production
++Supabase registration, a signed download, or an Azure deployment. No API/schema
++or cloud configuration was changed. Feature4 queue worker must only run after
++tenant JWT/RLS approval + claim/lease checks and use existing private bucket.
++Coordinator must implement same-shop private preview registration + expiry,
++grant/revocation, and tenant signed download before a customer sees one.
++Do not put private customer previews into public GitHub CI artifacts.
++
++Only the explicitly consent-free Pexels stock concept generated in F4-40 is
++rendered to a download-friendly 540p **CI sample** on Feature4 draft PR branch.
++Its commercial_release_eligible=false and garment fidelity flags remain.
++No GPU, paid compute, third-party artist music, real retailers or WineShopPOS.
++CI test \`tests/media/test_feature4_private_preview.py\` performs actual
++FFmpeg encode, source immutability, codec/duration/size verification and
++negative tests for unsafe files, wrong aspect and wrong duration.
++
++
++## F4-43 — audio-only perceptual loudness mastering
++The owner-reported stock Reel had quiet original synthesized audio (measured
++approximately -29.1 dB mean). A separate FFmpeg loudnorm transcode of **only**
++the AAC audio improved mean volume to approximately -17.5 dB on the 30s sample;
++the SHA-256 streamhash of H264 video packets remained byte-for-byte identical.
++New \`video-engine/feature4_audio_master.py\` performs this step after an
++already-authorized private render and BEFORE generating the compact preview,
++without rewriting or deleting the Full-HD original. It enforces source 9:16
++H264/AAC, expected 15/30/60s duration, bounded output, loudness measurement,
++audio level sanity, immutable H264 packet hash, atomic no-overwrite, and
++source/output SHA-256 provenance. Source-only, no public/signed URL, no
++rights grant, no voice recognition, no music recommendations.
++
++PR-only Pexels QA outputs mastered Full-HD + small 540p mobile MP4 in the
++existing short-retention CI artifact. Actual offline unit tests exercise
++a low-volume synthetic soundtrack, verify gain and exactly preserved H264
++packet hash, and reject malicious/invalid source paths and bad durations.
++Commercial acceptance, actual AI speech, licensed third-party songs,
++real retailer garment fidelity and hosted JWT/RLS/private signing still pending.
+
+diff --git a/video-engine/FEATURE4_STAGING_INTEGRITY_HANDOFF_20261029.md b/video-engine/FEATURE4_STAGING_INTEGRITY_HANDOFF_20261029.md
+--- a/video-engine/FEATURE4_STAGING_INTEGRITY_HANDOFF_20261029.md
++++ b/video-engine/FEATURE4_STAGING_INTEGRITY_HANDOFF_20261029.md
+@@ -0,0 +1,28 @@
++# Feature4 staged-byte integrity handoff — 2026-10-29
++
++**Task IDs:** F4-13 (private input integrity), F4-15 (worker failure/race negative tests). Both remain **IN PROGRESS**, not integrated DONE.
++
++**Owned branch:** `feat/feature4-stage-input-integrity-20261029`, forked at Feature4 draft #322 SHA `e32a8da61a6272666d757b6c51b0ec2576d7602f`. Does not alter the other isolated F4-04 duplicate-parity branch.
++
++## Source-only change
++
++The existing authenticated worker's downloaded, reviewed private media staging files are now SHA-256 and stable-fstat checked using no-follow regular-file opens. The worker compares each original before and after CPU rendering, refusing changed, appended, replaced or symlink-swapped inputs **before private output upload and claim finalization**. The existing per-claim total staged-byte budget, tenant authorization, lease fence and one-charge coordinator RPC remain unchanged.
++
++Existing injected renderer tests now cover three negative mutation classes (same-run overwrites, appends and symlink swaps) and require no media upload or completion, plus permanent input-error receipt. The tests remain deliberately fake renderer and synthetic source fixtures, NOT genuine Azure/Supabase JWT/RLS, commercial original-byte grant verification, source identity, licensing, rights approval or live retry success.
++
++## Verification and integration
++
++- Required tests: `python3 -m unittest tests.media.test_feature4_worker_handoff -v` or the repository's `video-engine/ci.sh`; at batch boundary require 4/4 branch and PR checks.
++- Coordinator must review and integrate into main with **fresh 4/4 main CI** before marking either F4 task DONE. Update original 31-item task ledger and `coordination/task_progress.json` only through coordinator after accepted integration.
++- Other blockers: F4-22/ISSUE-650 coordinator packaging, F4-29/ISSUE-249 Azure HTTP, F4-30 real two-tenant signed DEV E2E. These do not invalidate this independent source work.
++
++**Safety:** No GPU, paid inference, hosted SQL, PROD, customer media, new services or WineShopPOS.
++
++## 2026-10-30 — F4-15 no-cost lease preflight and staged inode proof
++
++This **independent feature-owned source batch** branches from existing draft #816, avoiding any source or doc edits from concurrent F4-05 branch #822. F4-15 remains **IN PROGRESS**, not integrated DONE.
++
++- Private staging source is now capped **before hashing** at the existing 300MiB combined cap, denies empty files and confirms the local path still identifies the same no-follow descriptor inode after SHA. An atomic replace with identical bytes now fails closed rather than passing hash-only checks.
++- The worker checks the authoritative coordinator-provided lease/CAS claim state before it downloads any private media and again after the assets are staged / before CPU encoding. A claim revoked before staging performs zero private downloads; a lease lost during staging stops before rendering. Existing post-render fence remains unchanged. No new billing, queues, Azure resources, HTTP endpoints or signed output.
++- Synthetic deterministic race tests verify both stale stages with no uploads and no completion. Actual local same-content inode replacement during SHA, empty source and sparse oversized source are rejected. Tests use fake admin and local media and **do not** prove production lease RPC or Supabase RLS semantics.
++- Exact-head 4-job branch CI, coordinator integration/main reconciliation and fresh main 4/4 remain mandatory. Hosted retry/poison cleanup, worker lease race and billing are coordinator dependent. No paid models/GPU, PROD or WineShopPOS.
+
+diff --git a/video-engine/FEATURE4_STAGING_RACE_HANDOFF_20261030.md b/video-engine/FEATURE4_STAGING_RACE_HANDOFF_20261030.md
+--- a/video-engine/FEATURE4_STAGING_RACE_HANDOFF_20261030.md
++++ b/video-engine/FEATURE4_STAGING_RACE_HANDOFF_20261030.md
+@@ -0,0 +1,20 @@
++# Feature #4 F4-15 — private staging lease/rights race handoff (2026-10-30)
++
++Status: **IN PROGRESS — SOURCE IMPLEMENTED, CI/INTEGRATION UNVERIFIED**. Task registry: `F4-15`, 31-task tracker. Parent Feature4 draft PR #322; this change is isolated and does not modify the shared task registry or canonical coordinator documents.
++
++## Source delta
++- `video-engine/feature4_worker_handoff.py`: revalidate the coordinator-supplied authoritative rights check and current claim token after loading the DB-approved bundle, before private media staging; revalidate both after every private asset download before proceeding to another asset or invoking CPU rendering.
++- Return `STALE` without calling renderer, upload, finalize, or worker failure when a lease/authorization is lost during staging. The temporary directory still cleans up via context manager. This is **not** a hosted queue/claim/cleanup implementation.
++- `tests/media/test_feature4_worker_handoff.py`: deterministic offline negative tests for lease loss during bundle read and lease/rights revocation during private download, asserting no render, publish, completion, or duplicate failure.
++
++## Acceptance and remaining gates
++- Run `python -m unittest discover -s tests/media -p 'test_feature4_worker_handoff.py'` on the exact branch head, then inspect the four GitHub Actions jobs on the PR merge ref. This document does **not** assert that either test suite has passed yet.
++- Coordinator owns `F4-22` (protected Functions ZIP member guard, Issue #650) and `F4-23` (reconcile parent #322, review/merge, fresh 4/4 main CI). Parent #322 was previously blocked on a Python package ZIP >120 entries guard. Never weaken that gate in Feature4 code.
++- Coordinator owns `F4-25` atomic lease/outbox/quota and `F4-27` hosted cancellation/poison/orphan cleanup. Required output: approved atomic claim/finalize RPCs and hosted cancellation tests; acceptance: stale claims never charge twice or publish, and orphan private objects are reconciled.
++- Real signed-in two-shop DEV E2E (`F4-30`), rights-verified retailer footage, actual human visual review (`F4-31`) remain unverified. Offline fixtures do not represent approved customer media.
++- No GPU, paid AI, hosted SQL, PROD, shared workflow, WineShopPOS, or external approvals touched.
++
++Next Feature4 worker should select another independent source task while this draft is under review; never mark `F4-15` integrated DONE until approved merge and fresh 4/4 postmerge main CI.
++
++## 2026-11-10 source reconciliation
++Original #710 F4-15 also included post-download lease/rights fencing and corresponding negatives. The current parent already has stronger post-download and zero-asset fences plus regression coverage; this reconciliation adds only the missing post-bundle-read fence and its original negative test. Original #710 is not closed until final exact-head 4/4 CI, feature-parent merge, and fresh parent checks. This does not complete F4-15 hosted/main acceptance. GPU, paid models, hosted SQL, PROD and WineShopPOS remain untouched.
+
+diff --git a/video-engine/FEATURE4_STOCK_DOWNLOAD_HANDOFF_20261030.md b/video-engine/FEATURE4_STOCK_DOWNLOAD_HANDOFF_20261030.md
+--- a/video-engine/FEATURE4_STOCK_DOWNLOAD_HANDOFF_20261030.md
++++ b/video-engine/FEATURE4_STOCK_DOWNLOAD_HANDOFF_20261030.md
+@@ -0,0 +1,15 @@
++# Feature #4 — F4-13 private stock download integrity handoff (2026-10-30)
++
++**Owner:** Feature4; **base:** draft PR #322; **task:** F4-13, source IN PROGRESS (not integrated DONE).
++
++## Change
++
++- `video-engine/feature4_stock_showcase.py` uses private random 0600 temporary files for **offline stock QA** download staging. Rejects preexisting/symlinked destination and symlinked parent, computes SHA-256 while streaming bounded bytes, and publishes by same-directory `os.link` (atomic no-clobber). A competing writer is not overwritten.
++- `tests/media/test_feature4_stock_download_atomic.py` uses fake network responses and synthetic bytes to test hash, cleanup, destination race, preexisting private bytes, symlink and invalid MIME. No actual stock clip or generated customer video is produced.
++
++## Acceptance and blockers
++
++- Await exact-head four-job CI and coordinator review of this stacked PR; do not count source-only changes as DONE.
++- Commercial attribution/transitive license notices and real tenant-granted media are separate F4-13 / F3-LICENSED-MEDIA gates. Test-only Pexels provenance is **not** approval of a retailer product or permission to redistribute media.
++- Shared Azure Functions ZIP member cap issue #650 is coordinator-owned; Azure 503 #249 remains separate. Never bypass protected checks.
++- No GPU, paid model, PROD, hosted SQL, user-facing sample, customer credential or WineShopPOS changes.
+
+diff --git a/video-engine/FEATURE4_STOCK_SHOWCASE.md b/video-engine/FEATURE4_STOCK_SHOWCASE.md
+--- a/video-engine/FEATURE4_STOCK_SHOWCASE.md
++++ b/video-engine/FEATURE4_STOCK_SHOWCASE.md
+@@ -0,0 +1,68 @@
++# Feature #4 — 2026-10-28 stock video candidate (NOT approved commercial Reel)
++
++The owner explicitly rejected the older illustrated fake-fashion Reel, which stays
++only in deterministic regression CI. This is a **separate** candidate using **real
++human-shot Pexels video footage** and the existing authorized `professional.py`
++HyperFrames compiler — not a competing renderer, not a Feature #5 AI generation,
++and not proof that a retailer's garment is shown.
++
++Sources verified at public Pexels pages 2026-10-28:
++
++| Source | Creator | Use |
++| --- | --- | --- |
++| [8151871](https://www.pexels.com/video/a-fashionable-woman-modeling-while-walking-8151871/) | RDNE Stock project | 0–5s fashion hook |
++| [8249911](https://www.pexels.com/video/woman-walking-while-looks-at-camera-8249911/) | RDNE Stock project | 5–10s rose-pattern fabric |
++| [7626927](https://www.pexels.com/video/woman-wearing-black-dress-7626927/) | Mikhail Nilov | 10–15s portrait studio outfit motion |
++
++The [Pexels License](https://www.pexels.com/license/) allows editing and commercial
++video usage, **but forbids suggesting model/brand endorsement**. The concept's
++approved copy is fictional: no discount, trademark, real retailer garment claim
++or implicit model endorsement. These source pages are evidence of the platform
++license, **not warranties that subjects consented to a specific new endorsement**.
++Every downloaded asset is SHA-256 recorded, ffprobed, and sized under a hard cap.
++
++## Reproducible private staging and render
++
++With a Node 22 / HyperFrames npm ci installation and FFmpeg available:
++
++```bash
++python3 video-engine/feature4_stock_showcase.py --download \
++ --project /tmp/rgai-stock-composition \
++ --provenance ci-artifacts/feature4-stock-provenance.json
++node video-engine/hyperframes/render.mjs \
++ /tmp/rgai-stock-composition ci-artifacts/feature4-stock-real-footage-15s.mp4
++ffprobe -v error -show_format -show_streams \
++ ci-artifacts/feature4-stock-real-footage-15s.mp4
++```
++
++For **no-network** source tests, supply `--source-dir` with actual downloaded,
++privately staged `8151871.mp4`, `8249911.mp4`, `7626927.mp4`.
++Running `tests/media/test_feature4_stock_showcase.py` uses local patterns
++exclusively and *never* labels them genuine fashion footage.
++
++The Pexels downloader never accepts an arbitrary URL, never accepts a browser
++media grant, redirects only to HTTPS `videos.pexels.com`, caps file size and
++time, fails on bad source code/streams and preserves exact provenance.
++
++**Commercial/visual release = BLOCKED until real owner QA.**
++`showcase_eligible=false`, `commercial_release_eligible=false`,
++`retailer_garment_identity_verified=false`, `real_spoken_voiceover=false`.
++There is no claim of commercial third-party endorsement, word-level spoken sync,
++Feature5 natural AI motion, or coordinator JWT/RLS/outbox/quota/lease/hosted
++approval. GPU OFF. This concept must not displace the approved-tenant media gate.
++
++The isolated GitHub PR's existing FFmpeg CI artifact contains the MP4 **only if**
++the exact-source download and CPU render actually completed. CI must print an
++honest failure if the external source is unreachable. No release/deploy or
++WineShopPOS file modified.
++
++## F4-37 — Fixed-keyframe full-HD source normalization
++
++Actual F4-36 [PR CI #40759676430](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40759676430) 4/4 SUCCESS created verified real stock `feature4-stock-real-footage-15s.mp4`, but Chromium/HyperFrames warned about **3.03–3.04s sparse source keyframe intervals**. This is a real seek/freeze hazard; encoded MP4 PASS alone is insufficient to waive it. F4-37 now has a bounded CPU-only **immutable input-staging normalization**: each allowed stock source is probed, cropped to 9:16 Full-HD, FPS normalized to 24, re-encoded H264 with a 24-frame (1s) fixed GOP and source audio stripped for the intentionally muted timeline. It processes the first 5.25s only, never overwrites original downloaded files, preserves original + staged SHA-256 evidence and uses the same trusted HyperFrames compiler/producer. Negative tests reject overwrite and invalid clips; a real FFprobe keyframe test checks spacing <=1.1s. These changes do **not** imply a true garment match, professional edit quality, spoken narration or release approval. CI exact new-head required. GPU remains OFF; prior F4-36 sample artifact is a provisional owner-review candidate, superseded if the new sample renders.
++
++## F4-38 — stronger real runway-style closing frame
++The first F4-36 extracted MP4 was inspected frame-by-frame and the 8531898 clip's closing 5s lacked focus. This improves shot quality by replacing it with the Pexels-verified **vertical 1080×1920** 12s/25fps studio fashion clip [7626927](https://www.pexels.com/video/woman-wearing-black-dress-7626927/) by Mikhail Nilov. The exact 7626927 HD download URL is the Pexels site's official redirect, not an invented mirror. The intrusive multi-line `RetailGrowthAI editing concept` header is shortened to `FASHION EDIT`. Existing source normalized FFmpeg 1s GOP, original license/provenance checks, rights fail-closed, exact 15s no-endorsement CTA remain. This does NOT verify retailer's actual garment or professional human approval. Exact source CI must re-verify.
++
++## F4-39 — Face-safe final edit: no CTA over human footage
++
++The exact F4-38 [15s real-person stock export](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40761959879/artifacts/12847809476) was manually inspected via ten decoded frames at 0.75–13.8 seconds. Although the third scene is now crisp portrait video and F4-37 input clips have fixed 1-second keyframes, the reviewed CTA banner in the last three seconds covered the black-dress model's forehead and face. **A successful encode is not sufficient visual acceptance.** F4-39 moves the disclaimer to an isolated editorial endcard from 13–15s, with the real-human final shot visible untouched from 10–13s. CTA and last-scene headline match exactly so the existing trusted compositor deliberately does not create the giant timed root banner. The text states `STOCK FASHION EDIT - NOT A RETAILER AD`, not fictitious model endorsement or an unverified garment sale. Test checks exact four scene segments, video-only shot count 3, text and absent root CTA. No HyperFrames fork/new renderer, no GPU and no change to the generic renderer. Exact new-head CI and playback visual review required; final client commercial acceptance still pending.
+

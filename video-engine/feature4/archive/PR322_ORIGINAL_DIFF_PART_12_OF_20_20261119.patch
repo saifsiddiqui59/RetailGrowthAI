@@ -1,0 +1,1161 @@
+diff --git a/video-engine/FEATURE4_VISUAL_ACCEPTANCE.md b/video-engine/FEATURE4_VISUAL_ACCEPTANCE.md
+--- a/video-engine/FEATURE4_VISUAL_ACCEPTANCE.md
++++ b/video-engine/FEATURE4_VISUAL_ACCEPTANCE.md
+@@ -0,0 +1,191 @@
++# Feature #4 professional Reel acceptance — OWNER NOT ACCEPTED (2026-10-26)
++
++The owner rejected the original 30-second synthetic animation as basic. A technical render succeeding is **not** equivalent to a premium, publishable fashion advertisement. This document is the Feature #4 team handoff to the existing coordinator; it is not a new shared API.
++
++## Low-cost production sequence (reuse existing infrastructure)
++
++1. **Feature #2**: approved shop-specific copy, explicit promotion/terms and CTA. Never invent a discount. The current internal `creative_reel_v1` compiler enforces literal approved marketing claims.
++2. **Feature #3**: a retailer-approved original kurti photograph, higher-quality poster background, verified logo and rights/provenance. Product color, fabric, embroidery, length and silhouette must match the actual uploaded item; human review is mandatory.
++3. **Feature #5**: an actual approved video clip of an AI fashion model wearing THAT kurti, walking in a believable boutique. Video must preserve garment identity and not exhibit changing limbs or fabric, model flicker, distorted hands or copied stock shots falsely labeled as bespoke generation. Rendering a panning still is **not** proof of realistic AI motion.
++4. **Feature #7** (optional): approved speech-aware editing timings. Feature #4 should not fabricate a transcript or claim beat-sync is semantic editing. Preserve intelligible voice and duck music during spoken promos.
++5. **Feature #4**: combine approved inputs in the existing application-owned HyperFrames timeline with FFmpeg-compatible H.264/AAC export. No replacement of Supabase tenant isolation, Azure Functions worker, queues, FFmpeg or existing charge ledger.
++
++## Visual/functional acceptance checklist
++
++- [ ] Real approved human-model walking clip visibly moves, with consistent anatomy, garment texture and advertised product.
++- [ ] Opening shop identity readable within three seconds, using actual logo—not test shop text.
++- [ ] Narration/source-video audio intelligible, with musical bed never masking important speech.
++- [ ] Product reveal uses source image at native useful sharpness; no deceptively pixelated 128px still upscaled to 1080p.
++- [ ] Exact approved `Diwali Sale — 20% OFF` is readable on screen. The offer, product, poster and CTA do not cover or contradict each other.
++- [ ] Fashion-quality art direction: meaningful camera/motion, intentional pace, balanced spacing, consistent palette, restrained motion, no generic card-slideshow impression.
++- [ ] Intro, motion, product, discount and closing CTA reviewed at 9:16 mobile display size as well as desktop.
++- [ ] Real H.264/AAC MP4 verified at exactly **1080×1920**, **24/30 fps**, correct duration (15/30/60 seconds), `yuv420p` compatibility, sensible file size and deterministic retry.
++- [ ] 30-second AND 60-second actual real-media exports, cold start and Azure DEV render costs/timing measured against worker limits (15s synthetic full HD is an intermediate gate only).
++- [ ] Existing signed private output, JWT/membership, media license, quota/ledger single-charge, retry and tenant isolation checks pass end-to-end on DEV.
++- [ ] Owner watches and expressly approves the real-media result.
++
++## Automated evidence (what the tests can and cannot prove)
++
++- `video-engine/hyperframes/ci-smoke.sh` renders real CPU HyperFrames output in CI. The original 30s/540p fixture validates H.264/AAC output, scene changes, intro brand and known synthetic 480 Hz source-audio mix. A **15s/1080p** synthetic first proof passed 4/4 CI [#40307861324](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40307861324) (15.000s, 3.06MB H.264/AAC, 24fps/yuv420p; renderer ~49 seconds on GitHub CPU). The default acceptance gate now renders the full **30s/1080p** synthetic mode with exact output probe and five distinct scene screenshots; [4/4 GitHub Actions success #40309070130](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40309070130), 30.000s and 5,616,633-byte H.264/AAC MP4. This is NOT genuine AI fashion footage.
++- `video-engine/hyperframes/render.mjs` now checks exact requested resolution and fps against the private compiled render configuration. `video-engine/render_adapter.py` independently validates final MP4 before atomic private file publication.
++- These are **automated engineering gates only**. Neither synthetic silhouette fixtures nor image-difference statistics detect realistic garment fidelity, true AI motion, product misrepresentation, small text clipping or speech intelligibility.
++- Do not show the synthetic render as a real retailer reference or mark this feature ready for a paying retailer.
++
++## Release ownership and blocker boundaries
++
++Feature #4 may change `video-engine/**`, `tests/media/**` and `frontend/src/features/video/**` only. Main, coordinator-owned `docs/**`, shared routes/API, deployment, private storage and subscription ledger remain under coordinator control. No production changes, new billable Azure resources or WineShopPOS modifications. PR #322 stays **draft** until approved real photos/Feature #5 media, human QA and hosted integration tests are available.
++
++## Full-minute CPU proof and pending realistic media gate
++
++A real **60.000-second, 1080×1920, H.264/AAC** synthetic output and six QA frames were verified in [CI #40318231205](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40318231205). This proves format/time feasibility on GitHub CPU, not Azure costs or photoreal human motion. The visual frames show a simple illustrated kurti silhouette, so the owner-level fashion quality gate remains unaccepted.
++
++The coordinator must adopt the additive trusted source-only worker callback contract in [FEATURE4_AZURE_HANDOFF.md](FEATURE4_AZURE_HANDOFF.md), reviewing actual DB claim/lease/media/ledger semantics before any hosted v2 enablement. No cost-bearing resource changes are authorized by this handoff. All commercial filming/music/garment media must remain explicitly licensed and merchant-reviewed.
++
++## New source-only human review enforcement (F4-10)
++
++`feature4_release_gate.py` requires the actual SUCCEEDED Full-HD job proof, immutable authorized Feature3 product + Feature5 motion media IDs, no motion fallback, verified source rights, `synthetic_fixture=False` on both verified DB media rows, and a same-job same-tenant saved human review with checks for model realism, garment fidelity, natural walking, branded logo, approved sale terms, licensed music, speech and mobile text readability. CI unit tests are intentionally synthetic and **do not represent a real owner-approved video**. This must be integrated by the coordinator into the protected release/publish process before calling the feature production ready.
++
++## 2026-10-28 — OWNER QUALITY REJECTION: do not present synthetic illustrated Reel again
++
++**Owner verdict: REJECTED.** The sample previously shared as an edited fashion Reel is not an acceptable Reel or even a showcase placeholder. It is composed of elementary vector-style/faceless illustrated fashion assets, repeated synthetic walking animation, simple visual sequencing and a sine-wave instead of spoken narration. The owner's later explicit rejection overrides any earlier positive engineering or partial visual language. **Discard the sample as product demo/showcase evidence.** It may remain privately in CI as a deterministic regression fixture for split/reorder, offer preservation, SFX/audio mix, codec and timing; a passing MP4 or frame-diversity test is categorically *not* visual-quality acceptance.
++
++- **Marketing/showcase status: FAIL / no artifact approved.** No link to this mocked MP4 should be offered as a professional retail demo.
++- **Feature4 commercial quality status: NOT COMPLETE.** No owner-reviewed real footage + product identity + movement + edit rhythm + sound/dialogue + legible offer/CTA + final render.
++- **New technical safeguard:** `demo_feature4_edited_reel.py` explicitly returns `visual_quality_status=OWNER_REJECTED`, `showcase_eligible=false`, `commercial_release_eligible=false`; tests assert this and confirm the real `feature4_release_gate` rejects synthetic product and motion even with a nominal successful H264/AAC encoding.
++- **Replacement bar:** a genuinely licensed, portrait real-human fashion clip or verified approved provider output (not a repeated still/cartoon), visible textile weave/embroidery and garment fidelity to tenant product; deliberate opening hook, scene-based pacing and editorial rhythm; non-obscuring designed brand/offer typography, human-intelligible voice (when scripted), correctly aligned subtitles and music ducking; real 9:16 Full-HD encoded Reel; explicit owner review on the exact finished MP4. No false claim that generic stock footage is the retailer's real garment/model.
++- **Cost restriction:** GPU stays disabled. For interim engineering quality checks, use approved and license-verified **real stock footage** with clearly stated stock provenance, not claim Feature5 generated it. Source/acquisition rights and feature handoffs must be verified before any demo can be called accepted.
++- **Product decision:** remove the rejected sample from demo/promotional discussion and any release claim. Keep technical regression tests and existing CI, no new renderer. PR #322 stays draft and unmerged; no WineShopPOS, cloud, or coordinator-owned files changed.
++
++## F4-29 — CPU freeze-screen diagnostics (source-only, commercial quality still FAIL)
++`feature4_motion_diagnostics.py` now probes an already staged **local** MP4/MOV with ffprobe/FFmpeg and samples 6 decoded grayscale frames under strict time/size bounds. It records frame deltas and flags clearly frozen/repeated-still clips as `FAILED_FROZEN_OR_LOW_MOTION`; no external URL, raw user HTML, GPU or stock licensing bypass. Tests compare a frozen 3-second clip with a changing 3-second synthetic test source. **A positive motion score DOES NOT mean there is a photoreal human model, that the retailer's garment is identical, that footage has rights, or that any customer would accept the Reel.** The owner-rejected illustrated mock must remain unapproved even if it passes this low-level motion heuristic. Source/CI exact-head acceptance required.
++
++## F4-30 — Rejected-result UI safeguard
++A successful `SUCCEEDED` codec/MP4 job does **not** override the exact reviewer-owned `OWNER_REJECTED` visual-quality state. The Feature4 workspace now hides a marked rejected signed preview/download and displays a clear rejection alert. This is a UI defense against presenting the discarded illustrated mock as a finished Reel, **not an authorization layer or a substitute for the trusted coordinator's saved review/release gate**. The new browser test injects an explicitly owner-rejected same-shop successful job and checks no MP4 preview/download is presented. No schema, cloud or billing change. Exact-head CI required.
++
++## F4-31 — Encoded subtitle visibility gate (source commit; CI pending)
++The accepted Feature2 timecode/voice track already passed 4/4 PR CI #40732044387, but that only checked authored HTML. The existing Full-HD CI fixture now adds a clearly **test-only** 0.9–1.8s caption `SUBTITLE CHECK 873` to the same sine-wave (NOT spoken) narration. The existing 30s/1080×1920 H264/AAC render extracts PNG frames 0.6s/1.2s/2.2s from the same intro shot, and `check_feature4_output.py` fail-closes if pixels do not change strongly while the caption is scheduled versus the control period. This proves *encoded temporal overlay presence* without OCR or new paid renders; it does NOT certify actual speech alignment, typography taste, caption legibility at phone size, or commercial acceptance. The owner-rejected illustrated test fixture stays **showcase_eligible=false** and never becomes a replacement sample. Exact current-head CI needed.
++
++## F4-31 verified — real encoded Full-HD timecoded subtitle proof (2026-10-28)
++**Exact source SHA:** `c2c0786710939c27cd167d564aa57f05899f22ba`. [Branch CI #40746342531](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40746342531) and [PR CI #40746345804](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/40746345804) each **4/4 SUCCESS** (Python, React/browser, isolated Supabase, real FFmpeg/HyperFrames). The branch job passed **145 media tests**; independent PR job passed **320 media tests**. Both actually encoded the existing 30s/1080×1920/24fps H264/AAC synthetic test Reel with approved timecoded subtitle test cue, decoded 0.6/1.2/2.2s PNG frames, and measured **caption-window pixel difference 16.82 versus same-shot caption-off baseline 0.19** in the fixed subtitle region; the check would fail if caption appears only in HTML or at the wrong time. Existing original narration 863Hz test tone survived AAC and edited 30s/540p real JS→Python→HyperFrames MP4 also passed. The demonstration media is **OWNER_REJECTED, showcase_eligible=false, commercial_fashion_realism_accepted=false, spoken_word_qa_accepted=false, caption_semantic_alignment_accepted=false**. This proves *temporal overlay encoding only*, not realistic human/garment footage, actual speech alignment, visual aesthetics, producer rights, or production deploy. Keep draft PR / no paid GPU.
++
++
++## F4-47 — encoded actual stock-human-motion verification
++Added a fail-closed moving-pixel gate to the 30s real Pexels QA render
++(`video-engine/feature4_encoded_motion_qa.py`). The verifier checks the
++already fully encoded, probed 9:16 H264/AAC MP4, decodes *two actual frames*
++per fixed reviewed actor-motion interval at 0–5, 10–15 and 20–25 seconds,
++and computes normalized per-pixel grayscale differences. A static/frozen
++'video' cannot pass the same contract. Source SHA-256 and per-scene values
++are written to a noncommercial QA report in the PR CI artifact. Offline tests
++use genuinely encoded synthetic moving and nonmoving videos, and reject
++forged timestamps or invalid duration. This check proves *pixel motion*,
++not person/garment identity, real AI inference, image attribution,
++voice semantics or owner-level commercial visual quality. DO NOT promote
++the owner-rejected illustrated fixture or generic Pexels stock to an ad.
++
++
++## F4-51: Exact-artifact cross-feature QA and real browser beat navigation (2026-10-29)
++Feature4-only `feature4_quality_receipt.py` verifies a real FFmpeg-produced
++original, AAC-only mastered Full-HD video and compact reviewer MP4 are
++exactly SHA-256 chained to their existing provenance, moving-pixel QA,
++master/preview reports and editorial-only subtitle receipts. Each feature
++(#2, #3, #4, #5, #7) gets its own explicit status and evidence summary,
++with release blockers and `commercial_release_eligible=false` hard-coded.
++The report rejects silent model/garment/voice approval upgrades and forged
++SHA chains. A local immutable QA artifact is not a multi-tenant API or a signed
++download. No user assets are uploaded to GitHub, only permitted Pexels stock QA.
++
++The Playwright suite now mounts the actual React OpenReel timeline with a
++same-shop, 15s measured-music stub and asserts four visible beat markers,
++a precise 3.5s -> 24fps frame seek and mobile body overflow safety; a separate
++cross-shop media stub proves the beat lane stays hidden. This is NOT evidence
++that internet music rights, ASR or commercial scene fidelity are approved.
++The old 'beat detection pending' UI copy is clarified to distinguish already
++implemented offline WAV onset detection from unapproved cloud/signed music
++operations. No new render engine, service, GPU, schema or WineShopPOS edits.
++
++
++## F4-53 — actual encoded Pexels reel visual reviewer sheet
++Added `feature4_review_contact_sheet.py`: source-only CPU/FFmpeg and Pillow
++generator of a 12-frame 3×4 contact sheet from a *real verified* 15/30/60s
++H264/AAC output (including an explicit stock-not-ad banner and frame
++timestamps). The output is a private new JPEG and never overwrites an
++existing review; source and output SHA-256, frame timestamps and
++`owner_visual_approval=false` are returned. Unit tests verify physical
++frame decoding (not HTML-only) with synthetic video. The PR media CI
++exports this for the actual 30s Pexels garment concept only: do not upload
++customer footage to public GitHub CI artifacts. This does not assert
++human/model identity, transcript semantic alignment, licensing, fashion
++commercial taste or owner-approved production readiness.
++
++
++### F4-54 — source-frame repeated-shot warning
++F4-53 contact-sheet QA now compares luma thumbnails of **decoded source
++frames**, ignoring the timestamp band, across widely separated timestamps.
++Near-identical actor/photo frames in distant parts of a video are recorded
++in `possible_repeated_shot_pairs` and `repetition_warning` instead of
++claiming the 60s stock-concat sample is professionally varied. A genuine
++still-video fixture with repeated frames must trigger this warning.
++This is a heuristic for visual review, NOT automated acceptance or identity
++proof; `visual_diversity_accepted=false` always remains until owner review.
++
++
++## F4-62 — five-point actual scene visibility, immutable media proof (2026-10-29)
++
++Previous proof sampled only 30% and 70% of each scene. A black/blank encoded
++interval between those two frames could pass; the old receipt also did not
++recompute sampled near-black metrics or require exact sample time positions.
++The Feature4-owned `feature4_scene_visibility.py` now decodes **five frames
++at 15%, 30%, 50%, 70%, 85% per scene** from the actual encoded H264/AAC video,
++rejects a nearly entirely black frame at any sampled point, and hashes the
++source before and after decoding to reject mutation while producing proof.
++The linked 60s proof has schema `feature4_scene_visibility_v2` and a fixed
++sample schedule; `feature4_minute_quality_receipt.py` fails closed on a
++missing, shifted, legacy or forged-black probe. Offline FFmpeg regression makes
++an actual 1.5s black interval in the *middle* of the first 5s shot, which the
++old 30%/70% checks missed; a positive colored scene remains accepted as purely
++technical evidence. The standalone minute runner already invokes both helpers.
++
++**Limitations:** 5 samples/scene are not exhaustive frame-by-frame monitoring,
++face/product identification, sound or dialogue review, real spoken subtitle
++alignment, absence of overlays, verified third-party approval or human visual
++acceptance. A brief black flash could still occur between samples. The 60s
++provenance/QA receipt must be regenerated with v2, **not** relabeled from old
++receipts. No GPU, paid service, shared file, hosting, customer data or media
++publishing was added. Source commits `3cb13517`, `d1c7021e`,
++`80b54465`, `52bd614b`; exact-head CI must pass before marking verified.
++
++
++## F4-63 — immutable source throughout real contact-sheet frame extraction (2026-10-29)
++
++The existing actual 12-frame FFmpeg/Pillow reviewer contact sheet previously
++hashed the input **only after** decoding it. An input modified during 12
++separate FFmpeg seeks could produce a mixed-era JPEG yet a self-consistent
++hash of the *new* video bytes. The source now records a streamed SHA before
++sampling, rehashes before writing the private JPEG and after the atomic
++no-clobber link, removes its own new output on late hash mismatch, and returns
++the original source digest. A negative test mutates the encoded input immediately
++after one physically decoded frame and requires refusal with **no review JPG**.
++This is local media integrity, not proof that the content is tasteful, licensed,
++tenant-authorized or owner approved. No hosted/cloud or renderer change.
++Source commits `3bd94dd6`, `b6acbcc3`; exact-head CI required.
++
++
++## F4-65/66 — Fail-closed full-minute completeness and encoded endcard (2026-10-29)
++
++A previous technical stock-minute receipt could be generated with
++`captioned_editorial_review.status=NOT_RUN` and
++`scene_visibility_qa.status=NOT_RUN` if CLI callers omitted proof flags.
++That was incompatible with the new final QA definition. The 60s acceptance
++function and CLI now **require** every signed-off technical proof path:
++actual private captioned MP4 + reviewed exact SRT/VTT + burn-in evidence,
++v2 full-timeline scene visibility report, and v1 encoded 55–60s endcard
++delta report, each bound to original/preview source SHA. An absent proof
++cannot yield the positive `NATIVE_60S_TECHNICAL_EVIDENCE_ONLY` receipt.
++
++The new pixel endcard check is specifically for the noncommercial stock QA
++fixture, not a universal social/video stylistic rule. The current 60s runner
++must be executed from current source and pass real FFmpeg/media CI before
++claiming successful integration. Repeated human-model stock shots and
++unmatched tenant garment remain explicitly unapproved. Manual screen/mobile,
++speech, copyright and owner visual review remain OPEN.
+
+diff --git a/video-engine/FEATURE4_VOICESTUDIO_HANDOFF_20261111.md b/video-engine/FEATURE4_VOICESTUDIO_HANDOFF_20261111.md
+--- a/video-engine/FEATURE4_VOICESTUDIO_HANDOFF_20261111.md
++++ b/video-engine/FEATURE4_VOICESTUDIO_HANDOFF_20261111.md
+@@ -0,0 +1,31 @@
++# Feature4 F4-17 — consume approved VoiceStudio narration without a new mixer
++
++The existing Feature4 `compile_approved_storyboard` already supports signed `voiceover_asset_id` and `voiceover_source=retailer`, with timeline/music/sfx handling. This stacked PR adds only a **trusted private-audio intake gate** that checks a current database-backed `APPROVED_FOR_EDITING` receipt, shop/campaign/asset/request binding, SHA256 of actual source WAV bytes, exact 15/30/60s PCM duration, original tenant storage key, private bucket and approved media rights. It rereads the approval after I/O and then invokes the existing compiler. It neither copies nor synthesizes voice, mixes output, or publishes it.
++
++This branch is STACKED on Feature4 parent PR #322 to avoid shipping a duplicate video engine or changing shared interfaces. Synthetic tests call the actual Feature4 approved storyboard compiler, including foreign-shop/revoked/path/byte-tamper tests. Future integration: parent #322 must be reconciled to main; existing human approval and private worker claims need server bindings. VoiceStudio F2 returns `NEEDS_REVIEW` until a separate trusted review updates the durable receipt; never auto-promote it. Commercial model/rights approvals and real hosted final MP4 still pending. No GPU/paid/PROD/WineShopPOS changes.
++
++## 2026-11-13 — purpose-scoped narration guard
++
++Feature4 now rejects an approved VoiceStudio `voiceover_asset_id` reused as `music_asset_id` or any scene `sfx_asset_id` before receipt/private WAV I/O. This closes an audio-purpose escalation/double-mix path without modifying F2/F7 or the existing FFmpeg renderer. Regression: `tests/media/test_feature4_voicestudio_handoff.py::VoiceStudioHandoffTests::test_private_narration_cannot_be_reused_as_soundtrack_or_sfx`. Source commits `85d456b`, `606b262`, `a417cd1`. **Not yet CI-verified**; run the targeted Python test and exact-head four-job PR CI. Parent #322 stays SOURCE READY, not main-integrated. Protected ZIP #650 remains independent; no bypass.
++
++## 2026-11-13 — Windows staging-name hardening
++
++Source `7678c535` and `ea05bccb` reject Windows reserved device components (`CON`, `NUL`, `COM1`–`COM9`, `LPT1`–`LPT9`, `PRN`, `AUX`) and trailing-dot worker path components before returning an approved private narration manifest; added negative regression cases using the existing compiler. This is **source-only, untested locally** because GitHub clone DNS is unavailable. Exact-head four-job PR CI and real FFmpeg CPU audio mix remain unverified. Prior PR run #43428478335 had FFmpeg and Python failures (not 4/4). Protected ZIP #650 remains independent and must not be bypassed. **Next action:** run `python -m unittest discover -s tests/media -p test_feature4_voicestudio_handoff.py`, then `video-engine/ci.sh` on a CPU-capable checkout, inspect exact-head PR jobs, repair owned failures, and leave #322 draft until review and green CI.
++
++## 2026-11-13 — cross-purpose private object alias fence
++
++F4-owned source commits `360a83bd9d4b933f42b26b284b8d5026919d91f0` and `43bfc48148034d6509eb72f8f1bd27da77c287ea` reject compiler bundle entries that point another media asset ID at the same approved private VoiceStudio WAV bucket/key, even when worker staging paths differ. Added regression `test_compiler_cannot_alias_private_voice_object_as_other_media`. This is **source-only**, not hosted or rendered acceptance. Earlier PR CI run #43446547127: Supabase and frontend passed, Python and FFmpeg failed; exact-head 4/4 for this batch not yet observed. Protected ZIP #650 must not be bypassed.
++
++**Next owned action:** inspect FFmpeg harness failure at `video-engine/ci.sh`, execute `python -m unittest discover -s tests/media -p test_feature4_voicestudio_handoff.py` and real CPU WAV→AAC Reel render on a checkout, repair F4-owned failures, then verify one exact-head 4/4 run. Parent #322 remains draft; no main merge until review and full acceptance.
++
++## 2026-11-14 — exact-head CPU evidence and remaining protected gate
++
++Verified parent PR #322 head `1fe7eec860112a641ebfb6ad700bf72e16ef56ef` against GitHub Actions run [#43486239453](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/43486239453). **3/4 jobs passed**: Supabase, frontend, and FFmpeg; Python failed. FFmpeg job log explicitly reports `PASS: original approved synthetic PCM narration + music/captions encoded by existing HyperFrames CPU renderer` after running the real Full-HD CPU WAV→AAC acceptance, and `PASS: actual 1080x1920/24fps/30s HyperFrames encode`. This is synthetic fixture evidence, **not** a real approved human VoiceStudio voice, signed tenant authorization, or production final Reel. Previous handoff's 'CPU render unverified' is superseded for this exact head.
++
++Python job reports **1251 passed, 4 failed**, all in protected Functions ZIP packaging/rollback preflight (`scripts/deploy/package.py:134`: `Duplicate or excessive ZIP members`, issue #650). Do not increase the 120-member cap, disable the tests, or alter coordinator-owned deploy paths from F4. The failure is independent of the F4 narration render; full 4/4 remains blocked. Local GitHub checkout still fails DNS; use CI's actual FFmpeg log as the render evidence rather than claiming local execution.
++
++**Next F4-owned coding action:** inspect the existing `feature4_voicestudio_handoff.py` trusted private receipt/byte staging boundary for remaining tenant/rights or TOCTOU gaps; add a coherent F4-owned regression/code batch and targeted tests. Then rerun exact-head FFmpeg/Python jobs. Request the independent #650 packaging owner to repair runtime-only ZIP composition without weakening the guard; reconcile draft #322 to current main only after review and exact-head 4/4. No main merge, paid/GPU/PROD or F2/F7 edits.
++
++## 2026-11-14 — Windows-equivalent narration staging alias batch
++
++Source commits `1e7f474461c82d67de28a3890e32ae25f4be3e18` and `168a379d233aca1c7da46b327873e4020d5e2c31` extend the F4 compiled-manifest alias fence to normalize backslash separators and trailing dots/spaces in *other* media paths before comparison to the approved narration path. Added negative tests for Windows filename trimming, backslash separator aliases, and dot-segment aliases. This prevents a different media asset from overwriting or reusing the reviewed WAV during staging on Windows-equivalent filesystems. Source-only; targeted tests and exact-head four-job CI are not yet verified. Current main has #927 ZIP source repair; reconcile parent #322 to current main with independent review before any main merge. Next: run `python -m unittest discover -s tests/media -p test_feature4_voicestudio_handoff.py`, `video-engine/ci.sh`, inspect exact-head four-job PR CI, and repair F4-owned failures only. No GPU, paid model, PROD or cross-feature edits.
+
+diff --git a/video-engine/asset_preflight.py b/video-engine/asset_preflight.py
+--- a/video-engine/asset_preflight.py
++++ b/video-engine/asset_preflight.py
+@@ -95,9 +95,9 @@ def inspect_staged_audio(path):
+         raise AssetPreflightError("Invalid audio stream metadata") from exc
+     if not 0 < rate <= 192000 or not 0 < channels <= 8:
+         raise AssetPreflightError("Audio channel/sample-rate limit failed")
+-    if duration is not None and (not math.isfinite(duration) or not 0 < duration <= 3600):
++    if duration is None or not math.isfinite(duration) or not 0 < duration <= 3600:
+         raise AssetPreflightError("Music length limit failed")
+-    return {"bytes": size, "sample_rate": rate, "channels": channels}
++    return {"bytes": size, "sample_rate": rate, "channels": channels, "duration_seconds": duration}
+ 
+ 
+ def preflight_assets(images, music):
+
+diff --git a/video-engine/audio_catalog.json b/video-engine/audio_catalog.json
+--- a/video-engine/audio_catalog.json
++++ b/video-engine/audio_catalog.json
+@@ -0,0 +1,5 @@
++{
++  "schema_version": "retail_audio_catalog_v1",
++  "tracks": [],
++  "notice": "No third-party music or SFX is approved, bundled, or licensed for SaaS redistribution. Add entries only after operator review and media staging."
++}
+
+diff --git a/video-engine/audio_catalog.py b/video-engine/audio_catalog.py
+--- a/video-engine/audio_catalog.py
++++ b/video-engine/audio_catalog.py
+@@ -0,0 +1,64 @@
++"""Fail-closed internal music/SFX catalog rights selection.
++
++An operator-reviewed ledger is necessary but cannot itself grant legal rights.
++Do not copy third-party audio into this repo or expose its standalone bytes.
++No network access, browsing, automated downloads, or Spotify/Meta music scraping.
++"""
++import datetime as dt
++import re
++
++PLATFORMS = {"instagram", "facebook", "youtube", "linkedin"}
++AUDIO_USES = {"embedded_ad", "embedded_organic"}
++
++
++class AudioCatalogError(ValueError):
++    pass
++
++
++def authorized_track(record, platform, territory, usage, now=None):
++    """Return an internal storage asset ID only if the curated record is approved.
++
++    The calling API must separately check retailer membership and storage rights.
++    """
++    now = now or dt.datetime.now(dt.timezone.utc)
++    required = {"id", "asset_id", "title", "source", "creator", "license_url",
++                "license_evidence_id", "reviewed_by", "reviewed_at", "status",
++                "allowed_platforms", "allowed_territories", "permitted_uses",
++                "attribution_required", "expires_at"}
++    if not isinstance(record, dict) or set(record) != required:
++        raise AudioCatalogError("Incomplete or unreviewed audio ledger entry")
++    if record["status"] != "approved":
++        raise AudioCatalogError("Audio license is revoked, pending or restricted")
++    if not all(isinstance(record[f], str) and 3 <= len(record[f]) <= 500 for f in
++               ("id", "asset_id", "title", "source", "creator", "license_url",
++                "license_evidence_id", "reviewed_by", "reviewed_at")):
++        raise AudioCatalogError("Audio identity, source or evidence missing")
++    if not re.fullmatch(r"[a-zA-Z0-9_-]{1,100}", record["asset_id"]):
++        raise AudioCatalogError("Invalid internal asset ID")
++    if not (record["license_url"].startswith("https://") and
++            record["source"].startswith("https://")):
++        raise AudioCatalogError("External attribution must use documented HTTPS sources")
++    if type(record["attribution_required"]) is not bool:
++        raise AudioCatalogError("Attribution policy must be explicit")
++    if platform not in PLATFORMS or usage not in AUDIO_USES:
++        raise AudioCatalogError("Unsupported destination/usage")
++    if not isinstance(territory, str) or not re.fullmatch(r"[A-Z]{2}", territory):
++        raise AudioCatalogError("Territory must be a two-letter country code")
++    for key in ("allowed_platforms", "allowed_territories", "permitted_uses"):
++        if not isinstance(record[key], list) or not record[key]:
++            raise AudioCatalogError("Audio permissions missing")
++    if platform not in record["allowed_platforms"] or usage not in record["permitted_uses"]:
++        raise AudioCatalogError("Audio not licensed for the destination or use")
++    if territory not in record["allowed_territories"] and "WORLD" not in record["allowed_territories"]:
++        raise AudioCatalogError("Audio not licensed in this territory")
++    try:
++        reviewed = dt.datetime.fromisoformat(record["reviewed_at"].replace("Z", "+00:00"))
++        if reviewed.tzinfo is None or reviewed > now:
++            raise AudioCatalogError("Invalid review timestamp")
++        if record["expires_at"] is not None:
++            expires = dt.datetime.fromisoformat(record["expires_at"].replace("Z", "+00:00"))
++            if expires.tzinfo is None or expires <= now:
++                raise AudioCatalogError("Audio license expired")
++    except (ValueError, TypeError, OverflowError) as exc:
++        raise AudioCatalogError("Invalid rights review/expiry timestamp") from exc
++    return record["asset_id"]
+
+diff --git a/video-engine/beat_grid.py b/video-engine/beat_grid.py
+--- a/video-engine/beat_grid.py
++++ b/video-engine/beat_grid.py
+@@ -0,0 +1,87 @@
++"""Bounded offline onset/beat estimates for approved, normalized PCM WAV soundtracks.
++
++For a real commercial track, callers must first verify track rights, tenant access and
++normalize into PCM via the existing secured FFmpeg preprocessing path. This is NOT
++a replacement for full music-theory beat tracking, and requires visual/audio QA.
++No network access or licensed material is included in the package.
++"""
++import array
++import math
++import struct
++import wave
++from pathlib import Path
++
++MAX_SECONDS = 180
++MAX_SAMPLE_RATE = 48000
++MAX_WAV_BYTES = 60 * 1024 * 1024
++
++
++class BeatAnalysisError(ValueError):
++    pass
++
++
++def beat_grid(wav_path, *, duration_seconds, min_spacing=0.28, max_beats=300):
++    """Detect short-time rising-energy accents in PCM16 mono/stereo WAV.
++
++    Returns seconds rounded to milliseconds, sorted and de-duplicated. Deterministic,
++    CPU-only; empty is a valid result for silence, speech or ambiguous music.
++    """
++    path = Path(wav_path)
++    if not path.is_file() or not 0 < path.stat().st_size <= MAX_WAV_BYTES:
++        raise BeatAnalysisError("Missing or oversized staged WAV")
++    if not isinstance(duration_seconds, (float, int)) or isinstance(duration_seconds, bool) or not math.isfinite(duration_seconds) or not 0 < duration_seconds <= MAX_SECONDS:
++        raise BeatAnalysisError("Invalid bounded duration")
++    if not isinstance(min_spacing, (float, int)) or isinstance(min_spacing, bool) or not 0.2 <= min_spacing <= 2.0:
++        raise BeatAnalysisError("Invalid beat spacing")
++    if not isinstance(max_beats, int) or isinstance(max_beats, bool) or not 1 <= max_beats <= 300:
++        raise BeatAnalysisError("Invalid beat count cap")
++    try:
++        with wave.open(str(path), "rb") as w:
++            if w.getcomptype() != "NONE" or w.getsampwidth() != 2 or w.getnchannels() not in (1, 2) or not 8000 <= w.getframerate() <= MAX_SAMPLE_RATE:
++                raise BeatAnalysisError("Only normalized PCM16 mono/stereo WAV supported")
++            rate, channels, total = w.getframerate(), w.getnchannels(), w.getnframes()
++            if total == 0 or total / rate > MAX_SECONDS + .1:
++                raise BeatAnalysisError("Invalid soundtrack length")
++            # Fixed 20-ms bins retain onsets without NumPy/librosa dependencies.
++            frames_per_bin = max(1, round(rate * .02))
++            bins = []
++            used = 0
++            while used < min(total, round(duration_seconds * rate)):
++                block = w.readframes(min(frames_per_bin, total - used))
++                if not block:
++                    break
++                samples = array.array("h")
++                samples.frombytes(block)
++                if struct.pack("=H", 1) == b"\x00\x01":
++                    samples.byteswap()
++                if not samples:
++                    break
++                energy = sum(abs(x) for x in samples) / len(samples) / 32768.0
++                bins.append(energy)
++                used += len(samples) // channels
++    except (OSError, EOFError, wave.Error) as exc:
++        raise BeatAnalysisError("Unable to decode normalized PCM soundtrack") from exc
++
++    if len(bins) < 5:
++        return []
++    # Adaptive local baseline suppresses sustained ambient noise and voice.
++    out = []
++    last = -min_spacing
++    energies = sorted(bins)
++    floor = energies[len(energies)//2]
++    peak = energies[-1]
++    if peak < .025:
++        return []
++    for i in range(2, len(bins) - 2):
++        t = (i + .5) * frames_per_bin / rate
++        if t < 0.08 or t >= duration_seconds or t - last < min_spacing:
++            continue
++        local = bins[max(0, i-12):i]
++        baseline = sum(local) / len(local) if local else floor
++        amp = bins[i]
++        if amp > max(.06, floor * 2.5, baseline * 2.7) and amp >= bins[i-1] and amp > bins[i+1]:
++            out.append(round(t, 3))
++            last = t
++            if len(out) >= max_beats:
++                break
++    return out
+
+diff --git a/video-engine/ci.sh b/video-engine/ci.sh
+--- a/video-engine/ci.sh
++++ b/video-engine/ci.sh
+@@ -22,3 +22,137 @@ python3 "$ROOT/ops/benchmarks/render_benchmark.py" \
+   --width 1080 --height 1920 --fps 15 --preset ultrafast \
+   --report "$ROOT/ci-artifacts/workstream-n-render-benchmark.json"
+ echo "PASS: 30s 1080x1920 H.264/AAC multi-image Reel, xfade, generated tone, overlays, rights"
++
++# Feature #4 gates a real deterministic CPU producer run, not only HTML compilation.
++# No tenant credentials or new cloud resources are required.
++bash "$ROOT/video-engine/hyperframes/ci-smoke.sh"
++# Exercise actual approved synthetic WAV + music + timed captions through the
++# existing F4 compiler and HyperFrames CPU encoder (no TTS, GPU or cloud).
++python3 "$ROOT/tests/media/feature4_voicestudio_cpu_render.py"
++
++# Feature4 real-stock review candidate, only on this branch's PR CI.
++# Fail if real Pexels media cannot be fetched; never fall back to the
++# OWNER_REJECTED illustrated synthetic Reel and mislabel it as a showcase.
++# No workflow mutation, paid resource, GPU, tenant credentials or production use.
++if [[ "${GITHUB_EVENT_NAME:-}" == "pull_request" && "${GITHUB_HEAD_REF:-}" == "feat/feature4-professional-video-studio" ]]; then
++  STOCK_PROJECT="$TMP/feature4-stock-project"
++  STOCK_PROOF="$ROOT/ci-artifacts/feature4-stock-provenance.json"
++  STOCK_MP4="$ROOT/ci-artifacts/feature4-stock-real-footage-15s.mp4"
++  python3 "$ROOT/video-engine/feature4_stock_showcase.py" --download \
++    --project "$STOCK_PROJECT" --provenance "$STOCK_PROOF"
++  # Existing verified Node 22 & HyperFrames engine; no new rendering engine.
++  timeout --signal=TERM --kill-after=10s 400s \
++    node "$ROOT/video-engine/hyperframes/render.mjs" "$STOCK_PROJECT" "$STOCK_MP4"
++  python3 - "$STOCK_MP4" <<'PY'
++import json,subprocess,sys
++info=json.loads(subprocess.check_output(["ffprobe","-v","error","-show_streams",
++  "-show_format","-of","json",sys.argv[1]],text=True))
++v=[s for s in info["streams"] if s.get("codec_type")=="video"]
++a=[s for s in info["streams"] if s.get("codec_type")=="audio"]
++assert len(v)==len(a)==1 and v[0]["codec_name"]=="h264" and a[0]["codec_name"]=="aac"
++assert (int(v[0]["width"]),int(v[0]["height"]))==(1080,1920)
++assert abs(float(info["format"]["duration"])-15)<.3
++print("PASS: real Pexels-stock 15-second Full-HD cinematic concept; NOT approved product")
++PY
++  # Owner-authorized Feature3 garment photo proxies + Feature5 motion stock.
++  GARMENT_PROJECT="$TMP/feature4-garment-30s-project"
++  GARMENT_PROOF="$ROOT/ci-artifacts/feature4-garment-30s-provenance.json"
++  GARMENT_MP4="$ROOT/ci-artifacts/feature4-stock-garment-30s.mp4"
++  python3 "$ROOT/video-engine/feature4_garment_integration.py" --download \
++    --project "$GARMENT_PROJECT" --provenance "$GARMENT_PROOF"
++  timeout --signal=TERM --kill-after=10s 500s \
++    node "$ROOT/video-engine/hyperframes/render.mjs" "$GARMENT_PROJECT" "$GARMENT_MP4"
++  python3 - "$GARMENT_MP4" "$GARMENT_PROOF" <<'PY'
++import json,subprocess,sys
++d=json.loads(subprocess.check_output(["ffprobe","-v","error",
++    "-show_streams","-show_format","-of","json",sys.argv[1]],text=True))
++v=[s for s in d["streams"] if s.get("codec_type")=="video"]
++a=[s for s in d["streams"] if s.get("codec_type")=="audio"]
++assert len(v)==len(a)==1 and v[0]["codec_name"]=="h264" and a[0]["codec_name"]=="aac"
++assert (int(v[0]["width"]),int(v[0]["height"]))==(1080,1920)
++assert abs(float(d["format"]["duration"])-30)<.4
++proof=json.load(open(sys.argv[2]))
++assert len(proof["source_media"])==5 and not proof["commercial_release_eligible"]
++assert not proof["model_garment_match_verified"] and not proof["showcase_eligible"]
++assert proof["music_beat_source"].startswith("Measured offline PCM")
++assert len(proof["measured_beat_timestamps"]) > 20
++assert all(any(abs(c-b)<.17 for b in proof["measured_beat_timestamps"])
++    for c in proof["synced_scene_starts"][1:])
++print("PASS: 30s actual Pexels garment + stock-person Reel, NOT garment identity or production acceptance")
++PY
++  # F4-50: real stock editorial scene-time sidecars in short-retention PR QA.
++  # Explicitly NOT spoken transcription or Feature2-approved speech captions.
++  python3 - "$ROOT/video-engine" "$GARMENT_PROOF" "$ROOT/ci-artifacts" <<'PY'
++import json,sys
++from pathlib import Path
++sys.path.insert(0,sys.argv[1])
++from feature4_subtitles import export_private_subtitle_pair
++p=json.loads(Path(sys.argv[2]).read_text())
++assert p["duration_seconds"]==30 and p["scene_count"]==7
++assert not p["actual_spoken_voiceover"] and not p["commercial_release_eligible"]
++starts=p["synced_scene_starts"]
++titles=["A NEW SEASON","THE GARMENT EDIT","STYLE IN MOTION","TEXTURE AND DETAIL",
++        "THE FASHION STORY","CURATED STYLE","STOCK GARMENT CONCEPT - NOT A RETAILER AD"]
++assert len(starts)==len(titles) and len(set(starts))==len(starts)
++cues=[]
++for i,(start,title) in enumerate(zip(starts,titles)):
++    end=starts[i+1] if i+1<len(starts) else 30
++    # A short editorial title within its existing scene; no fake spoken cues.
++    cue_start=round(start+.2,3)
++    span=min(1.5,round(end-cue_start-.1,3))
++    assert .2<=span<=6
++    cues.append({"start":cue_start,"duration":span,"text":title})
++root=Path(sys.argv[3])
++proof=export_private_subtitle_pair(cues,duration_seconds=30,
++    srt_path=root/"feature4-stock-30s-editorial-titles.srt",
++    vtt_path=root/"feature4-stock-30s-editorial-titles.vtt")
++proof["caption_kind"]="EDITORIAL_TEST_TITLES_NOT_SPOKEN_AUDIO"
++proof["commercial_release_eligible"]=False
++(root/"feature4-stock-30s-editorial-titles-proof.json").write_text(
++    json.dumps(proof,indent=2)+"\n",encoding="utf-8")
++print("PASS: 30s Pexels editorial title sidecars SRT/VTT exactly follow real scene cuts; NOT spoken")
++PY
++
++  # F4-53: reviewer sees 12 REAL decoded Pexels frames, not only HTML.
++  python3 "$ROOT/video-engine/feature4_review_contact_sheet.py" \
++    --source "$GARMENT_MP4" --duration 30 \
++    --output "$ROOT/ci-artifacts/feature4-stock-garment-review-contact-sheet.jpg"
++  # F4-47: actual decoded Pexels actor movement; reject frozen footage.
++  python3 "$ROOT/video-engine/feature4_encoded_motion_qa.py" \
++    --source "$GARMENT_MP4" --duration 30 --moving-starts 0 10 20 \
++    --report "$ROOT/ci-artifacts/feature4-stock-garment-moving-pixels-proof.json"
++  # F4-43: audio-only loudness mastering; H264 packet hash must not change.
++  GARMENT_MASTER="$ROOT/ci-artifacts/feature4-stock-garment-30s-mastered.mp4"
++  GARMENT_MASTER_PROOF="$ROOT/ci-artifacts/feature4-stock-garment-master-proof.json"
++  python3 "$ROOT/video-engine/feature4_audio_master.py" \
++    --source "$GARMENT_MP4" --duration 30 \
++    --output "$GARMENT_MASTER" --report "$GARMENT_MASTER_PROOF"
++  python3 - "$GARMENT_MASTER_PROOF" <<'PY'
++import json,sys
++p=json.load(open(sys.argv[1]))
++assert p["status"]=="PRIVATE_AUDIO_MASTERED_NOT_PUBLISHED"
++assert p["mastered_audio_mean_db"] > p["source_audio_mean_db"] + 2
++assert not p["commercial_release_eligible"] and not p["signed_download_ready"]
++print("PASS: real stock 30s AAC audio mastered with H264 video packet hash unchanged")
++PY
++  # CPU-only compressed reviewer proxy from the same verified Full-HD MP4.
++  # Artifact contains no retailer/user media, just explicitly labeled stock QA.
++  python3 "$ROOT/video-engine/feature4_private_preview.py" \
++    --source "$GARMENT_MASTER" --duration 30 \
++    --output "$ROOT/ci-artifacts/feature4-stock-garment-30s-small.mp4" \
++    --report "$ROOT/ci-artifacts/feature4-stock-garment-30s-small-proof.json"
++
++
++  # F4-51: append independent cross-feature QA ledger only for actual
++  # public-stock test footage; do not copy customer media into CI artifacts.
++  python3 "$ROOT/video-engine/feature4_quality_receipt.py" \
++    --original "$GARMENT_MP4" --master "$GARMENT_MASTER" \
++    --preview "$ROOT/ci-artifacts/feature4-stock-garment-30s-small.mp4" \
++    --provenance "$GARMENT_PROOF" \
++    --motion-proof "$ROOT/ci-artifacts/feature4-stock-garment-moving-pixels-proof.json" \
++    --master-proof "$GARMENT_MASTER_PROOF" \
++    --preview-proof "$ROOT/ci-artifacts/feature4-stock-garment-30s-small-proof.json" \
++    --editorial-proof "$ROOT/ci-artifacts/feature4-stock-30s-editorial-titles-proof.json" \
++    --output "$ROOT/ci-artifacts/feature4-cross-feature-qa-receipt.json"
++
++fi
+
+diff --git a/video-engine/creative_contract.py b/video-engine/creative_contract.py
+--- a/video-engine/creative_contract.py
++++ b/video-engine/creative_contract.py
+@@ -0,0 +1,297 @@
++"""Feature #4 internal final Reel composition boundary for Features 2/3/5/7.
++
++This is deliberately NOT a public API, user-authentication or billing service.
++The coordinating backend must fetch all input, approval and media data under
++the existing user JWT and RLS, then mint this private plan + media manifest.
++Never rely on browser-supplied provenance or an attestation for authorization.
++"""
++import copy
++import re
++from dataclasses import dataclass
++from uuid import UUID
++
++from feature4_caption_track import checked_caption_cues
++from professional import (
++    VideoPlanError, compile_composition, validate, checked_audio_mix,
++    SUPPORTED_ANIMATIONS, SUPPORTED_TRANSITIONS,
++)
++
++CONTRACT_VERSION = "creative_reel_v1"
++UUID_PATTERN = re.compile(r"^[0-9a-fA-F-]{36}$")
++REF_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,100}$")
++IMAGE_KINDS = {"image", "poster", "logo"}
++MEDIA_KINDS = IMAGE_KINDS | {"video", "audio"}
++ORIGINS = {"feature3": {"image", "poster"}, "feature5": {"video"},
++           "retailer": {"image", "poster", "video", "logo", "audio"},
++           "stock": {"image", "video", "audio"}}
++PRESETS = {"streetwear", "cinematic", "festival"}
++# Reuse current renderer allowlists so client contracts cannot silently drift.
++ANIMATIONS = SUPPORTED_ANIMATIONS
++TRANSITIONS = SUPPORTED_TRANSITIONS
++
++
++class CreativeContractError(VideoPlanError):
++    pass
++
++
++class PremiumMotionUnavailable(CreativeContractError):
++    pass
++
++
++@dataclass(frozen=True)
++class CompiledReel:
++    plan: dict
++    manifest: dict
++    audit: dict
++
++
++def require_fields(obj, allowed, required, name):
++    if type(obj) is not dict or set(obj) - set(allowed) or set(required) - set(obj):
++        raise CreativeContractError(name + ": fields missing or forbidden")
++
++
++def uuid(value, label):
++    if type(value) is not str or not UUID_PATTERN.fullmatch(value):
++        raise CreativeContractError(label + ": invalid UUID")
++    try:
++        if UUID(value).version is None:
++            raise ValueError("not versioned")
++    except (ValueError, TypeError) as exc:
++        raise CreativeContractError(label + ": invalid UUID") from exc
++    return value
++
++
++def safe_ref(value, label):
++    if type(value) is not str or not REF_PATTERN.fullmatch(value):
++        raise CreativeContractError(label + ": invalid identifier")
++    return value
++
++
++def selected_media(asset_id, kind, source, manifest, shop_id, *, optional=False):
++    """Source/tenant/approval consistency across all internal feature producers."""
++    if asset_id is None and optional:
++        return None
++    safe_ref(asset_id, "asset_id")
++    record = manifest["assets"].get(asset_id)
++    if not isinstance(record, dict):
++        raise CreativeContractError("Unrecognized tenant-authorized media ID")
++    require_fields(record, {"shop_id", "kind", "source_feature", "approved", "path", "rights"},
++                   {"shop_id", "kind", "source_feature", "approved", "path", "rights"}, "asset record")
++    if (record["shop_id"] != shop_id or record["approved"] is not True or
++            record["kind"] != kind or record["source_feature"] != source or
++            source not in ORIGINS or kind not in ORIGINS[source]):
++        raise CreativeContractError("Media tenant/approval/type/provenance mismatch")
++    return record
++
++
++def render_inputs(request, media_manifest, *, allow_synthetic_test=False):
++    """Lower a reviewed cross-feature edit plan to the pinned trusted renderer plan.
++
++    No provider, billing, queue, storage or network writes occur here. The stable
++    video_job_id/idempotency_key must be passed to the EXISTING atomic claim-fenced
++    job ledger; this module does not decide or charge for retries.
++    """
++    require_fields(request, {
++        "version", "shop_id", "campaign_id", "video_job_id", "idempotency_key",
++        "script", "brand", "scenes", "template", "duration_seconds", "output",
++        "music_asset_id", "music_source", "voiceover_asset_id", "voiceover_source", "audio_mix", "beat_grid", "edit_plan",
++        "allow_image_fallback", "mode",
++    }, {"version", "shop_id", "campaign_id", "video_job_id", "idempotency_key",
++        "script", "brand", "scenes", "template", "duration_seconds", "output"}, "reel request")
++    if request["version"] != CONTRACT_VERSION:
++        raise CreativeContractError("Unsupported internal cross-feature contract version")
++    shop_id = uuid(request["shop_id"], "shop_id")
++    uuid(request["campaign_id"], "campaign_id")
++    uuid(request["video_job_id"], "video_job_id")
++    safe_ref(request["idempotency_key"], "idempotency_key")
++    if request["template"] not in PRESETS:
++        raise CreativeContractError("Unknown application-owned video style")
++    if type(request["allow_image_fallback"] if "allow_image_fallback" in request else False) is not bool:
++        raise CreativeContractError("Fallback permission must be explicit")
++    if not isinstance(media_manifest, dict) or media_manifest.get("shop_id") != shop_id or not isinstance(media_manifest.get("assets"), dict):
++        raise CreativeContractError("Server-supplied manifest tenant mismatch")
++    script = request["script"]
++    require_fields(script, {"source_feature", "approved", "approval_id", "approved_text", "cta", "transcript"},
++                   {"source_feature", "approved", "approval_id", "approved_text", "cta"}, "reviewed script")
++    if script["source_feature"] != "feature2" or script["approved"] is not True:
++        raise CreativeContractError("Feature #2 approved script is required")
++    safe_ref(script["approval_id"], "script approval")
++    if (not isinstance(script["approved_text"], list) or not script["approved_text"]
++            or len(script["approved_text"]) > 30):
++        raise CreativeContractError("Approved script text list is required")
++    approved_text = set()
++    for line in script["approved_text"]:
++        if not isinstance(line, str) or not 1 <= len(line.strip()) <= 110 or line != line.strip():
++            raise CreativeContractError("Unreviewed or oversized script copy")
++        approved_text.add(line)
++    if script["cta"] not in approved_text:
++        raise CreativeContractError("Final CTA must be approved by Feature #2")
++    captions=None
++    if script.get("transcript") is not None:
++        if request.get("voiceover_asset_id") is None:
++            raise CreativeContractError("Timed subtitles require approved voice recording")
++        try:
++            captions=checked_caption_cues(script["transcript"],request["duration_seconds"])
++        except ValueError as exc:
++            raise CreativeContractError("Invalid approved Feature2 subtitle timing: "+str(exc)) from exc
++    brand = request["brand"]
++    require_fields(brand, {"shop_name", "primary_color", "secondary_color", "logo_asset_id"},
++                   {"shop_name", "primary_color", "logo_asset_id"}, "approved brand")
++    if not isinstance(brand["shop_name"], str) or not brand["shop_name"].strip() or len(brand["shop_name"]) > 85:
++        raise CreativeContractError("Unverified shop name")
++    logo_id = brand["logo_asset_id"]
++    if logo_id is not None:
++        selected_media(logo_id, "logo", "retailer", media_manifest, shop_id)
++    sound_id = request.get("music_asset_id")
++    if sound_id is not None:
++        selected_media(sound_id, "audio", request.get("music_source", "retailer"), media_manifest, shop_id)
++    voice_id = request.get("voiceover_asset_id")
++    if voice_id is not None:
++        selected_media(voice_id, "audio", request.get("voiceover_source", "retailer"), media_manifest, shop_id)
++    if "edit_plan" in request:
++        edit = request["edit_plan"]
++        require_fields(edit, {"source_feature", "approved", "approval_id", "timeline_version"},
++                       {"source_feature", "approved", "approval_id", "timeline_version"}, "smart edit")
++        if edit["source_feature"] != "feature7" or edit["approved"] is not True or edit["timeline_version"] != CONTRACT_VERSION:
++            raise CreativeContractError("Unapproved or incompatible Feature #7 edit plan")
++        safe_ref(edit["approval_id"], "smart editor approval")
++    if not isinstance(request["scenes"], list) or not 1 <= len(request["scenes"]) <= 12:
++        raise CreativeContractError("Expected 1–12 scenes")
++    lowered = []
++    fallback_events = []
++    used_ids = set()
++    for index, scene in enumerate(request["scenes"]):
++        require_fields(scene, {"order", "start_time", "duration", "asset_id", "asset_type",
++                               "source_feature", "headline", "text_overlay", "poster_overlay_asset_id",
++                               "animation_preset", "transition", "trim_start", "mute_source",
++                               "sfx_asset_id", "sfx_source", "motion_status", "fallback_image_asset_id"},
++                       {"order", "start_time", "duration", "headline"}, "scene")
++        if type(scene["order"]) is not int or scene["order"] != index:
++            raise CreativeContractError("Scene ordering must be continuous and immutable")
++        if scene["headline"] not in approved_text:
++            raise CreativeContractError("Scene headline not in approved script")
++        if scene.get("text_overlay") is not None and scene["text_overlay"] not in approved_text:
++            raise CreativeContractError("Promotional overlay not in approved script")
++        if scene.get("animation_preset", "subtle_zoom") not in ANIMATIONS or scene.get("transition", "fade") not in TRANSITIONS:
++            raise CreativeContractError("Unapproved animation/transition")
++        asset_id, kind, origin = scene.get("asset_id"), scene.get("asset_type"), scene.get("source_feature")
++        motion_status = scene.get("motion_status")
++        if asset_id is None:
++            if kind is not None or origin is not None:
++                raise CreativeContractError("Missing authorized scene asset")
++        elif origin == "feature5" and motion_status == "failed":
++            # A failed premium producer has NO valid clip. It must not be
++            # fabricated in storage merely to satisfy the normal clip gate.
++            safe_ref(asset_id, "failed motion request ID")
++            if kind != "video":
++                raise CreativeContractError("Failed AI motion request must be typed video")
++        else:
++            selected_media(asset_id, kind, origin, media_manifest, shop_id)
++        if origin == "feature5":
++            if motion_status not in ("ready", "failed"):
++                raise CreativeContractError("Feature #5 motion status must be explicit")
++            if motion_status == "failed":
++                if request.get("allow_image_fallback") is not True:
++                    raise PremiumMotionUnavailable("Premium motion failed; fallback not approved")
++                still = scene.get("fallback_image_asset_id")
++                selected_media(still, "image", "feature3", media_manifest, shop_id)
++                fallback_events.append({"scene_order": index, "failed_motion_asset_id": asset_id,
++                                        "fallback_image_asset_id": still,
++                                        "disclosure": "IMAGE_ANIMATION_NOT_AI_HUMAN_MOTION"})
++                asset_id, kind, origin = still, "image", "feature3"
++        elif motion_status is not None or scene.get("fallback_image_asset_id") is not None:
++            raise CreativeContractError("Unexpected premium-motion fallback fields")
++        poster_id = scene.get("poster_overlay_asset_id")
++        if poster_id:
++            selected_media(poster_id, "poster", "feature3", media_manifest, shop_id)
++        sfx_id = scene.get("sfx_asset_id")
++        if sfx_id:
++            selected_media(sfx_id, "audio", scene.get("sfx_source", "retailer"), media_manifest, shop_id)
++        base = {"start": scene["start_time"], "duration": scene["duration"],
++                "headline": scene["headline"],
++                "animation_preset": scene.get("animation_preset", "subtle_zoom"),
++                "transition": scene.get("transition", "fade")}
++        if asset_id:
++            base["asset_id"] = asset_id
++            used_ids.add(asset_id)
++        if scene.get("text_overlay") is not None:
++            base["offer"] = scene["text_overlay"]
++        if poster_id:
++            base["poster_overlay_asset_id"] = poster_id
++            used_ids.add(poster_id)
++        if sfx_id:
++            base["sfx_asset_id"] = sfx_id
++            used_ids.add(sfx_id)
++        if scene.get("trim_start") is not None:
++            base["trim_start"] = scene["trim_start"]
++        if scene.get("mute_source") is not None:
++            base["mute_source"] = scene["mute_source"]
++        lowered.append(base)
++    mix = checked_audio_mix(
++        request.get("audio_mix"), has_music=sound_id is not None,
++        has_voice=voice_id is not None,
++        has_source=any(
++            x.get("asset_id") is not None
++            and media_manifest["assets"][x["asset_id"]]["kind"] == "video"
++            and not x.get("mute_source", False) for x in lowered),
++        has_sfx=any(x.get("sfx_asset_id") for x in lowered),
++    )
++    if logo_id:
++        used_ids.add(logo_id)
++    if sound_id:
++        used_ids.add(sound_id)
++    if voice_id:
++        used_ids.add(voice_id)
++    media = {}
++    for asset_id in used_ids:
++        entry = media_manifest["assets"][asset_id]
++        media[asset_id] = {key: copy.deepcopy(entry[key]) for key in ("kind", "path", "rights")}
++    output = request["output"]
++    require_fields(output, {"format", "width", "height", "fps"},
++                   {"format", "width", "height", "fps"}, "requested export")
++    if output["format"] != "mp4":
++        raise CreativeContractError("Only H.264/AAC MP4 export is supported")
++    mode = request.get("mode", "media")
++    if mode not in ("text", "image", "poster", "media", "music_sync"):
++        raise CreativeContractError("Unsupported composition mode")
++    # Video/clip scenes and interspersed images may all be placed in media mode.
++    if any(x.get("asset_id") for x in lowered) and mode == "text":
++        mode = "media"
++    if any(media[x.get("asset_id")]["kind"] == "video" for x in lowered if x.get("asset_id")):
++        mode = "media" if mode != "music_sync" else mode
++    composition = {"version": "rg_video_v2", "shop_id": shop_id,
++                   "mode": mode, "template": request["template"],
++                   "duration_seconds": request["duration_seconds"],
++                   "output": {key: output[key] for key in ("width", "height", "fps")},
++                   "scenes": lowered, "cta": script["cta"],
++                   "brand": {"name": brand["shop_name"],
++                             "primary_color": brand["primary_color"],
++                             **({"secondary_color": brand["secondary_color"]}
++                                if "secondary_color" in brand else {})},
++                   "logo_asset_id": logo_id,
++                   "music_asset_id": sound_id,
++                   "voiceover_asset_id": voice_id,
++                   **({"audio_mix": mix} if mix else {})}
++    if request.get("beat_grid") is not None:
++        composition["beats"] = copy.deepcopy(request["beat_grid"])
++    if captions is not None:
++        composition["caption_cues"] = captions
++    selected = {"shop_id": shop_id, "assets": media}
++    audit = {"version": CONTRACT_VERSION, "campaign_id": request["campaign_id"],
++             "video_job_id": request["video_job_id"], "idempotency_key": request["idempotency_key"],
++             "script_approval_id": script["approval_id"],
++             "source_edit_approval": request.get("edit_plan", {}).get("approval_id"),
++             "fallback_events": fallback_events,
++             "media_asset_ids": sorted(used_ids),
++             "rendered_as": "IMAGE_ANIMATION_FALLBACK" if fallback_events else "AUTHORIZED_ASSEMBLY"}
++    return CompiledReel(composition, selected, audit)
++
++
++def compile_creative_reel(request, media_manifest, asset_root, output_dir, *, allow_synthetic_test=False):
++    """Compile private deterministic HTML media package; does NOT render, bill or upload."""
++    inputs = render_inputs(request, media_manifest, allow_synthetic_test=allow_synthetic_test)
++    validate(inputs.plan, inputs.manifest, asset_root, allow_synthetic_test)
++    package = compile_composition(inputs.plan, inputs.manifest, asset_root, output_dir, allow_synthetic_test)
++    (package / "lineage.json").write_text(
++        __import__("json").dumps(inputs.audit, sort_keys=True, indent=2) + "\n", encoding="utf-8")
++    return package
+
+diff --git a/video-engine/demo_feature4_diwali.py b/video-engine/demo_feature4_diwali.py
+--- a/video-engine/demo_feature4_diwali.py
++++ b/video-engine/demo_feature4_diwali.py
+@@ -0,0 +1,124 @@
++#!/usr/bin/env python3
++"""Create deterministic rights-safe 15/30/60s Feature4 Diwali source package for render CI.
++
++This imports the deliberately small synthetic media fixture used by the real
++cross-feature tests; never downloads photos/music or claims true AI model motion.
++"""
++import argparse
++import copy
++import json
++import sys
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(ROOT / "tests" / "media"))
++sys.path.insert(0, str(ROOT / "video-engine"))
++from test_feature4_cross_feature import CreativeReelTests  # noqa: E402
++from creative_contract import compile_creative_reel  # noqa: E402
++
++
++def main():
++    parser = argparse.ArgumentParser(description="Authorized synthetic demo only; never real retail media")
++    parser.add_argument("project", help="New empty private output directory")
++    parser.add_argument("--seconds", type=int, default=30, choices=(15, 30, 60))
++    parser.add_argument("--width", type=int, default=540, choices=(540, 1080))
++    parser.add_argument("--with-narration", action="store_true", help="Add a test-only synthetic 863Hz narration channel")
++    args = parser.parse_args()
++    project = Path(args.project)
++    if project.exists() and any(project.iterdir()):
++        raise SystemExit("Fixture output directory must be empty")
++    fixture = CreativeReelTests(methodName="test_diwali_30s_brand_logo_motion_poster_exact_offer")
++    fixture.setUp()
++    try:
++        fixture.make_assets(with_video=True)
++        fixture.request["output"]["width"] = args.width
++        fixture.request["output"]["height"] = args.width * 16 // 9
++        fixture.request["duration_seconds"] = args.seconds
++        if args.seconds == 15:
++            # Short-form HD stress fixture with all meaningful editorial roles:
++            # opening, source-audio motion, product, exact approved offer, CTA.
++            scenes = fixture.request["scenes"]
++            sequence = ((scenes[0], 0, 2), (scenes[1], 2, 5),
++                        (scenes[2], 7, 3), (scenes[3], 10, 3),
++                        (scenes[5], 13, 2))
++            fixture.request["scenes"] = []
++            for order, (scene, start, length) in enumerate(sequence):
++                trimmed = copy.deepcopy(scene)
++                trimmed["order"] = order
++                trimmed["start_time"] = start
++                trimmed["duration"] = length
++                fixture.request["scenes"].append(trimmed)
++        if args.seconds == 60:
++            # One full-minute stress timeline. The only source video is still an
++            # original 8s synthetic fixture; no real fashion inference implied.
++            duration_by_scene = (5, 7, 10, 14, 14, 10)
++            start = 0
++            for i, (scene, length) in enumerate(zip(fixture.request["scenes"], duration_by_scene)):
++                scene["order"] = i
++                scene["start_time"] = start
++                scene["duration"] = length
++                start += length
++        # The synthetic soundtrack/SFX are original deterministic wave synthesis:
++        # no third-party songs, sample packs or purported trending-music rights.
++        import math
++        import struct
++        import wave
++        with wave.open(str(fixture.assets/"original_demo_music.wav"), "wb") as w:
++            w.setnchannels(1)
++            w.setsampwidth(2)
++            w.setframerate(22050)
++            for i in range(args.seconds * 22050):
++                t=i/22050
++                note=(196,246.94,293.66,392)[int(t/2)%4]
++                pulse=0.12 if t % .5 < .065 else 0.0
++                sample=int(7000*(.20*math.sin(2*math.pi*note*t)+
++                                  .08*math.sin(2*math.pi*note*2*t)+
++                                  pulse*math.sin(2*math.pi*90*t))*min(1,t/.6)*min(1,(args.seconds-t)/1))
++                w.writeframesraw(struct.pack("<h",max(-32768,min(32767,sample))))
++        with wave.open(str(fixture.assets/"original_demo_sfx.wav"), "wb") as w:
++            w.setnchannels(1)
++            w.setsampwidth(2)
++            w.setframerate(22050)
++            for i in range(22050):
++                t=i/22050
++                pulse=int(11000*math.sin(2*math.pi*(210+300*t)*t)*math.exp(-7*t))
++                w.writeframesraw(struct.pack("<h",pulse))
++        fixture.add("original_demo_music", "original_demo_music.wav", "audio", "retailer")
++        fixture.add("original_demo_sfx", "original_demo_sfx.wav", "audio", "retailer")
++        fixture.request["music_asset_id"] = "original_demo_music"
++        if args.with_narration:
++            # A deliberately unmistakable SINUSOIDAL test marker, not human speech.
++            # An actual encode/AAC spectral gate proves the F4 narration channel.
++            with wave.open(str(fixture.assets/"original_demo_voice.wav"), "wb") as w:
++                w.setnchannels(1)
++                w.setsampwidth(2)
++                w.setframerate(22050)
++                for i in range(args.seconds * 22050):
++                    t = i / 22050
++                    ramp = min(1, t / .2, (args.seconds-t) / .2)
++                    sample = int(3800 * math.sin(2 * math.pi * 863 * t) * max(0, ramp))
++                    w.writeframesraw(struct.pack("<h", sample))
++            fixture.add("original_demo_voice", "original_demo_voice.wav", "audio", "retailer")
++            fixture.request["voiceover_asset_id"] = "original_demo_voice"
++            fixture.request["voiceover_source"] = "retailer"
++            # The test-only sine wave is NOT spoken dialogue. These reviewed
++            # timestamped words are just a visual marker for the encoded video.
++            fixture.request["script"]["transcript"] = [
++                {"start": 0.9, "duration": 0.9, "text": "SUBTITLE CHECK 873"}
++            ]
++        fixture.request["scenes"][3]["sfx_asset_id"] = "original_demo_sfx"
++        output = compile_creative_reel(fixture.request, fixture.manifest, fixture.assets, project)
++        print(json.dumps({"status": "COMPILED_SYNTHETIC_TEST_ONLY",
++                          "duration_seconds": fixture.request["duration_seconds"],
++                          "project": str(output), "scene_count": len(fixture.request["scenes"]),
++                          "real_ai_motion": False, "commercial_media": False,
++                          "real_voiceover": False, "synthetic_narration_test": args.with_narration,
++                          "test_only_caption_proof": args.with_narration,
++                          "spoken_word_qa_accepted": False,
++                          "showcase_eligible": False}))
++    finally:
++        fixture.root_tmp.cleanup()
++
++
++if __name__ == "__main__":
++    main()
+
+diff --git a/video-engine/demo_feature4_edited_reel.py b/video-engine/demo_feature4_edited_reel.py
+--- a/video-engine/demo_feature4_edited_reel.py
++++ b/video-engine/demo_feature4_edited_reel.py
+@@ -0,0 +1,148 @@
++#!/usr/bin/env python3
++"""Mock-only 30-second FULL EDITOR -> trusted compiler -> real HyperFrames package.
++
++Reuses the actual pinned MIT Timeline Studio JS edit commands via existing
++edited_draft() helper; all test images and 'AI motion' are synthesized locally.
++Never contacts a provider or downloads retailer/media, never claims real Wan.
++OWNER REJECTED this illustrated output as a fashion Reel. CI regression ONLY.
++Do NOT present it as a showcase, reference ad, customer demo, or release proof.
++"""
++from __future__ import annotations
++
++import argparse
++import json
++from pathlib import Path
++import shutil
++import subprocess
++import sys
++
++ROOT = Path(__file__).resolve().parents[1]
++sys.path.insert(0, str(ROOT / "tests" / "media"))
++sys.path.insert(0, str(ROOT / "video-engine"))
++from test_feature4_cross_feature import CreativeReelTests  # noqa: E402
++from test_feature4_editor_to_render_contract import edited_draft, duplicated_draft  # noqa: E402
++from test_feature4_intent_compiler import pair  # noqa: E402
++from feature4_intent_compiler import compile_approved_storyboard  # noqa: E402
++from creative_contract import compile_creative_reel  # noqa: E402
++
++
++def _run_ffmpeg(*args):
++    subprocess.run(
++        ["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-y", *map(str, args)],
++        capture_output=True, text=True, check=True, timeout=90,
++    )
++
++
++# An owner's explicit quality rejection is not reversed by codec/CI success.
++# Technical regression artifacts stay available internally for deterministic QA.
++OWNER_VISUAL_VERDICT = {
++    "visual_quality_status": "OWNER_REJECTED",
++    "showcase_eligible": False,
++    "commercial_release_eligible": False,
++    "fixture_purpose": "INTERNAL_CODEC_AND_EDITOR_REGRESSION_ONLY",
++}
++
++
++def make_edited_project(destination: Path, *, width: int = 540, edit_mode: str = "split-reorder") -> dict:
++    if width not in (540, 1080):
++        raise ValueError("Only reviewed private portrait dimensions supported")
++    if destination.exists() and any(destination.iterdir()):
++        raise ValueError("Refusing to replace an existing project/media directory")
++    if edit_mode not in ("split-reorder", "duplicate"):
++        raise ValueError("Only reviewed JS split/reorder or duplicate fixture allowed")
++    original, trusted = pair()
++    # Both operations are executed by the actual adopted Timeline Studio bridge
++    # and then independently verified by the existing trusted v2 compiler.
++    draft = edited_draft() if edit_mode == "split-reorder" else duplicated_draft()
++    first_video = 0 if edit_mode == "split-reorder" else 1
++    inpoints = [0, 4] if edit_mode == "split-reorder" else [0, 0]
++    if (draft["scenes"][first_video].get("sfx_asset_id") != "musicowned"
++            or "sfx_asset_id" in draft["scenes"][first_video + 1]
++            and edit_mode == "duplicate"):
++        raise ValueError("Expected one approved source-audio edit fixture")
++    draft["output"].update(width=width, height=width * 16 // 9)
++    bundle = compile_approved_storyboard(draft, trusted)
++    fixture = CreativeReelTests(methodName="test_diwali_30s_brand_logo_motion_poster_exact_offer")
++    fixture.setUp()
++    try:
++        fixture.make_assets(with_video=True)
++        # The existing source fixture has exactly 8 seconds of original drawn
++        # motion. Extend explicitly to 10 seconds with a repeat for split
++        # source in-points 0 and 4. It is NOT AI-generated/real human footage.
++        extended = fixture.assets / "mock-only-10s-motion.mp4"
++        _run_ffmpeg("-stream_loop", "1", "-i", fixture.assets / "fixture_clip.mp4",
++                    "-t", "10", "-c:v", "libx264", "-preset", "ultrafast",
++                    "-pix_fmt", "yuv420p", "-c:a", "aac", extended)
++        music = fixture.assets / "mock-only-owned-music.mp3"
++        _run_ffmpeg("-f", "lavfi", "-i",
++                    "sine=frequency=196:sample_rate=22050:duration=30",
++                    "-c:a", "libmp3lame", "-b:a", "96k", music)
++        generated = {
++            "photokurti": fixture.assets / "product.png",
++            "saleposter": fixture.assets / "sale.png",
++            "motionwalk": extended,
++            "musicowned": music,
++            "storelogo": fixture.assets / "logo.png",
++        }
++        # A real worker would download exactly these immutable object_ids
++        # after DB/JWT/RLS grants. This fixture never uses Internet storage.
++        for asset_id, row in bundle["manifest"]["assets"].items():
++            shutil.copyfile(generated[asset_id], fixture.assets / row["path"])
++        compiled = compile_creative_reel(
++            bundle["request"], bundle["manifest"], fixture.assets, destination
++        )
++        page = (compiled / "index.html").read_text(encoding="utf8")
++        # Hard fail if the editor's real SFX/clip source trims or exact offer
++        # would be dropped by the renderer. Matches real generated HTML.
++        actual_inpoint_ok = (
++            ('data-media-start="4"' in page and
++             page.count('data-media-start="0"') == 1)
++            if edit_mode == "split-reorder"
++            else (page.count('data-media-start="0"') == 2 and
++                  'data-media-start="4"' not in page)
++        )
++        actual_timing_ok = (
++            ('data-start="0" data-duration="4"' in page and
++             'data-start="14" data-duration="6"' in page)
++            if edit_mode == "split-reorder"
++            else ('data-start="10" data-duration="5"' in page and
++                  'data-start="15" data-duration="5"' in page)
++        )
++        if (page.count('class="footage clip"') != 2 or
++                page.count('id="sfx') != 1 or
++                not actual_inpoint_ok or not actual_timing_ok or
++                '20% OFF' not in page or 'Visit Our Store' not in page or
++                'id="brand-logo"' not in page or
++                "90% OFF" in page):
++            raise AssertionError("Actual edited HyperFrames composition diverged from approved timeline")
++        audit = bundle["lineage"]
++        if audit["fallback_events"] or audit["rendered_as"] != "AUTHORIZED_ASSEMBLY":
++            raise AssertionError("Fixture cannot disguise premium motion fallback")
++        return {
++            "status": "EDITED_MOCK_ONLY_NOT_REAL_AI_MEDIA",
++            "project": str(compiled), "seconds": 30, "width": width,
++            "scenes": len(draft["scenes"]), "asset_ids": sorted(generated),
++            "video_clip_count": 2, "approved_sfx_count": 1,
++            "source_video_inpoints_seconds": inpoints,
++            "editor_operation": edit_mode,
++            "approved_offer": "20% OFF", "real_ai_motion": False,
++            "commercial_fashion_realism_accepted": False,
++            **OWNER_VISUAL_VERDICT,
++        }
++    finally:
++        fixture.root_tmp.cleanup()
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("project")
++    parser.add_argument("--width", type=int, default=540, choices=(540, 1080))
++    parser.add_argument("--edit-mode", default="split-reorder",
++                        choices=("split-reorder", "duplicate"))
++    args = parser.parse_args()
++    print(json.dumps(make_edited_project(
++        Path(args.project), width=args.width, edit_mode=args.edit_mode)))
++
++
++if __name__ == "__main__":
++    main()
+
+diff --git a/video-engine/feature4/ARCHIVED_779_SOURCE_TRACKER_20261117.md b/video-engine/feature4/ARCHIVED_779_SOURCE_TRACKER_20261117.md
+--- a/video-engine/feature4/ARCHIVED_779_SOURCE_TRACKER_20261117.md
++++ b/video-engine/feature4/ARCHIVED_779_SOURCE_TRACKER_20261117.md
+@@ -0,0 +1,11 @@
++# PR #779 historical Feature4 records — 2026-11-17
++
++These four immutable **original Git blob** records are deliberately archived under new names to preserve all historical F4-03/04/10/11/13/14/15 subtask context without reverting current Feature4 parent's latest tracker, negative tests, tenant safety, private media guards, or source preview.
++
++Original consolidated PR #779 head `c1d66e9b3903c45ae4cc9930ad1362a38b3f8843`, OPEN/DRAFT as of this archive. Original changed paths, mapped archive path and exact Git blob:
++- `video-engine/FEATURE4_31_TASK_PARALLEL_TRACKER_20261029.md` -> `video-engine/feature4/archive/pr779_FEATURE4_31_TASK_PARALLEL_TRACKER_20261029.md`, SHA `e09641a94bdf865a97396ba7770ca3a4791fd80f`
++- `video-engine/FEATURE4_HANDOFF.md` -> `video-engine/feature4/archive/pr779_FEATURE4_HANDOFF.md`, SHA `4a229dca032f834cda12c5034eaf97024bebf287`
++- `video-engine/FEATURE4_STAGING_INTEGRITY_HANDOFF_20261029.md` -> `video-engine/feature4/archive/pr779_FEATURE4_STAGING_INTEGRITY_HANDOFF_20261029.md`, SHA `616c256154cb3e629e1a1a5f517dd3c8ab77ce3a`
++- `video-engine/FEATURE4_TIMELINE_STUDIO_ADOPTION.md` -> `video-engine/feature4/archive/pr779_FEATURE4_TIMELINE_STUDIO_ADOPTION.md`, SHA `e25dfbf2fb33a0f5559769778ccd0f8088e5713c`
++
++The current Feature4 parent #322 has separately imported original unique source/tests and features (tenant-safe native drag/resize, authorized source frame jog, bounded audio_mix, three-duration CPU receipts, strict scene decoder, staged file identity and 0600/fsync private mastering). Remaining semantic parity and exact-current-head 4/4 CI are still required. This archive does **not** imply main merge, real verified 60s/15s/30s media, commercial/retailer approvals, or original task DONE. GPU/paid services/PROD/WineShopPOS unchanged.
+

@@ -132,7 +132,10 @@ class SignedThreeReadStatusRLS(unittest.TestCase):
         self.addCleanup(cached_supabase_verifier.cache_clear)
         p1 = patch("security.PyJWKClient", return_value=SimpleNamespace(
             get_signing_key_from_jwt=lambda _jwt: SimpleNamespace(key=KEY.public_key())))
-        p2 = patch("tenant_store.urlopen", side_effect=self.backend)
+        # #1018 makes the default TenantStore transport a pinned no-redirect opener.
+        # Patch that precise opener, not urllib.url_open, so the original
+        # signed/RLS handler and real redirect-denial code remain exercised.
+        p2 = patch("tenant_store._NO_REDIRECT_OPENER.open", side_effect=self.backend)
         for p in (p1, p2):
             p.start()
             self.addCleanup(p.stop)

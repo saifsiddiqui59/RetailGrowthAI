@@ -1,0 +1,1403 @@
+diff --git a/tests/api/test_feature2_private_upload_cpu_batch.py b/tests/api/test_feature2_private_upload_cpu_batch.py
+--- a/tests/api/test_feature2_private_upload_cpu_batch.py
++++ b/tests/api/test_feature2_private_upload_cpu_batch.py
+@@ -0,0 +1,220 @@
++"""F2-21/F2-29: bundled authenticated CPU lease and private MP3 gate tests.
++
++Original Feature2 CPU-budget verifier actually executes against injected
++atomic quota fixture. MP3 decoder is NOT falsely executed: the external
++FFmpeg worker is injected and the receipt is labelled synthetic source-only.
++"""
++from __future__ import annotations
++
++from copy import deepcopy
++from datetime import datetime, timezone
++from hashlib import sha256
++from pathlib import Path
++from uuid import uuid4
++import sys
++
++import pytest
++
++sys.path.insert(0,str(Path(__file__).resolve().parents[2]/
++                      "azure-functions"/"campaign-api"))
++from feature2_adapter import (
++    Feature2LocalCpuReservationAdapter,Feature2PrivateMp3UploadAdapter,
++)
++from ai_agents.feature2_local_voice_workflow import reserve_budgeted_local_voice_job
++
++SHOP="11111111-1111-4111-8111-111111111111"
++CAMP="22222222-2222-4222-8222-222222222222"
++ACTOR="33333333-3333-4333-8333-333333333333"
++JOB="44444444-4444-4444-8444-444444444444"
++PLAN_SHA="a"*64
++NOW=int(datetime(2026,11,6,tzinfo=timezone.utc).timestamp()*1000)
++MP3=b"ID3"+b"\x04\x00\x00\x00\x00\x01"+b"\x00"*300
++
++class Members:
++    def __init__(self,allow=True,revoke=None):
++        self.allow=allow;self.revoke=revoke;self.reads=0
++    def member(self,token,actor,shop,*,write=False):
++        self.reads+=1
++        return (self.allow and
++                (self.revoke is None or self.reads < self.revoke) and
++                (token,actor,shop,write)==("signed",ACTOR,SHOP,True))
++
++def verify(token):
++    if token!="signed":raise ValueError("unauthorized")
++    return ACTOR
++
++def plan():
++    return {"creative_direction_v1":{
++        "contract":"creative_direction_v1",
++        "shop_id":SHOP,"campaign_id":CAMP,
++        "duration_seconds":15,
++        "voiceover_script":"A festive kurti story."},
++        "approval_record":{
++            "plan_sha256":PLAN_SHA,"review_status":"DRAFT",
++            "approved":False,"can_publish":False,
++            "can_run_paid_motion":False}}
++
++def cpu_policy():
++    return {"shop_id":SHOP,"campaign_id":CAMP,
++        "provider":"kokoro-onnx","paid_api_calls_allowed":False,
++        "budget_revision":1,"reserved_cpu_ms":0,"used_cpu_ms":0,
++        "monthly_cpu_limit_ms":100000,"active_cpu_jobs":0,
++        "max_active_cpu_jobs":2,"per_job_reserved_cpu_ms":10000,
++        "period_id":"2026-11","policy_state":"ACTIVE"}
++
++def cpu_case(*,allow=True,revoke=None,exhausted=False,mutation=False):
++    members=Members(allow=allow,revoke=revoke)
++    state={"job_writes":0,"used_keys":set(),"quota_reads":0}
++    request={"schema":"retailgrowth.feature2-local-voice-job.v1",
++        "shop_id":SHOP,"campaign_id":CAMP,
++        "creative_plan_sha256":PLAN_SHA,
++        "voice_id":"af_heart","language":"en-us",
++        "speed":"normal","preview":True,"provider":"kokoro-onnx",
++        "request_key":JOB,"needs_current_server_signed_grants":True,
++        "may_auto_invoke_azure":False,"estimated_paid_cost_usd":0}
++    def read_quota(token,actor,s,c):
++        state["quota_reads"]+=1
++        assert (token,actor,s,c)==("signed",ACTOR,SHOP,CAMP)
++        q=cpu_policy()
++        if exhausted:q["active_cpu_jobs"]=2
++        return q
++    def atomic(token,actor,s,c,key,digest,rev,cpu,req):
++        state["job_writes"]+=1
++        if key in state["used_keys"]:
++            raise ValueError("duplicate original job id")
++        state["used_keys"].add(key)
++        assert (token,actor,s,c)==("signed",ACTOR,SHOP,CAMP)
++        assert key==JOB and rev==1 and cpu==10000
++        assert digest==sha256(__import__("json").dumps(
++            req,sort_keys=True,separators=(",",":")).encode()).hexdigest()
++        return {"schema":"retailgrowth.feature2-local-cpu-reservation.v1",
++            "shop_id":SHOP,"campaign_id":CAMP,
++            "creative_plan_sha256":PLAN_SHA,"job_key":JOB,
++            "request_sha256":digest,"provider":"kokoro-onnx",
++            "reserved_cpu_ms":cpu,"period_id":"2026-11",
++            "lease_fence":1,"lease_expires_ms":NOW+60000,
++            "status":"RESERVED","private":True,"paid_api_calls":0,
++            "can_publish":False,"atomic_unique_commit":True}
++    def source_reader(*args):
++        p=plan()
++        if mutation and state["job_writes"]>0:
++            p["creative_direction_v1"]["voiceover_script"]="changed"
++        return p
++    api=Feature2LocalCpuReservationAdapter(
++        verify,members,plan_reader=source_reader,quota_reader=read_quota,
++        atomic_reserver=atomic,reserve_validator=reserve_budgeted_local_voice_job,
++        server_clock_ms=lambda:NOW)
++    return api,members,state,request
++
++def test_f2_21_real_atomic_reservation_validation_is_not_worker_dispatch():
++    api,m,c,req=cpu_case()
++    status,out=api.post(SHOP,CAMP,"Bearer signed",req)
++    assert status==202,out
++    assert out["schema"]=="retailgrowth.feature2-local-cpu-reservation.v1"
++    assert out["job_key"]==JOB
++    assert out["paid_api_calls"]==0
++    assert out["real_model_inference_observed"] is False
++    assert out["reservation_is_not_worker_completion"] is True
++    assert out["can_publish"] is False
++    assert c["job_writes"]==1 and c["quota_reads"]==1
++    assert m.reads>=4
++    # The same request key may not trigger new reserve/worker after uncertainty.
++    assert api.post(SHOP,CAMP,"Bearer signed",req)[0]==404
++    assert c["job_writes"]==2
++
++@pytest.mark.parametrize("denial",[
++    "foreign","revoked","exhausted","mutation","paid_fallback",
++    "client_paid_cost","foreign_shop","wrong_plan","invalid_key",
++    "hidden_browser_privilege","no_verifier"])
++def test_f2_21_cpu_lease_fails_before_unsafe_dispatch(denial):
++    api,m,c,req=cpu_case(
++        allow=denial!="foreign",
++        revoke=3 if denial=="revoked" else None,
++        exhausted=denial=="exhausted",mutation=denial=="mutation")
++    if denial=="paid_fallback":req["may_auto_invoke_azure"]=True
++    if denial=="client_paid_cost":req["estimated_paid_cost_usd"]=1
++    if denial=="wrong_plan":req["creative_plan_sha256"]="f"*64
++    if denial=="invalid_key":req["request_key"]="not-uuid"
++    if denial=="hidden_browser_privilege":req["can_publish"]=True
++    if denial=="no_verifier":api.reserve_validator=None
++    sid=CAMP if denial=="foreign_shop" else SHOP
++    code,out=api.post(sid,CAMP,"Bearer signed",req)
++    assert code in (400,404,503),out
++    assert "lease_fence" not in out
++    if denial not in ("revoked","exhausted","mutation"):
++        assert c["job_writes"]==0
++
++
++def mp3_case(*,allow=True,revoke=None,forge=False,writer_fails=False):
++    members=Members(allow=allow,revoke=revoke)
++    state={"plan":0,"decode":0,"writes":0}
++    def source(*args):
++        state["plan"]+=1
++        return plan()
++    def write(token,actor,s,c,mp3,wav,manifest):
++        state["writes"]+=1
++        assert (token,actor,s,c)==("signed",ACTOR,SHOP,CAMP)
++        assert mp3==MP3 and wav==b"synthetic-decoded-wav"
++        assert manifest["private"] is True
++        if writer_fails:raise ValueError("writer transaction rejected")
++        return {"asset_id":str(uuid4()),"derived_wav_asset_id":str(uuid4())}
++    def synthetic_verifier(**kwargs):
++        state["decode"]+=1
++        assert kwargs["client_declared_rights"] is None
++        assert kwargs["operator_ffmpeg_path"]=="/server/ffmpeg"
++        if kwargs["authenticated_editor"](SHOP,CAMP) is not True:
++            raise PermissionError("Editor revoked before private MP3 write")
++        assert kwargs["read_authoritative_plan"](SHOP,CAMP)==plan()
++        result=kwargs["store_both_private_pending"](
++            SHOP,CAMP,MP3,b"synthetic-decoded-wav",{
++                "private":True,"can_publish":False})
++        return {"schema":"retailgrowth.feature2-uploaded-mp3-pending.v1",
++            "shop_id":SHOP,"campaign_id":CAMP,
++            "creative_plan_sha256":PLAN_SHA,
++            "original_mp3_sha256":sha256(MP3).hexdigest(),
++            "derived_wav_sha256":sha256(b"synthetic-decoded-wav").hexdigest(),
++            "source_mime_type":"audio/mpeg","derived_mime_type":"audio/wav",
++            "asset_id":result["asset_id"],
++            "derived_wav_asset_id":result["derived_wav_asset_id"],
++            "private":True,"can_publish":True if forge else False,
++            "can_dispatch_motion":False,
++            "original_media_rights_verified":False,
++            "human_speech_alignment_verified":False,
++            "original_wav_is_registered_feature7_source":False,
++            "private_download_url":None,
++            "review_state":"PENDING_RIGHTS_AND_SPEECH_REVIEW",
++            "paid_calls":0,"billing":"NONE"}
++    api=Feature2PrivateMp3UploadAdapter(
++        verify,members,plan_reader=source,
++        dual_asset_writer=write,mp3_verifier=synthetic_verifier,
++        operator_ffmpeg_path="/server/ffmpeg")
++    return api,members,state
++
++def test_f2_29_private_pair_registration_returns_no_decoded_bytes_or_rights():
++    api,m,c=mp3_case()
++    status,result=api.post(
++        SHOP,CAMP,"Bearer signed",original_mp3=MP3,content_type="audio/mpeg")
++    assert status==201,result
++    assert result["original_mp3_sha256"]==sha256(MP3).hexdigest()
++    assert result["review_state"]=="PENDING_RIGHTS_AND_SPEECH_REVIEW"
++    assert result["private"] is True and result["can_publish"] is False
++    assert result["paid_calls"]==0
++    assert result["asset_id"]!=result["derived_wav_asset_id"]
++    assert "derived_wav" not in result and "original_mp3" not in result
++    assert "private_download_url" not in result
++    assert c["writes"]==1 and c["decode"]==1 and m.reads>=3
++
++@pytest.mark.parametrize("bad",[
++    "foreign","revoked","fake_publish","writer_failed","wrong_mime",
++    "client_path","missing_worker","expired"])
++def test_f2_29_invalid_mp3_and_untrusted_assets_never_claim_success(bad):
++    api,m,c=mp3_case(allow=bad!="foreign",
++                     revoke=3 if bad=="revoked" else None,
++                     forge=bad=="fake_publish",writer_fails=bad=="writer_failed")
++    if bad=="missing_worker":api.mp3_verifier=None
++    mime="audio/ogg" if bad=="wrong_mime" else "audio/mpeg"
++    original="../tmp/client.mp3" if bad=="client_path" else MP3
++    token="Bearer expired" if bad=="expired" else "Bearer signed"
++    code,result=api.post(
++        SHOP,CAMP,token,original_mp3=original,content_type=mime)
++    assert code!=201 and "asset_id" not in result
+
+diff --git a/tests/api/test_feature2_private_voice_http_routes.py b/tests/api/test_feature2_private_voice_http_routes.py
+--- a/tests/api/test_feature2_private_voice_http_routes.py
++++ b/tests/api/test_feature2_private_voice_http_routes.py
+@@ -0,0 +1,184 @@
++"""F2-19/20 real source HTTP route dispatch (isolated Azure host harness).
++
++Protected function_app source is loaded as the ACTUAL four AST functions,
++without loading unrelated Azure queue/paid-model APIs. Real Azure deployment,
++JWT/database provider and protected package activation are NOT simulated as
++successful here. The gateway's real tenant/backend integration is separately
++tested in test_feature2_private_voice_store_gateway.py.
++"""
++import ast
++import json
++import os
++from pathlib import Path
++from types import SimpleNamespace
++
++import pytest
++
++SOURCE=Path(__file__).resolve().parents[2]/(
++    "azure-functions/campaign-api/function_app.py")
++ROUTES=(
++    "build_feature2_private_voice",
++    "dispatch_feature2_private_voice",
++    "feature2_private_voice_job_status",
++    "feature2_private_original_wav",
++)
++SHOP="11111111-1111-4111-8111-111111111111"
++CAMPAIGN="22222222-2222-4222-8222-222222222222"
++REQUEST="55555555-5555-4555-8555-555555555555"
++ASSET="44444444-4444-4444-8444-444444444444"
++SHA="a"*64
++
++class Response:
++    def __init__(self,body,status_code,mimetype,headers):
++        self.body=body
++        self.status_code=status_code
++        self.mimetype=mimetype
++        self.headers=headers
++
++class Diagnostics:
++    def __init__(self,method,path):
++        self.method=method
++        self.path=path
++    def complete(self,code,payload):
++        assert self.method=="GET"
++        assert "Authorization" not in self.path
++        # No private audio bytes should ever be passed to the diagnostics.
++        assert type(payload) is dict
++        assert not any(type(x) is bytes for x in payload.values())
++        return {"X-RGAI-Review":"synthetic-offline-test"}
++
++def request(*,authorization="Bearer signed",kind="status"):
++    return SimpleNamespace(
++        route_params={
++            "shop_id":SHOP,"campaign_id":CAMPAIGN,
++            "request_key":REQUEST,
++            "audio_asset_id":ASSET,"original_audio_sha256":SHA,
++        },
++        headers={"Authorization":authorization},
++    )
++
++def source_funcs():
++    syntax=ast.parse(SOURCE.read_text(encoding="utf-8"))
++    nodes=[]
++    for node in syntax.body:
++        if isinstance(node,(ast.FunctionDef,ast.AsyncFunctionDef)) and (
++            node.name in ROUTES
++        ):
++            node.decorator_list=[]  # fake host has no actual Azure decorators
++            nodes.append(node)
++    assert len(nodes)==4
++    return ast.fix_missing_locations(ast.Module(body=nodes,type_ignores=[]))
++
++def harness(monkeypatch,handler=None,enabled=False):
++    monkeypatch.setenv("RETAIL_FEATURE2_PRIVATE_VOICE_READ",
++                       "true" if enabled else "false")
++    ns={"os":os,"json":json,"RequestDiagnostics":Diagnostics,
++        "func":SimpleNamespace(HttpRequest=object,HttpResponse=Response)}
++    exec(compile(source_funcs(),str(SOURCE),"exec"),ns)
++    if handler is not None:
++        ns["build_feature2_private_voice"]=lambda:handler
++    return ns
++
++def test_f2_19_20_missing_reviewed_package_is_503_without_credentials(monkeypatch):
++    api=harness(monkeypatch)
++    assert api["build_feature2_private_voice"]() is None
++    for kind in ("status","original_wav"):
++        response=api["dispatch_feature2_private_voice"](
++            request(authorization="Bearer wrong"),kind=kind)
++        assert response.status_code==503
++        assert response.mimetype=="application/json"
++        assert "DISABLED" in json.loads(response.body)["error"]
++        assert "signed" not in response.body
++
++def test_f2_19_valid_source_status_dispatches_get_only_and_sanitizes(monkeypatch):
++    records=[]
++    class Gateway:
++        def read_status(self,*args):
++            records.append(args)
++            return 200,{"schema":"retailgrowth.feature2-private-voice-job-status.v1",
++                        "status":"RUNNING","private":True,"can_publish":False}
++        def read_original_wav(self,*args):
++            raise AssertionError("A status request must not fetch audio")
++    api=harness(monkeypatch,Gateway(),enabled=True)
++    response=api["feature2_private_voice_job_status"](request())
++    assert response.status_code==200
++    assert response.mimetype=="application/json"
++    assert json.loads(response.body)["status"]=="RUNNING"
++    assert records==[(SHOP,CAMPAIGN,REQUEST,"Bearer signed")]
++    assert response.headers["X-RGAI-Review"]=="synthetic-offline-test"
++
++def test_f2_20_wav_is_binary_no_store_and_never_serialized(monkeypatch):
++    class Gateway:
++        def read_status(self,*args):
++            raise AssertionError("Unexpected job-status request")
++        def read_original_wav(self,*args):
++            assert args==(SHOP,CAMPAIGN,ASSET,SHA,"Bearer signed")
++            return 200,{"body":b"RIFF"+b"\0"*300,
++                        "headers":{"Content-Type":"audio/wav",
++                            "Cache-Control":"private, no-store",
++                            "Pragma":"no-cache",
++                            "X-Content-Type-Options":"nosniff"}}
++    api=harness(monkeypatch,Gateway(),enabled=True)
++    response=api["feature2_private_original_wav"](request(kind="wav"))
++    assert response.status_code==200
++    assert response.mimetype=="audio/wav"
++    assert response.body==b"RIFF"+b"\0"*300
++    assert response.headers["Cache-Control"]=="private, no-store"
++    assert response.headers["X-Content-Type-Options"]=="nosniff"
++    assert response.headers["X-RGAI-Review"]=="synthetic-offline-test"
++
++@pytest.mark.parametrize("broken",[
++    {"body":b"RIFF","headers":{"Cache-Control":"private, no-store",
++                              "Content-Type":"audio/wav"}},
++    {"body":b"RIFF"+b"\0"*200,"headers":{"Cache-Control":"public",
++                                "Content-Type":"audio/wav"}},
++    {"body":b"RIFF"+b"\0"*200,"headers":{"Cache-Control":"private, no-store",
++                                "Content-Type":"text/html"}},
++    {"body":"some-fake-public-URL","headers":{"Cache-Control":"private, no-store",
++                                      "Content-Type":"audio/wav"}},
++])
++def test_f2_20_invalid_gateway_binary_never_becomes_a_download(monkeypatch,broken):
++    class Gateway:
++        def read_original_wav(self,*_):
++            return 200,broken
++    api=harness(monkeypatch,Gateway(),enabled=True)
++    response=api["feature2_private_original_wav"](request())
++    assert response.status_code==503
++    assert response.mimetype=="application/json"
++    assert "body" not in json.loads(response.body)
++    assert "signed" not in response.body
++
++def test_f2_19_errors_never_reflect_backend_exceptions_or_jwt(monkeypatch):
++    class Gateway:
++        def read_status(self,*_):
++            raise RuntimeError("Bearer signed customer secret")
++    api=harness(monkeypatch,Gateway(),enabled=True)
++    response=api["feature2_private_voice_job_status"](request())
++    assert response.status_code==503
++    assert response.mimetype=="application/json"
++    assert "Bearer signed" not in response.body
++    assert json.loads(response.body)=={
++        "error":"FEATURE2_PRIVATE_VOICE_UNAVAILABLE"}
++
++def test_f2_19_20_routes_are_distinct_get_only_and_have_opt_in_guard():
++    syntax=ast.parse(SOURCE.read_text())
++    funcs={n.name:n for n in syntax.body if isinstance(n,ast.FunctionDef)}
++    for name in ("feature2_private_voice_job_status",
++                 "feature2_private_original_wav"):
++        node=funcs[name]
++        assert len(node.decorator_list)==1
++        decorator=node.decorator_list[0]
++        assert isinstance(decorator,ast.Call)
++        assert any(kw.arg=="methods" and
++                   isinstance(kw.value,ast.List) and
++                   len(kw.value.elts)==1 and
++                   kw.value.elts[0].value=="GET"
++                   for kw in decorator.keywords)
++    body=ast.get_source_segment(SOURCE.read_text(),
++                                funcs["build_feature2_private_voice"])
++    assert '!= "true"' in body
++    assert "RETAIL_SUPABASE_PUBLISHABLE_KEY" in body
++    assert "RETAIL_SUPABASE_SERVICE_ROLE_KEY" not in body
++    assert "from ai_agents" not in body
++    assert "status_verifier=None" in body
++    assert "wav_verifier=None" in body
+
+diff --git a/tests/api/test_feature2_private_voice_status_adapter.py b/tests/api/test_feature2_private_voice_status_adapter.py
+--- a/tests/api/test_feature2_private_voice_status_adapter.py
++++ b/tests/api/test_feature2_private_voice_status_adapter.py
+@@ -0,0 +1,157 @@
++"""F2-19: JWT-bound private Kokoro status adapter, offline injected RLS.
++
++This tests real API boundary code, NOT a hosted endpoint or actual model.
++"""
++import sys
++from pathlib import Path
++from hashlib import sha256
++from copy import deepcopy
++from uuid import uuid4
++import pytest
++
++sys.path.insert(0,str(Path(__file__).resolve().parents[2]/
++                      "azure-functions"/"campaign-api"))
++from feature2_adapter import PrivateVoiceStatusAdapter
++from ai_agents.feature2_local_voice_workflow import (
++    read_private_local_voice_job_status,
++)
++
++SHOP="11111111-1111-4111-8111-111111111111"
++CAMP="22222222-2222-4222-8222-222222222222"
++ACTOR="33333333-3333-4333-8333-333333333333"
++REQUEST="55555555-5555-4555-8555-555555555555"
++ASSET="44444444-4444-4444-8444-444444444444"
++SCRIPT="Diwali kurti and festive fashion"
++
++def plan():
++    return {"creative_direction_v1":{
++        "contract":"creative_direction_v1","shop_id":SHOP,
++        "campaign_id":CAMP,"duration_seconds":15,
++        "voiceover_script":SCRIPT},
++        "approval_record":{"plan_sha256":"b"*64,"review_status":"DRAFT",
++        "approved":False,"can_publish":False,"can_run_paid_motion":False}}
++
++def status_row(state):
++    finished=state=="AWAITING_HUMAN_REVIEW"
++    return {"schema":"retailgrowth.feature2-private-voice-job-status.v1",
++        "shop_id":SHOP,"campaign_id":CAMP,"request_key":REQUEST,
++        "creative_plan_sha256":"b"*64,
++        "original_script_sha256":sha256(SCRIPT.encode()).hexdigest(),
++        "provider":"kokoro-onnx","voice_id":"af_heart","language":"en-us",
++        "status":state,"private":True,"can_publish":False,
++        "can_dispatch_motion":False,"automatically_retried":False,
++        "azure_fallback_used":False,"paid_api_calls":0,"revoked_at":None,
++        "request_sha256":"c"*64,"lease_fence":2,
++        "terminal":state in ("AWAITING_HUMAN_REVIEW","FAILED","DENIED","BLOCKED"),
++        "review_status":"PENDING_HUMAN_LISTEN_AND_RIGHTS" if finished else "NOT_READY",
++        "original_audio_sha256":"a"*64 if finished else None,
++        "audio_asset_id":ASSET if finished else None}
++
++def audio_row():
++    return {"schema":"retailgrowth.feature2-to-feature4-original-voice.v1",
++        "shop_id":SHOP,"campaign_id":CAMP,"source_request_key":REQUEST,
++        "audio_asset_id":ASSET,"creative_plan_sha256":"b"*64,
++        "original_script_sha256":sha256(SCRIPT.encode()).hexdigest(),
++        "original_audio_sha256":"a"*64,"provider":"kokoro-onnx",
++        "mime_type":"audio/wav","private":True,"can_publish":False,
++        "review_state":"PENDING_HUMAN_LISTEN_AND_RIGHTS",
++        "revoked_at":None,"local_inference_evidence":True}
++
++def fixture(*,state="RESERVED",foreign=False,deny_on=None,
++            job_change=None,plan_change=None,missing=None):
++    count={"member":0,"plan":0,"job":0,"audio":0}
++    class Members:
++        def member(self,token,actor,sid,*,write=False):
++            count["member"]+=1
++            return (not foreign and token=="signed" and actor==ACTOR and
++                    sid==SHOP and write is True and
++                    (deny_on is None or count["member"]<deny_on))
++    def current(token,actor,sid,cid):
++        assert (token,actor,sid,cid)==("signed",ACTOR,SHOP,CAMP)
++        count["plan"]+=1
++        row=plan()
++        if plan_change and count["plan"]>=plan_change:
++            row["creative_direction_v1"]["voiceover_script"]="New plan"
++        return row
++    def job(token,actor,sid,cid,key):
++        assert (token,actor,sid,cid,key)==("signed",ACTOR,SHOP,CAMP,REQUEST)
++        count["job"]+=1
++        row=status_row(state)
++        if job_change is not None:
++            row.update(job_change(count["job"]))
++        return row
++    def media(token,actor,sid,cid,asset):
++        assert (token,actor,sid,cid,asset)==("signed",ACTOR,SHOP,CAMP,ASSET)
++        count["audio"]+=1
++        return audio_row()
++    api=PrivateVoiceStatusAdapter(
++        lambda token: ACTOR if token=="signed" else
++                     (_ for _ in ()).throw(ValueError("invalid token")),
++        Members(),
++        plan_reader=None if missing=="plan" else current,
++        job_reader=None if missing=="job" else job,
++        private_audio_reader=None if missing=="audio" else media,
++        status_verifier=None if missing=="verifier" else read_private_local_voice_job_status)
++    return api,count
++
++@pytest.mark.parametrize("state",[
++    "RESERVED","RUNNING","FAILED","DENIED","BLOCKED",
++    "AWAITING_HUMAN_REVIEW"])
++def test_f2_19_signed_private_status_is_read_only(state):
++    api,c=fixture(state=state)
++    code,out=api.get(SHOP,CAMP,REQUEST,"Bearer signed")
++    assert code==200,out
++    assert out["request_key"]==REQUEST and out["status"]==state
++    assert out["can_publish"] is False
++    assert out["automatically_retried"] is False
++    assert out["azure_fallback_used"] is False and out["paid_api_calls"]==0
++    assert c["member"]>=4 and c["job"]==2
++    assert c["audio"]==(2 if state=="AWAITING_HUMAN_REVIEW" else 0)
++    assert not any(x in out for x in (
++        "token","lease_fence","signed_url","request_sha256",
++        "audio_bytes","private_download_url","server_mac"))
++
++@pytest.mark.parametrize("token",[
++    "","Bearer ","Bearer expired","bearer signed","Bearer signed ",
++    "Bearer signed\nX-Forwarded-Authorization: key","Bearer signed\x00"])
++def test_f2_19_bad_bearer_denied_before_any_read(token):
++    api,c=fixture()
++    assert api.get(SHOP,CAMP,REQUEST,token)[0]==401
++    assert c["member"]==c["plan"]==c["job"]==0
++
++def test_f2_19_scope_viewer_and_unconfigured_backends_fail_closed():
++    api,c=fixture(foreign=True)
++    assert api.get(SHOP,CAMP,REQUEST,"Bearer signed")[0]==404
++    assert c["plan"]==c["job"]==0
++    for missing in ("plan","job","audio","verifier"):
++        api,c=fixture(missing=missing)
++        assert api.get(SHOP,CAMP,REQUEST,"Bearer signed")[0]==503
++        assert c["job"]==0
++
++@pytest.mark.parametrize("changed",[
++    {"status":"PUBLISHED"},{"paid_api_calls":1},
++    {"can_publish":True},{"azure_fallback_used":True},
++    {"signed_url":"https://example.invalid/public.wav"},
++    {"creative_plan_sha256":"d"*64},
++])
++def test_f2_19_job_forgery_is_not_exposed(changed):
++    api,c=fixture(job_change=lambda _:changed)
++    assert api.get(SHOP,CAMP,REQUEST,"Bearer signed")[0]==404
++    assert c["job"]==1
++
++def test_f2_19_revocation_and_concurrent_cas_mutation_are_denied():
++    api,c=fixture(deny_on=3)
++    assert api.get(SHOP,CAMP,REQUEST,"Bearer signed")[0]==404
++    assert c["job"]==1
++    api,c=fixture(job_change=lambda i:{"lease_fence":9} if i==2 else {})
++    assert api.get(SHOP,CAMP,REQUEST,"Bearer signed")[0]==404
++    assert c["job"]==2
++    api,c=fixture(plan_change=3)
++    assert api.get(SHOP,CAMP,REQUEST,"Bearer signed")[0]==404
++    assert c["job"]<=1
++
++def test_f2_19_bad_request_id_and_shop_cannot_lookup_media():
++    api,c=fixture()
++    for value in ("not-a-uuid","00000000-0000-0000-0000-000000000000"):
++        assert api.get(SHOP,CAMP,value,"Bearer signed")[0]==400
++    assert c["member"]==c["job"]==0
+
+diff --git a/tests/api/test_feature2_private_voice_store_gateway.py b/tests/api/test_feature2_private_voice_store_gateway.py
+--- a/tests/api/test_feature2_private_voice_store_gateway.py
++++ b/tests/api/test_feature2_private_voice_store_gateway.py
+@@ -0,0 +1,282 @@
++"""Feature2 F2-19/F2-20: real user-JWT PostgREST + private Storage read wiring.
++
++Offline network transport, real TenantStore RLS membership request, actual F2
++status/WAV validators and no-store binary gateway. Never a live DEV/PROD test,
++synthetic signed session only, zero actual Kokoro or paid provider calls.
++"""
++from __future__ import annotations
++
++from copy import deepcopy
++from hashlib import sha256
++from io import BytesIO
++from pathlib import Path
++from urllib.error import HTTPError
++from urllib.parse import parse_qs, urlsplit
++import json
++import sys
++import wave
++
++import pytest
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[2]/
++                       "azure-functions"/"campaign-api"))
++from tenant_store import TenantStore, StorageUnavailable
++from feature2_store import Feature2PrivateVoiceStore
++from feature2_adapter import Feature2PrivateVoiceGateway
++from ai_agents.feature2_local_voice_workflow import (
++    read_private_local_voice_job_status,
++    read_registered_private_original_wav,
++)
++
++ORIGIN="https://dev-example.supabase.co"
++PUBKEY="sb_publishable_test-only-not-a-secret"
++SHOP="11111111-1111-4111-8111-111111111111"
++CAMP="22222222-2222-4222-8222-222222222222"
++USER="33333333-3333-4333-8333-333333333333"
++ASSET="44444444-4444-4444-8444-444444444444"
++JOB="55555555-5555-4555-8555-555555555555"
++TOKEN="signed-test"
++SCRIPT="Diwali kurti and festive fashion"
++PLAN_SHA="b"*64
++OBJECT_PATH=f"{SHOP}/{CAMP}/{ASSET}.wav"
++
++def sample_wav():
++    f=BytesIO()
++    with wave.open(f,"wb") as s:
++        s.setnchannels(1)
++        s.setsampwidth(2)
++        s.setframerate(24000)
++        s.writeframes(b"\x00\x14"*24000)
++    return f.getvalue()
++
++WAV=sample_wav()
++WAV_SHA=sha256(WAV).hexdigest()
++
++def plan():
++    return {"creative_direction_v1":{
++        "contract":"creative_direction_v1",
++        "shop_id":SHOP,"campaign_id":CAMP,
++        "duration_seconds":15,"voiceover_script":SCRIPT},
++        "approval_record":{
++            "plan_sha256":PLAN_SHA,"review_status":"DRAFT",
++            "approved":False,"can_publish":False,
++            "can_run_paid_motion":False}}
++
++def job():
++    return {"schema":"retailgrowth.feature2-private-voice-job-status.v1",
++        "shop_id":SHOP,"campaign_id":CAMP,"request_key":JOB,
++        "creative_plan_sha256":PLAN_SHA,
++        "original_script_sha256":sha256(SCRIPT.encode()).hexdigest(),
++        "provider":"kokoro-onnx","voice_id":"af_heart","language":"en-us",
++        "status":"AWAITING_HUMAN_REVIEW","private":True,"can_publish":False,
++        "can_dispatch_motion":False,"automatically_retried":False,
++        "azure_fallback_used":False,"paid_api_calls":0,
++        "revoked_at":None,"request_sha256":"c"*64,"lease_fence":2,
++        "terminal":True,
++        "review_status":"PENDING_HUMAN_LISTEN_AND_RIGHTS",
++        "original_audio_sha256":WAV_SHA,"audio_asset_id":ASSET}
++
++def asset():
++    return {"schema":"retailgrowth.feature2-to-feature4-original-voice.v1",
++        "shop_id":SHOP,"campaign_id":CAMP,
++        "source_request_key":JOB,"audio_asset_id":ASSET,
++        "creative_plan_sha256":PLAN_SHA,
++        "original_script_sha256":sha256(SCRIPT.encode()).hexdigest(),
++        "original_audio_sha256":WAV_SHA,"provider":"kokoro-onnx",
++        "mime_type":"audio/wav","duration_seconds":1.0,
++        "private":True,"can_publish":False,
++        "review_state":"PENDING_HUMAN_LISTEN_AND_RIGHTS",
++        "revoked_at":None,"local_inference_evidence":True}
++
++class FakeResponse:
++    def __init__(self,data,ctype="application/json",encoding=None):
++        self.payload=data
++        self.headers={"Content-Type":ctype}
++        if encoding:self.headers["Content-Encoding"]=encoding
++    def __enter__(self): return self
++    def __exit__(self,*args): return False
++    def read(self,n=-1):return self.payload if n<0 else self.payload[:n]
++
++class FakePrivateTransport:
++    def __init__(self):
++        self.calls=[]
++        self.actor_allowed=True
++        self.revoked_after_object=False
++        self.revoked_after_first_source=False
++        self.wrong_asset_path=False
++        self.wrong_asset_shop=False
++        self.wrong_job_shop=False
++        self.malformed_plan=False
++        self.wrong_mime=False
++        self.public_redirect=False
++        self.big_object=False
++        self.mutate_audio_sha=False
++        self.change_asset_after_first=False
++        self.asset_reads=0
++    def __call__(self,req,timeout=8):
++        url=req.full_url
++        self.calls.append((req.get_method(),url,dict(req.header_items())))
++        info=urlsplit(url)
++        assert info.scheme=="https" and info.netloc=="dev-example.supabase.co"
++        assert req.get_method()=="GET" and timeout==8
++        h={k.lower():v for k,v in req.header_items()}
++        assert h["authorization"]=="Bearer signed-test"
++        assert h["apikey"]==PUBKEY
++        assert "service_role" not in str(h).lower()
++        if info.path=="/rest/v1/shop_memberships":
++            q=parse_qs(info.query)
++            assert q["user_id"]==["eq."+USER]
++            valid_shop=q.get("shop_id")==["eq."+SHOP]
++            return FakeResponse(json.dumps(
++                [{"role":"EDITOR"}] if valid_shop and self.actor_allowed else []
++            ).encode())
++        if info.path.startswith("/rest/v1/feature2_private_voice_"):
++            q=parse_qs(info.query)
++            assert q["shop_id"]==["eq."+SHOP]
++            assert q["campaign_id"]==["eq."+CAMP]
++            assert q["limit"]==["2"]
++            if info.path.endswith("_plans"):
++                if self.revoked_after_first_source:
++                    self.revoked_after_first_source=False
++                    self.actor_allowed=False
++                data={"shop_id":SHOP,"campaign_id":CAMP,"private":True,
++                      "revoked_at":None,"source_plan":plan()}
++                if self.malformed_plan:
++                    data["source_plan"]["approval_record"]["can_publish"]=True
++            elif info.path.endswith("_jobs"):
++                assert q["request_key"]==["eq."+JOB]
++                data={"shop_id":SHOP,"campaign_id":CAMP,"request_key":JOB,
++                      "revoked_at":None,"job_receipt":job()}
++                if self.wrong_job_shop:data["job_receipt"]["shop_id"]=CAMP
++            elif info.path.endswith("_assets"):
++                assert q["audio_asset_id"]==["eq."+ASSET]
++                self.asset_reads+=1
++                media=asset()
++                if self.mutate_audio_sha:media["original_audio_sha256"]="d"*64
++                if self.change_asset_after_first and self.asset_reads>1:
++                    media["revoked_at"]="2026-11-06T00:00:00Z"
++                data={"shop_id":SHOP if not self.wrong_asset_shop else CAMP,
++                      "campaign_id":CAMP,"audio_asset_id":ASSET,
++                      "object_path": OBJECT_PATH if not self.wrong_asset_path else
++                          "https://evil.invalid/public.wav",
++                      "asset_receipt":media,"revoked_at":None}
++            else:raise AssertionError("Unexpected table")
++            return FakeResponse(json.dumps([data]).encode())
++        if info.path=="/storage/v1/object/authenticated/feature2-private-voice/"+OBJECT_PATH:
++            if self.public_redirect:
++                raise HTTPError(url,302,"Redirect to external storage",{},None)
++            if self.revoked_after_object:self.actor_allowed=False
++            raw=b"\0"*(20_000_002) if self.big_object else WAV
++            return FakeResponse(raw,
++                "application/javascript" if self.wrong_mime else "audio/wav")
++        raise AssertionError("Unexpected request path "+info.path)
++
++def gateway(**flags):
++    t=FakePrivateTransport()
++    for key,value in flags.items():setattr(t,key,value)
++    tenants=TenantStore(ORIGIN,PUBKEY,transport=t)
++    store=Feature2PrivateVoiceStore(tenants,transport=t)
++    api=Feature2PrivateVoiceGateway(
++        lambda token: USER if token==TOKEN else
++            (_ for _ in ()).throw(ValueError("invalid token")),
++        tenants,store,
++        status_verifier=read_private_local_voice_job_status,
++        wav_verifier=read_registered_private_original_wav)
++    return api,t,store
++
++def test_f2_19_real_tenant_store_postgrest_original_job_status():
++    api,t,store=gateway()
++    code,out=api.read_status(SHOP,CAMP,JOB,"Bearer signed-test")
++    assert code==200,out
++    assert out["status"]=="AWAITING_HUMAN_REVIEW"
++    assert out["private"] is True
++    assert out["can_publish"] is False
++    assert out["paid_api_calls"]==0
++    assert out["azure_fallback_used"] is False
++    assert out["audio_asset_id"]==ASSET
++    assert "server_mac" not in str(out) and "object_path" not in str(out)
++    assert all("/storage/" not in url for _,url,_ in t.calls)
++    assert sum("shop_memberships" in url for _,url,_ in t.calls)>=4
++    assert all(m=="GET" for m,_,_ in t.calls)
++
++def test_f2_20_same_signed_session_reads_original_binary_with_no_store():
++    api,t,store=gateway()
++    code,response=api.read_original_wav(
++        SHOP,CAMP,ASSET,WAV_SHA,"Bearer signed-test")
++    assert code==200,response
++    assert response["body"]==WAV
++    assert sha256(response["body"]).hexdigest()==WAV_SHA
++    assert response["headers"]["Content-Type"]=="audio/wav"
++    assert response["headers"]["Cache-Control"]=="private, no-store"
++    assert response["headers"]["X-Content-Type-Options"]=="nosniff"
++    assert len([x for _,x,_ in t.calls if "/storage/" in x])==1
++    assert not any("public" in url or "signedUrl" in url for _,url,_ in t.calls)
++    assert all(m=="GET" for m,_,_ in t.calls)
++
++@pytest.mark.parametrize("flags",[
++    {"wrong_asset_path":True},{"wrong_asset_shop":True},
++    {"wrong_mime":True},{"public_redirect":True},
++    {"big_object":True},{"mutate_audio_sha":True},
++    {"change_asset_after_first":True},
++    {"revoked_after_object":True},
++])
++def test_f2_20_private_audio_fails_closed_for_hostile_blob_or_revocation(flags):
++    api,t,store=gateway(**flags)
++    code,out=api.read_original_wav(SHOP,CAMP,ASSET,WAV_SHA,
++                                   "Bearer signed-test")
++    assert code in (404,503),out
++    assert "body" not in out and "object_path" not in str(out)
++    assert b"RIFF" not in repr(out).encode()
++
++@pytest.mark.parametrize("flags",[
++    {"malformed_plan":True},{"wrong_job_shop":True},
++    {"wrong_asset_path":True},
++])
++def test_f2_19_rejects_forged_source_or_audio_receipt(flags):
++    api,t,store=gateway(**flags)
++    code,out=api.read_status(SHOP,CAMP,JOB,"Bearer signed-test")
++    assert code in (404,503),out
++    assert "status" not in out
++
++def test_f2_19_disabled_injected_runtime_verifier_is_503_not_fake_success():
++    api,t,store=gateway()
++    api.status.status_verifier=None
++    assert api.read_status(SHOP,CAMP,JOB,"Bearer signed-test")[0]==503
++    assert not t.calls
++    api.wav.wav_verifier=None
++    assert api.read_original_wav(
++        SHOP,CAMP,ASSET,WAV_SHA,"Bearer signed-test")[0]==503
++    assert all("shop_memberships" in url for _,url,_ in t.calls)
++
++def test_f2_19_expired_session_or_cross_shop_never_reaches_records():
++    api,t,store=gateway()
++    assert api.read_status(SHOP,CAMP,JOB,"Bearer invalid")[0]==401
++    assert not t.calls
++    # Real TenantStore queries RLS membership, never source/asset for foreign.
++    assert api.read_status(CAMP,CAMP,JOB,"Bearer signed-test")[0]==404
++    assert not any("feature2_private_voice_" in url for _,url,_ in t.calls)
++    assert api.read_original_wav(
++        CAMP,CAMP,ASSET,WAV_SHA,"Bearer signed-test")[0]==404
++
++def test_private_store_rejects_arbitrary_table_and_untrusted_origin():
++    api,t,store=gateway()
++    with pytest.raises(ValueError):
++        store._get("shop_memberships",TOKEN,{"select":"*"})
++    class FakeTenant:
++        origin="http://insecure.invalid"
++        key="pub"
++        def member(self,*args,**kwargs): return True
++    with pytest.raises(ValueError):
++        Feature2PrivateVoiceStore(FakeTenant())
++
++def test_f2_19_proposal_only_sql_is_not_a_hosted_migration():
++    path=Path(__file__).resolve().parents[2] / (
++        "ai-agents/sql/feature2_private_voice_REVIEW_ONLY.sql")
++    statement=path.read_text()
++    assert "DO NOT APPLY IN DEV OR PROD" in statement
++    assert statement.count("enable row level security;")==3
++    assert statement.count("grant select on public.feature2_private_voice_")==3
++    assert "has_role(shop_id,array['OWNER','EDITOR']" in statement
++    assert "feature2-private-voice" in statement
++    assert "grant insert" not in statement.lower()
++    assert "to anon;" not in statement.lower()
+
+diff --git a/tests/frontend/feature2-local-voice-scope.test.mjs b/tests/frontend/feature2-local-voice-scope.test.mjs
+--- a/tests/frontend/feature2-local-voice-scope.test.mjs
++++ b/tests/frontend/feature2-local-voice-scope.test.mjs
+@@ -0,0 +1,40 @@
++import test from 'node:test'
++import assert from 'node:assert/strict'
++import {localVoiceRequestScope,sameLocalVoiceScope} from
++  '../../frontend/src/features/voiceover/local-voice-scope.mjs'
++
++const cb = () => {}
++const state = {
++  shopId:'shop-a',campaignId:'campaign-a',planSha256:'a'.repeat(64),
++  sourceScript:'Approved kurti story',enabled:true,
++  voice:'af_heart',language:'en-us',speed:'normal',
++  handlers:[cb,()=>{}],
++}
++const snapshot = overrides => localVoiceRequestScope({...state,...overrides})
++
++test('unchanged tenant, voice and callback identities retain one in-flight response',()=>{
++  assert.equal(sameLocalVoiceScope(snapshot(),snapshot()),true)
++  assert.equal(sameLocalVoiceScope(null,snapshot()),false)
++  assert.equal(sameLocalVoiceScope(snapshot(),null),false)
++})
++
++test('revocation, selection or reviewed source change invalidates stale local result',()=>{
++  const previous=snapshot()
++  for(const change of [
++    {enabled:false},{shopId:'shop-b'},{campaignId:'campaign-b'},
++    {planSha256:'b'.repeat(64)},{sourceScript:'Changed source script'},
++    {voice:'af_sky'},{language:'en-gb'},{speed:'slow'},
++    {handlers:[()=>{},state.handlers[1]]},
++    {handlers:[cb]},{handlers:[cb,state.handlers[1],()=>{}]},
++  ])assert.equal(sameLocalVoiceScope(previous,snapshot(change)),false)
++})
++
++test('scope snapshots are immutable and callback replacement is detected',()=>{
++  const prior=snapshot()
++  assert.equal(Object.isFrozen(prior),true)
++  assert.equal(Object.isFrozen(prior.handlers),true)
++  assert.equal(sameLocalVoiceScope(prior,snapshot()),true)
++  assert.equal(sameLocalVoiceScope(prior,snapshot({
++    handlers:[state.handlers[0],()=>{}],
++  })),false)
++})
+
+diff --git a/tests/frontend/feature2-local-voiceover.test.mjs b/tests/frontend/feature2-local-voiceover.test.mjs
+--- a/tests/frontend/feature2-local-voiceover.test.mjs
++++ b/tests/frontend/feature2-local-voiceover.test.mjs
+@@ -67,6 +67,8 @@ test('A/B browser checkbox alone, foreign/shop-stale plan never authorizes',()=>
+ test('private reviewed draft response is still never publishing approval',()=>{
+  const reply={schema:'retailgrowth.feature2-reviewed-prompt-draft.v1',
+    shop_id:SHOP,campaign_id:CID,revision:8,
++   proposal_id:PROPOSAL,source_revision:7,
++   original_prompt_sha256:'b'.repeat(64),
+    improved_prompt_sha256:'c'.repeat(64),review_status:'DRAFT',
+    private:true,can_publish:false,can_dispatch_paid_motion:false,
+    requires_fresh_media_rights:true,requires_new_copy_fact_review:true}
+@@ -76,6 +78,8 @@ test('private reviewed draft response is still never publishing approval',()=>{
+  assert.equal(output.can_publish,false)
+  for(const change of [
+   {revision:9},{private:false},{can_publish:true},
++  {proposal_id:REVIEW},{source_revision:6},
++  {original_prompt_sha256:'f'.repeat(64)},
+   {can_dispatch_paid_motion:true},{improved_prompt_sha256:'d'.repeat(64)},
+   {review_status:'PUBLISHED'},{requires_fresh_media_rights:false}
+  ]) assert.throws(()=>verifyReviewedDraftReceipt({
+@@ -216,3 +220,101 @@ test('reject foreign, replayed, paid-fallback or fabricated voice job success',(
+     undefined,JSON.stringify(changed))
+  }
+ })
++
++
++// feature2 F2-31 review-only UI receipt: a signed backend still owns durable
++// review verification; the browser must deny forged optional grants on sight.
++const f2ReviewDraftReply={
++ schema:'retailgrowth.feature2-reviewed-prompt-draft.v1',
++ shop_id:SHOP,campaign_id:CID,proposal_id:PROPOSAL,
++ source_revision:7,revision:8,
++ original_prompt_sha256:'b'.repeat(64),
++ improved_prompt_sha256:'c'.repeat(64),
++ review_status:'DRAFT',private:true,can_publish:false,
++ can_dispatch_paid_motion:false,
++ requires_fresh_media_rights:true,
++ requires_new_copy_fact_review:true,
++}
++const suspiciousReviewFields=[
++ {approved_to_publish:true},{approved_to_publish:'false'},
++ {commercial_use_approved:null},{commercial_use_approved:1},
++ {offer_facts_verified:true},{media_rights_verified:'no'},
++ {paid_inference_authorized:0},{may_auto_invoke_azure:true},
++ {provider_call_made:true},{paid_calls:false},
++ {paid_calls:1},{paid_calls:'0'},
++ {billing:'PAID'},
++ {signed_url:'https://example.invalid/audio'},
++ {private_download_url:'https://example.invalid/draft'},
++]
++test('F2-31 rejects forged optional grants in signed draft source preview',()=>{
++ for(const wrong of suspiciousReviewFields){
++   assert.throws(()=>request({proposal:{...draftProposal,...wrong}}),
++     undefined,JSON.stringify(wrong))
++ }
++})
++test('F2-31 rejects forged optional grants in reviewed draft receipt',()=>{
++ for(const wrong of suspiciousReviewFields){
++   assert.throws(()=>verifyReviewedDraftReceipt({
++     shopId:SHOP,campaignId:CID,proposal:draftProposal,
++     receipt:{...f2ReviewDraftReply,...wrong},
++   }),undefined,JSON.stringify(wrong))
++ }
++})
++test('F2-31 pending optional denial metadata remains only a private draft',()=>{
++ const safe={
++  approved_to_publish:false,
++  commercial_use_approved:false,
++  offer_facts_verified:false,
++  media_rights_verified:false,
++  paid_inference_authorized:false,
++  may_auto_invoke_azure:false,
++  provider_call_made:false,
++  paid_calls:0,billing:'NONE',signed_url:null,private_download_url:null,
++ }
++ const proposed=request({proposal:{...draftProposal,...safe}})
++ assert.equal(proposed.allow_publish,false)
++ assert.equal(proposed.requires_independently_signed_human_review,true)
++ const returned=verifyReviewedDraftReceipt({
++   shopId:SHOP,campaignId:CID,proposal:draftProposal,
++   receipt:{...f2ReviewDraftReply,...safe},
++ })
++ assert.equal(returned.can_publish,false)
++ assert.equal(returned.review_status,'DRAFT')
++ assert.ok(Object.isFrozen(returned))
++})
++
++
++test('F2-31 signed A/B receipt rejects numeric coercion and forged proposal grants',()=>{
++ const receipt={schema:'retailgrowth.feature2-reviewed-prompt-draft.v1',
++   shop_id:SHOP,campaign_id:CID,proposal_id:PROPOSAL,
++   source_revision:7,revision:8,
++   original_prompt_sha256:'b'.repeat(64),
++   improved_prompt_sha256:'c'.repeat(64),
++   review_status:'DRAFT',private:true,can_publish:false,
++   can_dispatch_paid_motion:false,
++   requires_fresh_media_rights:true,requires_new_copy_fact_review:true}
++ const cases=[
++   {proposal:{...draftProposal,source_revision:'7'},
++     receipt:{...receipt,source_revision:'7',revision:'71'}},
++   {proposal:{...draftProposal,source_revision:true},
++     receipt:{...receipt,source_revision:true,revision:2}},
++   {proposal:{...draftProposal,source_revision:7.5}},
++   {proposal:{...draftProposal,source_revision:100000}},
++   {proposal:{...draftProposal,can_publish:'false'}},
++   {proposal:{...draftProposal,paid_calls:1}},
++   {proposal:{...draftProposal,improved_prompt_sha256:'not-a-hash'}},
++   {receipt:{...receipt,revision:true}},
++   {receipt:{...receipt,source_revision:'7'}},
++   {receipt:{...receipt,revision:8.0,private:'true'}},
++ ]
++ for(const variant of cases){
++   assert.throws(()=>verifyReviewedDraftReceipt({
++     shopId:SHOP,campaignId:CID,
++     proposal:variant.proposal||draftProposal,
++     receipt:variant.receipt||receipt}),/Invalid or unauthorized/)
++ }
++ const ok=verifyReviewedDraftReceipt({shopId:SHOP,campaignId:CID,
++                                    proposal:draftProposal,receipt})
++ assert.equal(ok.can_publish,false)
++ assert.equal(ok.revision,8)
++})
+
+diff --git a/tests/frontend/feature2-private-http.test.mjs b/tests/frontend/feature2-private-http.test.mjs
+--- a/tests/frontend/feature2-private-http.test.mjs
++++ b/tests/frontend/feature2-private-http.test.mjs
+@@ -0,0 +1,195 @@
++// F2-19/F2-20 signed read-only status + original private WAV client.
++// Real source module, intercepted network. No live JWT, audio provider,
++// model inference, public asset URL, DB migration or cloud write.
++import test from 'node:test'
++import assert from 'node:assert/strict'
++import {createHash,webcrypto} from 'node:crypto'
++import {readFileSync} from 'node:fs'
++import {fileURLToPath} from 'node:url'
++import {resolve,dirname} from 'node:path'
++import {createFeature2PrivateVoiceReader} from '../../frontend/src/features/voiceover/feature2-private-http.mjs'
++
++const SHOP='11111111-1111-4111-8111-111111111111'
++const CAMP='22222222-2222-4222-8222-222222222222'
++const JOB='55555555-5555-4555-8555-555555555555'
++const ASSET='44444444-4444-4444-8444-444444444444'
++const PLAN='b'.repeat(64)
++const WAV=new Uint8Array(280)
++WAV.set(Buffer.from('RIFF'),0)
++WAV.set(Buffer.from('WAVE'),8)
++WAV.set(Buffer.from('fmt '),12)
++WAV.set(Buffer.from('data'),36)
++const SHA=createHash('sha256').update(WAV).digest('hex')
++if(!globalThis.crypto?.subtle)globalThis.crypto=webcrypto
++
++const validStatus=()=>({
++  schema:'retailgrowth.feature2-private-voice-job-status.v1',
++  shop_id:SHOP,campaign_id:CAMP,request_key:JOB,creative_plan_sha256:PLAN,
++  provider:'kokoro-onnx',status:'AWAITING_HUMAN_REVIEW',
++  private:true,can_publish:false,automatically_retried:false,
++  azure_fallback_used:false,paid_api_calls:0,terminal:true,
++  original_audio_sha256:SHA,audio_asset_id:ASSET,
++  review_status:'PENDING_HUMAN_LISTEN_AND_RIGHTS',
++})
++const jobScope={shop_id:SHOP,campaign_id:CAMP,request_key:JOB,
++                creative_plan_sha256:PLAN}
++const assetScope={shop_id:SHOP,campaign_id:CAMP,audio_asset_id:ASSET,
++                  original_audio_sha256:SHA}
++
++function client(fetcher,{enabled=true,tokenProvider=async()=> 'test-token'}={}){
++  return createFeature2PrivateVoiceReader({
++    baseUrl:'https://api.example.dev/api',enabled,tokenProvider,fetcher})
++}
++function httpStatus(body=validStatus(),headers={}){
++  return new Response(JSON.stringify(body),{
++    status:200,headers:{'Content-Type':'application/json',...headers}})
++}
++function httpWav(bytes=WAV,headers={}){
++  return new Response(bytes,{
++    status:200,headers:{
++      'Content-Type':'audio/wav','Cache-Control':'private, no-store',...headers}})
++}
++
++test('F2-19 private voice status authenticates once and validates complete receipt',async()=>{
++  const network=[]
++  const api=client(async (url,init)=>{
++    network.push([url,init])
++    return httpStatus()
++  })
++  const row=await api.getPrivateStatus(jobScope)
++  assert.equal(row.status,'AWAITING_HUMAN_REVIEW')
++  assert.equal(row.can_publish,false)
++  assert.equal(network.length,1)
++  assert.equal(network[0][0],
++    'https://api.example.dev/api/shops/'+SHOP+'/campaigns/'+CAMP+
++    '/feature2-voice-jobs/'+JOB)
++  assert.equal(network[0][1].method,'GET')
++  assert.equal(network[0][1].headers.Authorization,'Bearer test-token')
++  assert.equal(network[0][1].cache,'no-store')
++  assert.equal(network[0][1].redirect,'error')
++  assert.equal(network[0][1].credentials,'omit')
++  assert.equal(network[0][1].headers.Accept,'application/json')
++})
++
++test('F2-20 bounded original WAV is SHA matched and cannot auto-play',async()=>{
++  const urls=[]
++  const api=client(async (url,init)=>{
++    urls.push([url,init])
++    return httpWav()
++  })
++  const data=await api.getOriginalWav(assetScope)
++  assert.equal(data.schema,'retailgrowth.feature2-private-original-wav-read.v1')
++  assert.equal(data.asset_id,ASSET)
++  assert.equal(data.original_audio_sha256,SHA)
++  assert.equal(data.private,true)
++  assert.equal(data.can_publish,false)
++  assert.equal(data.audio_bytes.byteLength,WAV.length)
++  assert.deepEqual(data.audio_bytes,WAV)
++  assert.equal(urls.length,1)
++  assert.equal(urls[0][0],
++    'https://api.example.dev/api/shops/'+SHOP+'/campaigns/'+CAMP+
++    '/feature2-original-wav/'+ASSET+'/'+SHA)
++  assert.equal(urls[0][1].headers.Accept,'audio/wav')
++  assert.ok(!urls[0][0].includes('storage/v1/object/public'))
++})
++
++test('F2-19 rejects forged success/publishing and stale scope',async()=>{
++  for(const evil of [
++    {...validStatus(),can_publish:true},
++    {...validStatus(),paid_api_calls:1},
++    {...validStatus(),status:'PUBLISHED'},
++    {...validStatus(),original_audio_sha256:'not-a-sha'},
++    {...validStatus(),shop_id:CAMP},
++  ]){
++    const api=client(async()=>httpStatus(evil))
++    await assert.rejects(api.getPrivateStatus(jobScope))
++  }
++})
++
++test('F2-19/20 disabled reader refuses network access',async()=>{
++  let count=0
++  const api=client(async()=>{count++;return httpStatus()},{enabled:false})
++  await assert.rejects(api.getPrivateStatus(jobScope))
++  await assert.rejects(api.getOriginalWav(assetScope))
++  assert.equal(count,0)
++})
++
++test('F2-19/20 reject weak origin, mismatched UUID and unexpected paths',async()=>{
++  for(const badUrl of [
++    'http://api.example.dev/api',
++    'https://api.example.dev/api?q=secret',
++    'https://user:pass@api.example.dev/api',
++    'https://evil.example.dev/path/other',
++  ]){
++    assert.throws(()=>createFeature2PrivateVoiceReader({
++      baseUrl:badUrl,tokenProvider:async()=> 'signed',
++      fetcher:async()=>httpStatus(),enabled:true}))
++  }
++  let called=0
++  const api=client(async()=>{called++;return httpStatus()})
++  await assert.rejects(api.getPrivateStatus({...jobScope,shop_id:'invalid-shop'}))
++  await assert.rejects(api.getOriginalWav({...assetScope,
++    original_audio_sha256:'../../etc/passwd'}))
++  assert.equal(called,0)
++  // Cross-tenant UUID is syntactically valid; real authenticated RLS server
++  // must deny it. Do not pretend the browser knows every authorized shop.
++  const remote=client(async()=>{called++;return new Response(null,{status:404})})
++  await assert.rejects(remote.getPrivateStatus({...jobScope,shop_id:CAMP}))
++  assert.equal(called,1)
++})
++
++test('F2-19 token changes during private JSON read: fail closed',async()=>{
++  let n=0
++  const api=client(async()=>httpStatus(),{
++    tokenProvider:async()=>++n>=3?'other-token':'test-token'})
++  await assert.rejects(api.getPrivateStatus(jobScope))
++})
++
++test('F2-20 token changes during WAV streaming: fail closed',async()=>{
++  let n=0
++  const api=client(async()=>httpWav(),{
++    tokenProvider:async()=>++n>=3?'other-token':'test-token'})
++  await assert.rejects(api.getOriginalWav(assetScope))
++})
++
++test('F2-20 rejects wrong bytes, missing no-store, MIME and unexpected redirects',async()=>{
++  for(const bad of [
++    httpWav(WAV,{'Cache-Control':'public,max-age=3600'}),
++    httpWav(WAV,{'Content-Type':'text/html'}),
++    httpWav(new Uint8Array(50)),
++    httpWav(new Uint8Array(280)),
++    new Response(null,{status:302,headers:{Location:'https://evil.invalid/wav'}}),
++  ]){
++    const api=client(async()=>bad)
++    await assert.rejects(api.getOriginalWav(assetScope))
++  }
++})
++
++test('F2-20 rejects streaming past the cap before allocating a single huge buffer',async()=>{
++  const chunk=new Uint8Array(500_000)
++  const stream=new ReadableStream({
++    start(controller){
++      for(let i=0;i<41;i++)controller.enqueue(chunk)
++      controller.close()
++    }
++  })
++  const fake={
++    status:200,ok:true,
++    headers:new Headers({
++      'Content-Type':'audio/wav',
++      'Cache-Control':'private, no-store',
++    }),
++    body:stream,
++  }
++  const api=client(async()=>fake)
++  await assert.rejects(api.getOriginalWav(assetScope))
++})
++
++test('F2-20 LocalVoicePanel sends exact original WAV SHA and creative scope',()=>{
++  const root=resolve(dirname(fileURLToPath(import.meta.url)),
++    '../../frontend/src/features/voiceover/LocalVoicePanel.jsx')
++  const jsx=readFileSync(root,'utf8')
++  assert.match(jsx,/original_audio_sha256:saved\.original_audio_sha256/)
++  assert.match(jsx,/creative_plan_sha256:planSha256/)
++  assert.match(jsx,/verifyLocalPrivatePlayback/)
++})
+
+diff --git a/tests/frontend/feature2-private-trace.test.mjs b/tests/frontend/feature2-private-trace.test.mjs
+--- a/tests/frontend/feature2-private-trace.test.mjs
++++ b/tests/frontend/feature2-private-trace.test.mjs
+@@ -1,6 +1,6 @@
+ import test from 'node:test'
+ import assert from 'node:assert/strict'
+-import {verifyPrivateFeature2Trace} from '../../frontend/src/features/voiceover/voiceover-trace-model.mjs'
++import {verifyPrivateFeature2Trace,verifyCurrentPrivateTraceRead} from '../../frontend/src/features/voiceover/voiceover-trace-model.mjs'
+ const shopId='11111111-1111-4111-8111-111111111111'
+ const campaignId='22222222-2222-4222-8222-222222222222'
+ const workflowId='33333333-3333-4333-8333-333333333333'
+@@ -71,3 +71,41 @@ test('client refuses a trace request with stale selected workflow',()=>{
+  source.events=[]
+  assert.throws(()=>check(source))
+ })
++
++
++// This is a deterministic React scope-identity contract: the JSX panel
++// compares the request's scope against the latest ref before state updates.
++// It is NOT proof of a real authenticated UI session or hosted JWT/RLS.
++test('private trace request cannot return success after shop or workflow switch',()=>{
++ const fetcher=()=>Promise.resolve(fixture())
++ const original=Object.freeze({shopId,campaignId,workflowId,sourceSha256,
++   enabled:true,onFetchPrivateTrace:fetcher})
++ const out=verifyCurrentPrivateTraceRead({
++   currentScope:original,requestScope:original,receipt:fixture()})
++ assert.equal(out.status,'PRIVATE_BACKEND_STATUS_ONLY')
++ const changes=[
++   {shopId:campaignId},{campaignId:shopId},{workflowId:campaignId},
++   {sourceSha256:'d'.repeat(64)},{enabled:false},
++   {onFetchPrivateTrace:()=>Promise.resolve(fixture())},
++ ]
++ for(const changed of changes){
++   const next=Object.freeze({...original,...changed})
++   assert.throws(()=>verifyCurrentPrivateTraceRead({
++     currentScope:next,requestScope:original,receipt:fixture()}),
++     undefined,JSON.stringify(Object.keys(changed)))
++ }
++})
++
++test('disabled trace reader is never a valid authorization source',()=>{
++ const scope={shopId,campaignId,workflowId,sourceSha256,
++   enabled:false,onFetchPrivateTrace:()=>fixture()}
++ assert.throws(()=>verifyCurrentPrivateTraceRead({
++   currentScope:scope,requestScope:scope,receipt:fixture()}))
++ const noReader={...scope,enabled:true,onFetchPrivateTrace:null}
++ assert.throws(()=>verifyCurrentPrivateTraceRead({
++   currentScope:noReader,requestScope:noReader,receipt:fixture()}))
++ const active={...scope,enabled:true}
++ assert.throws(()=>verifyCurrentPrivateTraceRead({
++   currentScope:active,requestScope:active,
++   receipt:{...fixture(),source_sha256:'b'.repeat(64)}}))
++})
+
+diff --git a/tests/frontend/feature2-voice-quality-review.test.mjs b/tests/frontend/feature2-voice-quality-review.test.mjs
+--- a/tests/frontend/feature2-voice-quality-review.test.mjs
++++ b/tests/frontend/feature2-voice-quality-review.test.mjs
+@@ -176,3 +176,112 @@ test('WER higher than 100 percent is allowed when there are extra spoken words',
+  const x=verifyWer(p)
+  assert.equal(x.asr.word_error_rate,3)
+ })
++
++
++// Browser rendering must independently reject Unicode spoofing even if a
++// mocked server claims a matching private ASR source; this is not worker proof.
++test('review UI denies invisible/bidi spoof and whitespace inside signed word hints',()=>{
++ const words=[
++   'kurti\u202e','kurti\u200b','कुर्ती\u2066','kurti\u2028',
++   'kurti\u00ad','two words',' trailing','trailing ','<svg>'
++ ]
++ for(const word of words){
++   const altered=review()
++   altered.asr_word_timing[0].word=word
++   assert.throws(()=>verifyPrivateVoiceQualityReview({
++     shopId,campaignId,planSha256,receipt,review:altered}),undefined,JSON.stringify(word))
++   const issue=review()
++   issue.asr_issues[0].word=word
++   assert.throws(()=>verifyPrivateVoiceQualityReview({
++     shopId,campaignId,planSha256,receipt,review:issue}),undefined,JSON.stringify(word))
++ }
++})
++
++test('legitimate Indian conjunct and punctuation-free single tokens survive',()=>{
++ const original=review()
++ original.asr_word_timing[0].word='क्\u200dष'
++ original.asr_issues[0].word='कुर्ती'
++ const out=verifyPrivateVoiceQualityReview({
++   shopId,campaignId,planSha256,receipt,review:original})
++ assert.equal(out.words[0].word,'क्\u200dष')
++ assert.equal(out.issues[0].word,'कुर्ती')
++ assert.ok(Object.isFrozen(out.words[0]))
++ assert.ok(Object.isFrozen(out.issues[0]))
++})
++
++test('quality review and aggregate WER reject forged audio identity or job ID',()=>{
++ const wrongReceipt={...receipt,private_audio_asset_id:'unscoped-job'}
++ const wrongReview={...review(),audio_asset_id:'unscoped-job'}
++ assert.throws(()=>verifyPrivateVoiceQualityReview({
++   shopId,campaignId,planSha256,receipt:wrongReceipt,review:wrongReview}))
++ const forged=werReceipt()
++ forged.source_job_id='../another-job'
++ assert.throws(()=>verifyWer(forged))
++ assert.throws(()=>verifySignedWordErrorReview({
++   shopId,campaignId,planSha256:'invalid-plan',
++   receipt:{...receipt,creative_plan_sha256:'invalid-plan'},
++   metrics:{...werReceipt(),creative_plan_sha256:'invalid-plan'}}))
++})
++
++
++test('F2-26 rejects misplaced zero-width joiners in private F7 word display',()=>{
++  const disguised=[
++    'kur\u200cti','kur\u200dti','\u200dkurti',
++    'दि\u200dवाली','क्\u200d9','क्\u200d',
++  ]
++  for(const word of disguised){
++    const altered=review()
++    altered.asr_word_timing[0].word=word
++    assert.throws(()=>verifyPrivateVoiceQualityReview({
++      shopId,campaignId,planSha256,receipt,review:altered
++    }),undefined,JSON.stringify(word))
++    const issue=review()
++    issue.asr_issues[0].word=word
++    assert.throws(()=>verifyPrivateVoiceQualityReview({
++      shopId,campaignId,planSha256,receipt,review:issue
++    }),undefined,JSON.stringify(word))
++  }
++})
++
++test('F2-26 valid Devanagari virama conjunct stays manually reviewable',()=>{
++  const content=review()
++  content.asr_word_timing[0].word='क्\u200dष'
++  content.asr_issues[0].word='क्\u200cष'
++  const verified=verifyPrivateVoiceQualityReview({
++    shopId,campaignId,planSha256,receipt,review:content
++  })
++  assert.equal(verified.words[0].word,'क्\u200dष')
++  assert.equal(verified.issues[0].word,'क्\u200cष')
++  assert.equal(verified.human_listening_required,true)
++  assert.equal(verified.pronunciation_verified,false)
++  assert.equal(verified.can_publish,false)
++})
++
++
++test('F2-26 rejects unpaired surrogates in private F7 display',()=>{
++  for(const invalid of [
++    'kurti\uD800','kurti\uDC00','\uD800kurti','कुर्ती\uDFFF'
++  ]){
++    const altered=review()
++    altered.asr_word_timing[0].word=invalid
++    assert.throws(()=>verifyPrivateVoiceQualityReview({
++      shopId,campaignId,planSha256,receipt,review:altered
++    }),undefined,JSON.stringify(invalid))
++    const issue=review()
++    issue.asr_issues[0].word=invalid
++    assert.throws(()=>verifyPrivateVoiceQualityReview({
++      shopId,campaignId,planSha256,receipt,review:issue
++    }),undefined,JSON.stringify(invalid))
++  }
++})
++
++test('F2-26 correctly paired supplementary-script letter remains review-only',()=>{
++  const original=review()
++  original.asr_word_timing[0].word='𑀓'
++  const display=verifyPrivateVoiceQualityReview({
++    shopId,campaignId,planSha256,receipt,review:original
++  })
++  assert.equal(display.words[0].word,'𑀓')
++  assert.equal(display.pronunciation_verified,false)
++  assert.equal(display.can_publish,false)
++})
+
