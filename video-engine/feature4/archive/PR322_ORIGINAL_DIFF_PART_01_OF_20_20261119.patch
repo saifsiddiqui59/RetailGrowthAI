@@ -1,0 +1,1570 @@
+diff --git a/frontend/e2e/fixtures/timeline-studio-harness.jsx b/frontend/e2e/fixtures/timeline-studio-harness.jsx
+--- a/frontend/e2e/fixtures/timeline-studio-harness.jsx
++++ b/frontend/e2e/fixtures/timeline-studio-harness.jsx
+@@ -0,0 +1,109 @@
++// Test-only Vite-resolved module: never mounted by the production router.
++import React from 'react'
++import { createRoot } from 'react-dom/client'
++import VideoStudio from '../../src/features/video/VideoStudio.jsx'
++import TimelineStudioSurface from '../../src/features/video/TimelineStudioSurface.jsx'
++
++export function mountFeature4({shop,approved,seedCompletedRender=false,seedOwnerRejectedRender=false}) {
++  const holder=document.createElement('div')
++  holder.id='feature4-offline-test'
++  document.getElementById('root')?.setAttribute('hidden','')
++  document.body.appendChild(holder)
++  const media=[
++    {id:'photo1',kind:'image',authorized:true,shop_id:shop},
++    {id:'motion1',kind:'video',authorized:true,shop_id:shop},
++    {id:'poster1',kind:'poster',authorized:true,shop_id:shop}
++  ]
++  const licensedAudio=[
++    {id:'licensed_scene_fx',kind:'audio',authorized:true,shop_id:shop,title:'Licensed short whoosh'}
++  ]
++  const approvedPlan=approved?{
++    version:'creative_direction_v1',source_feature:'feature2',approved:true,
++    shop_id:shop,campaign_id:'campaign1',approval_id:'approval1',
++    review_hash:'a'.repeat(64),duration_seconds:30,template:'cinematic',
++    voiceover_asset_id:'licensed_scene_fx',
++    script:{source_feature:'feature2',approved:true,approval_id:'approval1',
++      transcript:[{start:.5,duration:2,text:'Reviewed spoken intro'},
++        {start:10,duration:2,text:'Exactly reviewed offer'},
++        {start:27,duration:2,text:'Visit our store'}]},
++    cta:'Visit our store',music_asset_id:null,
++    scenes:[{duration:10,asset_id:'photo1',headline:'Approved kurti',
++      transition:'fade',animation_preset:'subtle_zoom'},
++    {duration:10,asset_id:'motion1',headline:'Approved walking model',
++      transition:'cut',animation_preset:'fade'},
++    {duration:10,asset_id:'poster1',headline:'20% OFF',
++      offer:'20% OFF',transition:'fade',animation_preset:'fade'}]
++  }:null
++  window.__feature4Renders=[]
++  createRoot(holder).render(React.createElement(VideoStudio,{
++   shopId:shop,mediaAssets:media,musicAssets:licensedAudio,creativeDirection:approvedPlan,
++   ...(seedCompletedRender ? {
++     renderStatus: {status:'SUCCEEDED',shop_id:shop,job_id:'test-old-job',
++       ...(seedOwnerRejectedRender ? {visual_quality_status:'OWNER_REJECTED'} : {})},
++     signedVideoUrl: 'https://example.invalid/previous-approved-result.mp4'
++   } : {}),
++   onRender:async plan => {window.__feature4Renders.push(plan)}
++  }))
++
++}
++
++
++// Isolated read-only beat-lane harness; no hidden server/media rights shortcuts.
++export function mountFeature4BeatLane({shop, authorized=true,approvedDirection=false,fps=24}) {
++  const holder=document.createElement('div')
++  holder.id='feature4-beat-lane-e2e'
++  document.getElementById('root')?.setAttribute('hidden','')
++  document.body.appendChild(holder)
++  const scenes=Array.from({length:3},(_,i)=>({
++    start:i*5,duration:5,headline:['Intro look','Garment closeup','End editorial'][i],
++    asset_id:'photo1',animation_preset:'subtle_zoom',transition:'fade',
++  }))
++  const draft={
++    version:'rg_video_v2',shop_id:shop,mode:'music_sync',template:'cinematic',
++    duration_seconds:15,output:{width:540,height:960,fps},scenes,
++    cta:'Stock editorial sample',music_asset_id:'music01',voiceover_asset_id:null,
++    beats:[1,3.5,7.125,10.5],
++  }
++  const audio=[{
++    id:'music01',kind:'audio',shop_id:authorized?shop:'foreign',
++    authorized:true,title:'Original rhythm test track',
++  }]
++  const media=[{id:'photo1',kind:'image',authorized:true,shop_id:shop}]
++  import('../../src/features/video/TimelineStudioSurface.jsx').then(({default: TimelineStudioSurface})=>{
++    createRoot(holder).render(React.createElement(TimelineStudioSurface,{
++      draft,mediaAssets:media,musicAssets:audio,selectedSceneIndex:0,
++      approvedDirection,onChange:()=>{},onSelectScene:()=>{},
++    }))
++  })
++}
++
++export function mountFeature4ResizeRace({shop}) {
++  const holder = document.createElement('div')
++  holder.id = 'feature4-resize-race'
++  document.getElementById('root')?.setAttribute('hidden', '')
++  document.body.appendChild(holder)
++  const root = createRoot(holder)
++  window.__feature4ResizeWrites = []
++  const render = (currentShop, approved = false) => {
++    const scenes = Array.from({length:3}, (_, i) => ({
++      start:i*5, duration:5, headline:['Intro','Product','End card'][i],
++      asset_id:'photo1', animation_preset:'fade', transition:'cut',
++    }))
++    const draft = {
++      version:'rg_video_v2', mode:'media', shop_id:currentShop,
++      duration_seconds:15, template:'cinematic',
++      output:{width:540,height:960,fps:24},scenes,
++      cta:'Test only',music_asset_id:null,voiceover_asset_id:null,
++    }
++    const media = [{id:'photo1',kind:'image',authorized:true,shop_id:currentShop}]
++    root.render(React.createElement(React.Fragment,null,
++      React.createElement('output',{'data-testid':'f4-resize-active-shop'},currentShop),
++      React.createElement(TimelineStudioSurface,{
++        draft,mediaAssets:media,musicAssets:[],approvedDirection:approved,
++        selectedSceneIndex:0,onSelectScene:()=>{},
++        onChange:next=>window.__feature4ResizeWrites.push(next),
++      })))
++  }
++  window.__feature4ResizeChangeContext = render
++  render(shop)
++}
+
+diff --git a/frontend/e2e/timeline-studio.spec.mjs b/frontend/e2e/timeline-studio.spec.mjs
+--- a/frontend/e2e/timeline-studio.spec.mjs
++++ b/frontend/e2e/timeline-studio.spec.mjs
+@@ -0,0 +1,395 @@
++import { test, expect } from '@playwright/test'
++const SHOP='11111111-1111-4111-8111-111111111111'
++async function mount(page, approved=false) {
++ await page.goto('/')
++ await page.evaluate(async ({shop,approved}) => {
++  const fixture = await import('/e2e/fixtures/timeline-studio-harness.jsx')
++  fixture.mountFeature4({shop,approved})
++ },{shop:SHOP,approved})
++ await expect(page.getByRole('heading',{name:'Professional Video Studio'})).toBeVisible()
++}
++
++test('real adapted Timeline Studio split/undo/redo and renderer-safe submission',async ({page})=>{
++ await page.setViewportSize({width:1440,height:900})
++ await mount(page)
++ await expect(page.getByRole('region',{name:'Professional multi-track video timeline'})).toBeVisible()
++ await expect(page.locator('[data-timeline-segment-track="image"]')).toHaveCount(3)
++ // Select source scene: this seeks playhead to the center of its clip.
++ await page.getByRole('button',{name:/Scene 1:/}).click()
++ await page.getByRole('button',{name:'Split video at playhead'}).click()
++ await expect(page.locator('[data-timeline-segment-track="image"]')).toHaveCount(4)
++ await page.getByRole('button',{name:'Undo timeline edit'}).click()
++ await expect(page.locator('[data-timeline-segment-track="image"]')).toHaveCount(3)
++ await page.getByRole('button',{name:'Redo timeline edit'}).click()
++ await expect(page.locator('[data-timeline-segment-track="image"]')).toHaveCount(4)
++ await page.getByRole('button',{name:'Submit authorized render'}).click()
++ await expect.poll(()=>page.evaluate(()=>window.__feature4Renders.length)).toBe(1)
++ const plan=await page.evaluate(()=>window.__feature4Renders[0])
++ expect(plan.version).toBe('rg_video_v2')
++ expect(plan.scenes).toHaveLength(4)
++ expect(plan.scenes.reduce((s,c)=>s+c.duration,0)).toBe(15)
++ expect(plan.shop_id).toBe(SHOP)
++})
++
++test('mobile duplicate replays approved visual within the same fixed duration and supports undo/redo',async ({page})=>{
++ await page.setViewportSize({width:390,height:844})
++ await mount(page)
++ const duplicate=page.getByRole('button',{name:'Duplicate selected clip with two half-length replays'})
++ await expect(page.locator('[data-timeline-segment-track="image"]')).toHaveCount(3)
++ await page.getByRole('button',{name:/Scene 1:/}).click()
++ await expect(duplicate).toBeEnabled()
++ await duplicate.click()
++ await expect(page.locator('[data-timeline-segment-track="image"]')).toHaveCount(4)
++ await page.getByRole('button',{name:'Undo timeline edit'}).click()
++ await expect(page.locator('[data-timeline-segment-track="image"]')).toHaveCount(3)
++ await page.getByRole('button',{name:'Redo timeline edit'}).click()
++ await expect(page.locator('[data-timeline-segment-track="image"]')).toHaveCount(4)
++ await page.getByRole('button',{name:'Submit authorized render'}).click()
++ await expect.poll(()=>page.evaluate(()=>window.__feature4Renders.length)).toBe(1)
++ const plan=await page.evaluate(()=>window.__feature4Renders[0])
++ expect(plan.version).toBe('rg_video_v2')
++ expect(plan.scenes).toHaveLength(4)
++ expect(plan.scenes.reduce((sum,scene)=>sum+scene.duration,0)).toBe(15)
++ expect(plan.scenes[0].asset_id).toBe(plan.scenes[1].asset_id)
++ expect(plan.shop_id).toBe(SHOP)
++ const viewport=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}))
++ expect(viewport.scroll).toBeLessThanOrEqual(viewport.width+2)
++})
++
++test('approved Feature2 scene copy locked, creative read-only, no invented sale',async ({page})=>{
++ await page.setViewportSize({width:390,height:844})
++ await mount(page,true)
++ await expect(page.locator('[data-timeline-segment-track="image"]')).toHaveCount(3)
++ await expect(page.getByRole('button',{name:'Split video at playhead'})).toBeDisabled()
++ await expect(page.getByRole('button',{name:'Duplicate selected clip with two half-length replays'})).toBeDisabled()
++ await expect(page.getByLabel('Final call to action')).toBeDisabled()
++ await expect(page.getByLabel('Animated headline').first()).toBeDisabled()
++ await page.getByRole('button',{name:'Submit authorized render'}).click()
++ await expect.poll(()=>page.evaluate(()=>window.__feature4Renders.length)).toBe(1)
++ const plan=await page.evaluate(()=>window.__feature4Renders[0])
++ expect(plan.scenes[2].offer).toBe('20% OFF')
++ expect(plan.cta).toBe('Visit our store')
++ const viewport=await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}))
++ expect(viewport.scroll).toBeLessThanOrEqual(viewport.width+2)
++})
++
++test('zoom changes actual track geometry, and narrow viewport uses internal horizontal scrolling',async ({page})=>{
++ await page.setViewportSize({width:390,height:844})
++ await mount(page)
++ const scroll=page.getByLabel('Scrollable video tracks')
++ const widthBefore=await page.locator('.f4-ts-timeline-content').evaluate(el=>el.getBoundingClientRect().width)
++ await page.getByLabel('Timeline zoom').focus()
++ await page.keyboard.press('End')
++ const widthAfter=await page.locator('.f4-ts-timeline-content').evaluate(el=>el.getBoundingClientRect().width)
++ expect(widthAfter).toBeGreaterThan(widthBefore)
++ const state=await scroll.evaluate(el=>({view:el.clientWidth,scroll:el.scrollWidth}))
++ expect(state.scroll).toBeGreaterThan(state.view)
++ const body=await page.evaluate(()=>({view:innerWidth,scroll:document.documentElement.scrollWidth}))
++ expect(body.scroll).toBeLessThanOrEqual(body.view+2)
++})
++
++test('reviewed 2-second scene SFX appears in its real audio track and survives v2 submission',async ({page})=>{
++ await page.setViewportSize({width:1440,height:900})
++ await mount(page)
++ const effect=page.getByLabel('Reviewed scene sound effect · first 2 seconds')
++ await expect(effect).toHaveCount(3)
++ await effect.nth(1).selectOption('licensed_scene_fx')
++ await expect(page.locator('.f4-ts-row').filter({hasText:'SCENE SFX'})
++   .locator('[data-timeline-segment-track="audio"]')).toHaveCount(1)
++ await page.getByRole('button',{name:'Submit authorized render'}).click()
++ await expect.poll(()=>page.evaluate(()=>window.__feature4Renders.length)).toBe(1)
++ const plan=await page.evaluate(()=>window.__feature4Renders[0])
++ expect(plan.scenes[1].sfx_asset_id).toBe('licensed_scene_fx')
++ expect(plan.music_asset_id).toBe(null)
++})
++test('Feature2 approved sound design remains read-only; no unapproved SFX injection',async ({page})=>{
++ await page.setViewportSize({width:390,height:844})
++ await mount(page,true)
++ await expect(page.getByLabel('Reviewed scene sound effect · first 2 seconds').first()).toBeDisabled()
++ await expect(page.getByLabel('Final call to action')).toBeDisabled()
++})
++
++test('authorized full-Reel narration is visible and survives authenticated-intent draft',async ({page})=>{
++ await page.setViewportSize({width:1440,height:900})
++ await mount(page)
++ await page.getByLabel('Approved full-Reel narration').selectOption('licensed_scene_fx')
++ await expect(page.locator('.f4-ts-row').filter({hasText:'NARRATION'})
++   .locator('[data-timeline-segment-track="audio"]')).toHaveCount(1)
++ await page.getByRole('button',{name:'Submit authorized render'}).click()
++ await expect.poll(()=>page.evaluate(()=>window.__feature4Renders.length)).toBe(1)
++ const plan=await page.evaluate(()=>window.__feature4Renders[0])
++ expect(plan.voiceover_asset_id).toBe('licensed_scene_fx')
++ expect(plan.version).toBe('rg_video_v2')
++})
++
++test('keyboard timeline undo and redo work without reauthoring approved copy',async ({page})=>{
++ await page.setViewportSize({width:390,height:844})
++ await mount(page)
++ await page.getByRole('button',{name:/Scene 1:/}).click()
++ await page.getByRole('button',{name:'Split video at playhead'}).click()
++ await expect(page.locator('[data-timeline-segment-track="image"]')).toHaveCount(4)
++ await page.getByRole('button',{name:'Undo timeline edit'}).focus()
++ await page.keyboard.press('Control+z')
++ await expect(page.locator('[data-timeline-segment-track="image"]')).toHaveCount(3)
++ await page.getByRole('button',{name:'Redo timeline edit'}).focus()
++ await page.keyboard.press('Control+Shift+z')
++ await expect(page.locator('[data-timeline-segment-track="image"]')).toHaveCount(4)
++ const scroll=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)
++ expect(scroll).toBeLessThanOrEqual(2)
++})
++
++test('focused timeline jogs one or ten *preview* frames without editing approved content',async ({page})=>{
++ await page.setViewportSize({width:390,height:844})
++ await mount(page)
++ const tracks=page.getByRole('region',{name:'Scrollable video tracks'})
++ const timecode=page.getByRole('textbox',{name:'Playhead timecode'})
++ await tracks.focus()
++ await expect(timecode).toHaveValue('00:00:00:00')
++ await page.keyboard.press('ArrowRight')
++ await expect(timecode).toHaveValue('00:00:00:01')
++ await page.keyboard.press('Shift+ArrowRight')
++ await expect(timecode).toHaveValue('00:00:00:11')
++ await page.keyboard.press('ArrowLeft')
++ await expect(timecode).toHaveValue('00:00:00:10')
++ await page.keyboard.press('ArrowLeft')
++ await expect(timecode).toHaveValue('00:00:00:09')
++ await expect(page.locator('[data-timeline-segment-track="image"]')).toHaveCount(3)
++ await page.getByRole('button',{name:'Submit authorized render'}).click()
++ await expect.poll(()=>page.evaluate(()=>window.__feature4Renders.length)).toBe(1)
++ const result=await page.evaluate(()=>window.__feature4Renders[0])
++ expect(result.scenes).toHaveLength(3)
++ expect(result.scenes.reduce((sum,scene)=>sum+scene.duration,0)).toBe(15)
++ expect(result.shop_id).toBe(SHOP)
++})
++
++test('approved direction still permits keyboard preview jogging without editing',async ({page})=>{
++ await mount(page,true)
++ const tracks=page.getByRole('region',{name:'Scrollable video tracks'})
++ const timecode=page.getByRole('textbox',{name:'Playhead timecode'})
++ await tracks.focus()
++ await page.keyboard.press('ArrowRight')
++ await expect(timecode).toHaveValue('00:00:00:01')
++ await expect(page.getByRole('button',{name:'Undo timeline edit'})).toBeDisabled()
++ await expect(page.getByRole('button',{name:'Split video at playhead'})).toBeDisabled()
++})
++
++test('editing after a successful render hides stale signed MP4 rather than displaying old footage',async({page})=>{
++  await page.route('https://example.invalid/**',route=>route.abort())
++  await page.goto('/')
++  await page.evaluate(async()=>{
++    const {mountFeature4}=await import('/e2e/fixtures/timeline-studio-harness.jsx')
++    mountFeature4({shop:'11111111-1111-4111-8111-111111111111',
++      approved:false,seedCompletedRender:true})
++  })
++  await expect(page.getByRole('heading',{name:'Professional Video Studio'})).toBeVisible()
++  // Previous approved output must not automatically represent a fresh draft.
++  await expect(page.getByLabel('Signed private rendered video')).toHaveCount(0)
++  await page.getByRole('button',{name:'Submit authorized render'}).click()
++  await expect.poll(()=>page.evaluate(()=>window.__feature4Renders.length)).toBe(1)
++  await expect(page.getByLabel('Signed private rendered video')).toBeVisible()
++  await page.getByLabel('Animated headline').first().fill('New approved edit')
++  await expect(page.getByLabel('Signed private rendered video')).toHaveCount(0)
++  await expect(page.getByRole('button',{name:'Submit authorized render'})).toBeEnabled()
++})
++
++test('approved spoken subtitle lane shows precise Feature2 timing, cannot be edited',async ({page})=>{
++ await page.setViewportSize({width:390,height:844})
++ await mount(page,true)
++ const transcript=page.getByLabel('Approved spoken subtitles')
++ await expect(transcript).toBeVisible()
++ await expect(transcript.locator('[data-timeline-segment-track="caption"]')).toHaveCount(3)
++ await expect(transcript).toContainText('Reviewed spoken intro')
++ await expect(transcript).toContainText('Exactly reviewed offer')
++ await expect(page.getByRole('button',{name:'Split video at playhead'})).toBeDisabled()
++ const widths=await transcript.locator('[data-timeline-segment-track="caption"]').first()
++   .evaluate(el=>({left:el.style.getPropertyValue('--caption-left'),
++                   width:el.style.getPropertyValue('--caption-width')}))
++ expect(widths.left).toBe('1.6666666666666667%')
++ expect(widths.width).toBe('6.666666666666667%')
++})
++
++test('owner-rejected successful MP4 is never surfaced as an acceptable Reel',async({page})=>{
++  await page.goto('/')
++  await page.evaluate(async()=>{
++    const {mountFeature4}=await import('/e2e/fixtures/timeline-studio-harness.jsx')
++    mountFeature4({shop:'11111111-1111-4111-8111-111111111111',
++      approved:false,seedCompletedRender:true,seedOwnerRejectedRender:true})
++  })
++  await expect(page.getByRole('heading',{name:'Professional Video Studio'})).toBeVisible()
++  await page.getByRole('button',{name:'Submit authorized render'}).click()
++  await expect.poll(()=>page.evaluate(()=>window.__feature4Renders.length)).toBe(1)
++  await expect(page.getByRole('alert')).toContainText('Owner rejected this Reel')
++  await expect(page.getByLabel('Signed private rendered video')).toHaveCount(0)
++  await expect(page.getByRole('button',{name:'Download authorized MP4'})).toHaveCount(0)
++})
++
++test('OpenReel frame timecode enters exact frames, seeks, and splits authorized clips',async({page})=>{
++ await page.setViewportSize({width:390,height:844})
++ await mount(page)
++ const input=page.getByRole('textbox',{name:'Playhead timecode'})
++ await expect(input).toHaveValue('00:00:00:00')
++ await input.fill('00:00:02:15')
++ await input.press('Enter')
++ await expect(input).toHaveValue('00:00:02:15')
++ await page.getByRole('button',{name:'Split video at playhead'}).click()
++ await expect(page.locator('[data-timeline-segment-track="image"]')).toHaveCount(4)
++ await page.getByRole('button',{name:'Undo timeline edit'}).click()
++ await expect(page.locator('[data-timeline-segment-track="image"]')).toHaveCount(3)
++ await input.focus()
++ await input.press('ArrowUp')
++ await expect(input).toHaveValue('00:00:02:16')
++ await input.press('Escape')
++ await expect(input).toHaveValue('00:00:02:16')
++ await input.fill('00:00:00:30')
++ await input.press('Enter')
++ await expect(input).toHaveAttribute('aria-invalid','true')
++ await expect(page.getByRole('alert')).toContainText('valid')
++ expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2)
++})
++
++test('OpenReel real clip navigation and snapping control work on mobile without reauthoring media',async({page})=>{
++ await page.setViewportSize({width:390,height:844})
++ await mount(page)
++ const next=page.getByRole('button',{name:'Next scene cut'})
++ const previous=page.getByRole('button',{name:'Previous scene cut'})
++ await expect(previous).toBeDisabled()
++ await expect(next).toBeEnabled()
++ await next.click()
++ await expect(page.getByRole('textbox',{name:'Playhead timecode'})).toHaveValue('00:00:05:00')
++ await expect(page.getByRole('button',{name:/Scene 2:/})).toHaveClass(/is-selected/)
++ await previous.click()
++ await expect(page.getByRole('textbox',{name:'Playhead timecode'})).toHaveValue('00:00:00:00')
++ await expect(page.getByRole('button',{name:'Split video at playhead'})).toBeDisabled()
++ await page.getByRole('button',{name:/Scene 1:/}).click()
++ await expect(page.getByRole('button',{name:'Split video at playhead'})).toBeEnabled()
++ const snap=page.getByRole('checkbox',{name:'Snap to scene cuts and grid'})
++ await expect(snap).toBeChecked()
++ await snap.uncheck()
++ await expect(snap).not.toBeChecked()
++ await page.getByRole('button',{name:'Submit authorized render'}).click()
++ await expect.poll(()=>page.evaluate(()=>window.__feature4Renders.length)).toBe(1)
++ const out=await page.evaluate(()=>window.__feature4Renders[0])
++ expect(out.scenes).toHaveLength(3)
++ expect(out.duration_seconds).toBe(15)
++ expect(out.shop_id).toBe('11111111-1111-4111-8111-111111111111')
++ expect(await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)).toBeLessThanOrEqual(2)
++})
++
++
++test('actual React Timeline Studio shows measured same-shop audio beats and frame-seeks without overflow',async({page})=>{
++ await page.setViewportSize({width:390,height:844})
++ await page.goto('/')
++ await page.evaluate(async ()=>{
++   const {mountFeature4BeatLane}=await import('/e2e/fixtures/timeline-studio-harness.jsx')
++   mountFeature4BeatLane({shop:'11111111-1111-4111-8111-111111111111'})
++ })
++ const lane=page.getByLabel('Proposed music beat positions; server verification required')
++ await expect(lane).toBeVisible()
++ await expect(lane.getByRole('button')).toHaveCount(4)
++ await lane.getByRole('button',{name:'Seek to proposed beat 2 at 3.500s'}).click()
++ await expect(page.getByRole('textbox',{name:'Playhead timecode'})).toHaveValue('00:00:03:12')
++ const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth)
++ expect(overflow).toBeLessThanOrEqual(2)
++})
++test('real React beat lane never renders unapproved or foreign-shop audio markers',async({page})=>{
++ await page.goto('/')
++ await page.evaluate(async ()=>{
++   const {mountFeature4BeatLane}=await import('/e2e/fixtures/timeline-studio-harness.jsx')
++   mountFeature4BeatLane({shop:'11111111-1111-4111-8111-111111111111',authorized:false})
++ })
++ await expect(page.getByRole('region',{name:'Professional multi-track video timeline'})).toBeVisible()
++ await expect(page.getByLabel('Proposed music beat positions; server verification required')).toHaveCount(0)
++ await expect(page.getByRole('textbox',{name:'Playhead timecode'})).toHaveValue('00:00:00:00')
++})
++
++test('30fps read-only timeline jogging clamps at both ends without mutating draft',async({page})=>{
++ await page.setViewportSize({width:390,height:844})
++ await page.goto('/')
++ await page.evaluate(async()=>{
++   const {mountFeature4BeatLane}=await import('/e2e/fixtures/timeline-studio-harness.jsx')
++   mountFeature4BeatLane({shop:'11111111-1111-4111-8111-111111111111',
++     approvedDirection:true,fps:30})
++ })
++ const tracks=page.getByRole('region',{name:'Scrollable video tracks'})
++ const timecode=page.getByRole('textbox',{name:'Playhead timecode'})
++ await tracks.focus()
++ await page.keyboard.press('ArrowLeft')
++ await expect(timecode).toHaveValue('00:00:00:00')
++ await timecode.fill('00:00:14:29')
++ await timecode.press('Enter')
++ await expect(timecode).toHaveValue('00:00:14:29')
++ await tracks.focus()
++ await page.keyboard.press('ArrowRight')
++ await expect(timecode).toHaveValue('00:00:15:00')
++ await page.keyboard.press('ArrowRight')
++ await expect(timecode).toHaveValue('00:00:15:00')
++ await page.keyboard.press('ArrowLeft')
++ await expect(timecode).toHaveValue('00:00:14:29')
++ await page.keyboard.press('Shift+ArrowLeft')
++ await expect(timecode).toHaveValue('00:00:14:19')
++ await expect(page.getByRole('button',{name:'Undo timeline edit'})).toBeDisabled()
++ await expect(page.getByRole('button',{name:'Split video at playhead'})).toBeDisabled()
++})
++
++test('stale caption resize aborts across synthetic shop switch or approval lock',async ({page})=>{
++ await page.setViewportSize({width:1280,height:850})
++ await page.goto('/')
++ await page.evaluate(async shop=>{
++   const fixture=await import('/e2e/fixtures/timeline-studio-harness.jsx')
++   fixture.mountFeature4ResizeRace({shop})
++ },SHOP)
++ await expect(page.getByTestId('f4-resize-active-shop')).toHaveText(SHOP)
++ const endHandle=page.locator('.caption-segment').first()
++   .locator('.caption-resize-handle.is-end')
++ const fireDown=async pointerId=>endHandle.dispatchEvent('pointerdown',{
++   pointerId,button:0,isPrimary:true,clientX:100,clientY:100
++ })
++ const fireUp=async pointerId=>page.evaluate(id=>{
++   window.dispatchEvent(new PointerEvent('pointerup',{
++     pointerId:id,button:0,isPrimary:true,clientX:150,clientY:100,bubbles:true
++   }))
++ },pointerId)
++ const OTHER='44444444-4444-4444-8444-444444444444'
++ await fireDown(21)
++ await page.evaluate(other=>window.__feature4ResizeChangeContext(other),OTHER)
++ await expect(page.getByTestId('f4-resize-active-shop')).toHaveText(OTHER)
++ await fireUp(21)
++ expect(await page.evaluate(()=>window.__feature4ResizeWrites.length)).toBe(0)
++ // Same tenant, but freshly approved direction becomes immutable mid-drag.
++ await fireDown(22)
++ await page.evaluate(other=>window.__feature4ResizeChangeContext(other,true),OTHER)
++ await expect(page.getByRole('button',{name:'Split video at playhead'})).toBeDisabled()
++ await fireUp(22)
++ expect(await page.evaluate(()=>window.__feature4ResizeWrites.length)).toBe(0)
++ // Explicit pointer cancel must also prevent a late synthetic pointer-up.
++ await page.evaluate(other=>window.__feature4ResizeChangeContext(other,false),OTHER)
++ await expect(page.getByTestId('f4-resize-active-shop')).toHaveText(OTHER)
++ await fireDown(23)
++ await page.evaluate(()=>{
++   window.dispatchEvent(new PointerEvent('pointercancel',{
++     pointerId:23,isPrimary:true,bubbles:true
++   }))
++ })
++ await fireUp(23)
++ expect(await page.evaluate(()=>window.__feature4ResizeWrites.length)).toBe(0)
++})
++
++test('cancelled native clip drag cannot reorder on a later unrelated drop',async ({page})=>{
++ await mount(page)
++ const clips=page.locator('[data-timeline-segment-track="image"]')
++ const original=await clips.evaluateAll(nodes=>nodes.map(node=>node.getAttribute('aria-label')))
++ await clips.nth(0).evaluate(el=>{
++   const transfer=new DataTransfer()
++   el.dispatchEvent(new DragEvent('dragstart',{bubbles:true,cancelable:true,dataTransfer:transfer}))
++   el.dispatchEvent(new DragEvent('dragend',{bubbles:true,cancelable:true,dataTransfer:transfer}))
++ })
++ await clips.nth(2).evaluate(el=>{
++   el.dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:new DataTransfer()}))
++ })
++ await expect.poll(()=>clips.evaluateAll(nodes=>nodes.map(node=>node.getAttribute('aria-label'))))
++   .toEqual(original)
++ await page.getByRole('button',{name:'Submit authorized render'}).click()
++ await expect.poll(()=>page.evaluate(()=>window.__feature4Renders.length)).toBe(1)
++ const submitted=await page.evaluate(()=>window.__feature4Renders[0].scenes.map(scene=>scene.headline))
++ expect(submitted).toEqual(original.map(label=>label.replace(/^Scene \d+: /,'')))
++})
+
+diff --git a/frontend/src/features/video/TimelineStudioSurface.css b/frontend/src/features/video/TimelineStudioSurface.css
+--- a/frontend/src/features/video/TimelineStudioSurface.css
++++ b/frontend/src/features/video/TimelineStudioSurface.css
+@@ -0,0 +1,53 @@
++/* Adapted Timeline Studio clip layout; MIT © 2026 MartinDelophy */
++.f4-ts-editor{border:1px solid #48566d;border-radius:14px;background:#101b29;color:#eaf4ff;padding:12px;min-width:0;margin:12px 0;font-family:inherit}
++.f4-ts-toolbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
++.f4-ts-toolbar strong{font-size:15px}.f4-ts-toolbar small{display:block;color:#9eafc3;font-size:10px}
++.f4-ts-tools{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
++.f4-ts-tools button{background:#22344a;color:white;border:1px solid #53637a;border-radius:6px;padding:5px 9px;cursor:pointer}
++.f4-ts-tools button:disabled{opacity:.35;cursor:not-allowed}
++.f4-ts-tools label{display:flex;align-items:center;gap:4px;font-size:11px}
++.f4-ts-track-scroll{margin:12px 0;position:relative;overflow-x:auto;overflow-y:hidden;border:1px solid #344258;border-radius:8px;padding:8px 0}
++.f4-ts-ruler{height:28px;position:relative;margin-left:74px;font-size:10px;color:#96aec6}
++.f4-ts-ruler span{position:absolute;top:2px;transform:translateX(-50%);border-left:1px solid #6d7887;padding-left:3px}
++.f4-ts-row{display:flex;align-items:stretch;min-height:48px;border-top:1px solid #283b52}
++.f4-ts-track-name{flex:0 0 74px;background:#192839;font-size:10px;font-weight:700;letter-spacing:.03em;color:#b5c7db;padding:12px 4px;box-sizing:border-box}
++.f4-studio-track-body{position:relative;flex:1;min-width:0;min-height:46px}
++.f4-ts-clip{position:absolute;top:5px;bottom:5px;display:flex;align-items:center;overflow:hidden;gap:5px;text-align:left;border:1px solid #629ec2;border-radius:5px;background:#174b6b;color:white;cursor:pointer;font-size:11px;padding:4px;min-width:0}
++.f4-ts-clip.is-selected{border:2px solid #fbd38b;background:#135781}
++.f4-ts-clip-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
++.f4-ts-clip-index{font-size:10px;font-weight:900;background:#113149;border-radius:3px;padding:1px 4px}
++.f4-ts-clip small{font-size:9px;white-space:nowrap}
++.f4-ts-captions .caption-segment{position:absolute;top:5px;bottom:5px;left:var(--caption-left);width:var(--caption-width);padding:4px 5px;display:flex;align-items:center;border:1px solid #b8a566;background:#665b30;color:#fff;overflow:hidden;border-radius:4px;min-width:0;font-size:10px}
++.f4-ts-captions .caption-segment.is-selected-segment{border:2px solid #f5e5a6}
++.f4-ts-captions .caption-segment-label{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
++.f4-ts-captions .caption-resize-handle{width:6px;align-self:stretch;cursor:ew-resize;border-left:1px solid #eadca3;border-right:1px solid #eadca3}
++.f4-ts-audio .audio-clip{position:absolute;inset:5px 0;display:flex;align-items:center;gap:5px;background:#216b53;border-radius:5px;border:1px solid #3db38d;padding:0 6px}
++.f4-ts-audio .audio-clip-duration{font-size:10px}.f4-ts-audio .timeline-gain{display:none}
++.f4-ts-playhead{position:absolute;top:32px;bottom:0;width:2px;background:#ffca69;pointer-events:none;transform:translateX(74px);opacity:.85}
++.f4-ts-empty{font-size:10px;color:#91a0b6;padding:14px 6px;display:block}
++.f4-ts-inspector{display:flex;flex-wrap:wrap;align-items:center;gap:12px;font-size:11px}
++.f4-ts-inspector label{display:flex;align-items:center;gap:6px}
++.f4-ts-inspector input[type=range]{width:140px}.f4-ts-inspector input[type=number]{width:70px}
++.f4-ts-parity{color:#a9bdd5;font-size:10px;flex:1;min-width:200px}
++.f4-ts-note{color:#f6dca2;font-size:12px}.f4-ts-error{color:#ffb5b8;font-size:12px}
++@media(max-width:780px){.f4-ts-toolbar{display:block}.f4-ts-tools{margin-top:8px}.f4-ts-clip small{display:none}.f4-ts-track-name{flex-basis:65px;font-size:9px}.f4-ts-ruler{margin-left:65px}.f4-ts-playhead{transform:translateX(65px)}}
++
++.f4-ts-timeline-content{position:relative;min-width:100%;box-sizing:border-box}
++.f4-ts-track-scroll{scrollbar-width:thin;overscroll-behavior-x:contain}
++.f4-ts-timeline-content .f4-ts-playhead{transform:none}
++
++/* OpenReel PreviewTimecode adapted to the Feature4 design. */
++.f4-frame-timecode{display:flex;align-items:center;gap:5px;position:relative;font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap;color:#c0d3e6}
++.f4-frame-timecode input{font:inherit;font-family:ui-monospace,monospace;min-width:0;width:102px;padding:6px;border:1px solid #53637a;border-radius:5px;background:#18283b;color:#fff}
++.f4-frame-timecode input:focus{outline:2px solid #fbd38b;outline-offset:2px}
++.f4-frame-timecode input[aria-invalid="true"]{border-color:#ffb5b8}
++.f4-frame-timecode output{font-family:ui-monospace,monospace}
++.f4-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
++.f4-frame-error{position:absolute;top:100%;left:0;z-index:3;background:#301e29;border:1px solid #ffb5b8;color:#ffe0e0;border-radius:5px;min-width:190px;padding:5px;white-space:normal}
++
++/* F4-44: pure visual proposed-beat markers; no editor/media approval. */
++.f4-ts-beat-row{min-height:28px}
++.f4-ts-beat-row .f4-ts-track-name{padding:7px 4px}
++.f4-ts-beat-track{min-height:26px;background:#1b2835}
++.f4-ts-beat-marker{position:absolute;top:3px;bottom:3px;width:3px;border:0;border-radius:2px;padding:0;transform:translateX(-50%);background:#f8ca7b;cursor:pointer}
++.f4-ts-beat-marker:hover,.f4-ts-beat-marker:focus-visible{outline:2px solid white;outline-offset:2px;background:#fff0a0}
+
+diff --git a/frontend/src/features/video/TimelineStudioSurface.jsx b/frontend/src/features/video/TimelineStudioSurface.jsx
+--- a/frontend/src/features/video/TimelineStudioSurface.jsx
++++ b/frontend/src/features/video/TimelineStudioSurface.jsx
+@@ -0,0 +1,380 @@
++import { useEffect, useMemo, useRef, useState } from 'react'
++import { getVisualSegmentTimeline, formatTime } from './vendor/timeline.js'
++import { getTimelineRulerTicks, getTimelineAutoFitZoom, getTimelineVisibleDuration } from './vendor/timelineScale.js'
++import { TimelineCaptionClip, TimelineAudioClip } from './vendor/TimelineClips.jsx'
++import { fixedAudioMixDisplay } from './audio-mix-display.mjs'
++import { createEditorHistory, pushEditorHistory, undoEditorHistory, redoEditorHistory } from './vendor/editorHistoryCore.mjs'
++import { studioReorder, studioSplit, studioDuplicate, studioTrimPair, studioSourceTrim, studioValidatedDraft } from './timeline-studio-bridge.mjs'
++import { FrameTimecodeInput } from './vendor/openreel/FrameTimecodeInput.jsx'
++import { OpenReelClipSnapper } from './vendor/openreel/clip-snap.mjs'
++import { proposedBeatMarkers } from './beat-preview.mjs'
++import { boundedFrameSeek, boundedSceneMidpointSeek } from './frame-seek.mjs'
++import { getTimelineItemRanges, getTimelineTrackSelection, getSplittableTimelineItemIds } from './vendor/openreel/timeline-item-actions.mjs'
++import './TimelineStudioSurface.css'
++
++// Actual upstream Timeline Studio editing/history/clip components, modified for
++// the existing approved rg_video_v2 and trusted HyperFrames renderer.
++// No upstream localStorage account, cloud upload or independent video exporter.
++export default function TimelineStudioSurface({ draft, onChange, onSelectScene, mediaAssets = [], musicAssets = [],
++  selectedSceneIndex = 0, approvedDirection = false, spokenCaptions = [], onSeek = () => {} }) {
++  const [history, setHistory] = useState(() => createEditorHistory(draft))
++  const [playhead, setPlayhead] = useState(0)
++  const [snapEnabled, setSnapEnabled] = useState(true)
++  const [zoom, setZoom] = useState(() => getTimelineAutoFitZoom(draft.duration_seconds))
++  const [feedback, setFeedback] = useState('')
++  const dragFrom = useRef(null)
++  const lastSent = useRef(null)
++  const handlers = useRef({})
++  const pendingResize = useRef(null)
++  const liveDraft = useRef(draft)
++  const liveApproval = useRef(approvedDirection)
++  liveDraft.current = draft
++  liveApproval.current = approvedDirection
++  // An in-flight pointer resize must never apply an obsolete tenant/draft
++  // after account switch, approval lock, external draft update or unmount.
++  useEffect(() => () => pendingResize.current?.cancel(), [draft, approvedDirection])
++  useEffect(() => {
++    if (draft !== lastSent.current) {
++      setHistory(createEditorHistory(draft))
++      setPlayhead(0)
++    }
++  }, [draft])
++  // Media/account changes invalidate history even when a signed preview URL is stale.
++  useEffect(() => { setHistory(createEditorHistory(draft)); setPlayhead(0); lastSent.current = null }, [draft.shop_id])
++  const spans = useMemo(() => getVisualSegmentTimeline(draft.scenes.map((s,i) =>
++    ({ id: String(i), duration: s.duration }))), [draft.scenes])
++  const ticks = useMemo(() => getTimelineRulerTicks(draft.duration_seconds, zoom, 0, draft.duration_seconds)
++    .filter(tick => tick.isMajor), [draft.duration_seconds, zoom])
++  // Zoom changes the actual edit-track pixel scale, not only the ruler labels.
++  // Content stays within a horizontally scrollable workspace on narrow screens.
++  const trackPixels = Math.min(18000, Math.max(560,
++    Math.round(900 * draft.duration_seconds / getTimelineVisibleDuration(zoom))))
++  const selected = Math.min(Math.max(selectedSceneIndex,0), Math.max(0,draft.scenes.length - 1))
++  const previewFps = draft.output?.fps === 24 ? 24 : 30
++  // Minimal projection of approved scenes; OpenReel only reads layout metadata.
++  // No client media grants, signed URLs, backend data or effect authority enter it.
++  const timelineProject = useMemo(() => ({timeline: {tracks: [{
++    id: 'video', type: 'video', locked: approvedDirection,
++    clips: draft.scenes.map((scene, i) => ({
++      id: 'scene-'+i, startTime: scene.start, duration: scene.duration,
++    })),
++  }]}}), [draft.scenes, approvedDirection])
++  const clipRanges = getTimelineItemRanges(timelineProject)
++  const cutPositions = getTimelineTrackSelection(timelineProject, 'video')
++    .map(item => clipRanges.find(clip => clip.id === item.id)?.startTime)
++    .filter(Number.isFinite)
++  const beatMarkers = useMemo(() => proposedBeatMarkers(draft, musicAssets), [draft, musicAssets])
++  const previousCut = cutPositions.filter(cut => cut < playhead - .0001).at(-1)
++  const nextCut = cutPositions.find(cut => cut > playhead + .0001)
++  const canSplit = getSplittableTimelineItemIds(
++    timelineProject, ['scene-'+selected], playhead).length > 0 &&
++    spans[selected] && playhead - spans[selected].start >= .5 &&
++    spans[selected].end - playhead >= .5
++  const seekToFrame = (seconds, withSnap = false) => {
++    // Never propagate NaN/Infinity from malformed pointer geometry or beat data.
++    if (!Number.isFinite(seconds)) return
++    let requested = seconds
++    if (withSnap && snapEnabled) {
++      const nearest = beatMarkers.length ? beatMarkers.reduce((a,b) =>
++        Math.abs(b-seconds)<Math.abs(a-seconds)?b:a) : null
++      if (nearest !== null && Math.abs(nearest-seconds) <= 8*draft.duration_seconds/trackPixels) {
++        requested = nearest // UI-only; never authorizes the soundtrack or edit
++      } else {
++        const snap = new OpenReelClipSnapper({snapThreshold: 8, gridSize: 1})
++          .snapToGrid(seconds, timelineProject.timeline, 'video',
++            trackPixels / draft.duration_seconds)
++        if (snap.didSnap) requested = snap.snappedTime
++      }
++    }
++    const position = boundedFrameSeek(requested, draft.duration_seconds, previewFps)
++    if (position === null) return
++    setPlayhead(position)
++    onSeek(position)
++    const index = spans.findIndex(span => position >= span.start && position < span.end)
++    if (index >= 0) onSelectScene(index)
++  }
++  const change = (fn) => {
++    if (approvedDirection) { setFeedback('Approved Feature #2 direction is read-only. Request a revised approval to change edit timing.'); return }
++    try {
++      const updated = studioValidatedDraft(fn(draft), mediaAssets, musicAssets)
++      if (updated === draft) return
++      lastSent.current = updated
++      setHistory(p => pushEditorHistory(p, updated))
++      onChange(updated)
++      setFeedback('')
++    } catch(e) { setFeedback(e.message || 'Timeline operation is unsupported') }
++  }
++  const move = (from,to) => change(d => studioReorder(d,from,to))
++  const split = () => {
++    const span = spans[selected]
++    const offset = Number((playhead - span.start).toFixed(3))
++    change(d => studioSplit(d,selected,offset,mediaAssets))
++  }
++  const applyHistory = action => {
++    if (approvedDirection) return
++    const t = action(history)
++    if (!t.changed) return
++    lastSent.current = t.value
++    setHistory(t.history)
++    onChange(t.value)
++    setFeedback('')
++  }
++  const source = mediaAssets.find(a => a.authorized === true && a.shop_id === draft.shop_id &&
++    a.id === draft.scenes[selected]?.asset_id)
++  handlers.current = {
++    startTimelineClipDrag: (_event,track,_id,index) => { if(track==='caption')onSelectScene(index) },
++    showTrackContextMenu: event => event.preventDefault(),
++    selectCaptionClip: (_event,_id,index,start) => {
++      const position = boundedFrameSeek(start, draft.duration_seconds, previewFps)
++      if (position !== null) { onSelectScene(index); setPlayhead(position); onSeek(position) }
++    },
++    startCaptionResize: (event,_id,index,edge) => {
++      const boundary = edge === 'start' ? index - 1 : index
++      if (approvedDirection || boundary < 0 || boundary >= draft.scenes.length - 1 ||
++          event.button !== 0 || event.isPrimary === false) return
++      event.stopPropagation()
++      // No duplicate listeners or stale closure may outlive an edit gesture.
++      pendingResize.current?.cancel()
++      const target = event.currentTarget.closest('.f4-studio-track-body')
++      const width = target?.getBoundingClientRect().width || 1
++      const startX = event.clientX
++      const pointerId = event.pointerId
++      const original = draft
++      const cancel = () => {
++        window.removeEventListener('pointerup', release)
++        window.removeEventListener('pointercancel', abort)
++        if (pendingResize.current?.cancel === cancel) pendingResize.current = null
++      }
++      const abort = e => { if (e.pointerId === pointerId) cancel() }
++      const release = e => {
++        if (e.pointerId !== pointerId) return
++        cancel()
++        if (liveDraft.current !== original || liveApproval.current) return
++        const delta = (e.clientX - startX) * original.duration_seconds / width
++        if (Math.abs(delta) > 0.03) {
++          change(() => studioTrimPair(original, boundary, Math.round(delta * 10) / 10, mediaAssets))
++        }
++      }
++      pendingResize.current = {cancel}
++      window.addEventListener('pointerup', release)
++      window.addEventListener('pointercancel', abort)
++    },
++    startAudioSegmentMove: () => {},
++    selectAudioClip: () => {},
++    setAudioSegments: () => setFeedback('Audio gain automation is not supported by the current HyperFrames contract'),
++  }
++  const captions = draft.scenes.map((s,i)=>({id:'caption-'+i,text:s.headline,start:s.start,
++    end:s.start+s.duration,hidden:false}))
++  const audioMix = fixedAudioMixDisplay(draft, mediaAssets, musicAssets)
++  const trackMusic = audioMix.music
++    ? [{id:'licensed-audio',start:0,duration:draft.duration_seconds,
++        ...(audioMix.musicGain !== null ? {volume:audioMix.musicGain} : {})}] : []
++  const shortcuts = event => {
++    // Read-only one-frame navigation on the focused video track also works
++    // for immutable Feature2-approved directions; it never changes the draft.
++    // Do not steal cursor keys from timecode, text, buttons or zoom controls.
++    const editingField = event.target?.closest?.(
++      'input,textarea,select,[contenteditable="true"]')
++    if (editingField || event.altKey) return
++    const onTracks = event.target?.closest?.('.f4-ts-track-scroll')
++    if (onTracks && !event.target?.closest?.('button,[role="button"],a[href]') &&
++        !event.ctrlKey && !event.metaKey &&
++        (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
++      event.preventDefault()
++      const direction = event.key === 'ArrowRight' ? 1 : -1
++      seekToFrame(playhead + direction * (event.shiftKey ? 10 : 1) / previewFps)
++      return
++    }
++    if (approvedDirection || (!event.ctrlKey && !event.metaKey) ||
++        event.key.toLowerCase() !== 'z') return
++    event.preventDefault()
++    applyHistory(event.shiftKey ? redoEditorHistory : undoEditorHistory)
++  }
++  return <section className="f4-ts-editor" aria-label="Professional multi-track video timeline"
++    onKeyDown={shortcuts}>
++    <div className="f4-ts-toolbar">
++      <strong>Timeline Studio <small>OpenReel frame controls · HyperFrames output</small></strong>
++      <FrameTimecodeInput position={playhead} duration={draft.duration_seconds}
++        frameRate={previewFps} onSeek={seekToFrame} />
++      <div className="f4-ts-tools">
++        <button type="button" onClick={()=>applyHistory(undoEditorHistory)}
++          disabled={approvedDirection||!history.past.length} aria-label="Undo timeline edit"
++          aria-keyshortcuts="Control+Z Meta+Z">Undo</button>
++        <button type="button" onClick={()=>applyHistory(redoEditorHistory)}
++          disabled={approvedDirection||!history.future.length} aria-label="Redo timeline edit"
++          aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z">Redo</button>
++        <button type="button" disabled={approvedDirection||draft.scenes.length>=12||!canSplit}
++          onClick={split} aria-label="Split video at playhead">Split at playhead</button>
++        <button type="button"
++          disabled={approvedDirection||draft.scenes.length>=12||!draft.scenes[selected]||
++            draft.scenes[selected].duration<1||
++            (draft.scenes[selected].sfx_asset_id!=null&&draft.scenes[selected].duration<4)}
++          onClick={()=>change(d=>studioDuplicate(d,selected,mediaAssets))}
++          aria-label="Duplicate selected clip with two half-length replays"
++          title="Replay the selected visual twice within its original timeline duration">Duplicate clip</button>
++        <button type="button" disabled={previousCut == null}
++          onClick={()=>seekToFrame(previousCut)} aria-label="Previous scene cut">Previous cut</button>
++        <button type="button" disabled={nextCut == null}
++          onClick={()=>seekToFrame(nextCut)} aria-label="Next scene cut">Next cut</button>
++        <label><input type="checkbox" checked={snapEnabled}
++          onChange={event=>setSnapEnabled(event.target.checked)}
++          aria-label="Snap to scene cuts and grid" /> Snap</label>
++        <button type="button" disabled={approvedDirection||selected<=0}
++          onClick={()=>{move(selected,selected-1);onSelectScene(selected-1)}}>Earlier</button>
++        <button type="button" disabled={approvedDirection||selected===draft.scenes.length-1}
++          onClick={()=>{move(selected,selected+1);onSelectScene(selected+1)}}>Later</button>
++        <label>Zoom <input aria-label="Timeline zoom" type="range" min=".25" max="4" step=".25"
++          value={zoom} onChange={e=>setZoom(Number(e.target.value))} /></label>
++      </div>
++    </div>
++    <div className="f4-ts-track-scroll" role="region" tabIndex={0}
++      aria-label="Scrollable video tracks"
++      aria-keyshortcuts="ArrowLeft ArrowRight Shift+ArrowLeft Shift+ArrowRight"
++      title="Focus tracks: left/right jog one frame; Shift+left/right jog ten frames">
++      <div className="f4-ts-timeline-content" style={{width:(74 + trackPixels)+'px'}}>
++      <div className="f4-ts-ruler" aria-label="Timeline ruler">
++        {ticks.map(t=><span key={t.id} style={{left:t.left+'%'}}>{t.label}</span>)}
++      </div>
++      {beatMarkers.length > 0 && <div className="f4-ts-row f4-ts-beat-row">
++        <span className="f4-ts-track-name">BEATS</span>
++        <div className="f4-studio-track-body f4-ts-beat-track"
++          aria-label="Proposed music beat positions; server verification required">
++          {beatMarkers.map((beat,i)=><button type="button" key={beat}
++            className="f4-ts-beat-marker" style={{left:beat/draft.duration_seconds*100+'%'}}
++            aria-label={'Seek to proposed beat '+(i+1)+' at '+beat.toFixed(3)+'s'}
++            title={'Beat proposal '+beat.toFixed(3)+'s'}
++            onClick={()=>seekToFrame(beat)} />)}
++        </div>
++      </div>}
++      <div className="f4-ts-row">
++        <span className="f4-ts-track-name">VIDEO</span>
++        <div className="f4-studio-track-body" onClick={e=>{
++          if(e.target===e.currentTarget) seekToFrame(
++            Math.max(0,Math.min(1,e.nativeEvent.offsetX/e.currentTarget.clientWidth))*draft.duration_seconds, true)
++        }}>
++          {spans.map((span,i)=><button key={i} type="button" draggable={!approvedDirection}
++            data-timeline-segment-track="image" data-timeline-segment-index={i}
++            className={'f4-ts-clip '+(selected===i?'is-selected':'')}
++            style={{left:span.start/draft.duration_seconds*100+'%',
++              width:span.duration/draft.duration_seconds*100+'%'}}
++            onDragStart={e=>{
++              if (approvedDirection) { e.preventDefault(); return }
++              dragFrom.current=i
++            }}
++            onDragEnd={()=>{dragFrom.current=null}}
++            onDragOver={e=>{if (dragFrom.current!==null && !approvedDirection)e.preventDefault()}}
++            onDrop={e=>{
++              if (dragFrom.current===null || approvedDirection) return
++              e.preventDefault()
++              const from=dragFrom.current
++              dragFrom.current=null
++              if (from!==i && from>=0 && from<draft.scenes.length) {
++                move(from,i)
++                onSelectScene(i)
++              }
++            }}
++            onClick={()=>{
++              const position = boundedSceneMidpointSeek(span.start, span.duration,
++                draft.duration_seconds, previewFps)
++              if (position !== null) { onSelectScene(i); setPlayhead(position); onSeek(position) }
++            }}
++            aria-label={'Scene '+(i+1)+': '+(draft.scenes[i].headline)}>
++            <span className="f4-ts-clip-index">{i+1}</span>
++            <span className="f4-ts-clip-title">{draft.scenes[i].headline}</span>
++            <small>{formatTime(span.duration)}</small>
++          </button>)}
++        </div>
++      </div>
++      <div className="f4-ts-row">
++        <span className="f4-ts-track-name">CAPTIONS</span>
++        <div className="f4-studio-track-body f4-ts-captions">
++          {captions.map((caption,i)=><TimelineCaptionClip key={caption.id}
++            segment={caption} index={i} laneIndex={0} start={caption.start}
++            duration={caption.end-caption.start} timelineDuration={draft.duration_seconds}
++            current={playhead>=caption.start&&playhead<caption.end} selected={selected===i}
++            dragging={false} reorderTarget={false} rangeSelected={false} placeholder={false}
++            handlersRef={handlers} />)}
++        </div>
++      </div>
++      {spokenCaptions.length > 0 && <div className="f4-ts-row">
++        <span className="f4-ts-track-name">SPOKEN SUBTITLES</span>
++        <div className="f4-studio-track-body f4-ts-captions"
++          aria-label="Approved spoken subtitles" style={{pointerEvents:'none'}}>
++          {spokenCaptions.map((cue,i)=><TimelineCaptionClip key={'spoken-'+i}
++            segment={{id:'approved-spoken-'+i,text:cue.text,hidden:false}}
++            index={i} laneIndex={1} start={cue.start} duration={cue.duration}
++            timelineDuration={draft.duration_seconds}
++            current={playhead>=cue.start&&playhead<cue.start+cue.duration}
++            selected={false} dragging={false} reorderTarget={false}
++            rangeSelected={false} placeholder={false} handlersRef={handlers} />)}
++        </div>
++      </div>}
++      <div className="f4-ts-row">
++        <span className="f4-ts-track-name">MUSIC</span>
++        <div className="f4-studio-track-body f4-ts-audio">
++          {trackMusic.length ? <>
++            {trackMusic.map(m=><TimelineAudioClip key={m.id} segment={m}
++              laneIndex={0} timelineDuration={draft.duration_seconds} selected={false}
++              rangeSelected={false} waveformVisible={false} gainDisabled
++              hideGain={audioMix.musicGain === null} t={x=>x}
++              handlersRef={handlers} />)}
++            <span className="f4-ts-empty" role="note">
++              {audioMix.musicGainBlockedByMedia
++                ? 'Music level unavailable: visual media is not authorized for this shop.'
++                : audioMix.musicGainUnknownUntilServerProbe
++                  ? 'Music level is not previewed: final gain depends on decoded source audio.'
++                  : 'Renderer-fixed music gain: '+Math.round(audioMix.musicGain*100)+'%; not editable.'}
++            </span>
++          </> : <span className="f4-ts-empty">No licensed soundtrack selected</span>}
++        </div>
++      </div>
++      <div className="f4-ts-row">
++        <span className="f4-ts-track-name">NARRATION</span>
++        <div className="f4-studio-track-body f4-ts-audio">
++          {draft.voiceover_asset_id && musicAssets.some(a =>
++            a.id === draft.voiceover_asset_id && a.shop_id === draft.shop_id &&
++            a.kind === 'audio' && a.authorized === true)
++            ? <TimelineAudioClip segment={{id:'approved-voice',start:0,
++                duration:draft.duration_seconds,volume:1}}
++                laneIndex={0} timelineDuration={draft.duration_seconds}
++                selected={false} rangeSelected={false} waveformVisible={false}
++                gainDisabled t={x=>x} handlersRef={handlers} />
++            : <span className="f4-ts-empty">No approved full-Reel voice recording</span>}
++        </div>
++      </div>
++      <div className="f4-ts-row">
++        <span className="f4-ts-track-name">SCENE SFX</span>
++        <div className="f4-studio-track-body f4-ts-audio">
++          {draft.scenes.some(scene => scene.sfx_asset_id) ? draft.scenes.flatMap((scene,i) => {
++            if (!scene.sfx_asset_id || !musicAssets.some(asset =>
++              asset.id === scene.sfx_asset_id && asset.shop_id === draft.shop_id &&
++              asset.kind === 'audio' && asset.authorized === true)) return []
++            const segment = {id:'sfx-'+i,start:scene.start,duration:Math.min(2,scene.duration),
++              volume:0.25,name:scene.sfx_asset_id}
++            return [<TimelineAudioClip key={segment.id} segment={segment} laneIndex={0}
++              timelineDuration={draft.duration_seconds} selected={selected===i}
++              rangeSelected={false} waveformVisible={false} gainDisabled t={x=>x}
++              handlersRef={handlers} />]
++          }) : <span className="f4-ts-empty">Reviewed scene effects only · 2s max at fixed 25% gain</span>}
++        </div>
++      </div>
++      <div className="f4-ts-playhead" style={{left:(74 + playhead/draft.duration_seconds*trackPixels)+'px'}}
++        aria-hidden="true" />
++      </div>
++    </div>
++    <div className="f4-ts-inspector">
++      <label>Playhead <input type="range" min="0" max={draft.duration_seconds} step="any"
++        value={playhead} onChange={e=>seekToFrame(Number(e.target.value), true)} />
++        <output>{formatTime(playhead)}</output></label>
++      {source?.kind==='video'&&<label>Source trim (s) <input type="number" min="0" max="180"
++        step=".1" disabled={approvedDirection} value={draft.scenes[selected].trim_start||0}
++        onChange={e=>change(d=>studioSourceTrim(d,selected,Number(e.target.value),mediaAssets))}/></label>}
++      <span className="f4-ts-parity">Only fade/slide/cut, approved animation presets and native
++        video trims can be exported. Audio mix levels are fixed by the renderer after media probing;
++        this timeline does not audition the final soundtrack. Unsupported effects, caption rewriting
++        and gain automation are disabled.</span>
++    </div>
++    {approvedDirection && <p role="status" className="f4-ts-note">Approved Feature #2 direction locked. Timeline is preview-only until a coordinator-authorized revised approval exists.</p>}
++    {feedback && <p role="alert" className="f4-ts-error">{feedback}</p>}
++  </section>
++}
+
+diff --git a/frontend/src/features/video/VideoStudio.css b/frontend/src/features/video/VideoStudio.css
+--- a/frontend/src/features/video/VideoStudio.css
++++ b/frontend/src/features/video/VideoStudio.css
+@@ -0,0 +1,45 @@
++.f4-studio{--f4-bg:#101522;--f4-line:#293244;--f4-accent:#ddba78;font:inherit;color:#eef1f6;background:var(--f4-bg);border-radius:22px;padding:clamp(16px,3vw,36px)}
++.f4-head{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:14px;border-bottom:1px solid var(--f4-line);padding-bottom:22px;margin-bottom:24px}
++.f4-head h2{font-size:clamp(24px,3vw,38px);letter-spacing:-.04em;margin:6px 0}.f4-head p{margin:0;color:#aeb8c8}.f4-head .f4-eyebrow{color:var(--f4-accent);font-size:11px;letter-spacing:.19em;font-weight:800}
++.f4-status{border:1px solid #495063;border-radius:100px;padding:7px 12px;font-size:11px;letter-spacing:.08em}
++.f4-layout{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(280px,.8fr);gap:clamp(18px,3vw,42px)}
++.f4-controls{min-width:0}.f4-controls label{display:flex;flex-direction:column;gap:7px;color:#bac4d2;font-size:13px;font-weight:600;margin:0 0 16px}
++.f4-controls input:not([type=checkbox]),.f4-controls select{display:block;width:100%;border:1px solid #3a465b;background:#1b2434;color:#f8fafc;border-radius:9px;padding:12px 11px;font:inherit;min-height:44px}
++.f4-controls select:focus-visible,.f4-controls input:focus-visible,.f4-controls button:focus-visible{outline:3px solid #e2b76c;outline-offset:2px}
++.f4-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
++.f4-subtitle{font-size:19px;display:flex;justify-content:space-between;margin:18px 0}.f4-subtitle span{font-size:12px;font-weight:500;color:#9aa9c0}
++.f4-scenes{display:grid;gap:13px}.f4-scene{border:1px solid var(--f4-line);background:#182134;border-radius:14px;padding:15px;min-width:0}
++.f4-scene legend{background:var(--f4-bg);padding:0 9px;color:var(--f4-accent);font-weight:800;font-size:11px;letter-spacing:.06em}
++.f4-scene label{margin:11px 0}.f4-reorder{display:flex;gap:9px;justify-content:flex-end}
++.f4-reorder button{border:1px solid #435069;color:#e8eff7;background:transparent;border-radius:7px;padding:7px 11px;cursor:pointer}
++.f4-reorder button:disabled{opacity:.35;cursor:not-allowed}.f4-controls .f4-switch{flex-direction:row;align-items:center;gap:10px;line-height:1.3}
++.f4-issues{border:1px solid #b87965;background:#3c2527;padding:10px 14px;border-radius:9px;margin:10px 0}.f4-issues p{margin:5px 0}
++.f4-guidance,.f4-fine{color:#aeb8c8;line-height:1.55;font-size:12px}.f4-submit{width:100%;padding:13px 17px;background:#e3bd81;color:#161c27;border:0;font-weight:850;border-radius:10px;cursor:pointer}
++.f4-submit:disabled{background:#5b6170;color:#c0c4ce;cursor:not-allowed}.f4-view{display:flex;flex-direction:column;align-items:center;gap:15px;min-width:0}
++.f4-view video{display:block;width:min(100%,350px);aspect-ratio:9/16;object-fit:contain;border-radius:18px;background:#000}
++.f4-phone{display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;width:min(100%,350px);aspect-ratio:9/16;background:radial-gradient(ellipse at 65% 26%,#60798b,#0e111e 69%);border:9px solid #283244;box-shadow:0 15px 35px #0007;border-radius:24px;padding:23px;color:white}
++.f4-streetwear{background:radial-gradient(ellipse at 65% 26%,#655e1c,#0a0a0b 70%)}.f4-festival{background:radial-gradient(ellipse at 65% 26%,#b05251,#28102b 70%)}
++.f4-kicker{font-weight:900;color:#f8d180;letter-spacing:.14em;font-size:11px;position:relative;z-index:2}.f4-mock-motion{position:absolute;inset:15% 9% 35%;display:flex;align-items:center;justify-content:center}
++.f4-mock-motion span{position:absolute;width:54%;aspect-ratio:1;border:2px solid #dcc18a66;border-radius:30%;transform:rotate(35deg)}
++.f4-mock-motion span:nth-child(2){transform:rotate(65deg);width:72%;opacity:.7}.f4-mock-motion span:nth-child(3){transform:rotate(10deg);width:36%;background:#e8c78324}
++.f4-preview-copy{position:relative;z-index:2;background:#070a11c9;padding:18px;border-left:5px solid #edc077;display:grid;gap:12px;margin-top:auto}
++.f4-preview-copy span{font-size:9px;letter-spacing:.12em;color:#f2d398}.f4-preview-copy strong{font-size:clamp(20px,3vw,28px);font-weight:950;line-height:1.12;text-transform:uppercase;overflow-wrap:anywhere}
++.f4-preview-copy em{color:#ecc27c;font-style:normal;font-size:14px;font-weight:800}.f4-mock-label{position:relative;z-index:2;text-align:center;font-size:9px;letter-spacing:.06em;color:#bac4d4;margin-top:14px}
++.f4-view-note{max-width:360px;text-align:center;font-size:12px;line-height:1.6;color:#aeb8c8}
++@media(max-width:900px){.f4-layout{grid-template-columns:minmax(0,1fr)}.f4-view{grid-row:1}.f4-phone{width:min(65%,270px)}}
++@media(max-width:520px){.f4-studio{border-radius:0;padding:16px}.f4-two{grid-template-columns:1fr;gap:0}.f4-phone{width:min(82%,270px)}.f4-head h2{font-size:27px}}
++
++/* Accessible scene scrubber: the mock must reflect the selected storyboard, not only scene 1. */
++.f4-timeline{display:flex;width:min(100%,350px);gap:5px;align-items:stretch;padding:5px;min-height:42px;background:#0a101c;border-radius:12px}
++.f4-timeline button{flex-basis:0;min-width:0;border:1px solid #50617d;border-radius:6px;background:#1c2b3b;color:#c7d4e2;font-size:11px;font-weight:800;cursor:pointer}
++.f4-timeline button.f4-selected{color:#1a1c22;background:#f0c88d;border-color:#f0c88d}
++.f4-timeline button:focus-visible{outline:3px solid #f0c88d;outline-offset:2px}
++
++/* Explicit, neutral storyboard placeholder: NEVER draw a fake human silhouette. */
++.f4-media-placeholder{position:absolute;inset:19% 10% 34%;display:flex;justify-content:center;align-items:center;border:1px dashed #a3adbd88;background:linear-gradient(145deg,#1b2333,#0b111d);border-radius:16px;padding:14px}
++.f4-media-placeholder span{max-width:22ch;letter-spacing:.13em;font-size:11px;text-align:center;line-height:1.7;color:#b3c2d6;font-weight:700}
++
++/* Show ONLY tenant-signed source imagery; this is not a rendered AI advertisement. */
++.f4-source-preview{position:absolute;top:16%;left:8%;width:84%;height:53%;object-fit:contain;border-radius:12px;background:#03060b;z-index:1;box-shadow:0 9px 28px #0006}
++.f4-phone>.f4-source-preview:not(video){object-position:center}
++.f4-view .f4-phone video.f4-source-preview{width:84%;aspect-ratio:auto;object-fit:contain;border-radius:12px}
+
+diff --git a/frontend/src/features/video/VideoStudio.jsx b/frontend/src/features/video/VideoStudio.jsx
+--- a/frontend/src/features/video/VideoStudio.jsx
++++ b/frontend/src/features/video/VideoStudio.jsx
+@@ -0,0 +1,341 @@
++import { useEffect, useMemo, useRef, useState } from 'react'
++import {
++  VIDEO_MODES, VIDEO_TEMPLATES, VIDEO_ANIMATIONS, VIDEO_TRANSITIONS, compatibleMedia, makeVideoDraft,
++  shiftVideoScene, retimeVideoDraft, validateVideoDraft, sourceClipPlaybackWindow, sourceClipTimeForPlayhead,
++} from './video-model.mjs'
++import { privateMediaPreviewUrl } from './video-transport.mjs'
++import TimelineStudioSurface from './TimelineStudioSurface.jsx'
++import { inspectCreativeDirection } from './creative-direction-adapter.mjs'
++import './VideoStudio.css'
++
++// Feature-owned panel. Feature #1 must mount it in the shared authenticated layout.
++// mediaAssets/musicAssets MUST be server-authorized private-media objects.
++// onRender MUST call the existing authenticated API after coordinator v2 contract approval.
++export default function VideoStudio({
++  shopId, mediaAssets = [], musicAssets = [], onRender = null,
++  renderStatus = null, signedVideoUrl = null, onPrivateDownload = null,
++  creativeDirection = null,
++}) {
++  const [draft, setDraft] = useState(() => makeVideoDraft({ shopId, mediaAssets }))
++  const approvedRead = useMemo(() => {
++    if (!creativeDirection) return null
++    try { return inspectCreativeDirection(creativeDirection, {shopId, mediaAssets, musicAssets}) }
++    catch(error) { return {error: error.message} }
++  }, [creativeDirection, shopId, mediaAssets, musicAssets])
++  const [busy, setBusy] = useState(false)
++  const [error, setError] = useState('')
++  const [submitted, setSubmitted] = useState(false)
++  const [selectedSceneIndex, setSelectedSceneIndex] = useState(0)
++  const [timelinePlayhead, setTimelinePlayhead] = useState(null)
++  const previewVideo = useRef(null)
++  // A login/shop switch cannot retain the previous tenant's composition draft.
++  useEffect(() => {
++    setDraft(makeVideoDraft({ shopId, mediaAssets }))
++    setSelectedSceneIndex(0)
++    setTimelinePlayhead(null)
++    setSubmitted(false)
++    setError('')
++  }, [shopId])
++  useEffect(() => {
++    if (approvedRead?.draft) {
++      setDraft(approvedRead.draft)
++      setSelectedSceneIndex(0)
++    setTimelinePlayhead(null)
++      setSubmitted(false)
++    }
++  }, [approvedRead])
++  const assets = useMemo(() => compatibleMedia(draft.mode, mediaAssets, shopId), [draft.mode, mediaAssets, shopId])
++  const approvedPosters = useMemo(() => (Array.isArray(mediaAssets) ? mediaAssets : [])
++    .filter(asset => asset?.authorized === true && asset?.kind === 'poster' &&
++      asset?.shop_id === shopId), [mediaAssets, shopId])
++  const issues = useMemo(
++    () => [...validateVideoDraft(draft, mediaAssets, musicAssets), ...(approvedRead?.error ? [approvedRead.error] : [])],
++    [draft, mediaAssets, musicAssets, approvedRead],
++  )
++  const patch = (changes) => { if (creativeDirection) return; setDraft(prev => ({ ...prev, ...changes })); setSubmitted(false) }
++  const selectedScene = draft.scenes[Math.min(selectedSceneIndex, draft.scenes.length - 1)]
++  const sceneSource = (Array.isArray(mediaAssets) ? mediaAssets : [])
++    .find(item => item?.authorized === true && item?.shop_id === shopId &&
++      item.id === selectedScene?.asset_id)
++  let previewSource = null
++  let sourceWindow = null
++  try {
++    if (sceneSource?.kind === 'video') {
++      sourceWindow = sourceClipPlaybackWindow(selectedScene, sceneSource)
++    }
++    if (sceneSource?.shop_id === shopId && sceneSource?.preview_url) {
++      previewSource = privateMediaPreviewUrl(
++        sceneSource.preview_url, import.meta.env?.VITE_SUPABASE_URL, shopId)
++    }
++  } catch { /* Invalid or cross-tenant source previews are never rendered. */ }
++  // Source-frame jog is read-only and does not grant asset or composition rights.
++  useEffect(() => {
++    if (!previewSource || !previewVideo.current || !sourceWindow) return
++    const position = sourceClipTimeForPlayhead(selectedScene, sceneSource, timelinePlayhead)
++    if (position === null || previewVideo.current.readyState < 1) return
++    if (Math.abs(previewVideo.current.currentTime - position) > .015) {
++      previewVideo.current.currentTime = position
++    }
++  }, [timelinePlayhead, selectedScene, sceneSource, previewSource, sourceWindow?.start, sourceWindow?.end])
++  function changeDuration(next) {
++    if (creativeDirection) return
++    try {
++      patch(retimeVideoDraft(draft, next))
++      setError('')
++    } catch (exc) {
++      setError(exc.message || 'This timeline cannot be retimed safely')
++    }
++  }
++  const patchScene = (index, changes) => patch({ scenes: draft.scenes.map((item, i) =>
++    i === index ? { ...item, ...changes } : item,
++  ) })
++
++  function newDraft({ mode = draft.mode, template = draft.template, duration = draft.duration_seconds } = {}) {
++    if (creativeDirection) return
++    setDraft(makeVideoDraft({ shopId, mode, template, duration, mediaAssets }))
++    setError('')
++    setSubmitted(false)
++    setSelectedSceneIndex(0)
++    setTimelinePlayhead(null)
++  }
++  async function submit(event) {
++    event.preventDefault()
++    setError('')
++    if (issues.length || !onRender || (creativeDirection && !approvedRead?.draft)) return
++    setBusy(true)
++    try {
++      await onRender(structuredClone(draft))
++      setSubmitted(true)
++    } catch (exc) {
++      setError(exc?.message || 'Video request was not accepted')
++    } finally {
++      setBusy(false)
++    }
++  }
++  // The coordinator must return the trusted tenant identity with an output.
++  // Never show a previously selected shop's signed video after a shop switch.
++  // A prior job's signed artifact MUST NOT be presented as the preview of an
++  // edited/new composition. Editing resets 'submitted'; the next valid submit
++  // creates a new immutable job. This is only UI parity, not a server grant.
++  // Encode success does not override an explicit owner QUALITY REJECTION.
++  // The reviewed private artifact may still exist on the server for an audit,
++  // but the UI must not surface it as an acceptable current Reel.
++  const ownerRejected = renderStatus?.shop_id === shopId &&
++    renderStatus?.visual_quality_status === 'OWNER_REJECTED'
++  const ready = submitted && !ownerRejected && renderStatus?.status === 'SUCCEEDED' &&
++    renderStatus?.shop_id === shopId &&
++    typeof signedVideoUrl === 'string' && signedVideoUrl.length > 0
++  return (
++    <section className="f4-studio" aria-labelledby="f4-title">
++      <header className="f4-head">
++        <div>
++          <p className="f4-eyebrow">RETAILGROWTHAI / CREATIVE STUDIO</p>
++          <h2 id="f4-title">Professional Video Studio</h2>
++          <p>Design a branded 9:16 Reel from your approved shop media.</p>
++        </div>
++        <span className="f4-status">{renderStatus?.shop_id === shopId ? renderStatus.status : 'LOCAL DRAFT'}</span>
++      </header>
++      <div className="f4-layout">
++        <form className="f4-controls" onSubmit={submit} aria-label="Approved render options">
++          {creativeDirection && <p className="f4-guidance" role="status">Feature #2 approved copy, scenes and camera direction are locked. Editing needs renewed creative approval.</p>}
++          <div className="f4-two">
++            <label>Video type
++              <select disabled={Boolean(creativeDirection)} value={draft.mode} onChange={e => newDraft({ mode: e.target.value })}>
++                {VIDEO_MODES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
++              </select>
++            </label>
++            <label>Professional style
++              <select disabled={Boolean(creativeDirection)} value={draft.template} onChange={e => patch({ template: e.target.value })}>
++                {VIDEO_TEMPLATES.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
++              </select>
++            </label>
++          </div>
++          <div className="f4-two">
++            <label>Duration
++              <select disabled={Boolean(creativeDirection)} value={draft.duration_seconds} onChange={e => changeDuration(Number(e.target.value))}>
++                {[15, 30, 60].map(n => <option key={n} value={n}>{n} seconds</option>)}
++              </select>
++            </label>
++            <label>Approved full-Reel narration
++              <select disabled={Boolean(creativeDirection)} value={draft.voiceover_asset_id || ''}
++                onChange={e => patch({ voiceover_asset_id: e.target.value || null })}>
++                <option value="">No reviewed narration audio</option>
++                {musicAssets.filter(a => a?.authorized === true && a?.shop_id === shopId &&
++                  a?.kind === 'audio').map(a => <option key={a.id} value={a.id}>{a.title || a.id}</option>)}
++              </select>
++            </label>
++            <label>Approved soundtrack
++              <select disabled={Boolean(creativeDirection)} value={draft.music_asset_id || ''} onChange={e => patch({ music_asset_id: e.target.value || null })}>
++                <option value="">No licensed music / silent export</option>
++                {musicAssets.filter(track => track?.authorized === true && track?.shop_id === shopId &&
++                  track?.kind === 'audio').map(track =>
++                  <option key={track.id} value={track.id}>{track.title || track.id}</option>)}
++              </select>
++            </label>
++          </div>
++          {draft.mode === 'music_sync' && (
++            <p className="f4-guidance">Only server-approved, same-shop music can render with a measured beat grid. Offline waveform detection and editor beat navigation are implemented; hosted soundtrack licensing and approved beat attachment remain required.</p>
++          )}
++          <h3 className="f4-subtitle">Storyboard <span>{draft.scenes.length} scenes</span></h3>
++          <div className="f4-scenes">
++            {draft.scenes.map((scene, index) => (
++              <fieldset key={index} className="f4-scene">
++                <legend>SCENE {String(index + 1).padStart(2, '0')} · {scene.start}s – {scene.start + scene.duration}s</legend>
++                <div className="f4-reorder">
++                  <button type="button" onClick={() => patch({ scenes: shiftVideoScene(draft.scenes, index, -1) })}
++                    disabled={Boolean(creativeDirection) || index === 0} aria-label={'Move scene ' + (index + 1) + ' earlier'}>↑ Earlier</button>
++                  <button type="button" onClick={() => patch({ scenes: shiftVideoScene(draft.scenes, index, 1) })}
++                    disabled={Boolean(creativeDirection) || index === draft.scenes.length - 1}
++                    aria-label={'Move scene ' + (index + 1) + ' later'}>↓ Later</button>
++                </div>
++                {draft.mode !== 'text' && (
++                  <label>Approved product, poster or footage
++                    <select disabled={Boolean(creativeDirection)} value={scene.asset_id || ''} onChange={e => patchScene(index, { asset_id: e.target.value || undefined })}>
++                      <option value="">Select an authorized asset</option>
++                      {assets.map(media => <option key={media.id} value={media.id}>{media.name || media.id} · {media.kind}</option>)}
++                    </select>
++                  </label>
++                )}
++                <label>Animated headline
++                  <input disabled={Boolean(creativeDirection)} value={scene.headline} maxLength={110} onChange={e => patchScene(index, { headline: e.target.value })} />
++                </label>
++                <div className="f4-two">
++                  <label>Motion
++                    <select disabled={Boolean(creativeDirection)} value={scene.animation_preset || 'subtle_zoom'}
++                      onChange={e => patchScene(index, { animation_preset: e.target.value })}>
++                      {VIDEO_ANIMATIONS.map(value => <option key={value} value={value}>{value.replace('_', ' ')}</option>)}
++                    </select>
++                  </label>
++                  <label>Scene transition
++                    <select disabled={Boolean(creativeDirection)} value={scene.transition || 'fade'}
++                      onChange={e => patchScene(index, { transition: e.target.value })}>
++                      {VIDEO_TRANSITIONS.map(value => <option key={value} value={value}>{value}</option>)}
++                    </select>
++                  </label>
++                </div>
++                {draft.mode !== 'text' && approvedPosters.length > 0 && (
++                  <label>Reviewed promotion poster overlay (optional)
++                    <select disabled={Boolean(creativeDirection)} value={scene.poster_overlay_asset_id || ''}
++                      onChange={e => patchScene(index, { poster_overlay_asset_id: e.target.value || undefined })}>
++                      <option value="">No poster on this scene</option>
++                      {approvedPosters.filter(poster => poster.id !== scene.asset_id).map(poster =>
++                        <option key={poster.id} value={poster.id}>{poster.name || poster.id}</option>)}
++                    </select>
++                  </label>
++                )}
++                <label>Reviewed scene sound effect · first 2 seconds
++                  <select disabled={Boolean(creativeDirection)} value={scene.sfx_asset_id || ''}
++                    onChange={e => patchScene(index, { sfx_asset_id: e.target.value || undefined })}>
++                    <option value="">No scene sound effect</option>
++                    {musicAssets.filter(track => track?.authorized === true && track?.shop_id === shopId
++                      && track?.kind === 'audio').map(track =>
++                      <option key={track.id} value={track.id}>{track.title || track.id}</option>)}
++                  </select>
++                </label>
++                <label>Approved offer (optional)
++                  <input disabled={Boolean(creativeDirection)} value={scene.offer || ''} maxLength={70}
++                    placeholder="Only real retailer-approved claims"
++                    onChange={e => patchScene(index, { offer: e.target.value || undefined })} />
++                </label>
++                {draft.mode === 'media' && assets.some(asset => asset.id === scene.asset_id && asset.kind === 'video') && (
++                  <div className="f4-two">
++                    <label>Start source at (seconds)
++                      <input disabled={Boolean(creativeDirection)} type="number" min="0" max="180" step=".1" value={scene.trim_start || 0}
++                        onChange={e => patchScene(index, { trim_start: Number(e.target.value) })} />
++                    </label>
++                    <label className="f4-switch">
++                      <input disabled={Boolean(creativeDirection)} type="checkbox" checked={scene.mute_source === true}
++                        onChange={e => patchScene(index, { mute_source: e.target.checked })} />
++                      Explicitly mute original clip audio
++                    </label>
++                  </div>
++                )}
++              </fieldset>
++            ))}
++          </div>
++          <label>Final call to action
++            <input disabled={Boolean(creativeDirection)} value={draft.cta} maxLength={110} onChange={e => patch({ cta: e.target.value })} />
++          </label>
++          {issues.length > 0 && <div role="alert" className="f4-issues">
++            {issues.map(issue => <p key={issue}>{issue}</p>)}
++          </div>}
++          {error && <p role="alert" className="f4-issues">{error}</p>}
++          {submitted && <p className="f4-guidance" role="status">Request submitted. The backend must confirm a durable render job and private artifact.</p>}
++          <button className="f4-submit" type="submit" disabled={busy || issues.length > 0 || !onRender || Boolean(creativeDirection && !approvedRead?.draft)}>
++            {busy ? 'Submitting…' : onRender ? 'Submit authorized render' : 'Backend v2 connection pending'}
++          </button>
++          <p className="f4-fine">Visual preview is a storyboard mock, not a rendered MP4. Nothing here bypasses backend shop access, media rights, usage limits or human approval.</p>
++        </form>
++        <aside className="f4-view" aria-label="Video storyboard preview">
++          <nav className="f4-timeline" aria-label="Choose a storyboard scene to preview">
++            {draft.scenes.map((scene, index) => (
++              <button key={index} type="button" className={index === selectedSceneIndex ? 'f4-selected' : ''}
++                aria-pressed={index === selectedSceneIndex} onClick={() => setSelectedSceneIndex(index)}
++                style={{ flexGrow: scene.duration }} title={scene.headline}>
++                {String(index + 1).padStart(2, '0')}
++              </button>
++            ))}
++          </nav>
++          {ownerRejected && <p role="alert" className="f4-issues">
++            Owner rejected this Reel for visual quality. It is not a showcase or an approved commercial video.
++          </p>}
++          {ready ? (
++            <>
++              <video controls playsInline preload="metadata" src={signedVideoUrl} aria-label="Signed private rendered video" />
++              {onPrivateDownload && <button onClick={onPrivateDownload} className="f4-submit">Download authorized MP4</button>}
++            </>
++          ) : (
++            <div className={'f4-phone f4-' + draft.template}>
++              <span className="f4-kicker">{VIDEO_TEMPLATES.find(([id]) => id === draft.template)?.[1]}</span>
++              {previewSource && sceneSource?.kind === 'video' ? (
++                <video key={selectedSceneIndex + ':' + sourceWindow?.start + ':' + previewSource}
++                  ref={previewVideo} className="f4-source-preview" src={previewSource} controls playsInline muted
++                  preload="metadata" aria-label="Authorized source footage excerpt; muted preview, not rendered advertisement"
++                  onLoadedMetadata={event => {
++                    if (sourceWindow) {
++                      try { event.currentTarget.currentTime = sourceClipTimeForPlayhead(selectedScene, sceneSource, timelinePlayhead) ?? sourceWindow.start } catch { /* unavailable seek is not a render approval */ }
++                    }
++                  }}
++                  onPlay={event => {
++                    if (sourceWindow && (event.currentTarget.currentTime < sourceWindow.start ||
++                        event.currentTarget.currentTime >= sourceWindow.end)) {
++                      event.currentTarget.currentTime = sourceWindow.start
++                    }
++                  }}
++                  onTimeUpdate={event => {
++                    if (sourceWindow && event.currentTarget.currentTime >= sourceWindow.end - .02) {
++                      event.currentTarget.pause()
++                    }
++                  }} />
++              ) : previewSource && ['image', 'poster'].includes(sceneSource?.kind) ? (
++                <img className="f4-source-preview" src={previewSource}
++                  alt="Authorized retailer product or poster source; not rendered advertisement" />
++              ) : (
++                <div className="f4-media-placeholder" aria-hidden="true">
++                  <span>{selectedScene?.asset_id ? 'PRIVATE SOURCE PREVIEW NOT AVAILABLE' : 'SELECT MEDIA TO PREVIEW'}</span>
++                </div>
++              )}
++              <div className="f4-preview-copy">
++                <span>SCENE {selectedSceneIndex + 1} / {draft.scenes.length} · {selectedScene?.start ?? 0}–{(selectedScene?.start ?? 0) + (selectedScene?.duration ?? 0)}s</span>
++                <strong>{selectedScene?.headline || 'Your product story'}</strong>
++                <em>{selectedScene?.offer || (selectedSceneIndex === draft.scenes.length - 1 ? draft.cta : 'Approved media storyboard')}</em>
++              </div>
++              <span className="f4-mock-label">{previewSource && sourceWindow
++                ? 'SOURCE ' + sourceWindow.start + '–' + sourceWindow.end + 's · MUTED PREVIEW ONLY'
++                : previewSource ? 'SOURCE ASSET · FINAL REEL NOT RENDERED'
++                : 'STORYBOARD ONLY · NO VIDEO GENERATED'}</span>
++            </div>
++          )}
++          <p className="f4-view-note">{ready ? 'Signed output from the existing authenticated job workflow' :
++            'Storyboard planning only—not footage of a real model. Saved jobs and private downloads require coordinator-enabled backend v2.'}</p>
++        </aside>
++      </div>
++      <TimelineStudioSurface draft={draft} mediaAssets={mediaAssets} musicAssets={musicAssets}
++        selectedSceneIndex={selectedSceneIndex} onSelectScene={setSelectedSceneIndex}
++        approvedDirection={Boolean(creativeDirection)}
++        spokenCaptions={approvedRead?.captionCues || []}
++        onSeek={setTimelinePlayhead}
++        onChange={next => { setDraft(next); setSubmitted(false) }} />
++    </section>
++  )
++}
+
+diff --git a/frontend/src/features/video/VideoStudioConnected.jsx b/frontend/src/features/video/VideoStudioConnected.jsx
+--- a/frontend/src/features/video/VideoStudioConnected.jsx
++++ b/frontend/src/features/video/VideoStudioConnected.jsx
+@@ -0,0 +1,167 @@
++import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
++import { useRetailAuth } from '../../auth/AuthProvider.jsx'
++import VideoStudio from './VideoStudio.jsx'
++import { canonicalVideoId, createVideoTransport, privateMediaPreviewUrl } from './video-transport.mjs'
++
++// Feature #4-owned authenticated bridge, NOT a mounted application route.
++// Feature #1/coordinator must supply a selected RLS-authorized shop,
++// persistent campaign and approved-script revision, AND register the additive
++// backend routes before setting enabled=true. Never adapt old v1 render jobs.
++// The user must see "integration pending" until all those gates are met.
++export default function VideoStudioConnected({
++  shopId, campaignId, approvalId, mediaAssets = [], musicAssets = [],
++  enabled = false, routes = null, pollMs = 3500, creativeDirection = null,
++}) {
++  const { client, user, configured, recoveryMode } = useRetailAuth()
++  const [job, setJob] = useState(null)
++  const [signedUrl, setSignedUrl] = useState(null)
++  const [error, setError] = useState('')
++  const context = useRef(0)
++  const routeReady = enabled === true && Boolean(configured && user && !recoveryMode && routes &&
++    typeof shopId === 'string' && typeof campaignId === 'string' &&
++    typeof approvalId === 'string')
++  // A selected shop must be an RLS-verified membership from Feature #1, not
++  // a browser URL parameter. The server rechecks membership for every action.
++  const api = useMemo(() => createVideoTransport({
++    enabled: routeReady,
++    baseUrl: import.meta.env?.VITE_CAMPAIGN_API_BASE_URL,
++    tokenProvider: () => client.accessToken(),
++    supabaseOrigin: import.meta.env?.VITE_SUPABASE_URL,
++    routes,
++  }), [routeReady, client, routes])
++  // The integration bridge is stricter than the local draft editor:
++  // never even offer an asset belonging to a different selected shop.
++  const shopMedia = useMemo(() => (Array.isArray(mediaAssets) ? mediaAssets : [])
++    .filter(asset => asset?.shop_id === shopId && asset?.authorized === true)
++    .map(asset => {
++      // The source image/movie is displayed only when it has a validated,
++      // per-shop Supabase Storage signed URL. Invalid external URLs are never
++      // rendered as <img> or <video>. Server retains actual media authority.
++      let preview_url
++      try {
++        preview_url = privateMediaPreviewUrl(
++          asset.preview_url, import.meta.env?.VITE_SUPABASE_URL, shopId)
++      } catch { preview_url = null }
++      return { ...asset, preview_url }
++    }),
++  [mediaAssets, shopId])
++  const shopMusic = useMemo(() => (Array.isArray(musicAssets) ? musicAssets : [])
++    .filter(asset => asset?.shop_id === shopId && asset?.authorized === true),
++  [musicAssets, shopId])
++  const shopKey = shopId + ':' + campaignId + ':' + (user?.id || '')
++  useEffect(() => {
++    context.current += 1
++    setJob(null)
++    setSignedUrl(null)
++    setError('')
++  }, [shopKey, api])
++
++  const submit = useCallback(async (draft) => {
++    if (!api) throw Error('Coordinator-approved Video Studio API is not connected')
++    const epoch = context.current
++    const receipt = await api.create({ shopId, campaignId, approvalId, draft })
++    if (epoch !== context.current) throw Error('Business changed while render was submitted. Check that business’s job history.')
++    setSignedUrl(null)
++    setError('')
++    setJob(receipt)
++    // An idempotent create may return an already-SUCCEEDED job. Obtain its
++    // current tenant-private signed URL without replaying the POST.
++    if (receipt.status === 'SUCCEEDED') {
++      try {
++        const url = await api.download({ jobId: receipt.job_id, shopId })
++        if (epoch === context.current) setSignedUrl(url)
++      } catch {
++        if (epoch === context.current) {
++          setError('Completed render found, but the private download could not be renewed.')
++        }
++      }
++    }
++    return receipt
++  }, [api, shopId, campaignId, approvalId])
++
++  // Poll only GET, never POST. The existing Azure #249 ingress issue can time
++  // out even healthy requests; do not automatically resubmit an uncertain job.
++  useEffect(() => {
++    if (!api || !job?.job_id || job.shop_id !== shopId ||
++        ['SUCCEEDED', 'FAILED'].includes(job.status)) return
++    const epoch = context.current
++    let cancelled = false
++    let timer = null
++    let activeController = null
++    let consecutiveFailures = 0
++    const delay = Number.isInteger(pollMs) && pollMs >= 1000 && pollMs <= 30000 ? pollMs : 3500
++    async function refresh() {
++      activeController = new AbortController()
++      try {
++        const updated = await api.status({ jobId: job.job_id, shopId, signal: activeController.signal })
++        if (cancelled || context.current !== epoch) return
++        consecutiveFailures = 0
++        setJob(updated)
++        setError('')
++        if (updated.status === 'SUCCEEDED') {
++          // A new signed URL must be requested using the CURRENT JWT and job.
++          const url = await api.download({ jobId: job.job_id, shopId, signal: activeController.signal })
++          if (!cancelled && context.current === epoch) setSignedUrl(url)
++          return
++        }
++        if (updated.status === 'FAILED') {
++          setError('Video render failed. Check the approved content and retry through job history.')
++          return
++        }
++      } catch (exc) {
++        if (cancelled || context.current !== epoch) return
++        consecutiveFailures += 1
++        if (consecutiveFailures >= 3) {
++          setError('Render status could not be verified. Do not submit again; check this job in your history.')
++          return
++        }
++        setError('Render is still pending. Status service is temporarily unavailable.')
++      }
++      if (!cancelled) timer = setTimeout(refresh, delay)
++    }
++    timer = setTimeout(refresh, delay)
++    return () => {
++      cancelled = true
++      if (timer !== null) clearTimeout(timer)
++      activeController?.abort()
++    }
++  }, [api, job?.job_id, shopId, pollMs])
++  // Do not keep or download stale signed URLs after the session/shop changes.
++  const ready = job?.shop_id === shopId && job?.status === 'SUCCEEDED'
++  const download = useCallback(async () => {
++    if (!api || !ready) return
++    const epoch = context.current
++    try {
++      const url = await api.download({ jobId: job.job_id, shopId })
++      if (epoch !== context.current) return
++      setSignedUrl(url)
++      // Authoritative server-provided, tenant+job-bound HTTPS signed link.
++      const link = document.createElement('a')
++      link.href = url
++      link.download = 'retailgrowthai-' + job.job_id + '.mp4'
++      link.rel = 'noopener noreferrer'
++      document.body.appendChild(link)
++      link.click()
++      link.remove()
++    } catch {
++      if (epoch === context.current) setError('Unable to renew the private video download. Try again after reauthentication.')
++    }
++  }, [api, job, shopId, ready])
++
++  return (
++    <div className="f4-connected-workspace">
++      {!api && (
++        <p className="f4-guidance" role="status">
++          Video Studio backend v2 is not enabled. The editor remains a local storyboard;
++          no cloud render, quota charge or private upload is started.
++        </p>
++      )}
++      {error && <p className="f4-issues" role="alert">{error}</p>}
++      <VideoStudio key={shopKey} shopId={shopId} creativeDirection={creativeDirection}
++        mediaAssets={shopMedia} musicAssets={shopMusic}
++        onRender={api ? submit : null} renderStatus={job}
++        signedVideoUrl={ready ? signedUrl : null}
++        onPrivateDownload={ready ? download : null} />
++    </div>
++  )
++}
+
+diff --git a/frontend/src/features/video/audio-mix-display.mjs b/frontend/src/features/video/audio-mix-display.mjs
+--- a/frontend/src/features/video/audio-mix-display.mjs
++++ b/frontend/src/features/video/audio-mix-display.mjs
+@@ -0,0 +1,40 @@
++// F4-06: UI-only, fail-closed audio mix indicators. HyperFrames is authoritative.
++// Browser media metadata is NOT a decoded source-audio probe or a rights grant.
++// Never claim an editable DAW gain or preview parity from these indicators.
++function authorized(id, shopId, assets) {
++  return id != null && Array.isArray(assets) && assets.some(asset =>
++    asset?.id === id && asset?.shop_id === shopId &&
++    asset?.authorized === true && asset?.kind === 'audio')
++}
++
++export function fixedAudioMixDisplay(draft, mediaAssets = [], audioAssets = []) {
++  const shopId = draft?.shop_id
++  const scenes = Array.isArray(draft?.scenes) ? draft.scenes : []
++  const music = authorized(draft?.music_asset_id, shopId, audioAssets)
++  const narration = authorized(draft?.voiceover_asset_id, shopId, audioAssets)
++  // A verified server ffprobe result is NOT present in the browser draft.
++  // If any unmuted video is selected, the renderer may use 0.12 or 0.55
++  // depending on whether that actual video has an audio stream.
++  const unverifiedVisualMedia = scenes.some(scene =>
++    scene?.asset_id != null && (!Array.isArray(mediaAssets) ||
++    !mediaAssets.some(asset => asset?.id === scene.asset_id &&
++      asset?.shop_id === shopId && asset?.authorized === true &&
++      ['image', 'poster', 'video'].includes(asset?.kind))))
++  const uncertainSourceAudio = scenes.some(scene =>
++    scene?.mute_source !== true && Array.isArray(mediaAssets) &&
++    mediaAssets.some(asset => asset?.id === scene?.asset_id &&
++      asset?.kind === 'video'))
++  const musicGain = !music ? null : unverifiedVisualMedia ? null :
++    narration ? 0.12 : uncertainSourceAudio ? null : 0.55
++  return {
++    music,
++    narration,
++    musicGain,
++    musicGainVerifiedByBrowser: false,
++    musicGainUnknownUntilServerProbe: music && musicGain === null && !unverifiedVisualMedia,
++    musicGainBlockedByMedia: music && unverifiedVisualMedia,
++    narrationGain: narration ? 1 : null,
++    sceneSfxGain: 0.25,
++    sceneSfxMaximumSeconds: 2,
++  }
++}
+

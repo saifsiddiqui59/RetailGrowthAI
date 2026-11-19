@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import re
+import unicodedata
 from typing import Callable
 
 from .content_intelligence import RetailerProfile, RESTRICTED, UNSUPPORTED
@@ -34,11 +35,31 @@ UNSAFE_INPUT = re.compile(
 )
 
 
+def _has_unsafe_unicode(text: str) -> bool:
+    """Reject invisible/bidi controls while preserving genuine Indic conjuncts.
+
+    Only ZWJ/ZWNJ after Devanagari virama followed by a Devanagari letter
+    may be retained. A concealed control never grants editorial approval.
+    """
+    for index, char in enumerate(text):
+        if char in "\n\t":
+            continue
+        if char in ("\u200c", "\u200d"):
+            following = text[index + 1] if index + 1 < len(text) else ""
+            if (index > 0 and text[index - 1] == "\u094d" and
+                    "\u0900" <= following <= "\u097f" and
+                    unicodedata.category(following).startswith("L")):
+                continue
+        if unicodedata.category(char).startswith("C") or char in ("\u2028", "\u2029"):
+            return True
+    return False
+
+
 def _safe_original(raw: str) -> str:
     if not isinstance(raw, str) or not raw.strip() or len(raw) > 1500:
         raise ValueError("Original prompt must be 1–1500 characters")
     original = raw.strip()
-    if any(ord(char) < 32 and char not in "\n\t" for char in original) or (
+    if _has_unsafe_unicode(original) or (
         "<" in original or ">" in original or UNSAFE_INPUT.search(original)
     ):
         raise ValueError("Prompt contains unsafe control instructions")
@@ -94,7 +115,8 @@ def improve_prompt(
     flagged_fields = [
         key for key, value in context.items()
         if (UNVERIFIED_CLAIM.search(" ".join(value) if isinstance(value, list) else value)
-            or UNSUPPORTED.search(" ".join(value) if isinstance(value, list) else value))
+            or UNSUPPORTED.search(" ".join(value) if isinstance(value, list) else value)
+            or _has_unsafe_unicode(" ".join(value) if isinstance(value, list) else value))
     ]
     for key in flagged_fields:
         context[key] = [] if key == "products" else ""
@@ -148,7 +170,8 @@ def improve_prompt(
         candidate = provider(base)
         if (not isinstance(candidate, str) or len(candidate) > 1500 or
                 original not in candidate or UNSAFE_INPUT.search(candidate) or
-                RESTRICTED.search(candidate) or UNSUPPORTED.search(candidate)):
+                _has_unsafe_unicode(candidate) or RESTRICTED.search(candidate) or
+                UNSUPPORTED.search(candidate)):
             raise ValueError("Provider returned an unreviewable or unsafe prompt")
         result_prompt = candidate
         usage = {"paid_inference_calls": 1, "estimated_paid_cost_usd": None,

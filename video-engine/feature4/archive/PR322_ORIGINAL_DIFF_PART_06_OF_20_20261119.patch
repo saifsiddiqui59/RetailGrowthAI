@@ -1,0 +1,1331 @@
+diff --git a/tests/media/test_feature4_release_gate.py b/tests/media/test_feature4_release_gate.py
+--- a/tests/media/test_feature4_release_gate.py
++++ b/tests/media/test_feature4_release_gate.py
+@@ -0,0 +1,192 @@
++"""No synthetic geometry may pass a private Reel commercial release gate."""
++import copy
++import sys
++import unittest
++from datetime import datetime, timedelta, timezone
++from pathlib import Path
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "video-engine"))
++from feature4_release_gate import (CHECKS, ReleaseNotApproved,
++                                   validate_feature4_release)
++from demo_feature4_edited_reel import OWNER_VISUAL_VERDICT
++
++SHOP = "11111111-1111-4111-8111-111111111111"
++OTHER = "44444444-4444-4444-8444-444444444444"
++JOB = "33333333-3333-4333-8333-333333333333"
++PRODUCT = "88888888-8888-4888-8888-888888888888"
++MOTION = "99999999-9999-4999-8999-999999999999"
++NOW = datetime(2026, 10, 28, 12, tzinfo=timezone.utc)
++
++
++def baseline():
++    job = {
++        "id": JOB, "shop_id": SHOP, "status": "SUCCEEDED",
++        "output_asset_id": "77777777-7777-4777-8777-777777777777",
++        "output_probe": {"video_codec": "h264", "audio_codec": "aac",
++                         "width": 1080, "height": 1920,
++                         "duration_seconds": 30.0, "bytes": 6_000_000},
++    }
++    lineage = {"video_job_id": JOB, "rendered_as": "AUTHORIZED_ASSEMBLY",
++               "fallback_events": [], "media_asset_ids": [MOTION, PRODUCT]}
++    human = {
++        "shop_id": SHOP, "video_job_id": JOB,
++        "approved_product_id": PRODUCT, "approved_motion_id": MOTION,
++        "review_id": "retailer-review-001", "reviewer_id": "verified-shop-owner",
++        "approved": True, "reviewed_at": "2026-10-27T18:00:00Z",
++        "checks": {k: True for k in CHECKS},
++        "evidence_refs": ["garment-comparison-frame-10",
++                          "model-motion-review-frame-20"],
++    }
++    def row(kind, source):
++        return {"shop_id": SHOP, "kind": kind, "source_feature": source,
++                "approved": True, "commercial_use": True,
++                "synthetic_fixture": False,
++                "rights_evidence": "Owner-attested original footage and product"}
++    media = {PRODUCT: row("image", "feature3"), MOTION: row("video", "feature5")}
++    return job, lineage, human, media
++
++
++class ReleaseGateTests(unittest.TestCase):
++    def run_gate(self, job=None, lineage=None, reviewed=None, media=None):
++        default = baseline()
++        return validate_feature4_release(
++            job=default[0] if job is None else job,
++            lineage=default[1] if lineage is None else lineage,
++            reviewed=default[2] if reviewed is None else reviewed,
++            media=default[3] if media is None else media, now=NOW)
++
++    def test_complete_mock_review_has_all_required_fields_but_does_not_prove_photorealism(self):
++        # This is a test of *record validation* only, not a real successful
++        # human review. A deployed system must store reviewed DB evidence.
++        verdict = self.run_gate()
++        self.assertEqual(verdict.video_job_id, JOB)
++        self.assertEqual(verdict.approved_product_id, PRODUCT)
++        self.assertEqual(len(verdict.evidence_refs), 2)
++
++    def test_synthetic_default_is_rejected_even_after_h264_encode(self):
++        for origin in (MOTION, PRODUCT):
++            job, lineage, reviewed, media = baseline()
++            media[origin]["synthetic_fixture"] = True
++            with self.subTest(origin=origin), self.assertRaisesRegex(ReleaseNotApproved, "Synthetic"):
++                self.run_gate(job, lineage, reviewed, media)
++
++    def test_no_approved_real_human_clip_or_still_fallback_can_be_released(self):
++        for mutation in (
++            lambda j,l,r,m: l.update(rendered_as="IMAGE_ANIMATION_FALLBACK"),
++            lambda j,l,r,m: l.update(fallback_events=[{"disclosure": "not motion"}]),
++            lambda j,l,r,m: l.update(media_asset_ids=[PRODUCT]),
++            lambda j,l,r,m: m[MOTION].update(source_feature="stock"),
++            lambda j,l,r,m: m[MOTION].update(kind="image"),
++            lambda j,l,r,m: m[MOTION].update(approved=False),
++            lambda j,l,r,m: m[MOTION].update(commercial_use=False),
++            lambda j,l,r,m: m[MOTION].update(rights_evidence=""),
++            lambda j,l,r,m: m[MOTION].pop("synthetic_fixture"),
++        ):
++            job,lineage,review,media=baseline()
++            mutation(job,lineage,review,media)
++            with self.subTest(mutation=str(mutation)), self.assertRaises(ReleaseNotApproved):
++                self.run_gate(job,lineage,review,media)
++
++    def test_foreign_job_or_review_does_not_pass(self):
++        for mutate in (
++            lambda j,l,r,m: r.update(shop_id=OTHER),
++            lambda j,l,r,m: j.update(shop_id=OTHER),
++            lambda j,l,r,m: l.update(video_job_id=OTHER),
++            lambda j,l,r,m: m[PRODUCT].update(shop_id=OTHER),
++            lambda j,l,r,m: r.update(approved_motion_id=PRODUCT),
++            lambda j,l,r,m: j.update(status="RUNNING"),
++        ):
++            j,l,r,m=baseline()
++            mutate(j,l,r,m)
++            with self.subTest(mutation=str(mutate)), self.assertRaises(ReleaseNotApproved):
++                self.run_gate(j,l,r,m)
++
++    def test_all_rendered_media_not_just_product_and_motion_require_current_rights(self):
++        # A licensed soundtrack can be part of a technical review, but an
++        # unapproved/foreign/synthetic auxiliary asset must block release.
++        job, lineage, review, media = baseline()
++        audio_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
++        lineage["media_asset_ids"].append(audio_id)
++        media[audio_id] = {
++            "shop_id": SHOP, "kind": "audio", "source_feature": "feature2",
++            "approved": True, "commercial_use": True,
++            "synthetic_fixture": False,
++            "rights_evidence": "Independently reviewed commercial audio grant",
++        }
++        self.assertEqual(self.run_gate(job, lineage, review, media).video_job_id, JOB)
++        for field, value in (
++            ("shop_id", OTHER), ("kind", "unknown"), ("kind", []),
++            ("source_feature", ""), ("source_feature", []), ("approved", False),
++            ("commercial_use", False), ("synthetic_fixture", True),
++            ("rights_evidence", ""), ("rights_evidence", True),
++        ):
++            j, l, r, m = copy.deepcopy((job, lineage, review, media))
++            m[audio_id][field] = value
++            expected_error = ("Synthetic" if field == "synthetic_fixture"
++                              else "Every rendered media asset")
++            with self.subTest(field=field), self.assertRaisesRegex(
++                    ReleaseNotApproved, expected_error):
++                self.run_gate(j, l, r, m)
++        j, l, r, m = copy.deepcopy((job, lineage, review, media))
++        del m[audio_id]
++        with self.assertRaisesRegex(ReleaseNotApproved, "Every rendered media asset"):
++            self.run_gate(j, l, r, m)
++
++    def test_release_rejects_malformed_or_duplicate_media_lineage_and_output_id(self):
++        for bad_id in ("", "not-a-uuid", "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA", 123, True):
++            j, l, r, m = baseline()
++            j["output_asset_id"] = bad_id
++            with self.subTest(output_id=bad_id), self.assertRaises(ReleaseNotApproved):
++                self.run_gate(j, l, r, m)
++        for bad_assets in (
++            [PRODUCT, MOTION, PRODUCT],
++            [PRODUCT, MOTION, "not-a-uuid"],
++            [PRODUCT, MOTION, None],
++            [PRODUCT, MOTION] * 19,
++        ):
++            j, l, r, m = baseline()
++            l["media_asset_ids"] = bad_assets
++            with self.subTest(media_ids=bad_assets[:3]), self.assertRaises(ReleaseNotApproved):
++                self.run_gate(j, l, r, m)
++
++    def test_unreviewed_rejection_and_no_missing_checks(self):
++        for mutate in (
++            lambda r: r.update(approved=False),
++            lambda r: r["checks"].update(human_model_realism=False),
++            lambda r: r["checks"].pop("garment_design_match"),
++            lambda r: r.update(reviewed_at="2025-01-01T00:00:00Z"),
++            lambda r: r.update(reviewed_at="2026-11-11T00:00:00Z"),
++            lambda r: r.update(evidence_refs=[]),
++            lambda r: r.update(review_id=""),
++        ):
++            j,l,r,m=baseline()
++            mutate(r)
++            with self.subTest(mutate=str(mutate)), self.assertRaises(ReleaseNotApproved):
++                self.run_gate(j,l,r,m)
++
++    def test_non_full_hd_or_invalid_encoded_video_never_passes_visual_gate(self):
++        for key, val in (
++            ("video_codec", "mpeg4"), ("audio_codec", "mp3"),
++            ("width", 540), ("height", 960), ("duration_seconds", 55.0),
++            ("bytes", 100), ("bytes", True), ("bytes", 99_000_000),
++        ):
++            j,l,r,m=baseline()
++            j["output_probe"][key] = val
++            with self.subTest(key=key), self.assertRaises(ReleaseNotApproved):
++                self.run_gate(j,l,r,m)
++
++    def test_owner_rejected_mock_cannot_be_showcased_even_after_successful_encode(self):
++        self.assertEqual(OWNER_VISUAL_VERDICT["visual_quality_status"], "OWNER_REJECTED")
++        self.assertFalse(OWNER_VISUAL_VERDICT["showcase_eligible"])
++        self.assertFalse(OWNER_VISUAL_VERDICT["commercial_release_eligible"])
++        self.assertEqual(OWNER_VISUAL_VERDICT["fixture_purpose"],
++                         "INTERNAL_CODEC_AND_EDITOR_REGRESSION_ONLY")
++        job, lineage, reviewed, media = baseline()
++        media[PRODUCT]["synthetic_fixture"] = True
++        media[MOTION]["synthetic_fixture"] = True
++        with self.assertRaisesRegex(ReleaseNotApproved, "Synthetic"):
++            self.run_gate(job, lineage, reviewed, media)
++
++
++if __name__ == "__main__":
++    unittest.main()
+
+diff --git a/tests/media/test_feature4_render_adapter.py b/tests/media/test_feature4_render_adapter.py
+--- a/tests/media/test_feature4_render_adapter.py
++++ b/tests/media/test_feature4_render_adapter.py
+@@ -0,0 +1,85 @@
++"""Feature4 bounded output validator: actual synthetic H.264/AAC ffprobe evidence."""
++import hashlib
++import os
++import subprocess
++import sys
++import tempfile
++import unittest
++from pathlib import Path
++from unittest.mock import patch
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "video-engine"))
++from render_adapter import (CreativeRenderError, run_compiled_reel,
++                            verify_mp4, _stable_encoded_fingerprint)  # noqa: E402
++
++
++class RenderAdapterTests(unittest.TestCase):
++    def setUp(self):
++        self.temp = tempfile.TemporaryDirectory()
++        self.addCleanup(self.temp.cleanup)
++        self.folder = Path(self.temp.name)
++        self.movie = self.folder / "test.mp4"
++
++    def synthesize(self, *, video_codec="libx264", with_audio=True, pixel_format="yuv420p"):
++        command = [
++            "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error",
++            "-f", "lavfi", "-i", "color=c=black:s=360x640:r=24:d=2",
++        ]
++        if with_audio:
++            command += ["-f", "lavfi", "-i", "sine=frequency=400:duration=2"]
++        command += ["-c:v", video_codec, "-preset", "ultrafast"]
++        if with_audio:
++            command += ["-c:a", "aac", "-shortest"]
++        command += ["-pix_fmt", pixel_format, "-y", str(self.movie)]
++        subprocess.run(command, check=True, capture_output=True, timeout=25)
++
++    def test_real_mp4_probe_h264_aac_fps_duration(self):
++        self.synthesize()
++        proof = verify_mp4(self.movie, duration=2, width=360, height=640, fps=24)
++        self.assertEqual(proof["video_codec"], "h264")
++        self.assertEqual(proof["audio_codec"], "aac")
++        self.assertGreater(proof["bytes"], 1024)
++
++    def test_real_encoded_source_fingerprint_rejects_symlink_and_inode_swap(self):
++        self.synthesize()
++        original = self.movie.read_bytes()
++        result = _stable_encoded_fingerprint(self.movie)
++        self.assertEqual(result[:2], (len(original), hashlib.sha256(original).hexdigest()))
++        alias = self.folder / "symlink.mp4"
++        alias.symlink_to(self.movie)
++        with self.assertRaises(CreativeRenderError):
++            _stable_encoded_fingerprint(alias)
++        replacement = self.folder / "same-bytes-new-file.mp4"
++        replacement.write_bytes(original)
++        os.replace(replacement, self.movie)
++        self.assertEqual(_stable_encoded_fingerprint(self.movie)[:2], result[:2])
++        self.assertNotEqual(_stable_encoded_fingerprint(self.movie)[3], result[3])
++
++    def test_wrong_dimensions_duration_or_missing_speech_channel_reject(self):
++        self.synthesize()
++        for args in [
++            {"duration": 4, "width": 360, "height": 640, "fps": 24},
++            {"duration": 2, "width": 540, "height": 960, "fps": 24},
++            {"duration": 2, "width": 360, "height": 640, "fps": 30},
++        ]:
++            with self.assertRaises(CreativeRenderError):
++                verify_mp4(self.movie, **args)
++        self.synthesize(with_audio=False)
++        with self.assertRaisesRegex(CreativeRenderError, "AAC"):
++            verify_mp4(self.movie, duration=2, width=360, height=640, fps=24)
++
++    def test_h264_aac_wrong_pixel_format_must_not_be_released(self):
++        # yuv444p is technically valid H.264 but fails many mobile players.
++        self.synthesize(pixel_format="yuv444p")
++        with self.assertRaisesRegex(CreativeRenderError, "yuv420p"):
++            verify_mp4(self.movie, duration=2, width=360, height=640, fps=24)
++
++    def test_no_unsafe_node_choice_or_timeout(self):
++        with self.assertRaisesRegex(CreativeRenderError, "Only reviewed Node"):
++            run_compiled_reel({}, {}, self.folder, self.folder, node_binary="/bin/sh")
++        with self.assertRaisesRegex(CreativeRenderError, "timeout"):
++            run_compiled_reel({}, {}, self.folder, self.folder, timeout_seconds=900)
++
++
++if __name__ == "__main__":
++    unittest.main()
+
+diff --git a/tests/media/test_feature4_review_contact_sheet.py b/tests/media/test_feature4_review_contact_sheet.py
+--- a/tests/media/test_feature4_review_contact_sheet.py
++++ b/tests/media/test_feature4_review_contact_sheet.py
+@@ -0,0 +1,74 @@
++"""Actual FFmpeg/Pillow contact-sheet test with explicitly synthetic input."""
++import subprocess
++import sys
++import tempfile
++import unittest
++from pathlib import Path
++from unittest.mock import patch
++from PIL import Image
++ROOT=Path(__file__).resolve().parents[2]
++sys.path.insert(0,str(ROOT/"video-engine"))
++from feature4_review_contact_sheet import render_contact_sheet, ContactSheetError
++import feature4_review_contact_sheet
++
++class ContactSheetTests(unittest.TestCase):
++    def setUp(self):
++        self.temp=tempfile.TemporaryDirectory()
++        self.addCleanup(self.temp.cleanup)
++        self.root=Path(self.temp.name)
++        self.video=self.root/"test.mp4"
++        self.jpg=self.root/"review.jpg"
++    def video_fixture(self,moving=True):
++        source="testsrc2=size=540x960:rate=12:duration=15" if moving else "color=c=blue:s=540x960:r=12:d=15"
++        subprocess.run(["ffmpeg","-nostdin","-v","error","-y",
++          "-f","lavfi","-i",source,
++          "-f","lavfi","-i","sine=frequency=440:duration=15",
++          "-map","0:v:0","-map","1:a:0",
++          "-c:v","libx264","-preset","ultrafast","-threads","2",
++          "-c:a","aac","-shortest",str(self.video)],
++          check=True,capture_output=True,timeout=90)
++    def test_actual_encoded_frames_produce_private_review_card(self):
++        self.video_fixture()
++        result=render_contact_sheet(self.video,self.jpg,seconds=15)
++        self.assertEqual(result["frame_count"],12)
++        self.assertIn("repetition_warning",result)
++        self.assertFalse(result["visual_diversity_accepted"])
++        self.assertFalse(result["owner_visual_approval"])
++        self.assertFalse(result["commercial_release_eligible"])
++        with Image.open(self.jpg) as img:
++            self.assertEqual(img.size,(540,1448))
++        with self.assertRaisesRegex(ContactSheetError,"fresh"):
++            render_contact_sheet(self.video,self.jpg,seconds=15)
++    def test_repeated_static_shots_are_flagged_not_falsely_approved(self):
++        self.video_fixture(moving=False)
++        result=render_contact_sheet(self.video,self.jpg,seconds=15)
++        self.assertTrue(result["repetition_warning"])
++        self.assertGreater(len(result["possible_repeated_shot_pairs"]),0)
++        self.assertFalse(result["visual_diversity_accepted"])
++
++    def test_mid_capture_input_mutation_never_creates_trusted_jpg(self):
++        self.video_fixture(moving=False)
++        actual=feature4_review_contact_sheet._frame
++        changed=[False]
++        def mutate_after_first_decoded_frame(source,at):
++            image=actual(source,at)
++            if not changed[0]:
++                changed[0]=True
++                with self.video.open("ab") as output:
++                    output.write(b"unreviewed-changed-video")
++            return image
++        with patch.object(feature4_review_contact_sheet,"_frame",
++                          side_effect=mutate_after_first_decoded_frame):
++            with self.assertRaisesRegex(ContactSheetError,"changed"):
++                render_contact_sheet(self.video,self.jpg,seconds=15)
++        self.assertTrue(changed[0])
++        self.assertFalse(self.jpg.exists())
++
++    def test_invalid_source_or_mismatched_duration_rejected(self):
++        self.video_fixture()
++        with self.assertRaisesRegex(ContactSheetError,"duration"):
++            render_contact_sheet(self.video,self.jpg,seconds=30)
++        self.video.write_bytes(b"no mp4"*2000)
++        with self.assertRaises(ContactSheetError):
++            render_contact_sheet(self.video,self.jpg,seconds=15)
++        self.assertFalse(self.jpg.exists())
+
+diff --git a/tests/media/test_feature4_runtime_preflight.py b/tests/media/test_feature4_runtime_preflight.py
+--- a/tests/media/test_feature4_runtime_preflight.py
++++ b/tests/media/test_feature4_runtime_preflight.py
+@@ -0,0 +1,34 @@
++"""F4-08 no-network tests for HyperFrames producer execution requirements."""
++from pathlib import Path
++import sys
++import tempfile
++import unittest
++
++ROOT = Path(__file__).resolve().parents[2]
++sys.path.insert(0, str(ROOT / "video-engine" / "hyperframes"))
++from qualify_runtime import node_version, chromium_binary
++
++
++class RuntimePreflightTests(unittest.TestCase):
++    def test_puppeteer_node_22_12_minimum(self):
++        self.assertEqual(node_version("v22.12.0"), (22, 12, 0))
++        self.assertEqual(node_version("v24.0.0"), (24, 0, 0))
++        for item in ("v22.11.0", "v20.19.1", "bad", "22", "v22.9.9"):
++            with self.subTest(value=item), self.assertRaises(ValueError):
++                node_version(item)
++
++    def test_chromium_cache_must_have_expected_local_executable(self):
++        with tempfile.TemporaryDirectory() as folder:
++            root = Path(folder)
++            self.assertIsNone(chromium_binary(root))
++            exe = (root / "chrome-headless-shell" / "linux-156.0" /
++                   "chrome-headless-shell-linux64" / "chrome-headless-shell")
++            exe.parent.mkdir(parents=True)
++            exe.write_text("synthetic binary fixture", encoding="utf-8")
++            self.assertIsNone(chromium_binary(root), "Non-executable must fail")
++            exe.chmod(0o755)
++            self.assertEqual(chromium_binary(root), exe)
++
++
++if __name__ == "__main__":
++    unittest.main()
+
+diff --git a/tests/media/test_feature4_scene_visibility.py b/tests/media/test_feature4_scene_visibility.py
+--- a/tests/media/test_feature4_scene_visibility.py
++++ b/tests/media/test_feature4_scene_visibility.py
+@@ -0,0 +1,155 @@
++"""Real decoded FFmpeg blank-scene detection, negative fixtures and time fences."""
++import json
++import sys
++import subprocess
++import tempfile
++import unittest
++from pathlib import Path
++from unittest.mock import patch
++
++ROOT=Path(__file__).resolve().parents[2]
++sys.path.insert(0,str(ROOT/"video-engine"))
++from feature4_scene_visibility import verify_scene_visibility,VisibilityProofError
++import feature4_scene_visibility
++
++SCENES=[{"start":0.0,"duration":5.0},
++        {"start":5.0,"duration":5.0},
++        {"start":10.0,"duration":5.0}]
++
++
++class Feature4SceneVisibilityTests(unittest.TestCase):
++    def setUp(self):
++        temp=tempfile.TemporaryDirectory(prefix="f4-visibility-")
++        self.addCleanup(temp.cleanup)
++        self.root=Path(temp.name)
++        self.path=self.root/"encoded.mp4"
++
++    def source(self, first="red"):
++        subprocess.run([
++            "ffmpeg","-nostdin","-hide_banner","-loglevel","error",
++            "-f","lavfi","-i",f"color=c={first}:s=540x960:r=12:d=5",
++            "-f","lavfi","-i","color=c=blue:s=540x960:r=12:d=5",
++            "-f","lavfi","-i","color=c=green:s=540x960:r=12:d=5",
++            "-f","lavfi","-i","sine=frequency=430:duration=15",
++            "-filter_complex","[0:v][1:v][2:v]concat=n=3:v=1:a=0[v]",
++            "-map","[v]","-map","3:a:0","-c:v","libx264",
++            "-preset","ultrafast","-pix_fmt","yuv420p",
++            "-c:a","aac","-b:a","48k","-threads","2","-shortest",
++            str(self.path),
++        ],check=True,capture_output=True,timeout=120)
++
++    def test_three_actual_nonblank_encoded_scenes_pass_not_commercial_approval(self):
++        self.source()
++        report=verify_scene_visibility(self.path,seconds=15,scenes=SCENES)
++        self.assertEqual(report["checked_scene_count"],3)
++        self.assertEqual(report["sustained_near_black_count"],0)
++        self.assertEqual(report["status"],"SAMPLED_SCENES_NOT_BLANK_NOT_CONTENT_APPROVAL")
++        self.assertFalse(report["commercial_release_eligible"])
++        self.assertFalse(report["unexpected_overlay_absence_verified"])
++        self.assertEqual(len(report["checked_scenes"][0]["samples"]),5)
++        self.assertEqual(report["schema"],"feature4_scene_visibility_v3")
++        self.assertTrue(report["continuous_full_reel_black_scan"])
++        self.assertEqual(report["continuous_black_hold_threshold_seconds"],.65)
++        self.assertEqual(report["continuous_long_black_holds_count"],0)
++        self.assertFalse(report["sub_threshold_blank_frames_certified_absent"])
++        self.assertEqual(report["sample_fractions"],[.15,.30,.50,.70,.85])
++        self.assertFalse(report["short_blank_frames_excluded_by_sampling"])
++        self.assertGreater(report["checked_scenes"][0]["samples"][0]["mean_luma"],14)
++
++    def test_actual_encoded_fully_black_scene_is_rejected(self):
++        self.source(first="black")
++        with self.assertRaisesRegex(VisibilityProofError,"nearly entirely blank"):
++            verify_scene_visibility(self.path,seconds=15,scenes=SCENES)
++
++    def test_actual_middle_black_interval_old_two_samples_missed(self):
++        # First 5s shot: 1.75s red + 1.5s black + 1.75s red.
++        # Old 30%/70% checks at 1.5/3.5s saw red; the new 50%
++        # sample at 2.5s sees the real encoded black image.
++        parts=[("red",1.75),("black",1.5),("red",1.75),
++               ("blue",5),("green",5)]
++        args=["ffmpeg","-nostdin","-hide_banner","-loglevel","error"]
++        for color,duration in parts:
++            args+=["-f","lavfi","-i",
++                   f"color=c={color}:s=540x960:r=12:d={duration}"]
++        args+=["-f","lavfi","-i","sine=frequency=430:duration=15",
++               "-filter_complex","".join(f"[{i}:v]" for i in range(5))
++                                 +"concat=n=5:v=1:a=0[v]",
++               "-map","[v]","-map","5:a:0",
++               "-c:v","libx264","-preset","ultrafast",
++               "-pix_fmt","yuv420p","-c:a","aac","-b:a","48k",
++               "-threads","2","-shortest",str(self.path)]
++        subprocess.run(args,check=True,capture_output=True,timeout=120)
++        with self.assertRaisesRegex(VisibilityProofError,"blank/black"):
++            verify_scene_visibility(self.path,seconds=15,scenes=SCENES)
++
++    def test_blackdetect_log_parses_numeric_events_not_literal_backslashes(self):
++        sample="[blackdetect @ 0x1] black_start:1.6 black_end:2.4 black_duration:0.8"
++        match=feature4_scene_visibility._BLACK_HOLD_RX.search(sample)
++        self.assertIsNotNone(match)
++        self.assertEqual(tuple(map(float,match.groups())),(1.6,2.4,0.8))
++
++    def test_sustained_black_hold_between_all_five_interior_probes_rejected(self):
++        # First five-second scene: red 1.6s, BLACK .8s, red 2.6s.
++        # Interior samples .75/1.5/2.5/3.5/4.25 all see nonblack red.
++        parts=[("red",1.6),("black",.8),("red",2.6),
++               ("blue",5),("green",5)]
++        args=["ffmpeg","-nostdin","-hide_banner","-loglevel","error"]
++        for color,duration in parts:
++            args+=["-f","lavfi","-i",
++                   f"color=c={color}:s=540x960:r=12:d={duration}"]
++        args+=["-f","lavfi","-i","sine=frequency=430:duration=15",
++               "-filter_complex","".join(f"[{i}:v]" for i in range(5))
++                 +"concat=n=5:v=1:a=0[v]",
++               "-map","[v]","-map","5:a:0",
++               "-c:v","libx264","-preset","ultrafast","-pix_fmt","yuv420p",
++               "-c:a","aac","-b:a","48k","-threads","2","-shortest",str(self.path)]
++        subprocess.run(args,check=True,capture_output=True,timeout=120)
++        # The real FFmpeg full-frame scan rejects what five probes miss.
++        with self.assertRaisesRegex(VisibilityProofError,"continuous black hold"):
++            verify_scene_visibility(self.path,seconds=15,scenes=SCENES)
++
++    def test_encoded_media_changed_during_sampling_rejected(self):
++        self.source()
++        original=feature4_scene_visibility._pixel_frame
++        changed=[False]
++        def mutate_after_one_decoded_frame(source,at):
++            sample=original(source,at)
++            if not changed[0]:
++                changed[0]=True
++                with self.path.open("ab") as handle:
++                    handle.write(b"concurrently-mutated-source")
++            return sample
++        with patch.object(feature4_scene_visibility,"_pixel_frame",
++                          side_effect=mutate_after_one_decoded_frame):
++            with self.assertRaisesRegex(VisibilityProofError,"changed"):
++                verify_scene_visibility(self.path,seconds=15,scenes=SCENES)
++        self.assertTrue(changed[0])
++
++    def test_malicious_scene_ranges_and_wrong_run_duration_rejected(self):
++        self.source()
++        for windows in (
++            SCENES[:2],
++            [{**SCENES[0],"duration":6.0},*SCENES[1:]],
++            [{**SCENES[0],"start":-0.1},*SCENES[1:]],
++            [SCENES[0],{**SCENES[1],"duration":float("nan")},SCENES[2]],
++            [{"start":0.0,"duration":15.0,"asset_id":"untrusted"},SCENES[1]],
++        ):
++            with self.subTest(windows=windows),self.assertRaises(VisibilityProofError):
++                verify_scene_visibility(self.path,seconds=15,scenes=windows)
++        with self.assertRaises(VisibilityProofError):
++            verify_scene_visibility(self.path,seconds=60,scenes=SCENES)
++
++    def test_no_fake_decodable_video_from_garbage_or_symlink(self):
++        self.path.write_bytes(b"bad mp4"*2000)
++        with self.assertRaises(VisibilityProofError):
++            verify_scene_visibility(self.path,seconds=15,scenes=SCENES)
++        self.path.unlink()
++        safe=self.root/"safe.mp4"
++        safe.write_bytes(b"fake"*2000)
++        self.path.symlink_to(safe)
++        with self.assertRaises(VisibilityProofError):
++            verify_scene_visibility(self.path,seconds=15,scenes=SCENES)
++
++
++if __name__=="__main__":
++    unittest.main()
+
+diff --git a/tests/media/test_feature4_scene_visibility_receipt.py b/tests/media/test_feature4_scene_visibility_receipt.py
+--- a/tests/media/test_feature4_scene_visibility_receipt.py
++++ b/tests/media/test_feature4_scene_visibility_receipt.py
+@@ -0,0 +1,140 @@
++"""Strict evidence validation for 12 encoded stock Reel scene samples."""
++import hashlib
++import json
++import sys
++import tempfile
++import unittest
++from pathlib import Path
++
++ROOT=Path(__file__).resolve().parents[2]
++sys.path.insert(0,str(ROOT/"video-engine"))
++from feature4_minute_quality_receipt import (
++    MinuteProofError, validate_visibility_evidence
++)
++
++
++class VisibilityReceiptTests(unittest.TestCase):
++    def setUp(self):
++        ctx=tempfile.TemporaryDirectory()
++        self.addCleanup(ctx.cleanup)
++        self.root=Path(ctx.name)
++        self.original=self.root/"real-encoded.mp4"
++        self.provenance=self.root/"source.json"
++        self.visibility_proof=self.root/"scene-visibility.json"
++        self.original.write_bytes(b"private-original-encoded-media"*100)
++        self.windows=[{"start":i*5.0,"duration":5.0} for i in range(12)]
++        self.prov={"scene_windows":self.windows}
++        self.report={
++            "schema":"feature4_scene_visibility_v3",
++            "continuous_full_reel_black_scan":True,
++            "continuous_black_hold_threshold_seconds":.65,
++            "continuous_long_black_holds_count":0,
++            "sub_threshold_blank_frames_certified_absent":False,
++            "sample_fractions":[.15,.30,.50,.70,.85],
++            "short_blank_frames_excluded_by_sampling":False,
++            "status":"SAMPLED_SCENES_NOT_BLANK_NOT_CONTENT_APPROVAL",
++            "source_sha256":hashlib.sha256(self.original.read_bytes()).hexdigest(),
++            "seconds":60,"checked_scene_count":12,
++            "sustained_near_black_count":0,
++            "commercial_release_eligible":False,
++            "garment_identity_verified":False,
++            "unexpected_overlay_absence_verified":False,
++            "checked_scenes":[{
++                "scene_start":i*5.0,"duration":5.0,
++                "sustained_near_black":False,
++                "samples":[{"time_seconds":round(i*5.0+fraction*5.0,3),
++                            "mean_luma":87,"near_black_fraction":0.03}
++                           for fraction in (.15,.30,.50,.70,.85)]
++            } for i in range(12)],
++        }
++        self.persist()
++    def persist(self):
++        self.provenance.write_text(json.dumps(self.prov))
++        self.visibility_proof.write_text(json.dumps(self.report))
++    def verify(self):
++        return validate_visibility_evidence(
++            original=self.original,provenance=self.provenance,
++            visibility_proof=self.visibility_proof)
++    def test_sha_linked_sampled_scans_are_not_artistic_approval(self):
++        result=self.verify()
++        self.assertEqual(result["checked_scene_count"],12)
++        self.assertFalse(result["commercial_release_eligible"])
++        self.assertFalse(result["unexpected_overlay_absence_verified"])
++    def test_suspicious_black_sample_or_forged_human_approval_rejected(self):
++        self.report["checked_scenes"][3]["sustained_near_black"]=True
++        self.persist()
++        with self.assertRaises(MinuteProofError):
++            self.verify()
++        self.report["checked_scenes"][3]["sustained_near_black"]=False
++        for key in ("commercial_release_eligible","garment_identity_verified",
++                    "unexpected_overlay_absence_verified"):
++            self.report[key]=True
++            self.persist()
++            with self.subTest(key=key),self.assertRaises(MinuteProofError):
++                self.verify()
++            self.report[key]=False
++    def test_altered_video_bytes_or_out_of_scene_sample_rejected(self):
++        self.original.write_bytes(self.original.read_bytes()+b"changed")
++        with self.assertRaises(MinuteProofError):
++            self.verify()
++        self.report["source_sha256"]=hashlib.sha256(self.original.read_bytes()).hexdigest()
++        self.report["checked_scenes"][0]["samples"][0]["time_seconds"]=20
++        self.persist()
++        with self.assertRaises(MinuteProofError):
++            self.verify()
++    def test_missing_center_sample_or_forged_black_flag_rejected(self):
++        # Evidence must cover every reviewed interior time, not just the old
++        # two temporal probes, and cannot claim a black sample is visible.
++        self.report["checked_scenes"][0]["samples"].pop(2)
++        self.persist()
++        with self.assertRaises(MinuteProofError):
++            self.verify()
++        self.report["checked_scenes"][0]["samples"].insert(
++            2,{"time_seconds":2.5,"mean_luma":0,"near_black_fraction":1})
++        self.persist()
++        with self.assertRaises(MinuteProofError):
++            self.verify()
++        self.report["checked_scenes"][0]["samples"][2]={
++            "time_seconds":2.8,"mean_luma":87,"near_black_fraction":.03}
++        self.persist()
++        with self.assertRaises(MinuteProofError):
++            self.verify()
++
++    def test_missing_or_forged_continuous_scan_evidence_rejected(self):
++        for key,bad in (("continuous_full_reel_black_scan",False),
++                        ("continuous_black_hold_threshold_seconds",99),
++                        ("continuous_long_black_holds_count",True),
++                        ("continuous_long_black_holds_count",1),
++                        ("sub_threshold_blank_frames_certified_absent",True)):
++            original=self.report[key]
++            self.report[key]=bad
++            self.persist()
++            with self.subTest(key=key,bad=bad),self.assertRaises(MinuteProofError):
++                self.verify()
++            self.report[key]=original
++
++    def test_legacy_two_frame_proof_is_no_longer_accepted(self):
++        self.report["schema"]="feature4_scene_visibility_v1"
++        self.report["checked_scenes"][0]["samples"]=[
++            self.report["checked_scenes"][0]["samples"][1],
++            self.report["checked_scenes"][0]["samples"][3]]
++        self.persist()
++        with self.assertRaises(MinuteProofError):
++            self.verify()
++
++    def test_mismatched_scene_claim_and_symlinked_receipt_rejected(self):
++        self.report["checked_scenes"][7]["scene_start"]=1
++        self.persist()
++        with self.assertRaises(MinuteProofError):
++            self.verify()
++        self.report["checked_scenes"][7]["scene_start"]=35
++        self.persist()
++        actual=self.root/"real-report.json"
++        self.visibility_proof.rename(actual)
++        self.visibility_proof.symlink_to(actual)
++        with self.assertRaises(MinuteProofError):
++            self.verify()
++
++
++if __name__=="__main__":
++    unittest.main()
+
+diff --git a/tests/media/test_feature4_stock_download_atomic.py b/tests/media/test_feature4_stock_download_atomic.py
+--- a/tests/media/test_feature4_stock_download_atomic.py
++++ b/tests/media/test_feature4_stock_download_atomic.py
+@@ -0,0 +1,105 @@
++"""F4-13: no network access or real customer media; private stock staging regression."""
++import hashlib
++import sys
++import tempfile
++import unittest
++from pathlib import Path
++from unittest.mock import patch
++
++ROOT = Path(__file__).resolve().parents[2]
++sys.path.insert(0, str(ROOT / "video-engine"))
++from feature4_stock_showcase import StockShowcaseError, retrieve_stock
++
++URL = "https://videos.pexels.com/video-files/test/test-hd.mp4"
++PAYLOAD = b"synthetic test fixture bytes" * 3000
++
++
++class FakeResponse:
++    url = URL
++    headers = {"Content-Type": "video/mp4"}
++
++    def __init__(self):
++        self.sent = False
++
++    def __enter__(self):
++        return self
++
++    def __exit__(self, *_):
++        return False
++
++    def read(self, _):
++        if self.sent:
++            return b""
++        self.sent = True
++        return PAYLOAD
++
++
++class FakeOpener:
++    def open(self, request, timeout):
++        assert timeout == 55
++        assert request.full_url == URL
++        return FakeResponse()
++
++
++class PrivateStockDownloadTests(unittest.TestCase):
++    def setUp(self):
++        self.temp = tempfile.TemporaryDirectory()
++        self.addCleanup(self.temp.cleanup)
++        self.root = Path(self.temp.name)
++        self.destination = self.root / "stock.mp4"
++
++    def retrieve(self):
++        with patch("feature4_stock_showcase.urllib.request.build_opener",
++                   return_value=FakeOpener()):
++            return retrieve_stock(self.destination, (URL,))
++
++    def test_success_is_atomic_and_hashes_exact_fixture_bytes(self):
++        receipt = self.retrieve()
++        self.assertEqual(self.destination.read_bytes(), PAYLOAD)
++        self.assertEqual(receipt["sha256"], hashlib.sha256(PAYLOAD).hexdigest())
++        self.assertEqual(receipt["size_bytes"], len(PAYLOAD))
++        self.assertEqual(list(self.root.glob(".feature4-stock-*")), [])
++
++    def test_existing_private_media_cannot_be_overwritten(self):
++        self.destination.write_bytes(b"keep-existing-private-media")
++        with patch("feature4_stock_showcase.urllib.request.build_opener",
++                   side_effect=AssertionError("network must not be attempted")):
++            with self.assertRaisesRegex(StockShowcaseError, "overwrite"):
++                retrieve_stock(self.destination, (URL,))
++        self.assertEqual(self.destination.read_bytes(), b"keep-existing-private-media")
++
++    def test_symlink_destination_cannot_redirect_private_download(self):
++        protected = self.root / "protected.txt"
++        protected.write_bytes(b"do-not-clobber")
++        self.destination.symlink_to(protected)
++        with self.assertRaisesRegex(StockShowcaseError, "overwrite"):
++            self.retrieve()
++        self.assertEqual(protected.read_bytes(), b"do-not-clobber")
++
++    def test_concurrent_destination_creation_fails_closed_and_cleans_temp(self):
++        def competing_writer(source, destination):
++            Path(destination).write_bytes(b"newer-private-media")
++            raise FileExistsError("another writer won")
++        with patch("feature4_stock_showcase.os.link",
++                   side_effect=competing_writer):
++            with self.assertRaisesRegex(StockShowcaseError, "overwrite"):
++                self.retrieve()
++        self.assertEqual(self.destination.read_bytes(), b"newer-private-media")
++        self.assertEqual(list(self.root.glob(".feature4-stock-*")), [])
++
++    def test_invalid_media_type_leaves_no_private_temp_or_output(self):
++        class WrongType(FakeResponse):
++            headers = {"Content-Type": "text/html"}
++        class BadOpener:
++            def open(self, *_args, **_kwargs):
++                return WrongType()
++        with patch("feature4_stock_showcase.urllib.request.build_opener",
++                   return_value=BadOpener()):
++            with self.assertRaises(StockShowcaseError):
++                retrieve_stock(self.destination, (URL,))
++        self.assertFalse(self.destination.exists())
++        self.assertEqual(list(self.root.glob(".feature4-stock-*")), [])
++
++
++if __name__ == "__main__":
++    unittest.main()
+
+diff --git a/tests/media/test_feature4_stock_minute_runner.py b/tests/media/test_feature4_stock_minute_runner.py
+--- a/tests/media/test_feature4_stock_minute_runner.py
++++ b/tests/media/test_feature4_stock_minute_runner.py
+@@ -0,0 +1,79 @@
++"""Stock full-minute standalone CPU acceptance script is safe and well formed."""
++import os
++import shutil
++import subprocess
++import tempfile
++import unittest
++from pathlib import Path
++SCRIPT=Path(__file__).resolve().parents[2]/"video-engine/feature4_stock_minute_acceptance.sh"
++class MinuteRunnerContractTests(unittest.TestCase):
++    def test_bash_syntax_is_valid(self):
++        subprocess.run(["bash","-n",str(SCRIPT)],check=True,timeout=10)
++    def test_full_minute_runner_encodes_private_editorial_caption_review(self):
++        text = SCRIPT.read_text(encoding="utf-8")
++        self.assertIn("export_private_subtitle_pair(cues,duration_seconds=60", text)
++        self.assertIn("burn_reviewed_subtitles(Path(sys.argv[3]),srt", text)
++        self.assertIn("feature4-stock-minute-captioned-review.mp4", text)
++        self.assertIn("EDITORIAL_TEST_TITLES_NOT_SPOKEN_AUDIO", text)
++        self.assertIn("NOT speech alignment", text)
++        self.assertIn("feature4_endcard_qa.py", text)
++        self.assertIn("--endcard-proof", text)
++        self.assertIn("--visibility-proof", text)
++
++    def test_no_arguments_and_existing_directory_fail_before_download(self):
++        for args in ([],["/tmp"]):
++            p=subprocess.run(["bash",str(SCRIPT),*args],capture_output=True,text=True,timeout=10)
++            self.assertEqual(p.returncode,2)
++            self.assertIn("Usage:",p.stderr)
++
++    def test_symlinked_parent_rejected_before_creating_private_output(self):
++        with tempfile.TemporaryDirectory() as folder:
++            root = Path(folder)
++            real = root / "real"
++            real.mkdir()
++            (root / "redirect").symlink_to(real, target_is_directory=True)
++            output = root / "redirect" / "minute"
++            result = subprocess.run(
++                ["bash", str(SCRIPT), str(output)],
++                capture_output=True, text=True, timeout=10,
++            )
++            self.assertEqual(result.returncode, 2)
++            self.assertIn("Unsafe private output path", result.stderr)
++            self.assertFalse((real / "minute").exists())
++
++    def test_parent_traversal_and_missing_parent_rejected_before_render(self):
++        with tempfile.TemporaryDirectory() as folder:
++            root = Path(folder)
++            (root / "safe").mkdir()
++            for output in (
++                str(root / "safe" / ".." / "escape"),
++                str(root / "missing" / "minute"),
++            ):
++                with self.subTest(output=output):
++                    result = subprocess.run(
++                        ["bash", str(SCRIPT), output],
++                        capture_output=True, text=True, timeout=10,
++                    )
++                    self.assertEqual(result.returncode, 2)
++                    self.assertIn("Unsafe private output path", result.stderr)
++            self.assertFalse((root / "escape").exists())
++            self.assertFalse((root / "missing").exists())
++
++    def test_missing_ffmpeg_does_not_create_orphan_output_directory(self):
++        with tempfile.TemporaryDirectory() as folder:
++            root = Path(folder)
++            tools = root / "minimal-bin"
++            tools.mkdir()
++            for name in ("python3", "dirname"):
++                binary = shutil.which(name)
++                self.assertIsNotNone(binary)
++                (tools / name).symlink_to(Path(binary).resolve())
++            output = root / "fresh-private-minute"
++            result = subprocess.run(
++                ["/bin/bash", str(SCRIPT), str(output)],
++                env={**os.environ, "PATH": str(tools)},
++                capture_output=True, text=True, timeout=10,
++            )
++            self.assertNotEqual(result.returncode, 0)
++            self.assertFalse(output.exists(),
++                             "Missing local encoder must fail before mkdir")
+
+diff --git a/tests/media/test_feature4_stock_showcase.py b/tests/media/test_feature4_stock_showcase.py
+--- a/tests/media/test_feature4_stock_showcase.py
++++ b/tests/media/test_feature4_stock_showcase.py
+@@ -0,0 +1,87 @@
++"""Test-only source-level acceptance for genuine-footage staging, never footage rights itself."""
++import json
++import subprocess
++import sys
++import tempfile
++import unittest
++from pathlib import Path
++ROOT=Path(__file__).resolve().parents[2]
++sys.path.insert(0,str(ROOT/"video-engine"))
++from feature4_stock_showcase import (CLIPS,StockShowcaseError,make_project,original_music,check_input,normalize_for_renderer)
++
++class StockShowcaseTests(unittest.TestCase):
++    def setUp(self):
++        self.ctx=tempfile.TemporaryDirectory()
++        self.addCleanup(self.ctx.cleanup)
++        self.root=Path(self.ctx.name)
++        self.media=self.root/"media"
++        self.media.mkdir()
++    def create_sources(self):
++        # Three honest test-pattern videos are compiler-only, NOT human sample footage.
++        for index,(_,source_id,_,_,_) in enumerate(CLIPS):
++            out=self.media/(source_id+".mp4")
++            subprocess.run(["ffmpeg","-nostdin","-v","error","-y","-f","lavfi",
++              "-i",f"testsrc2=size=128x224:rate=12:duration=6,format=yuv420p",
++              "-c:v","libx264","-preset","ultrafast",str(out)],
++              check=True,capture_output=True,timeout=24)
++            self.assertGreater(out.stat().st_size,50000)
++    def test_compiles_exact_three_source_video_15s_with_immutable_provenance_gate(self):
++        self.create_sources()
++        project,report=make_project(self.media,self.root/"project")
++        html=(project/"index.html").read_text()
++        config=json.loads((project/"render-config.json").read_text())
++        self.assertEqual(html.count('class="footage clip"'),3)
++        self.assertIn('id="scene3"',html)
++        self.assertIn('STOCK FASHION EDIT - NOT A RETAILER AD',html)
++        self.assertNotIn('id="cta"',html)
++        self.assertEqual(config["duration_seconds"],15)
++        self.assertEqual((config["width"],config["height"]),(1080,1920))
++        self.assertFalse(report["showcase_eligible"])
++        self.assertFalse(report["commercial_release_eligible"])
++        self.assertFalse(report["retailer_garment_identity_verified"])
++        self.assertEqual(len(report["source_media"]),3)
++        self.assertNotIn('src="https:',html)
++        with self.assertRaisesRegex(StockShowcaseError,"overwrite"):
++            make_project(self.media,self.root/"project")
++    def test_missing_source_and_symlink_rejected_without_download(self):
++        with self.assertRaises((StockShowcaseError,FileNotFoundError)):
++            make_project(self.media,self.root/"project")
++        self.create_sources()
++        first=self.media/(CLIPS[0][1]+".mp4")
++        first.unlink()
++        first.symlink_to(self.media/(CLIPS[1][1]+".mp4"))
++        with self.assertRaisesRegex(StockShowcaseError,"unsafe"):
++            make_project(self.media,self.root/"project")
++    def test_bad_source_is_never_fashion_footage(self):
++        path=self.media/(CLIPS[0][1]+".mp4")
++        path.write_bytes(b"not a video"*10000)
++        with self.assertRaises(StockShowcaseError):
++            check_input(path)
++    def test_normalizes_sparse_keyframe_footage_into_24fps_portrait_without_source_mutation(self):
++        self.create_sources()
++        original=self.media/(CLIPS[0][1]+".mp4")
++        source_bytes=original.read_bytes()
++        stage=self.media/"stage.mp4"
++        info=normalize_for_renderer(original,stage,width=270,height=480)
++        self.assertEqual((info["width"],info["height"]),(270,480))
++        self.assertTrue(5.15<=info["seconds"]<=5.35)
++        self.assertEqual(original.read_bytes(),source_bytes)
++        d=json.loads(subprocess.check_output(["ffprobe","-v","error","-select_streams","v:0",
++             "-skip_frame","nokey","-show_frames","-show_entries","frame=best_effort_timestamp_time",
++             "-of","json",str(stage)],text=True))
++        timestamps=[float(x["best_effort_timestamp_time"]) for x in d["frames"]
++                    if "best_effort_timestamp_time" in x]
++        self.assertGreaterEqual(len(timestamps),5)
++        self.assertLessEqual(max(b-a for a,b in zip(timestamps,timestamps[1:])),1.1)
++        with self.assertRaisesRegex(StockShowcaseError,"replace"):
++            normalize_for_renderer(original,stage,width=270,height=480)
++
++    def test_original_audio_is_safely_local(self):
++        path=self.media/"original.wav"
++        original_music(path)
++        self.assertGreater(path.stat().st_size,300000)
++        info=subprocess.check_output(["ffprobe","-v","error","-show_entries",
++           "format=duration","-of","default=nw=1:nk=1",str(path)],text=True)
++        self.assertAlmostEqual(float(info.strip()),15,places=2)
++
++if __name__=="__main__":unittest.main()
+
+diff --git a/tests/media/test_feature4_subtitle_burnin.py b/tests/media/test_feature4_subtitle_burnin.py
+--- a/tests/media/test_feature4_subtitle_burnin.py
++++ b/tests/media/test_feature4_subtitle_burnin.py
+@@ -0,0 +1,133 @@
++"""Actual encoded Feature4 SRT burn-in; fixture is original test footage, not speech."""
++import os
++from pathlib import Path
++import subprocess
++import sys
++import tempfile
++import unittest
++from unittest.mock import patch
++
++ROOT = Path(__file__).resolve().parents[2]
++sys.path.insert(0, str(ROOT / "video-engine"))
++from feature4_subtitles import export_private_subtitle_pair
++from feature4_private_preview import inspect_mp4
++import feature4_subtitle_burnin as burn
++
++
++class Feature4SubtitleBurnTests(unittest.TestCase):
++    def setUp(self):
++        tmp = tempfile.TemporaryDirectory(prefix="f4-burn-")
++        self.addCleanup(tmp.cleanup)
++        self.root = Path(tmp.name)
++        self.source = self.root / "source.mp4"
++        self.output = self.root / "captioned.mp4"
++        self.srt = self.root / "approved.srt"
++        self.vtt = self.root / "approved.vtt"
++        self.cues = [{"start": 2.0, "duration": 3.0,
++                      "text": "New arrivals tonight"}]
++
++    def source_fixture(self):
++        subprocess.run([
++            "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error",
++            "-f", "lavfi", "-i", "color=c=black:s=540x960:r=24:d=15",
++            "-f", "lavfi", "-i", "sine=frequency=375:sample_rate=48000:duration=15",
++            "-map", "0:v:0", "-map", "1:a:0",
++            "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
++            "-c:a", "aac", "-b:a", "64k", "-shortest", "-threads", "2",
++            str(self.source),
++        ], check=True, capture_output=True, timeout=90)
++        self.source.chmod(0o600)
++
++    def approved_track(self):
++        export_private_subtitle_pair(self.cues, duration_seconds=15,
++                                     srt_path=self.srt, vtt_path=self.vtt)
++
++    def frame_bottom(self, seconds):
++        proc = subprocess.run([
++            "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error",
++            "-ss", str(seconds), "-i", str(self.output),
++            "-frames:v", "1", "-vf",
++            "crop=540:300:0:660,scale=90:50,format=gray",
++            "-f", "rawvideo", "-",
++        ], check=True, capture_output=True, timeout=40)
++        self.assertEqual(len(proc.stdout), 90 * 50)
++        return proc.stdout
++
++    def test_real_caption_pixels_only_in_reviewed_interval(self):
++        self.source_fixture()
++        self.approved_track()
++        src = self.source.read_bytes()
++        proof = burn.burn_reviewed_subtitles(
++            self.source, self.srt, self.output, cues=self.cues,
++            expected_seconds=15)
++        self.assertEqual(self.source.read_bytes(), src)
++        self.assertEqual(proof["status"], "PRIVATE_ENCODED_SUBTITLES_NOT_PUBLISHED")
++        self.assertTrue(proof["actual_encoded_subtitle_filter_executed"])
++        self.assertFalse(proof["spoken_word_alignment_verified"])
++        self.assertFalse(proof["commercial_release_eligible"])
++        self.assertFalse(proof["signed_download_ready"])
++        self.assertEqual(self.output.stat().st_mode & 0o777, 0o600)
++        self.assertEqual((inspect_mp4(self.output, max_size=80*1024*1024)["width"],
++                          inspect_mp4(self.output, max_size=80*1024*1024)["height"]),
++                         (540, 960))
++        during = self.frame_bottom(3)
++        outside = self.frame_bottom(9)
++        # Genuine libass rendered white caption glyphs against black original.
++        self.assertGreater(sum(during) / len(during),
++                           sum(outside) / len(outside) + 2.0)
++        with self.assertRaisesRegex(burn.SubtitleBurnError, "fresh"):
++            burn.burn_reviewed_subtitles(
++                self.source, self.srt, self.output,
++                cues=self.cues, expected_seconds=15)
++
++    def test_unreviewed_caption_bytes_are_rejected(self):
++        self.source_fixture()
++        self.approved_track()
++        self.srt.write_text("1\n00:00:02,000 --> 00:00:05,000\nBUY NOW!!!\n")
++        with self.assertRaisesRegex(burn.SubtitleBurnError, "differ"):
++            burn.burn_reviewed_subtitles(
++                self.source, self.srt, self.output,
++                cues=self.cues, expected_seconds=15)
++        self.assertFalse(self.output.exists())
++
++    def test_escape_filename_nonprivate_directory_and_invalid_duration_rejected(self):
++        self.source_fixture()
++        self.approved_track()
++        unsafe = self.root / "captions:force_style=FontName=bad.srt"
++        unsafe.write_bytes(self.srt.read_bytes())
++        unsafe.chmod(0o600)
++        with self.assertRaisesRegex(burn.SubtitleBurnError, "Unsafe"):
++            burn.burn_reviewed_subtitles(
++                self.source, unsafe, self.output,
++                cues=self.cues, expected_seconds=15)
++        self.root.chmod(0o755)
++        with self.assertRaisesRegex(burn.SubtitleBurnError, "nonprivate"):
++            burn.burn_reviewed_subtitles(
++                self.source, self.srt, self.output,
++                cues=self.cues, expected_seconds=15)
++        self.root.chmod(0o700)
++        with self.assertRaisesRegex(burn.SubtitleBurnError, "15/30/60"):
++            burn.burn_reviewed_subtitles(
++                self.source, self.srt, self.output,
++                cues=self.cues, expected_seconds=12)
++        self.assertFalse(self.output.exists())
++
++    def test_mutation_after_encode_fails_closed_and_cleans_temporary_mp4(self):
++        self.source_fixture()
++        self.approved_track()
++        actual = burn._ffmpeg
++        def mutate_after_render(args, **kwargs):
++            actual(args, **kwargs)
++            with self.source.open("ab") as stream:
++                stream.write(b"changed-on-disk-after-encode")
++        with patch.object(burn, "_ffmpeg", side_effect=mutate_after_render):
++            with self.assertRaisesRegex(burn.SubtitleBurnError, "changed"):
++                burn.burn_reviewed_subtitles(
++                    self.source, self.srt, self.output,
++                    cues=self.cues, expected_seconds=15)
++        self.assertFalse(self.output.exists())
++        self.assertEqual(list(self.root.glob(".subtitle-burn-*.mp4")), [])
++
++
++if __name__ == "__main__":
++    unittest.main()
+
+diff --git a/tests/media/test_feature4_subtitles.py b/tests/media/test_feature4_subtitles.py
+--- a/tests/media/test_feature4_subtitles.py
++++ b/tests/media/test_feature4_subtitles.py
+@@ -0,0 +1,85 @@
++"""SRT/VTT accepted sidecars with exact speech timecodes and no silent editing."""
++import sys
++import tempfile
++import unittest
++from pathlib import Path
++from unittest.mock import patch
++
++ROOT = Path(__file__).resolve().parents[2]
++sys.path.insert(0, str(ROOT / "video-engine"))
++from feature4_subtitles import (
++    SubtitleExportError, compose_approved_subtitles, export_private_subtitle_pair,
++)
++
++class Feature4SubtitleTests(unittest.TestCase):
++    def setUp(self):
++        tmp = tempfile.TemporaryDirectory()
++        self.addCleanup(tmp.cleanup)
++        self.root = Path(tmp.name)
++        self.srt = self.root / "captions.srt"
++        self.vtt = self.root / "captions.vtt"
++        self.cues = [
++            {"start": 0.505, "duration": 1.245, "text": "The autumn edit"},
++            {"start": 10.125, "duration": 2.375, "text": "See the garment detail"},
++            {"start": 28.500, "duration": 1.500, "text": "Stock example only"},
++        ]
++
++    def test_precise_caption_sidecars_preserve_wording_and_timing(self):
++        report = export_private_subtitle_pair(
++            self.cues, duration_seconds=30, srt_path=self.srt, vtt_path=self.vtt)
++        srt, vtt = self.srt.read_text(), self.vtt.read_text()
++        self.assertIn("00:00:00,505 --> 00:00:01,750", srt)
++        self.assertIn("00:00:10.125 --> 00:00:12.500", vtt)
++        self.assertIn("The autumn edit", srt)
++        self.assertTrue(vtt.startswith("WEBVTT"))
++        self.assertEqual(report["cue_count"], 3)
++        self.assertFalse(report["signed_download_ready"])
++        self.assertFalse(report["speech_text_alignment_verified_here"])
++        self.assertEqual(self.srt.stat().st_mode & 0o777, 0o600)
++        with self.assertRaisesRegex(SubtitleExportError, "fresh"):
++            export_private_subtitle_pair(
++                self.cues, duration_seconds=30, srt_path=self.srt, vtt_path=self.vtt)
++
++    def test_sixty_second_validated_timecodes(self):
++        cues = [{"start": 58.750, "duration": 1.250,
++                 "text": "Example end card"}]
++        srt, vtt = compose_approved_subtitles(cues, duration_seconds=60)
++        self.assertIn("00:00:58,750 --> 00:01:00,000", srt)
++        self.assertIn("00:00:58.750 --> 00:01:00.000", vtt)
++
++    def test_invalid_input_or_unreviewed_control_sequences_fail(self):
++        for cues in (
++            [{"start": 0.505, "duration": 1.245, "text": "Hello --> World"}],
++            [{"start": 0.5, "duration": 1, "text": "\ufeffbad"}],
++            [{"start": 0.5, "duration": 1.2454, "text": "Sub-ms time"}],
++            [{"start": 29.8, "duration": .5, "text": "Out of range"}],
++            [self.cues[0], {"start": 1, "duration": 1, "text": "Overlaps"}],
++        ):
++            with self.assertRaises(SubtitleExportError):
++                export_private_subtitle_pair(
++                    cues, duration_seconds=30, srt_path=self.srt, vtt_path=self.vtt)
++            self.assertFalse(self.srt.exists())
++            self.assertFalse(self.vtt.exists())
++
++    def test_exclusive_create_rollback_on_conflicting_second_file(self):
++        def second_file_collision(path, flags, mode):
++            if str(path) == str(self.vtt):
++                raise FileExistsError("racing writer")
++            return self.actual_open(path, flags, mode)
++        import os
++        self.actual_open = os.open
++        with patch("feature4_subtitles.os.open", side_effect=second_file_collision):
++            with self.assertRaises(SubtitleExportError):
++                export_private_subtitle_pair(self.cues, duration_seconds=30,
++                                              srt_path=self.srt, vtt_path=self.vtt)
++        self.assertFalse(self.srt.exists())
++        self.assertFalse(self.vtt.exists())
++
++    def test_symlink_destination_rejected_without_touching_target(self):
++        target = self.root / "do_not_change.txt"
++        target.write_text("unchanged")
++        self.srt.symlink_to(target)
++        with self.assertRaises(SubtitleExportError):
++            export_private_subtitle_pair(self.cues, duration_seconds=30,
++                                          srt_path=self.srt, vtt_path=self.vtt)
++        self.assertEqual(target.read_text(), "unchanged")
+
+diff --git a/tests/media/test_feature4_visibility_window_integrity.py b/tests/media/test_feature4_visibility_window_integrity.py
+--- a/tests/media/test_feature4_visibility_window_integrity.py
++++ b/tests/media/test_feature4_visibility_window_integrity.py
+@@ -0,0 +1,102 @@
++"""Feature #4 F4-02: no positive 60s visibility receipt for gapped/overlapping time."""
++import sys
++import unittest
++from pathlib import Path
++from unittest.mock import patch
++
++ROOT = Path(__file__).resolve().parents[2]
++sys.path.insert(0, str(ROOT / "video-engine"))
++from feature4_minute_quality_receipt import (
++    MinuteProofError, validate_visibility_evidence,
++)
++
++FRACTIONS = [.15, .30, .50, .70, .85]
++SOURCE_SHA = "a" * 64
++
++
++def fixture():
++    windows = [{"start": 5 * i, "duration": 5} for i in range(12)]
++    scenes = []
++    for window in windows:
++        scenes.append({
++            "scene_start": window["start"],
++            "duration": window["duration"],
++            "sustained_near_black": False,
++            "samples": [
++                {"time_seconds": round(window["start"] + fraction * window["duration"], 3),
++                 "mean_luma": 75.0, "near_black_fraction": 0.0}
++                for fraction in FRACTIONS
++            ],
++        })
++    provenance = {"scene_windows": windows}
++    proof = {
++        "schema": "feature4_scene_visibility_v3",
++        "status": "SAMPLED_SCENES_NOT_BLANK_NOT_CONTENT_APPROVAL",
++        "source_sha256": SOURCE_SHA,
++        "seconds": 60,
++        "checked_scene_count": 12,
++        "sample_fractions": FRACTIONS,
++        "continuous_full_reel_black_scan": True,
++        "continuous_black_hold_threshold_seconds": .65,
++        "continuous_long_black_holds_count": 0,
++        "sub_threshold_blank_frames_certified_absent": False,
++        "short_blank_frames_excluded_by_sampling": False,
++        "sustained_near_black_count": 0,
++        "commercial_release_eligible": False,
++        "garment_identity_verified": False,
++        "unexpected_overlay_absence_verified": False,
++        "checked_scenes": scenes,
++    }
++    return provenance, proof
++
++
++class VisibilityWindowIntegrityTests(unittest.TestCase):
++    def check(self, provenance, proof):
++        with patch("feature4_minute_quality_receipt._record", side_effect=[provenance, proof]), \
++             patch("feature4_minute_quality_receipt._sha", return_value=SOURCE_SHA):
++            return validate_visibility_evidence(
++                original=Path("private-stock-fixture.mp4"),
++                provenance=Path("private-provenance.json"),
++                visibility_proof=Path("private-visibility.json"),
++            )
++
++    def test_valid_contiguous_minute_is_technical_only(self):
++        provenance, proof = fixture()
++        result = self.check(provenance, proof)
++        self.assertEqual(result["checked_scene_count"], 12)
++        self.assertIs(result["commercial_release_eligible"], False)
++
++    def test_both_matching_json_timelines_cannot_skip_or_repeat_time(self):
++        for altered_start in (24.5, 25.5):
++            with self.subTest(altered_start=altered_start):
++                provenance, proof = fixture()
++                provenance["scene_windows"][5]["start"] = altered_start
++                proof["checked_scenes"][5]["scene_start"] = altered_start
++                proof["checked_scenes"][5]["samples"] = [
++                    {"time_seconds": round(altered_start + fraction * 5, 3),
++                     "mean_luma": 75.0, "near_black_fraction": 0.0}
++                    for fraction in FRACTIONS
++                ]
++                with self.assertRaisesRegex(MinuteProofError, "not contiguous"):
++                    self.check(provenance, proof)
++
++    def test_full_minute_and_finite_positive_windows_required(self):
++        for bad_duration in (0, -5, float("nan"), float("inf"), 4):
++            with self.subTest(bad_duration=bad_duration):
++                provenance, proof = fixture()
++                provenance["scene_windows"][-1]["duration"] = bad_duration
++                proof["checked_scenes"][-1]["duration"] = bad_duration
++                with self.assertRaisesRegex(
++                    MinuteProofError, "not contiguous|full minute"
++                ):
++                    self.check(provenance, proof)
++
++    def test_window_shape_must_be_exact(self):
++        provenance, proof = fixture()
++        provenance["scene_windows"][0]["approval"] = True
++        with self.assertRaisesRegex(MinuteProofError, "not contiguous"):
++            self.check(provenance, proof)
++
++
++if __name__ == "__main__":
++    unittest.main()
+

@@ -1,0 +1,97 @@
+name: "RetailGrowthAI #249 existing Y1 post-202 read-only indexing check"
+# Read-only ARM/function inventory + anonymous GETs. No Azure writes or deployments.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/p0249-dev-y1-post202-readonly-once.yml'
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Only inspect already-created isolated DEV Y1 after zip deploy 202"
+        required: true
+        type: choice
+        options: ['NO', 'YES-READONLY-Y1-INDEX']
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0249-y1-indexing-only
+  cancel-in-progress: false
+jobs:
+  inspect:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_dispatch' && inputs.confirm == 'YES-READONLY-Y1-INDEX') ||
+       (github.event_name == 'push' &&
+        startsWith(github.event.head_commit.message,
+        'audit(#249): verify existing Y1 indexing after ZIP 202')))
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 13
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Prove read-only workflow contains no deployment or Azure mutator
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/p0249_y1_canary_guard.py
+          python3 -m unittest discover -s tests/infra -p 'test_p0249_y1_postdeploy_readonly.py' -v
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify current Y1 stack and original Flex unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_canary_guard.py verify
+      - name: Query indexed function names without exposing configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          az functionapp function list -g rg-retailgrowth-dev \
+            -n rgai-dev-y1-p0249-d4e5ddbd \
+            --query "[].name" -o json > "$RUNNER_TEMP/p0249-functions.json"
+          python3 - "$RUNNER_TEMP/p0249-functions.json" <<'PY'
+          import json,sys
+          rows=json.load(open(sys.argv[1]))
+          if not isinstance(rows,list) or any(not isinstance(x,str) for x in rows):
+              raise SystemExit("Unexpected Azure function index response")
+          print("P0249_Y1_INDEXED_FUNCTION_COUNT="+str(len(rows)),flush=True)
+          print("P0249_Y1_EXPECTED_FUNCTION_INDEXED="+str(any(
+              n.split("/")[-1].lower()=="p0249_health" for n in rows)),flush=True)
+          PY
+      - name: Probe after async deployment without redeploying any code
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u - <<'PY'
+          import sys,time
+          sys.path.insert(0,"ops")
+          import p0249_y1_canary_guard as g
+          ready=False
+          for i in range(4):
+              http,marker,sec=g.get("/api/p0249/health",20)
+              print(f"P0249_Y1_POST202_READY_ATTEMPT={i+1} http={http} marker={marker} seconds={sec}",flush=True)
+              if http==200 and marker:
+                  ready=True
+                  break
+              if i<3:
+                  time.sleep(25)
+          if not ready:
+              raise SystemExit("Y1 canary still unindexed/404 after bounded post-202 observations")
+          g.probe()
+          PY
+      - name: Logout
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true

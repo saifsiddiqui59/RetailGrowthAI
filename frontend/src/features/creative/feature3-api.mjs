@@ -7,6 +7,35 @@ import { validateFeature3Design } from './feature3-design.mjs'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const SHA = /^[a-f0-9]{64}$/
+const HISTORY_ROW_FIELDS = new Set([
+  'id','shop_id','campaign_id','day_id','revision','status','design',
+  'server_document_sha256','variation_of',
+])
+const HISTORY_RESPONSE_FIELDS = new Set(['shop_id','campaign_id','day_id','designs'])
+function exactFields(value, fields) {
+  return value && typeof value === 'object' && !Array.isArray(value) &&
+    Object.keys(value).length === fields.size &&
+    Object.keys(value).every(key => fields.has(key))
+}
+function checkedHistoryRow(row,sid,cid,did) {
+  if (!exactFields(row,HISTORY_ROW_FIELDS) ||
+      row.shop_id!==sid || row.campaign_id!==cid || row.day_id!==did ||
+      typeof row.id!=='string' || !UUID.test(row.id) ||
+      !Number.isInteger(row.revision) || row.revision<1 ||
+      !['DRAFT','APPROVED','REJECTED'].includes(row.status) ||
+      typeof row.server_document_sha256!=='string' ||
+      !SHA.test(row.server_document_sha256) ||
+      (row.variation_of!==null &&
+        (typeof row.variation_of!=='string' || !UUID.test(row.variation_of)))) {
+    throw Error('Untrusted poster history for another shop/day')
+  }
+  // Persisted document is untrusted until the strict editor allowlist checks
+  // it. SHA syntax is not a cryptographic comparison with PostgreSQL JSON.
+  const design=validateFeature3Design(row.design)
+  if (design.shop_id!==sid) throw Error('Untrusted private poster design tenant')
+  return Object.freeze({...row,design})
+}
+
 function id(x) {
   if (typeof x !== 'string' || !UUID.test(x)) throw Error('Canonical resource UUID required')
   return x.toLowerCase()
@@ -51,15 +80,18 @@ export function createFeature3Api({ baseUrl, tokenProvider, fetchImpl = fetch,
     listDesigns: async (shopId,campaignId,dayId) => {
       const sid = id(shopId), cid=id(campaignId), did=id(dayId)
       const data = await request('GET',path(cid,did))
-      if (data.shop_id!==sid || data.campaign_id!==cid || data.day_id!==did ||
-          !Array.isArray(data.designs) || data.designs.length>50 ||
-          data.designs.some(row => row.shop_id!==sid || row.campaign_id!==cid ||
-            row.day_id!==did || !UUID.test(row.id) ||
-            !Number.isInteger(row.revision) || row.revision<1 ||
-            !['DRAFT','APPROVED','REJECTED'].includes(row.status))) {
+      if (!exactFields(data,HISTORY_RESPONSE_FIELDS) ||
+          data.shop_id!==sid || data.campaign_id!==cid || data.day_id!==did ||
+          !Array.isArray(data.designs) || data.designs.length>50) {
         throw Error('Untrusted poster history for another shop/day')
       }
-      return data.designs
+      const seen=new Set()
+      return Object.freeze(data.designs.map(row=>{
+        const checked=checkedHistoryRow(row,sid,cid,did)
+        if (seen.has(checked.id)) throw Error('Duplicate private poster history ID')
+        seen.add(checked.id)
+        return checked
+      }))
     },
     saveDesign: async (shopId,campaignId,dayId,document,{designId=null,expectedRevision=0,variationOf=null}={}) => {
       const sid=id(shopId), cid=id(campaignId), did=id(dayId)
