@@ -17,7 +17,7 @@
     "by_feature": {
       "issue249": 3,
       "F2": 1,
-      "F5": 1
+      "shared": 1
     }
   },
   "entries": [
@@ -81,29 +81,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1019"
     },
     {
-      "pr": 1013,
-      "title": "feat(F5): restore original GPU-off human visual QA gate and negative tests",
-      "feature": "F5",
-      "head_sha": "8129dcaf446b21052fc6ed09a053d0729037e7e5",
-      "base_branch": "main",
-      "work_owner": "manual-integration-chat-e-F5-20261119",
-      "priority": "P1",
-      "phase": "ci-review-pending",
-      "claim": {
-        "owner": "manual-integration-chat-primary-group2-20261120",
-        "head_sha": "8129dcaf446b21052fc6ed09a053d0729037e7e5",
-        "claimed_at": "2026-11-19T21:17:21.529Z",
-        "expires_at": "2026-11-19T22:58:32.934Z"
-      },
-      "checkpoint": {
-        "owner": "manual-integration-chat-primary-group2-20261120",
-        "head_sha": "8129dcaf446b21052fc6ed09a053d0729037e7e5",
-        "at": "2026-11-19T21:28:32.934Z",
-        "next_action": "Non-activated F5 human visual QA source rebased on latest F3 main, exact-head 4/4 CI #44618904369 in progress"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1013"
-    },
-    {
       "pr": 939,
       "title": "ops(#249): bounded DEV Y1 public-only JWT shadow trial with rollback",
       "feature": "issue249",
@@ -121,7 +98,31 @@
         "next_action": "Independent protected-DEV workflow/JWT review, then main-only integration; no live release or Auth users"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/939"
+    },
+    {
+      "pr": 1034,
+      "title": "docs(group2): record F3 private-PNG source integration and remaining review gates",
+      "feature": "shared",
+      "head_sha": "1ea95976685f4d4f8e07d35669ea09e3bcae8d47",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P2",
+      "phase": "ci-review-pending",
+      "claim": {
+        "owner": "manual-integration-chat-a-20261120",
+        "head_sha": "1ea95976685f4d4f8e07d35669ea09e3bcae8d47",
+        "claimed_at": "2026-11-19T21:35:05.222Z",
+        "expires_at": "2026-11-19T23:05:05.222Z"
+      },
+      "checkpoint": {
+        "owner": "manual-integration-chat-a-20261120",
+        "head_sha": "1ea95976685f4d4f8e07d35669ea09e3bcae8d47",
+        "at": "2026-11-19T21:35:05.222Z",
+        "ci": "#44619641362 running",
+        "status": "Group2 append-only canonical docs after #880 source+main 4/4; retain #1019 release gates"
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1034"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T21:26:30.725Z"
+  "last_inventory_checked_at": "2026-11-19T21:35:05.222Z"
 }
