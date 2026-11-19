@@ -4,7 +4,7 @@ from __future__ import annotations
 from uuid import uuid4
 from ai_agents.schemas import CampaignBrief, ContractError, validate_campaign
 
-from security import AuthenticationError
+from security import AuthenticationError, SigningKeysUnavailable
 from tenant_store import StorageUnavailable, SubscriptionDenied, canonical_uuid
 from draft_api import DraftAPI
 
@@ -205,5 +205,5 @@ class HTTPAPI:
             return 401, {"error": "UNAUTHORIZED"}
         except (ContractError, ValueError, TypeError, AttributeError):
             return 400, {"error": "INVALID_REQUEST"}
-        except (StorageUnavailable, KeyError):
+        except (StorageUnavailable, SigningKeysUnavailable, KeyError):
             return 503, {"error": "SERVICE_UNAVAILABLE"}
