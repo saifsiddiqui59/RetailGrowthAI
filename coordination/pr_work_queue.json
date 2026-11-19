@@ -57,8 +57,13 @@
       "feature": "shared",
       "work_owner": "manual-integration",
       "priority": "P1",
-      "phase": "ready-for-review",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-primary-20261120",
+        "head_sha": "218deebd810b6ba2dc14f8144aa05de117cfd84a",
+        "claimed_at": "2026-11-19T18:32:04.737Z",
+        "expires_at": "2026-11-19T20:02:04.737Z"
+      },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1027",
       "checkpoint": {
         "owner": "manual-integration-chat-primary-20261119",
