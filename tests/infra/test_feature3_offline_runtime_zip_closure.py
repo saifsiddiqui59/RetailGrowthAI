@@ -47,7 +47,7 @@ class Feature3RuntimeZipClosureTests(unittest.TestCase):
     def test_declared_non_sensitive_mounted_route_is_allowed(self):
         self.assertTrue(package.verify_f3_runtime_imports({
             "azure-functions/campaign-api/function_app.py": (
-                b"from feature3_private_binary_route import private_png_response\\n"
+                b"from feature3_private_binary_route import private_png_response"
             ),
         }))
 
