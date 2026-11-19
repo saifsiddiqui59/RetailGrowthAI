@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-const SUPABASE = 'https://e2e.supabase.test'
+const SUPABASE = 'https://e2e-fixture.supabase.co'
 const API = 'https://api.e2e.retailgrowth.test'
 const SHOP = 'a1000000-0000-4000-8000-000000000001'
 const OTHER = 'a1000000-0000-4000-8000-000000000002'

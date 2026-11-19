@@ -1,0 +1,215 @@
+"""Offline source-only gates for the five-route Y1 #249 package staging.
+
+NO Azure access, ZIP deployment, Supabase users or network calls.
+"""
+import importlib.util
+import json
+from pathlib import Path
+import shutil
+import tempfile
+import unittest
+
+
+ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = ROOT / "ops/p0249-y1-readonly-extra-get/stage_five_get_sources.py"
+SPEC = importlib.util.spec_from_file_location("p0249_stage_five_get", SCRIPT)
+stage = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(stage)
+
+
+class Y1FiveGetSourceStageTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.home = Path(self.tmp.name)
+        self.repo = self.home / "repo"
+        self.repo.mkdir()
+        for relative in stage.SOURCES.values():
+            src = ROOT / relative
+            target = self.repo / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(src, target)
+        self.target = self.home / "stage"
+
+    def test_exact_five_get_only_and_verbatim_original_modules(self):
+        actual = stage.stage_sources(self.repo, self.target)
+        self.assertEqual(actual, self.target)
+        self.assertEqual(
+            {p.parent.name for p in actual.glob("*/function.json")},
+            set(stage.ROUTES),
+        )
+        self.assertEqual(
+            {str(p.relative_to(actual)) for p in actual.rglob("*") if p.is_file()},
+            set(stage.SOURCES),
+        )
+        for dest, relative in stage.SOURCES.items():
+            with self.subTest(dest=dest):
+                self.assertEqual((actual / dest).read_bytes(),
+                                 (self.repo / relative).read_bytes())
+        self.assertFalse((actual / "function_app.py").exists())
+        self.assertFalse((actual / ".python_packages").exists())
+        self.assertFalse(any("queue" in p.name.lower() or "timer" in p.name.lower()
+                             for p in actual.rglob("function.json")))
+
+    def test_preflight_to_copy_swap_keeps_validated_get_only_bytes(self):
+        # Regression: previously source manifests were validated then copied
+        # again from the live checkout. Swapping the source at mkdir() could
+        # copy a POST/queue handler that had never passed GET-only validation.
+        from unittest.mock import patch
+        manifest_source = self.repo / stage.SOURCES["render_job_read/function.json"]
+        originally_approved = manifest_source.read_bytes()
+        original_mkdir = Path.mkdir
+        mutated = []
+
+        def mutate_after_preflight(path, *args, **kwargs):
+            if path == self.target and not mutated:
+                unexpected = json.loads(originally_approved)
+                unexpected["bindings"][0]["methods"] = ["post"]
+                manifest_source.write_text(json.dumps(unexpected))
+                mutated.append(True)
+            return original_mkdir(path, *args, **kwargs)
+
+        with patch.object(Path, "mkdir", mutate_after_preflight):
+            staged = stage.stage_sources(self.repo, self.target)
+        self.assertTrue(mutated)
+        self.assertNotEqual(manifest_source.read_bytes(), originally_approved)
+        self.assertEqual((staged / "render_job_read/function.json").read_bytes(),
+                         originally_approved)
+        self.assertEqual(json.loads((staged / "render_job_read/function.json").read_text())
+                         ["bindings"][0]["methods"], ["get"])
+
+    def test_reject_oversized_source_before_creating_stage(self):
+        source = self.repo / stage.SOURCES["security.py"]
+        source.write_bytes(b"x" * (stage.MAX_SOURCE_BYTES + 1))
+        with self.assertRaisesRegex(ValueError, "size"):
+            stage.stage_sources(self.repo, self.target)
+        self.assertFalse(self.target.exists())
+
+    def test_symlink_swapped_at_open_cannot_stage_unreviewed_handler(self):
+        # Replacing an original after is_file/is_symlink/resolve must not
+        # bypass the checked GET-only route manifest via Path.open().
+        from unittest.mock import patch
+        source = self.repo / stage.SOURCES["render_job_read/function.json"]
+        outside = self.home / "unreviewed.json"
+        dangerous = json.loads(source.read_text())
+        dangerous["bindings"][0]["methods"] = ["post"]
+        outside.write_text(json.dumps(dangerous))
+        actual_open = stage.os.open
+        replaced = []
+
+        def swap_just_before_open(path, flags, *args, **kwargs):
+            if Path(path) == source and not replaced:
+                source.unlink()
+                source.symlink_to(outside)
+                replaced.append(True)
+            return actual_open(path, flags, *args, **kwargs)
+
+        with patch.object(stage.os, "open", side_effect=swap_just_before_open):
+            with self.assertRaisesRegex(ValueError, "symlinked"):
+                stage.stage_sources(self.repo, self.target)
+        self.assertTrue(replaced)
+        self.assertFalse(self.target.exists())
+
+    def test_sparse_multigigabyte_module_is_denied_before_full_read(self):
+        source = self.repo / stage.SOURCES["security.py"]
+        # Sparse fixture: no multi-GB allocation, file transfer, or cloud IO.
+        with source.open("wb") as stream:
+            stream.truncate(3 * 1024 * 1024 * 1024)
+        with self.assertRaisesRegex(ValueError, "size outside approved limit"):
+            stage.stage_sources(self.repo, self.target)
+        self.assertFalse(self.target.exists())
+
+    def test_reject_post_trigger_before_writing(self):
+        source = self.repo / stage.SOURCES["poster_job_read/function.json"]
+        manifest = json.loads(source.read_text())
+        manifest["bindings"][0]["methods"] = ["get", "post"]
+        source.write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(ValueError, "GET routes"):
+            stage.stage_sources(self.repo, self.target)
+        self.assertFalse(self.target.exists())
+
+    def test_reject_altered_route_before_writing(self):
+        source = self.repo / stage.SOURCES["render_job_read/function.json"]
+        manifest = json.loads(source.read_text())
+        manifest["bindings"][0]["route"] = "admin/{anything}"
+        source.write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(ValueError, "GET routes"):
+            stage.stage_sources(self.repo, self.target)
+        self.assertFalse(self.target.exists())
+
+    def test_reject_additional_binding(self):
+        source = self.repo / stage.SOURCES["campaign_read/function.json"]
+        manifest = json.loads(source.read_text())
+        manifest["bindings"].append({"type": "queueTrigger", "name": "q"})
+        source.write_text(json.dumps(manifest))
+        with self.assertRaises(ValueError):
+            stage.stage_sources(self.repo, self.target)
+        self.assertFalse(self.target.exists())
+
+    def test_reject_missing_original_dependency(self):
+        (self.repo / stage.SOURCES["render_api.py"]).unlink()
+        with self.assertRaisesRegex(ValueError, "missing"):
+            stage.stage_sources(self.repo, self.target)
+        self.assertFalse(self.target.exists())
+
+    def test_reject_symlink_to_any_source(self):
+        source = self.repo / stage.SOURCES["security.py"]
+        source.unlink()
+        source.symlink_to(ROOT / stage.SOURCES["security.py"])
+        with self.assertRaisesRegex(ValueError, "symlinked"):
+            stage.stage_sources(self.repo, self.target)
+        self.assertFalse(self.target.exists())
+
+    def test_reject_changed_dependency_versions(self):
+        source = self.repo / stage.SOURCES["requirements.txt"]
+        source.write_text("azure-functions\nPyJWT\n")
+        with self.assertRaisesRegex(ValueError, "requirements changed"):
+            stage.stage_sources(self.repo, self.target)
+        self.assertFalse(self.target.exists())
+
+    def test_reject_manifest_that_changes_auth_level(self):
+        source = self.repo / stage.SOURCES["poster_draft_read/function.json"]
+        manifest = json.loads(source.read_text())
+        manifest["bindings"][0]["authLevel"] = "admin"
+        source.write_text(json.dumps(manifest))
+        with self.assertRaisesRegex(ValueError, "GET routes"):
+            stage.stage_sources(self.repo, self.target)
+        self.assertFalse(self.target.exists())
+
+    def test_reject_modified_host_version(self):
+        source = self.repo / stage.SOURCES["host.json"]
+        source.write_text(json.dumps({"version": "3.0"}))
+        with self.assertRaisesRegex(ValueError, "host version"):
+            stage.stage_sources(self.repo, self.target)
+        self.assertFalse(self.target.exists())
+
+    def test_reject_preexisting_directory_and_existing_symlink(self):
+        self.target.mkdir()
+        with self.assertRaisesRegex(ValueError, "already exists"):
+            stage.stage_sources(self.repo, self.target)
+        self.target.rmdir()
+        self.target.symlink_to(self.repo, target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, "already exists"):
+            stage.stage_sources(self.repo, self.target)
+
+    def test_reject_dotdot_containment_bypass(self):
+        disguised = self.repo / "unused" / ".." / "stage"
+        with self.assertRaisesRegex(ValueError, "overlaps"):
+            stage.stage_sources(self.repo, disguised)
+        self.assertFalse((self.repo / "stage").exists())
+
+    def test_reject_symlinked_ancestor_into_original_repo(self):
+        alias = self.home / "repo-alias"
+        alias.symlink_to(self.repo, target_is_directory=True)
+        with self.assertRaisesRegex(ValueError, "overlaps"):
+            stage.stage_sources(self.repo, alias / "package")
+        self.assertFalse((self.repo / "package").exists())
+
+    def test_reject_staging_under_original_repo(self):
+        with self.assertRaisesRegex(ValueError, "overlaps"):
+            stage.stage_sources(self.repo, self.repo / "tmp-package")
+        self.assertFalse((self.repo / "tmp-package").exists())
+
+
+if __name__ == "__main__":
+    unittest.main()

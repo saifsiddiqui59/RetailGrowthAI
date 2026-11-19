@@ -60,3 +60,6 @@ Read `docs/SCHEDULER_RUNBOOK.md` before feature work. The shared coordinator's e
 
 ## Five independent feature leads, zero dedicated ChatGPT coordinator scheduler — effective 2026-10-31
 Read `docs/FEATURE_SELF_MERGE_POLICY_20261031.md` first: Features #2/#3/#4/#5/#7 each own their eligible PR reviews, CI, safe self-merge, postmerge CI and reviewed evidence-backed status. Cross-feature/high-risk changes still require independent review. Previous coordinator-only directions in archived sections are superseded for current workflow; no auto GPU/PROD/WineShopPOS.
+
+## 2026-11-15 — Current PR work queue (owner override)
+Before scheduled or manual RetailGrowthAI integration, read `docs/PR_INTEGRATION_RUNBOOK_20261115.md` and the live `coordination/pr-execution-ledger` branch queue. For the five current ChatGPT hourly schedules, manual integration is the only `main` merge writer. Prefer existing PRs, use optimistic CAS claims for shared ownership, preserve original task IDs and exact-head four-job CI; no duplicate PR or unverified DONE. This newer instruction takes priority over archived merge-authority descriptions above.

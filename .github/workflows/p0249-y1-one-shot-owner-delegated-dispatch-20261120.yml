@@ -1,0 +1,85 @@
+name: "RetailGrowthAI #249 single owner-delegated DEV dispatch (no direct cloud write)"
+# One-shot bridge for explicit 2026-11-20 owner request. Not a replacement
+# for the existing protected workflow or its DEV environment permissions.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/p0249-y1-one-shot-owner-delegated-dispatch-20261120.yml"
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: rgai-p0249-owner-delegated-single-dispatch
+  cancel-in-progress: false
+jobs:
+  dispatch:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'ops(#249): owner-delegated single protected Y1 dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Fail closed on modified release/auth/source and verify trigger SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          verify_blob() { test "$(git rev-parse "HEAD:$1")" = "$2"; }
+          verify_blob .github/workflows/p0249-dev-y1-five-get-release-manual.yml 5525adfc85727989a4478abd084db890308c37fe
+          verify_blob azure-functions/campaign-api/tenant_store.py d5091e4cf14071473813b77226c2a5ad61b84635
+          verify_blob ops/p0249-y1-readonly-extra-get/stage_five_get_sources.py 109098490b767dae3d4f01f1c3b2284560b23eb1
+          verify_blob ops/p0249-y1-readonly-extra-get/build_five_get_release.py b6cc730a0bce59093e831965ca4ee1f817121203
+          echo "P0249_OWNER_DELEGATED_REVIEWED_SOURCES=PASS"
+      - name: Require fresh four-job Part1 CI for this exact main SHA
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          accepted=false
+          for attempt in $(seq 1 78); do
+            runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&event=push&per_page=40")"
+            run_id="$(jq -r --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha == $sha and .name == "RetailGrowthAI Part 1 CI")] | sort_by(.created_at) | last | .id // empty' <<< "$runs")"
+            if [ -n "$run_id" ]; then
+              state="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .status)"
+              if [ "$state" = "completed" ]; then
+                outcome="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .conclusion)"
+                test "$outcome" = "success" || { echo "::error::Exact-main Part1 CI failed"; exit 2; }
+                gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" | jq -e '
+                  [.jobs[] | select(
+                    .name == "Python / uv + campaign contract tests" or
+                    .name == "Supabase isolation + authentication client tests" or
+                    .name == "Frontend build + contract tests" or
+                    .name == "FFmpeg codecs + renderer tests"
+                  ) | .conclusion] | length == 4 and all(.[]; . == "success")
+                ' >/dev/null
+                echo "P0249_OWNER_DELEGATED_EXACT_MAIN_CI_4OF4=PASS"
+                accepted=true
+                break
+              fi
+            fi
+            sleep 15
+          done
+          test "$accepted" = "true" || { echo "::error::Exact-main four-job CI timed out"; exit 2; }
+      - name: Dispatch existing protected manual DEV trial once with exact SHA
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)"
+          test "$current" = "$GITHUB_SHA" || { echo "::error::Main advanced; no dispatch"; exit 2; }
+          # Never dispatch twice for one commit, even on a job rerun.
+          prior="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?event=workflow_dispatch&per_page=100")"
+          duplicate="$(jq -r --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha == $sha and .name == "RetailGrowthAI #249 Y1 five-GET DEV release (manual + rollback)")] | length' <<< "$prior")"
+          test "$duplicate" = "0" || { echo "::error::Y1 protected dispatch already exists"; exit 2; }
+          jq -nc --arg sha "$GITHUB_SHA" '{ref:"main", inputs:{confirm:"YES-P0249-DEV-Y1-FIVE-GET-ROLLBACK", reviewed_main_sha:$sha}}' |
+            gh api -X POST "repos/$GITHUB_REPOSITORY/actions/workflows/p0249-dev-y1-five-get-release-manual.yml/dispatches" --input -
+          echo "P0249_OWNER_DELEGATED_PROTECTED_WORKFLOW_DISPATCH=REQUESTED"
+          echo "Protected DEV approval, source gates, Azure target checks, and rollback remain enforced."

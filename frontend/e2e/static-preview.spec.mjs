@@ -33,7 +33,7 @@ test('one login offers standard signup without separate administrator credential
 
 test('signup confirmation requests redirect to this website, never a stale Supabase localhost Site URL', async ({ page }) => {
   let redirectTo = null
-  await page.route('https://e2e.supabase.test/**', async route => {
+  await page.route('https://e2e-fixture.supabase.co/**', async route => {
     const url = new URL(route.request().url())
     if (url.pathname !== '/auth/v1/signup') {
       throw new Error('Unexpected auth route during signup: ' + url.pathname)
