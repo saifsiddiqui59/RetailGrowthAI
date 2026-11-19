@@ -212,16 +212,44 @@ def sync_entries(state: dict, open_prs: list[dict]) -> dict:
     return updated
 
 
+class RejectRedirects(request.HTTPRedirectHandler):
+    """Never forward GitHub bearer credentials to a redirect target."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def api(method: str, url: str, token: str, payload: dict | None = None) -> dict | list:
+    # Requests are built from API, but reject accidental future callers that
+    # supply an external host or downgrade to HTTP before adding credentials.
+    try:
+        target = parse.urlsplit(url)
+        safe_target = (target.scheme == "https"
+                       and target.hostname == "api.github.com"
+                       and target.port in (None, 443)
+                       and target.username is None and target.password is None
+                       and not target.fragment
+                       and target.path.startswith(f"/repos/{REPO}/"))
+    except ValueError:
+        safe_target = False
+    if not safe_target:
+        raise QueueError("unsafe GitHub API target")
+    if method not in {"GET", "PUT"}:
+        raise QueueError("unsupported GitHub API method")
     body = None if payload is None else json.dumps(payload).encode("utf-8")
     headers = {"Accept": "application/vnd.github+json", "User-Agent": "retailgrowth-pr-queue",
                "Authorization": f"Bearer {token}", "X-GitHub-Api-Version": "2022-11-28"}
     if body:
         headers["Content-Type"] = "application/json"
     try:
-        with request.urlopen(request.Request(url, body, headers, method=method), timeout=20) as resp:
+        # urllib's default HTTPRedirectHandler forwards sensitive custom
+        # headers to a different host. Reject all redirects, even HTTPS ones.
+        opener = request.build_opener(RejectRedirects())
+        with opener.open(request.Request(url, body, headers, method=method), timeout=20) as resp:
             return json.load(resp)
     except error.HTTPError as exc:
+        if 300 <= exc.code < 400:
+            raise QueueError("GitHub API redirect denied; no token forwarded") from exc
         if exc.code in (409, 412, 422):
             raise QueueError("GitHub CAS conflict or invalid write: refresh; NEVER force") from exc
         raise QueueError(f"GitHub API rejected request: HTTP {exc.code}") from exc
