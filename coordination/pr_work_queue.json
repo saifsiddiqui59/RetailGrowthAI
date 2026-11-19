@@ -58,7 +58,7 @@
     {
       "pr": 1026,
       "title": "docs(#249): reconcile Y1 release/rollback status with latest main",
-      "head_sha": "044f80c9e04dea9b196b1a527263dbe747f0d544",
+      "head_sha": "027e5037188f0e168569197829e10dd81f091bb7",
       "base_branch": "main",
       "feature": "issue249",
       "work_owner": "manual-issue249",
@@ -66,14 +66,15 @@
       "phase": "in-progress",
       "claim": {
         "owner": "manual-integration-chat-y1-20261120",
-        "head_sha": "044f80c9e04dea9b196b1a527263dbe747f0d544",
+        "head_sha": "027e5037188f0e168569197829e10dd81f091bb7",
         "claimed_at": "2026-11-19T19:04:01.852Z",
         "expires_at": "2026-11-19T20:34:01.852Z"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1026",
       "checkpoint": {
         "owner": "manual-integration-chat-y1-20261120",
-        "next_action": "Preserve four canonical docs after current-main Y1 source merge, update verified CI and no-deployment status, without touching #1007/#1022",
+        "head_sha": "027e5037188f0e168569197829e10dd81f091bb7",
+        "status": "Historical #1026 four append-only docs preserved on latest main and authoritative 2026-11-20 source/CI/deployment-pending note added. Exact-head CI pending; no #1007/#1022 touched.",
         "feature_done": false
       }
     },
