@@ -37,6 +37,65 @@ RUNTIME_AGENT_MODULES = frozenset({
 # Functions. Additions to this production closure require affected review.
 RUNTIME_VIDEO_MODULES = frozenset({"render", "probe", "asset_preflight"})
 
+# Feature 3 authorization adapters developed as *source-only* seams but not
+# imported by a currently registered Functions route. Keep their tests and
+# source in Git, but never silently bundle them into the deployment ZIP.
+# A new actual runtime import must fail this closure guard until reviewed.
+F3_SOURCE_ONLY_MODULES = frozenset({
+    "feature3_current_output_rights",
+    "feature3_private_png_binding",
+    "feature3_private_png_factory",
+    "feature3_private_png_route_registration",
+    "feature3_private_png_runtime",
+    "feature3_private_png_tenant",
+    "feature3_private_rights_binding",
+})
+
+
+def verify_f3_runtime_imports(entries: dict[str, bytes]):
+    """Fail closed if packaged Python references a deliberately unshipped F3 seam."""
+    for filename, payload in entries.items():
+        if not filename.endswith(".py"):
+            continue
+        tree = ast.parse(payload, filename=filename)
+        imported_lib = {
+            alias.asname or alias.name
+            for node in ast.walk(tree) if isinstance(node, ast.Import)
+            for alias in node.names if alias.name == "importlib"
+        }
+        imported_funcs = {
+            alias.asname or alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom) and node.module == "importlib"
+            for alias in node.names if alias.name == "import_module"
+        }
+        for node in ast.walk(tree):
+            requested = set()
+            if isinstance(node, ast.Import):
+                requested.update(alias.name.split(".")[0] for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                requested.add(node.module.split(".")[0])
+            elif isinstance(node, ast.Call) and node.args:
+                supported = (
+                    isinstance(node.func, ast.Name)
+                    and (node.func.id == "__import__" or node.func.id in imported_funcs)
+                ) or (
+                    isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "import_module"
+                    and isinstance(node.func.value, ast.Name)
+                    and node.func.value.id in imported_lib
+                )
+                if supported and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
+                    requested.add(node.args[0].value.split(".")[0])
+            forbidden = requested & F3_SOURCE_ONLY_MODULES
+            if forbidden:
+                raise ValueError(
+                    "Undeclared Feature3 source-only module imported in Functions ZIP: "
+                    + filename + ": " + ", ".join(sorted(forbidden))
+                )
+    return True
+
+
 
 
 def verify_runtime_agent_imports(entries: dict[str, bytes]):
@@ -234,6 +293,8 @@ def source_files():
     entries = {}
     for folder in (SERVICE, POSTER):
         for path in sorted(folder.glob("*.py")):
+            if folder == SERVICE and path.stem in F3_SOURCE_ONLY_MODULES:
+                continue
             entries[path.relative_to(ROOT).as_posix()] = path.read_bytes()
     for module in sorted(RUNTIME_VIDEO_MODULES):
         path = RENDER / (module + ".py")
@@ -250,6 +311,7 @@ def source_files():
         entries["ai_agents/" + path.name] = path.read_bytes()
     verify_runtime_agent_imports(entries)
     verify_runtime_video_imports(entries)
+    verify_f3_runtime_imports(entries)
     entries["function_app.py"] = ENTRY.encode()
     entries["requirements.txt"] = (SERVICE / "requirements.txt").read_bytes()
     host = json.loads((SERVICE / "host.json").read_text("utf-8"))
