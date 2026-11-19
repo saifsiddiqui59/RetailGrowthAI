@@ -94,9 +94,15 @@ def stage_sources(repo: Path, target: Path) -> Path:
         source = repo / relative
         if not source.is_file() or source.is_symlink() or repo not in source.resolve().parents:
             raise ValueError("missing or symlinked allowlisted Y1 source: " + relative)
-        raw = source.read_bytes()
-        if not raw or len(raw) > MAX_SOURCE_BYTES:
+        # Bound the read BEFORE allocating a blob: a hostile or accidentally
+        # sparse multi-GB source must not exhaust the release builder's RAM.
+        size = source.stat().st_size
+        if not 0 < size <= MAX_SOURCE_BYTES:
             raise ValueError("Y1 source size outside approved limit")
+        with source.open("rb") as stream:
+            raw = stream.read(MAX_SOURCE_BYTES + 1)
+        if len(raw) != size:
+            raise ValueError("Y1 source changed during bounded read")
         approved[dest] = raw
         if dest.endswith(".py"):
             ast.parse(raw.decode("utf-8"), filename=relative)
