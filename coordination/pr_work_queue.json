@@ -57,16 +57,17 @@
       "feature": "shared",
       "work_owner": "manual-integration",
       "priority": "P1",
-      "phase": "ci-review-pending",
+      "phase": "ready-for-review",
       "claim": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1027",
       "checkpoint": {
         "owner": "manual-ci-verification-chat-g-20261119",
-        "at": "2026-11-19T08:20:52.333Z",
-        "status": "previous 6466880 exact-head 4/4 PASS superseded by new documentation-only head; NEW exact-head PR CI #44486681441 in progress, independent shared-workflow reviewer required",
-        "previous_ci": "PR #44486001496 4/4 PASS on 6466880519fa7c072986c7624f3a43fd7499acba (stale for new head)",
-        "pending_ci": "PR #44486681441",
+        "at": "2026-11-19T13:12:37.590Z",
+        "status": "Final head completed four mandatory jobs SUCCESS; repo shared workflow independent affected-lead review pending, no merge; no model/hosted/PROD action",
         "head_sha": "6375b3ce4c8a59bb401baa8dcd53857c155fce3e",
+        "ci": "PR #44486681441 completed success 4/4; push #44486673507 completed success",
+        "mergeable": true,
+        "review_count": 0,
         "feature_done": false
       }
     },
