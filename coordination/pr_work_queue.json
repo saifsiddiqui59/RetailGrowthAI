@@ -260,12 +260,12 @@
       "phase": "ready-for-review",
       "claim": {
         "owner": "manual-integration-chat-c-20261119",
-        "claimed_at": "2026-11-19T04:35:17.466Z",
-        "expires_at": "2026-11-19T06:05:17.466Z",
+        "claimed_at": "2026-11-19T04:49:23.103Z",
+        "expires_at": "2026-11-19T06:19:23.103Z",
         "head_sha": "462bb25f4a3bad934edca411f1ca3a7027a76f9b"
       },
       "checkpoint": {
-        "at": "2026-11-18T19:34:40.475Z",
+        "at": "2026-11-19T04:49:23.103Z",
         "owner": "manual-integration-chat-c-20261119",
         "head_after": "462bb25f4a3bad934edca411f1ca3a7027a76f9b",
         "status": "ready-for-review",
@@ -277,21 +277,21 @@
       "pr": 972,
       "title": "fix(feature2 F2-31): revalidate signed editorial rights immediately before handoff",
       "feature": "F2",
-      "head_sha": "a204af9f160e99a808e279f53745b0c5fb60eff7",
+      "head_sha": "c4b2708bb9b21944f171c071951ab8656311d4c8",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
       "phase": "ready-for-review",
       "claim": {
         "owner": "manual-integration-chat-c-20261119",
-        "claimed_at": "2026-11-19T04:35:17.466Z",
-        "expires_at": "2026-11-19T06:05:17.466Z",
-        "head_sha": "a204af9f160e99a808e279f53745b0c5fb60eff7"
+        "claimed_at": "2026-11-19T04:49:23.103Z",
+        "expires_at": "2026-11-19T06:19:23.103Z",
+        "head_sha": "c4b2708bb9b21944f171c071951ab8656311d4c8"
       },
       "checkpoint": {
-        "at": "2026-11-18T19:34:40.475Z",
+        "at": "2026-11-19T04:49:23.103Z",
         "owner": "manual-integration-chat-c-20261119",
-        "head_after": "a204af9f160e99a808e279f53745b0c5fb60eff7",
+        "head_after": "c4b2708bb9b21944f171c071951ab8656311d4c8",
         "status": "ready-for-review",
         "next_action": "4/4 PR CI #44132961182 at a204af9, independent editorial rights/F4 review and non-atomic CAS acceptance pending."
       },
@@ -305,19 +305,19 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "ci-review-pending",
+      "phase": "ready-for-review",
       "claim": {
         "owner": "manual-integration-chat-c-20261119",
-        "claimed_at": "2026-11-19T04:35:17.466Z",
-        "expires_at": "2026-11-19T06:05:17.466Z",
+        "claimed_at": "2026-11-19T04:49:23.103Z",
+        "expires_at": "2026-11-19T06:19:23.103Z",
         "head_sha": "6427e3cd8c14a82e0bcf26daad71dfc1f776e43d"
       },
       "checkpoint": {
-        "at": "2026-11-19T04:41:24.610Z",
+        "at": "2026-11-19T04:49:23.103Z",
         "owner": "manual-integration-chat-c-20261119",
         "head_after": "6427e3cd8c14a82e0bcf26daad71dfc1f776e43d",
-        "status": "mergeable after main conflict fix; exact-head CI pending",
-        "next_action": "Preserved all four canonical docs main updates plus 209 unique historical receipt lines; current-main Git merge commit 6427e3c; exact-head CI #44459893892 pending, independent docs reviewer still needed."
+        "status": "ready-for-review",
+        "next_action": "Exact-head 9d5ded4 Part1 #44383584218 4/4; independent shared-doc review required"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/970"
     },
@@ -368,17 +368,16 @@
       "phase": "ready-for-review",
       "claim": {
         "owner": "manual-integration-chat-c-20261119",
-        "claimed_at": "2026-11-19T04:35:17.466Z",
-        "expires_at": "2026-11-19T06:05:17.466Z",
+        "claimed_at": "2026-11-19T04:49:23.103Z",
+        "expires_at": "2026-11-19T06:19:23.103Z",
         "head_sha": "67da2a97f3c50f6fcd04ae9a505cd7f78743944d"
       },
       "checkpoint": {
-        "at": "2026-11-19T04:36:52.320Z",
+        "at": "2026-11-19T04:49:23.103Z",
         "owner": "manual-integration-chat-c-20261119",
         "head_after": "67da2a97f3c50f6fcd04ae9a505cd7f78743944d",
         "status": "ready-for-review",
-        "ci": "Part1 #44458919848 exact-head completed 4/4 success",
-        "next_action": "Current main reconciled without discarding newer docs; PR mergeable. Independent coordination/governance review required before main merge."
+        "next_action": "Exact-head 67da2a97 Part1 #44458919848 4/4; current main compatibility to recheck and independent shared coordination review required"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/964"
     },
@@ -386,23 +385,23 @@
       "pr": 944,
       "title": "fix(feature3 F3-08): pin injected Supabase JWT verifier to configured project",
       "feature": "F3",
-      "head_sha": "a3dae8965c26c378797ca1be0f577655ee275482",
+      "head_sha": "1d7b7c2f03177da82a60285dc0864b26d9c5ae7d",
       "base_branch": "feat/feature3-f3-08-current-rights-attestation-20261106",
       "work_owner": "schedule-f3",
       "priority": "P0",
-      "phase": "ready-for-review",
+      "phase": "source-consolidated-review-pending",
       "claim": {
         "owner": "manual-integration-chat-c-20261119",
-        "claimed_at": "2026-11-19T04:35:17.466Z",
-        "expires_at": "2026-11-19T06:05:17.466Z",
-        "head_sha": "a3dae8965c26c378797ca1be0f577655ee275482"
+        "claimed_at": "2026-11-19T04:49:23.103Z",
+        "expires_at": "2026-11-19T06:19:23.103Z",
+        "head_sha": "1d7b7c2f03177da82a60285dc0864b26d9c5ae7d"
       },
       "checkpoint": {
-        "at": "2026-11-19T04:35:17.466Z",
+        "at": "2026-11-19T04:49:23.103Z",
         "owner": "manual-integration-chat-c-20261119",
-        "head_after": "a3dae8965c26c378797ca1be0f577655ee275482",
-        "status": "ready-for-review",
-        "next_action": "Added complete CRC/chunk/decoded PNG verification to private HTTP adapter, converted synthetic fixture into real PNG, and negative tests for magic-only/trailing/corrupted bytes; exact-head Part1 #44458637840 4/4 PASS. Stacked on #880; independent F3 JWT/rights/security review required before merge."
+        "head_after": "1d7b7c2f03177da82a60285dc0864b26d9c5ae7d",
+        "status": "source-consolidated-review-pending",
+        "next_action": "Six child JWT/JWKS/HTTP full-PNG source and tests ported byte-for-byte to #880; verify #880 final-head 4/4 then retire source PR #944 unmerged; independent F3 security review remains for parent"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/944"
     },
@@ -476,23 +475,23 @@
       "pr": 880,
       "title": "Feature3 F3-08: fail-closed current output rights authority boundary and negative tests",
       "feature": "F3",
-      "head_sha": "141860508c1d4592b5fecfcbe0bce9f931a1bfda",
+      "head_sha": "72f08ccf156c5b9225f79cf6987bef541488df69",
       "base_branch": "main",
       "work_owner": "schedule-f3",
       "priority": "P0",
-      "phase": "ready-for-review",
+      "phase": "ci-review-pending",
       "claim": {
         "owner": "manual-integration-chat-c-20261119",
-        "claimed_at": "2026-11-19T04:35:17.466Z",
-        "expires_at": "2026-11-19T06:05:17.466Z",
-        "head_sha": "141860508c1d4592b5fecfcbe0bce9f931a1bfda"
+        "claimed_at": "2026-11-19T04:49:23.103Z",
+        "expires_at": "2026-11-19T06:19:23.103Z",
+        "head_sha": "72f08ccf156c5b9225f79cf6987bef541488df69"
       },
       "checkpoint": {
-        "at": "2026-11-18T19:34:40.475Z",
+        "at": "2026-11-19T04:49:23.103Z",
         "owner": "manual-integration-chat-c-20261119",
-        "head_after": "141860508c1d4592b5fecfcbe0bce9f931a1bfda",
-        "status": "ready-for-review",
-        "next_action": "Exact SHA 1418605: 4/4 #43595775074; overlaps 3 paths with #879 and 2 with stacked #944; independent security review needed."
+        "head_after": "72f08ccf156c5b9225f79cf6987bef541488df69",
+        "status": "ci-review-pending",
+        "next_action": "#879 source merged into keeper (old head 1176b2d Part1 #44460220136 4/4), now #944 six original blobs ported plus 8 source-only adapter package fence; new exact-head Part1 CI pending; mandatory independent F3/Functions review"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/880"
     },
@@ -502,21 +501,16 @@
       "feature": "F3",
       "head_sha": "60251cf930bb6131bad9e11f0713ca80ba50b12b",
       "base_branch": "main",
-      "work_owner": "schedule-f3",
+      "work_owner": "manual-integration-chat-c-20261119",
       "priority": "P2",
-      "phase": "ready-for-review",
-      "claim": {
-        "owner": "manual-integration-chat-c-20261119",
-        "claimed_at": "2026-11-19T04:35:17.466Z",
-        "expires_at": "2026-11-19T06:05:17.466Z",
-        "head_sha": "60251cf930bb6131bad9e11f0713ca80ba50b12b"
-      },
+      "phase": "closed-unmerged",
+      "claim": null,
       "checkpoint": {
-        "at": "2026-11-18T19:34:40.475Z",
+        "at": "2026-11-19T04:49:23.103Z",
         "owner": "manual-integration-chat-c-20261119",
         "head_after": "60251cf930bb6131bad9e11f0713ca80ba50b12b",
-        "status": "ready-for-review",
-        "next_action": "Exact SHA 60251cf: 4/4 #42410451925; unique 11 files, 3 shared-path conflicts with #880; preserve both, do not wholesale merge."
+        "status": "closed-unmerged",
+        "next_action": "Closed source duplicate; 11 exact blobs and 3 composed paths retained in #880, 880 prior exact-head 4/4 #44460220136; NOT F3 task DONE"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/879"
     },
