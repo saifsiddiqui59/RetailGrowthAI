@@ -24,30 +24,6 @@
   },
   "entries": [
     {
-      "pr": 1030,
-      "title": "test(#249): repair signed two-shop GET fixtures after no-redirect transport",
-      "feature": "issue249",
-      "head_sha": "c6b56c7aa18f5c8adf54b9c57a15e65bf90af3fc",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P0",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-primary-20261120",
-        "head_sha": "c6b56c7aa18f5c8adf54b9c57a15e65bf90af3fc",
-        "claimed_at": "2026-11-19T18:51:51.724Z",
-        "expires_at": "2026-11-19T20:21:51.724Z"
-      },
-      "checkpoint": {
-        "owner": "manual-integration-chat-primary-20261120",
-        "at": "2026-11-19T18:51:51.724Z",
-        "head_sha": "c6b56c7aa18f5c8adf54b9c57a15e65bf90af3fc",
-        "status": "Fix latest-main 11 Python failures caused by old urlopen fake after #1018 no-redirect transport; source PR #1030; exact PR CI pending; no cloud changes",
-        "source_main_ci": "44591535212 failed Python 11"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1030"
-    },
-    {
       "pr": 1029,
       "title": "fix(#249): recover protected original Flex incident diagnostics (manual only)",
       "feature": "issue249",
@@ -117,10 +93,10 @@
       "phase": "blocked",
       "claim": null,
       "checkpoint": {
-        "status": "All 30 additive original #1022 source lines preserved in current-main reconciled #1007 (branch head 0aeaaedc); retire #1022 UNMERGED only after #1007 merge, exact-main CI success, content parity",
-        "owner": "manual-integration-chat-primary-20261120",
-        "at": "2026-11-19T18:40:27.886Z",
-        "dependent_pr": 1007
+        "at": "2026-11-19T18:56:57.802Z",
+        "status": "30/30 original added docs lines preserved on main #0939cfb3; dependent descendant-main Part1 4/4 pending after #1030 fixes 11-test #968/#1018 regression",
+        "dependent_pr": 1007,
+        "source_main_sha": "0939cfb367e169c64faaa0fcf3da8f91e3b17417"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1022"
     },
@@ -295,7 +271,20 @@
         "next_action": "Head 72f08ccf Part1 #44460852580 and #44460858767 4/4 PASS; original #879/#944 source preserved and closed unmerged; independent F3/Functions security/rights review still absent"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/880"
+    },
+    {
+      "pr": 1031,
+      "title": "test(#249): restore signed two-shop Y1 CI after redirect-safe transport",
+      "feature": "issue249",
+      "head_sha": "4e009b9f6d6679a8926b2cccd680ff8eb45516bf",
+      "base_branch": "main",
+      "work_owner": "manual-issue249",
+      "priority": "P2",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1031"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T18:51:51.724Z"
+  "last_inventory_checked_at": "2026-11-19T18:56:57.802Z"
 }
