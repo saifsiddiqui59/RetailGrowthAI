@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 12,
+    "open_prs": 9,
     "by_feature": {
-      "issue249": 7,
+      "issue249": 4,
       "F2": 2,
       "F5": 1,
       "shared": 1,
@@ -54,52 +54,6 @@
         "next_action": "Protected manual-only diagnostic needs shared workflow review and post-main 4/4; no Azure run"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1028"
-    },
-    {
-      "pr": 1026,
-      "title": "docs(#249): reconcile Y1 release/rollback status with latest main",
-      "head_sha": "027e5037188f0e168569197829e10dd81f091bb7",
-      "base_branch": "main",
-      "feature": "issue249",
-      "work_owner": "manual-issue249",
-      "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-y1-20261120",
-        "head_sha": "027e5037188f0e168569197829e10dd81f091bb7",
-        "claimed_at": "2026-11-19T19:04:01.852Z",
-        "expires_at": "2026-11-19T20:34:01.852Z"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1026",
-      "checkpoint": {
-        "owner": "manual-integration-chat-y1-20261120",
-        "head_sha": "027e5037188f0e168569197829e10dd81f091bb7",
-        "status": "Historical #1026 four append-only docs preserved on latest main and authoritative 2026-11-20 source/CI/deployment-pending note added. Exact-head CI pending; no #1007/#1022 touched.",
-        "feature_done": false
-      }
-    },
-    {
-      "pr": 1025,
-      "title": "fix(#249): reconcile five-GET Y1 manual release with atomic source validation",
-      "head_sha": "a4deee0ab869e5229961d1bf29d41ffdd46e5e65",
-      "base_branch": "feat/p0249-y1-five-get-stage-20261119",
-      "feature": "issue249",
-      "work_owner": "manual-issue249",
-      "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-y1-20261120",
-        "head_sha": "a4deee0ab869e5229961d1bf29d41ffdd46e5e65",
-        "claimed_at": "2026-11-19T18:45:07.371Z",
-        "expires_at": "2026-11-19T20:15:07.371Z"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1025",
-      "checkpoint": {
-        "owner": "manual-integration-chat-y1-20261120",
-        "head_sha": "a4deee0ab869e5229961d1bf29d41ffdd46e5e65",
-        "status": "Nine unchanged protected release paths merged with newest #995 main-reconciled parent, preserving #1030 security fixture. Exact-head four CI pending. No DEV dispatch.",
-        "feature_done": false
-      }
     },
     {
       "pr": 1019,
@@ -145,29 +99,6 @@
         "merge_review_blocker": "independent affected F4 security review"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1013"
-    },
-    {
-      "pr": 995,
-      "title": "build(#249): exact five-route Y1 GET staging with deny-list tests",
-      "feature": "issue249",
-      "head_sha": "b205ce13db013dfbff4e8cb9dafc537dd8bdc486",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-y1-20261120",
-        "head_sha": "b205ce13db013dfbff4e8cb9dafc537dd8bdc486",
-        "claimed_at": "2026-11-19T18:45:07.371Z",
-        "expires_at": "2026-11-19T20:15:07.371Z"
-      },
-      "checkpoint": {
-        "owner": "manual-integration-chat-y1-20261120",
-        "head_sha": "b205ce13db013dfbff4e8cb9dafc537dd8bdc486",
-        "status": "Reconciled with current main #1030 stronger signed-JWT mock. Only 3 original source staging paths differ; no overwriting #1030. Previous exact head 1746d3 CI #44592715114 4/4, new exact-head CI pending.",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/995"
     },
     {
       "pr": 979,
