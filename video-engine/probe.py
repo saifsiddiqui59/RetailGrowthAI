@@ -20,7 +20,22 @@ def verify_reel(path, width=1080, height=1920):
     if (v.get("codec_name") != "h264" or a.get("codec_name") != "aac"
             or v.get("width") != width or v.get("height") != height
             or v.get("pix_fmt") != "yuv420p"):
-        raise ValueError("Wrong resolution, pixel format or H.264/AAC codecs")
+        # Report strictly allowlisted stream metadata so changes in pinned
+        # FFmpeg versions can be diagnosed without disclosing file paths,
+        # container metadata, customer names, URLs, or media contents.
+        fields = ("codec_name", "width", "height", "pix_fmt")
+        actual = {
+            "video": {key: v.get(key) for key in fields},
+            "audio": {"codec_name": a.get("codec_name")},
+        }
+        expected = {
+            "video": {"codec_name": "h264", "width": width,
+                      "height": height, "pix_fmt": "yuv420p"},
+            "audio": {"codec_name": "aac"},
+        }
+        raise ValueError("Wrong resolution, pixel format or H.264/AAC codecs: "
+                         + json.dumps({"expected": expected, "actual": actual},
+                                      sort_keys=True))
     duration = float(data["format"]["duration"])
     if abs(duration - 30.0) > 0.12:
         raise ValueError(f"Wrong MP4 duration: {duration}")
