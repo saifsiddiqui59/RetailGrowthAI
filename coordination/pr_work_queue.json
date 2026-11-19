@@ -106,21 +106,16 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-f-20261119",
       "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-g-security-20261119",
-        "claimed_at": "2026-11-19T08:07:12.333Z",
-        "expires_at": "2026-11-19T09:07:12.333Z",
-        "head_sha": "4b41d2307ef016ada93f7e281cb67da2c61af0fa"
-      },
+      "phase": "ready-for-review",
+      "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-g-security-20261119",
-        "at": "2026-11-19T08:08:23.930Z",
-        "status": "ported missing original #965 Y1 signing-key dependency outage 503/no-DB/no-token regression to scoped #1018 current-main test",
-        "source_commit": "4b41d2307ef016ada93f7e281cb67da2c61af0fa",
-        "ci": "new exact-head #44485024323 in progress",
-        "original_paths_source_port": "7/12 identical blobs; 5 compatible variants, original hosted handler regression restored",
-        "blocker": "independent auth/security/Functions review still needed; no source merge or DEV deploy"
+        "at": "2026-11-19T08:14:51.282Z",
+        "status": "ported missing original #965 real Y1 JWKS signing-key outage test to current-main security source; CI exact-head 4/4 passed; independent protected reviewer still required",
+        "commit": "4b41d2307ef016ada93f7e281cb67da2c61af0fa",
+        "ci": "PR run 44485024323 completed SUCCESS 4/4",
+        "historicalComparison": "7/12 identical source blobs, 5 compatible variations; original outage regression restored",
+        "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1018"
     },
@@ -249,11 +244,12 @@
       "phase": "blocked",
       "claim": null,
       "checkpoint": {
-        "owner": "manual-integration-chat-f-20261119-resume",
-        "at": "2026-11-19T07:49:36.590Z",
-        "status": "Three Y1 GET route wrappers source-only, no live signed two-shop acceptance; independent Functions/JWT/tenant reviewer absent; #995 stacked",
-        "ci": "exact-head #44126332677 4/4 PASS",
-        "review_required": true,
+        "owner": "manual-integration-chat-g-security-20261119",
+        "at": "2026-11-19T08:14:51.282Z",
+        "status": "three Y1 GET route wrappers not merged; current main TenantStore follows redirects, must wait for reviewed #1018 no-redirect main security port",
+        "dependent_pr": 1018,
+        "blockers": "JWT/RLS affected-lead review, signed two-shop DEV, #995 stage child, protected manual release and rollback; original Flex 503 remains unresolved",
+        "source_ci": "#968 44126332677 4/4",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/968"
@@ -269,12 +265,12 @@
       "phase": "blocked",
       "claim": null,
       "checkpoint": {
-        "owner": "manual-integration-chat-f-20261119-resume",
-        "at": "2026-11-19T07:49:36.590Z",
-        "status": "Original global JWT/tenant/AdminStore route hardening, independent auth/security reviewer absent; scoped separate #1018 exists but does not supersede all original",
-        "ci": "exact-head #44089856853 4/4 PASS",
-        "review_required": true,
-        "feature_done": false
+        "owner": "manual-integration-chat-g-security-20261119",
+        "at": "2026-11-19T08:14:51.282Z",
+        "status": "original global JWT/no-redirect source still unmerged; current-main-focused #1018 now exact-head green 4/4 incl restored JWKS outage regression",
+        "dependent_pr": 1018,
+        "blockers": "independent auth/security review, then approved #1018 main merge and exact postmerge 4/4 before retiring obsolete #965",
+        "original_feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/965"
     },
