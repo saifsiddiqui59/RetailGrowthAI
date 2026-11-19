@@ -331,18 +331,19 @@
       "pr": 970,
       "title": "docs(integration): F2/F4 source recovery, 10-PR reconciliation and CI receipts",
       "feature": "F2",
-      "head_sha": "bd9fa4b49dc7325a8ccb39e4ce53128c1360dc8b",
+      "head_sha": "6427e3cd8c14a82e0bcf26daad71dfc1f776e43d",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "closed-unmerged",
+      "phase": "merged",
       "claim": null,
       "checkpoint": {
-        "at": "2026-11-19T04:55:06.563Z",
+        "at": "2026-11-19T04:58:27.536Z",
         "owner": "manual-integration-chat-c-20261119",
-        "head_after": "bd9fa4b49dc7325a8ccb39e4ce53128c1360dc8b",
-        "status": "closed-unmerged",
-        "next_action": "Canonical F3 source reconciliation and #944 closure recorded; new docs head requires exact-head Part1 4/4 and independent shared-doc review"
+        "head_after": "6427e3cd8c14a82e0bcf26daad71dfc1f776e43d",
+        "status": "merged",
+        "merge_commit_sha": "111e14c1184a7b31e2c7cebb38c1d23c788fe6be",
+        "next_action": "Original docs PR #970 merged at earlier head; F3 receipts added later are isolated on new reviewed #1022. #970 postmerge main CI run #44461309164 was in progress at previous checkpoint."
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/970"
     },
@@ -597,6 +598,30 @@
         "taskDone": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322"
+    },
+    {
+      "pr": 1022,
+      "title": "docs(F3): record #879/#944 source consolidation and #880 4/4 evidence",
+      "head_sha": "dfff7942f95fca0d394bdd550ba5b4bd8666f08f",
+      "feature": "shared",
+      "base_branch": "main",
+      "work_owner": "manual-integration-chat-c-20261119",
+      "priority": "P1",
+      "phase": "ci-review-pending",
+      "claim": {
+        "owner": "manual-integration-chat-c-20261119",
+        "claimed_at": "2026-11-19T04:58:27.536Z",
+        "expires_at": "2026-11-19T06:28:27.536Z",
+        "head_sha": "dfff7942f95fca0d394bdd550ba5b4bd8666f08f"
+      },
+      "checkpoint": {
+        "at": "2026-11-19T04:58:27.536Z",
+        "owner": "manual-integration-chat-c-20261119",
+        "head_after": "dfff7942f95fca0d394bdd550ba5b4bd8666f08f",
+        "status": "ci-review-pending",
+        "next_action": "Docs-only follow-up to already merged #970, preserves new F3 source keeper #880 and duplicate #879/#944 receipts; exact-head Part1 four jobs and independent shared-doc review required, then fresh main four-job CI."
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1022"
     }
   ]
 }
