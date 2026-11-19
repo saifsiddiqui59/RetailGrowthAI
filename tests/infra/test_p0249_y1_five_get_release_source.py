@@ -1,10 +1,13 @@
 """No-network release/rollback source parity for alternate Issue #249 Y1."""
 import importlib.util
 import json
+import os
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 import tempfile
+import textwrap
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -106,6 +109,71 @@ class Y1FiveRouteReleaseSourceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unreviewed relative Y1 import"):
             stage_release(self.repo, self.root / "no-relative-import", "rollback-two")
         self.assertFalse((self.root / "no-relative-import").exists())
+
+    def test_fresh_process_indexes_all_approved_functions_without_secrets(self):
+        """Test BOTH release shapes with real azure.functions, not import stubs.
+
+        CI has pinned azure-functions/PyJWT installed. Run outside the checkout
+        in a separate interpreter: no original app/worker modules may leak into
+        sys.modules or sys.path, and no hosted Auth or Azure calls are made.
+        """
+        script = textwrap.dedent("""
+            import importlib.util
+            import pathlib
+            import sys
+
+            import azure.functions as func
+
+            root = pathlib.Path(sys.argv[1])
+            expected = set(sys.argv[2].split(","))
+            assert {p.parent.name for p in root.glob("*/function.json")} == expected
+            sys.path.insert(0, str(root))
+            params = {
+                "campaign_read": "campaign_id",
+                "render_job_read": "job_id",
+                "poster_job_read": "job_id",
+                "poster_draft_read": "draft_id",
+            }
+            uid = "11111111-1111-4111-8111-111111111111"
+            for name in sorted(expected):
+                spec = importlib.util.spec_from_file_location(
+                    "p0249_test_" + name, root / name / "__init__.py")
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                assert callable(module.main), name
+                req = func.HttpRequest(
+                    method="GET", url="https://example.invalid/api/" + name,
+                    headers={}, body=b"", route_params={
+                        params[name]: uid
+                    } if name in params else {},
+                )
+                response = module.main(req)
+                assert response.status_code == (200 if name == "p0249_health" else 401), (
+                    name, response.status_code)
+                assert response.headers.get("X-Request-ID"), name
+            for lazy in ("http_api", "security", "tenant_store", "render_api",
+                         "poster_render_api", "poster_draft_api"):
+                assert lazy not in sys.modules, lazy
+            print("P0249_Y1_FRESH_INDEX_AND_DENIAL=PASS")
+        """)
+        for mode, expected in (
+            ("rollback-two", {"p0249_health", "campaign_read"}),
+            ("five", {"p0249_health", "campaign_read", "render_job_read",
+                      "poster_job_read", "poster_draft_read"}),
+        ):
+            stage = self.stage(mode)
+            env = os.environ.copy()
+            for key in ("RGAI_P0249_READONLY_SHADOW", "RGAI_P0249_EXTRA_GET_SHADOW",
+                        "RETAIL_SUPABASE_URL", "RETAIL_SUPABASE_PUBLISHABLE_KEY"):
+                env.pop(key, None)
+            proc = subprocess.run(
+                [sys.executable, "-I", "-c", script, str(stage),
+                 ",".join(sorted(expected))],
+                cwd=self.root, env=env, check=False, text=True,
+                capture_output=True, timeout=30,
+            )
+            self.assertEqual(proc.returncode, 0, msg=mode + " " + proc.stdout + proc.stderr)
+            self.assertIn("P0249_Y1_FRESH_INDEX_AND_DENIAL=PASS", proc.stdout)
 
     def test_no_http_write_or_worker_route_in_either_mode(self):
         for mode in MODES:
