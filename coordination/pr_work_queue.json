@@ -41,10 +41,11 @@
       },
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T04:55:49.776Z",
-        "status": "F4 original #322 184 exact main blobs, 4 patch hunks archived; PR CI pending",
-        "source_parent": 322,
-        "original_tasks_done": false
+        "at": "2026-11-19T04:57:40.576Z",
+        "status": "archive-only #1020 MERGED; source parity 184 exact, 4 original patches preserved",
+        "merge_sha": "762e0269c02bd3c8ddb3d87d03c95ef94f7229ee",
+        "CI": "exact-head PR #44461045029 4/4; fresh main #44461762677 pending",
+        "taskDone": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1020"
     },
@@ -184,14 +185,11 @@
       },
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T04:55:49.776Z",
-        "status": "real F5 QA security fix: current authenticated reviewer must match stored reviewer; source-only, protected F4 interface",
-        "code_commits": [
-          "6a400723c0014f17a9cb3e8163eb059403ed8b3c",
-          "f6eb1fe75fd59935132c56feecbcdd0a2a631058"
-        ],
-        "ci": "44461405531 queued",
-        "review": "independent F4 auth/security review required"
+        "at": "2026-11-19T04:57:40.576Z",
+        "status": "signed reviewer ID match added with negative tests",
+        "CI": "exact-head #44461405531 running",
+        "review": "independent F4 required",
+        "taskDone": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1013"
     },
@@ -212,10 +210,10 @@
       },
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T04:55:49.776Z",
-        "status": "all four canonical docs updated re #995 TOCTOU code and CI",
-        "ci": "44460427036 pending",
-        "review": "independent docs/JWT ops approval required"
+        "at": "2026-11-19T04:57:40.576Z",
+        "status": "four project docs revised to reflect #995 source TOCTOU fix",
+        "CI": "exact-head #44460427036 4/4 PASS",
+        "review": "independent shared docs/ops required"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1002"
     },
@@ -273,14 +271,11 @@
       },
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T04:40:04.653Z",
-        "status": "real source security fix: staged byte snapshots + TOCTOU regression and oversized-file rejection",
-        "code_commits": [
-          "602c49ecbe0bb394395af0b485ec75ad23d750e1",
-          "aad2c453b490e97721624a89a76a8ac6097a9073"
-        ],
-        "exact_head_ci": "44459814242 running",
-        "merge_gate": "stacked on #968; independent security review and exact main CI; no deployment"
+        "at": "2026-11-19T04:57:40.576Z",
+        "status": "staging TOCTOU fixed in actual source/test",
+        "code_commit": "aad2c453b490e97721624a89a76a8ac6097a9073",
+        "CI": "exact-head #44459814242 4/4 PASS",
+        "blocker": "#968 parent not merged; independent auth/ops/security approval"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/995"
     },
@@ -460,13 +455,10 @@
       },
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T04:48:00.629Z",
-        "status": "original stacked 925 root-route source ported onto current main in review-only DRAFT #1019",
-        "new_review_pr": 1019,
-        "new_head": "90c944db0a197a66456669d48c7469ec8712f75c",
-        "source_head": "69a4edce42c3e7ed54c6984b9876a7bdd07d41f0",
-        "review": "root Functions JWT/RLS, signed private VoiceStudio; independent review mandatory",
-        "original_tasks_done": false
+        "at": "2026-11-19T04:57:40.576Z",
+        "status": "clean current-main root route port source to protected draft #1019",
+        "CI": "#1019 exact-head #44460740340 4/4 PASS",
+        "blocker": "independent JWT/RLS/private VoiceStudio review"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/925"
     },
@@ -597,14 +589,12 @@
       },
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T04:55:49.776Z",
-        "status": "current main already contains 184/188 exact original F4 source blobs; four newer F4 variants recorded in archive PR #1020",
+        "at": "2026-11-19T04:57:40.576Z",
+        "status": "original F4 184/188 exact blobs on main, 4 divergence patches archive #1020 merged",
         "archive_pr": 1020,
-        "source_original": "b9525a9ea3d5e5aee351edf89a3c011c2314ed2e",
-        "exact_blobs": 184,
-        "differing_paths": 4,
-        "ci": "#1020 exact-head 44461045029 pending",
-        "original_tasks_done": false
+        "merge_sha": "762e0269c02bd3c8ddb3d87d03c95ef94f7229ee",
+        "CI": "fresh main #44461762677 pending before parent retirement",
+        "taskDone": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322"
     }
