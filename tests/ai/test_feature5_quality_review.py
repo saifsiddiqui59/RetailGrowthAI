@@ -83,6 +83,39 @@ class TestQualityApproval(unittest.TestCase):
                     authoritative_reviewer_user_id=self.row["reviewer_user_id"],
                 reviewer_has_write_role=True)
 
+    def test_mutated_checklist_cannot_approve_a_previously_pending_review(self):
+        checks = review_template()
+        pending = VisualReview(**dict(self.row, checks=checks))
+        # The caller mutates its original dictionary after review construction.
+        checks.update({name: True for name in CATEGORIES})
+        with self.assertRaisesRegex(MotionError, "checklist changed"):
+            pending.approved_for_feature4(
+                authoritative_shop_id=self.shop,
+                authoritative_reviewer_user_id=self.row["reviewer_user_id"],
+                actual_media_sha256=self.hash,
+                reviewer_has_write_role=True,
+            )
+
+    def test_post_review_checklist_tampering_fails_closed(self):
+        reviewer = VisualReview(**dict(self.row, checks=dict(self.row["checks"])))
+        reviewer.checks["garment_pattern"] = False
+        with self.assertRaisesRegex(MotionError, "checklist changed"):
+            reviewer.approved_for_feature4(
+                authoritative_shop_id=self.shop,
+                authoritative_reviewer_user_id=self.row["reviewer_user_id"],
+                actual_media_sha256=self.hash,
+                reviewer_has_write_role=True,
+            )
+        # A deleted category also fails before acceptance, not with KeyError.
+        reviewer.checks.pop("camera_motion")
+        with self.assertRaisesRegex(MotionError, "checklist changed"):
+            reviewer.approved_for_feature4(
+                authoritative_shop_id=self.shop,
+                authoritative_reviewer_user_id=self.row["reviewer_user_id"],
+                actual_media_sha256=self.hash,
+                reviewer_has_write_role=True,
+            )
+
     def test_missing_checks_and_unsafe_review_structure(self):
         for values in ({}, {"garment_color": True}, dict(self.row["checks"], lip_sync="ignored")):
             with self.assertRaises(MotionError):
