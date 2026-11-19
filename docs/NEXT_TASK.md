@@ -1566,3 +1566,8 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 ## 2026-11-19 — F5 source integration accepted; next real dependencies
 - **CLOSED:** Original stacked #724 after 4/4 Git blob identity to merged source in #1004. Final exact merged main `4a8c9c437909089f21e388a3c884f71edac085bc` [CI #44380019398](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/44380019398) attempt 3 **4/4 PASSED**. This supersedes earlier 'close #724 after successful CI' instruction. F5 cloud/rights/runtime approvals still separate and not DONE.
 - **NEXT:** Independently review current F2 #972, trace #979, F3 overlapping #879/#880/#944 and governance #964 before any merge. Canonical docs #970 require reviewed integration and latest-main revalidation. No Azure/GPU/PROD/WineShopPOS operations.
+
+## 2026-11-19 — chat C F3-08 source consolidation (awaiting independent review)
+1. Finish exact-head Part1 4-job CI for #880 after #944 source integration (`72f08ccf156c5b9225f79cf6987bef541488df69`); fix failures without relaxing the 120-member ZIP, JWT, RLS or rights gates.
+2. Retire duplicate #944 only after verifying its six original Git file identities are on keeper #880 and #880 final CI 4/4. #879 is already closed unmerged after 11 original blob identities. Keeper #880 still requires **independent Feature3/Functions security review** and after-main merge 4/4 before source acceptance; hosted rights authority and F3-08 DONE remain unverified.
+3. Independently review #979 worker receipts, #972 editorial JWT/rights, #964 governance and shared docs #970. No GPU, paid inference, cloud SQL/Azure, PROD or WineShopPOS changes.

@@ -1176,3 +1176,7 @@ Owner direction to reuse original VoiceStudio code implemented with unchanged pi
 
 ## 2026-11-19 — Exact-main CI requirement satisfied for isolated F5 CPU source
 - Source PR #1004 accepted only after exact merged main `4a8c9c437909089f21e388a3c884f71edac085bc` CI #44380019398 attempt 3 **4/4 SUCCESS**. Retired old stacked PR #724 **unmerged** after checking all four original Git file SHA blobs against current main, not as a release/hosted DONE. The source-only no-GPU/no-cloud rights boundary remains.
+
+## 2026-11-19 — chat C F3-08 source consolidation (awaiting independent review)
+- Consolidate F3 source-only overlapping historical PRs #879 and #944 into existing keeper #880 rather than blind merging. Retire originals unmerged only after exact source blob preservation and verified CI; keeper still needs independent security review before main integration.
+- Preserve protected 120-member Functions ZIP cap. Eight currently unmounted F3 source-only helper modules stay in Git and synthetic tests but do not silently enter the deploy ZIP; a fail-closed static/literal import guard requires reviewed packaging changes before any helper becomes runtime code. No hosted current rights/JWT/RLS inference from offline tests.
