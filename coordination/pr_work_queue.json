@@ -52,28 +52,18 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1029"
     },
     {
-      "pr": 1039,
-      "title": "fix(#249): read-only Y1 package-mode classification after failed five-route ZIP",
+      "pr": 1040,
+      "title": "ops(#249): retire second one-shot read-only diagnostic trigger",
       "feature": "issue249",
-      "head_sha": "9e359272bc8bb8596f5da139a5d26a165b61130b",
+      "head_sha": "a46dd771df8a14bb7da709057019b938c09d202c",
       "base_branch": "main",
       "work_owner": "manual-issue249",
-      "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-issue249-package-mode-chat-20261120",
-        "head_sha": "9e359272bc8bb8596f5da139a5d26a165b61130b",
-        "claimed_at": "2026-11-19T21:55:52.911Z",
-        "expires_at": "2026-11-19T23:25:52.911Z"
-      },
-      "checkpoint": {
-        "owner": "manual-issue249-package-mode-chat-20261120",
-        "head_sha": "9e359272bc8bb8596f5da139a5d26a165b61130b",
-        "next_action": "Four-job CI #44623152419, safe read-only package-mode Azure diagnostic and restore original DEV unchanged. No Y1 ZIP redeploy. Owner authorized manual launch.",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1039"
+      "priority": "P1",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1040"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T22:01:42.554Z"
+  "last_inventory_checked_at": "2026-11-19T22:02:39.980Z"
 }
