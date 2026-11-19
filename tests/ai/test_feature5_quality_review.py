@@ -136,6 +136,9 @@ class TestQualityApproval(unittest.TestCase):
                 return False
 
         class SpoofedString(str):
+            # Equality overrides otherwise make Python str subclasses
+            # unhashable; preserve normal hashing for malicious dict-key test.
+            __hash__ = str.__hash__
             def __eq__(self, other):
                 return True
             def __ne__(self, other):
@@ -165,6 +168,9 @@ class TestQualityApproval(unittest.TestCase):
                 return False
 
         class SpoofedString(str):
+            # Equality overrides otherwise make Python str subclasses
+            # unhashable; preserve normal hashing for malicious dict-key test.
+            __hash__ = str.__hash__
             def __eq__(self, other):
                 return True
             def __ne__(self, other):
