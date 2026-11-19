@@ -220,19 +220,14 @@
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P0",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-issue249-signed-trial-20261120",
-        "head_sha": "14ca12280d159a3661a536deba5062d98b327ec9",
-        "claimed_at": "2026-11-19T18:49:49.856Z",
-        "expires_at": "2026-11-19T20:19:49.856Z"
-      },
+      "phase": "ready-for-review",
+      "claim": null,
       "checkpoint": {
         "head_sha": "14ca12280d159a3661a536deba5062d98b327ec9",
         "commits": 8,
-        "tests": "new Y1 2/5 exact index, extra shadow OFF, response cleanup regressions; Python job passed",
-        "ci": "#44593231155: Python passed, other 3 in progress",
-        "next_action": "Verify exact-head 4/4, affected workflow/security review; five-route ZIP not yet hosted, no DEV Auth/data writes"
+        "tests": "Y1 2/5 exact index + OFF second shadow flag + HTTP handle closure; full 4/4 PASS",
+        "ci": "exact PR head #44593231155: COMPLETED SUCCESS all 4 mandatory jobs",
+        "next_action": "Independent protected-DEV workflow/JWT review, then main-only integration; no live release or Auth users"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/939"
     },
