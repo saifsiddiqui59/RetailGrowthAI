@@ -15,11 +15,11 @@
   "summary": {
     "open_prs": 16,
     "by_feature": {
-      "F2": 2,
-      "F3": 1,
-      "F5": 1,
       "issue249": 9,
-      "shared": 3
+      "shared": 3,
+      "F2": 2,
+      "F5": 1,
+      "F3": 1
     }
   },
   "entries": [
@@ -168,15 +168,11 @@
       "phase": "ci-review-pending",
       "claim": null,
       "checkpoint": {
-        "status": "exact original #1007 plus #1022 docs content consolidated on #964 main; mandatory exact-head Part1 CI #44590187279 in progress; no direct-main merge",
         "owner": "manual-integration-chat-primary-20261120",
-        "at": "2026-11-19T18:40:27.886Z",
+        "at": "2026-11-19T18:42:13.741Z",
         "head_sha": "0aeaaedc426cdc83925869025acf97f2a005759a",
-        "source_prs": [
-          1007,
-          1022
-        ],
-        "ci": "PR #44590187279 in progress"
+        "ci": "#44590187279 in progress",
+        "status": "Current-main documentation reconciliation of #1007 + #1022; original #1022 additions checked fully present; merge only after exact-head 4/4"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1007"
     },
@@ -320,5 +316,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/880"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T18:40:27.886Z"
+  "last_inventory_checked_at": "2026-11-19T18:42:13.741Z"
 }
