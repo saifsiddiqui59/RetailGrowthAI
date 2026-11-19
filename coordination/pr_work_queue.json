@@ -108,15 +108,18 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "ci-review-pending",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-primary-group2-20261120",
+        "head_sha": "729e0114fc1710464ce3cd18c0f0550835a54b34",
+        "claimed_at": "2026-11-19T21:09:23.458Z",
+        "expires_at": "2026-11-19T22:39:23.458Z"
+      },
       "checkpoint": {
-        "at": "2026-11-19T05:02:32.695Z",
-        "owner": "manual-integration-chat-c-20261119",
-        "head_after": "729e0114fc1710464ce3cd18c0f0550835a54b34",
-        "status": "ci-review-pending",
-        "ci": "#44461819663 exact-head Part1 running",
-        "next_action": "Hardened client trusted-worker RPC to only canonical HTTPS .supabase.co roots and checked hostile origin tests; wait 4/4."
+        "owner": "manual-integration-chat-primary-group2-20261120",
+        "head_sha": "729e0114fc1710464ce3cd18c0f0550835a54b34",
+        "at": "2026-11-19T21:09:23.458Z",
+        "next_action": "Repair Playwright offline origin to valid mock .supabase.co and validate secure worker trace without relaxing production checks"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/979"
     },
