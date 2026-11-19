@@ -113,7 +113,9 @@ class Y1FiveRouteReleaseSourceTests(unittest.TestCase):
     def test_fresh_process_indexes_all_approved_functions_without_secrets(self):
         """Test BOTH release shapes with real azure.functions, not import stubs.
 
-        CI has pinned azure-functions/PyJWT installed. Run outside the checkout
+        CI injects pinned azure-functions/PyJWT via uv's PYTHONPATH. Use -s
+        to isolate user-site packages without hiding the uv-provided libraries.
+        Run outside the checkout
         in a separate interpreter: no original app/worker modules may leak into
         sys.modules or sys.path, and no hosted Auth or Azure calls are made.
         """
@@ -167,7 +169,7 @@ class Y1FiveRouteReleaseSourceTests(unittest.TestCase):
                         "RETAIL_SUPABASE_URL", "RETAIL_SUPABASE_PUBLISHABLE_KEY"):
                 env.pop(key, None)
             proc = subprocess.run(
-                [sys.executable, "-I", "-c", script, str(stage),
+                [sys.executable, "-s", "-c", script, str(stage),
                  ",".join(sorted(expected))],
                 cwd=self.root, env=env, check=False, text=True,
                 capture_output=True, timeout=30,
