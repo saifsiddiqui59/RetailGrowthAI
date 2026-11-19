@@ -13,13 +13,13 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 18,
+    "open_prs": 17,
     "by_feature": {
-      "issue249": 9,
-      "shared": 5,
       "F2": 2,
+      "F3": 1,
       "F5": 1,
-      "F3": 1
+      "issue249": 9,
+      "shared": 4
     }
   },
   "entries": [
@@ -48,32 +48,6 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1028"
-    },
-    {
-      "pr": 1027,
-      "title": "ci: fix apt-mirror timeouts without skipping Chromium or FFmpeg",
-      "head_sha": "218deebd810b6ba2dc14f8144aa05de117cfd84a",
-      "base_branch": "main",
-      "feature": "shared",
-      "work_owner": "manual-integration",
-      "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-primary-20261120",
-        "head_sha": "218deebd810b6ba2dc14f8144aa05de117cfd84a",
-        "claimed_at": "2026-11-19T18:32:04.737Z",
-        "expires_at": "2026-11-19T20:02:04.737Z"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1027",
-      "checkpoint": {
-        "owner": "manual-integration-chat-primary-20261119",
-        "at": "2026-11-19T18:06:46.753Z",
-        "head_sha": "218deebd810b6ba2dc14f8144aa05de117cfd84a",
-        "status": "Exact-head four mandatory Part1 CI jobs SUCCESS; no independent shared review; no main merge",
-        "ci": "#44531808109 4/4",
-        "review_count": 0,
-        "feature_done": false
-      }
     },
     {
       "pr": 1026,
@@ -370,5 +344,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/880"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T14:04:54Z"
+  "last_inventory_checked_at": "2026-11-19T18:35:47.563Z"
 }
