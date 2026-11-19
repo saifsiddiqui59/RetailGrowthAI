@@ -13,7 +13,7 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 18,
+    "open_prs": 17,
     "by_feature": {
       "F5": 1,
       "issue249": 9,
@@ -48,17 +48,17 @@
       "pr": 1018,
       "title": "fix(#249): protect user JWT and service-role PostgREST from HTTP redirects",
       "feature": "issue249",
-      "head_sha": "38cabb5bade3028f45d47f6e66d8e60754a8d3df",
+      "head_sha": "6b4e0dcc86d85cfa309afc30689b663b69ffd2c5",
       "base_branch": "main",
       "work_owner": "manual-integration-chat-f-20261119",
       "priority": "P1",
-      "phase": "ready-for-review",
+      "phase": "ci-in-progress",
       "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T04:54:33.549Z",
-        "status": "current-main JWT/service-key no-redirect security fix, original tests + latest two-shop fixture repair; affected-lead security review required",
-        "ci": "44460641511 exact-head PR 4/4; no merge",
+        "at": "2026-11-19T05:11:40.474Z",
+        "status": "source hardening JWT/service-role redirects + JWKS 503 differentiation + F2 builder NameError fix; fresh exact-head CI underway; independent global auth review required",
+        "ci": "new exact-head #44463374490 PENDING; old run #44462808283 Python 2 failures fixed",
         "original_tasks_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1018"
@@ -233,14 +233,15 @@
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
+      "phase": "blocked",
+      "claim": null,
+      "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
-        "claimed_at": "2026-11-19T04:27:18.533Z",
-        "expires_at": "2026-11-19T05:57:18.533Z",
-        "head_sha": "a655e26ec88eea61930faabb144d746c812611a0"
+        "at": "2026-11-19T05:11:40.474Z",
+        "status": "independent JWT/RLS/Functions/tenant GET approval pending for protected three-route Y1; #995 stacked; no hosted deployment",
+        "required_review": "independent affected security/issue249 lead",
+        "feature_done": false
       },
-      "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/968"
     },
     {
@@ -251,14 +252,15 @@
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
+      "phase": "blocked",
+      "claim": null,
+      "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
-        "claimed_at": "2026-11-19T04:27:18.533Z",
-        "expires_at": "2026-11-19T05:57:18.533Z",
-        "head_sha": "63f5cbe4bbc3840b3ced6aeb60938976137782bc"
+        "at": "2026-11-19T05:11:40.474Z",
+        "status": "protected original auth/F2 root shared PR; split current-main hardening #1018 under 4/4 CI/security review",
+        "required_review": "independent affected security/issue249 lead",
+        "feature_done": false
       },
-      "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/965"
     },
     {
@@ -307,19 +309,16 @@
       "base_branch": "feat/feature2-voicestudio-register-wav-20261111",
       "work_owner": "schedule-f2",
       "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-f-20261119",
-        "claimed_at": "2026-11-19T04:27:18.533Z",
-        "expires_at": "2026-11-19T05:57:18.533Z",
-        "head_sha": "69a4edce42c3e7ed54c6984b9876a7bdd07d41f0"
-      },
+      "phase": "closed-unmerged",
+      "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T04:57:40.576Z",
-        "status": "clean current-main root route port source to protected draft #1019",
-        "CI": "#1019 exact-head #44460740340 4/4 PASS",
-        "blocker": "independent JWT/RLS/private VoiceStudio review"
+        "at": "2026-11-19T05:11:40.474Z",
+        "status": "original 3/3 historical patches archived #1021; PR 4/4 #44461278643, exact merged-main #44462373840 4/4; original DRAFT #925 closed UNMERGED",
+        "archive_pr": 1021,
+        "archive_merge_sha": "20473f0d4d5452ee8c641ced1a33a919d7b61544",
+        "current_main_safe_route_review_pr": 1019,
+        "original_tasks_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/925"
     },
