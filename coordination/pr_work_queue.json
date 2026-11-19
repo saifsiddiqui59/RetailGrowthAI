@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 4,
+    "open_prs": 3,
     "by_feature": {
-      "issue249": 4
+      "issue249": 3
     }
   },
   "entries": [
@@ -50,19 +50,6 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1029"
-    },
-    {
-      "pr": 1041,
-      "title": "fix(#249): refuse Y1 five-GET ZIP when external package URL still pins old code",
-      "feature": "issue249",
-      "head_sha": "e1b8c8263ecc4e629c49b08345cfc91ccabd206e",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P1",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1041"
     },
     {
       "pr": 1043,
