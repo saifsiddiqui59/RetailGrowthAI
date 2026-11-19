@@ -56,6 +56,15 @@ class AptIndependentCISourceTests(unittest.TestCase):
         self.assertNotIn("|| true", self.media)
         self.assertNotIn("continue-on-error:", self.media)
 
+    def test_renderer_converts_full_range_jpeg_to_limited_without_weakening_probe(self):
+        render = (ROOT / "video-engine/render.py").read_text(encoding="utf-8")
+        probe = (ROOT / "video-engine/probe.py").read_text(encoding="utf-8")
+        self.assertIn("scale=in_range=auto:out_range=tv,format=yuv420p[vout]", render)
+        self.assertIn('"-pix_fmt", "yuv420p", "-color_range", "tv"', render)
+        self.assertIn('v.get("pix_fmt") != "yuv420p"', probe)
+        self.assertNotIn('v.get("pix_fmt") not in', probe)
+        self.assertNotIn('"yuvj420p"', probe)
+
     def test_no_feature_or_cloud_side_effects(self):
         for token in (
             "az login", "az functionapp", "supabase link",
