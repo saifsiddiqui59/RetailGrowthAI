@@ -50,6 +50,11 @@ class VisualReview:
             raise MotionError("Reviewer explanation required")
         if type(self.ai_disclosure_approved) is not bool:
             raise MotionError("Disclosure review required")
+        # frozen=True does not freeze a nested dict: seal the original human
+        # checklist outcome before any caller can mutate the passed mapping.
+        object.__setattr__(
+            self, "_sealed_checks", tuple(self.checks[name] for name in CATEGORIES)
+        )
 
     def approved_for_feature4(self, *, authoritative_shop_id: str,
                               authoritative_reviewer_user_id: str,
@@ -65,6 +70,9 @@ class VisualReview:
             raise MotionError("Reviewer is not authorized for this tenant")
         if actual_media_sha256 != self.reviewed_sha256:
             raise MotionError("Clip changed after the visual review")
+        if (type(self.checks) is not dict or set(self.checks) != set(CATEGORIES)
+                or tuple(self.checks[name] for name in CATEGORIES) != self._sealed_checks):
+            raise MotionError("Human checklist changed after the visual review")
         if (self.decision != "APPROVED" or not all(self.checks.values()) or
             self.ai_disclosure_approved is not True):
             raise MotionError("Visual quality or AI disclosure not approved")
