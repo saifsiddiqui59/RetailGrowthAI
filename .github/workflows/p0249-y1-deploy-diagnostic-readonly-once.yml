@@ -1,0 +1,58 @@
+name: "RetailGrowthAI #249 isolated Y1 deployment and indexing diagnostic (read only)"
+# Manual operator diagnostic only. A merge/push must never open an Azure session.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Read only the exact existing Y1 deployment and index metadata"
+        type: choice
+        required: true
+        options: ["NO", "YES-Y1-READONLY-BUILD"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rgai-p0249-y1-readonly-build-inspection
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'workflow_dispatch' &&
+      inputs.confirm == 'YES-Y1-READONLY-BUILD'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 13
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Offline privacy, scope and no-write tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile ops/p0249_y1_deploy_diagnostic_readonly.py
+          python3 -m unittest discover -s tests/infra \
+            -p 'test_p0249_y1_deploy_diagnostic_readonly.py' -v
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Inspect original FC1 and exact isolated Y1 without changing resources
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_deploy_diagnostic_readonly.py
+      - name: End Azure OIDC session
+        if: always()
+        shell: bash
+        run: az logout >/dev/null 2>&1 || true
