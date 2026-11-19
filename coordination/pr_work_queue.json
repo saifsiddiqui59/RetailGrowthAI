@@ -69,9 +69,18 @@
       "feature": "issue249",
       "work_owner": "manual-issue249",
       "priority": "P1",
-      "phase": "needs-triage",
-      "claim": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1025"
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-y1-20261120",
+        "head_sha": "057f0a81c4e30456ea3351ca83c78f17fb7aaeb4",
+        "claimed_at": "2026-11-19T18:45:07.371Z",
+        "expires_at": "2026-11-19T20:15:07.371Z"
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1025",
+      "checkpoint": {
+        "next_action": "Y1 staged five-GET source/release integration after parent-first main CI. No deployment until security checks, review, manual protected DEV workflow.",
+        "head_sha": "057f0a81c4e30456ea3351ca83c78f17fb7aaeb4"
+      }
     },
     {
       "pr": 1022,
@@ -184,21 +193,16 @@
       "base_branch": "feat/p0249-y1-extra-readonly-get-source-20261117",
       "work_owner": "manual-issue249",
       "priority": "P2",
-      "phase": "blocked",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-y1-20261120",
+        "head_sha": "144c65b5af2ce55df1b9705c6f1fac46a550d9c9",
+        "claimed_at": "2026-11-19T18:45:07.371Z",
+        "expires_at": "2026-11-19T20:15:07.371Z"
+      },
       "checkpoint": {
-        "owner": "manual-integration-chat-g-20261119",
-        "at": "2026-11-19T07:58:52.224Z",
-        "status": "source defects repaired; exact-head PR #44482574026 attempt2 4/4 passed; no merged/hosted acceptance",
-        "fixes": [
-          "immutable validated-byte staging",
-          "bounded O_NOFOLLOW + O_NONBLOCK regular descriptor open",
-          "symlink swap regression after path check",
-          "3GiB sparse source rejection"
-        ],
-        "blockers": "stacked onto #968; independent auth/tenant/ops reviewer and protected DEV signed two-shop acceptance before integration",
-        "feature_done": false,
-        "CI_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/44482574026"
+        "next_action": "Y1 staged five-GET source/release integration after parent-first main CI. No deployment until security checks, review, manual protected DEV workflow.",
+        "head_sha": "144c65b5af2ce55df1b9705c6f1fac46a550d9c9"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/995"
     },
