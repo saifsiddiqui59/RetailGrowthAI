@@ -31,7 +31,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           verify_blob() { test "$(git rev-parse "HEAD:$1")" = "$2"; }
-          verify_blob .github/workflows/p0249-dev-y1-five-get-remote-build-protected.yml e65de907fff0c0d772d09029203655c207e46679
+          verify_blob .github/workflows/p0249-dev-y1-five-get-remote-build-protected.yml c009961ab876f9336fac7941957658810eb56c8c
           verify_blob ops/p0249_y1_remote_build_mode.py de270238e120d03e12418cb04e1b8ab5da53a749
           verify_blob ops/p0249-y1-readonly-extra-get/build_five_get_release.py b6cc730a0bce59093e831965ca4ee1f817121203
           verify_blob azure-functions/campaign-api/tenant_store.py d5091e4cf14071473813b77226c2a5ad61b84635
@@ -40,7 +40,7 @@ jobs:
       - name: Require all four Part1 CI jobs on this exact main SHA
         shell: bash
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           accepted=false
@@ -71,7 +71,7 @@ jobs:
       - name: Dispatch protected Y1 DEV remote-build once using exact reviewed main
         shell: bash
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           current="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)"
