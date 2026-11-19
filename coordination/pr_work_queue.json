@@ -62,15 +62,18 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-f-20261119",
       "priority": "P1",
-      "phase": "ready-for-review",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-primary-group2-20261120",
+        "head_sha": "90c944db0a197a66456669d48c7469ec8712f75c",
+        "claimed_at": "2026-11-19T21:21:11.970Z",
+        "expires_at": "2026-11-19T22:51:11.970Z"
+      },
       "checkpoint": {
-        "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T04:48:00.629Z",
-        "status": "current-main source recovered from #925; protected root route, draft",
-        "CI": "44460740340 pending",
-        "independentReview": "required",
-        "originalTasksDone": false
+        "owner": "manual-integration-chat-primary-group2-20261120",
+        "head_sha": "90c944db0a197a66456669d48c7469ec8712f75c",
+        "at": "2026-11-19T21:21:11.970Z",
+        "next_action": "Fix stale undefined SupabaseJWTVerifier root route reference; replace with cached_supabase_verifier and regression tests; no activation"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1019"
     },
