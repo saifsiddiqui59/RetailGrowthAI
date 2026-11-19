@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 5,
+    "open_prs": 4,
     "by_feature": {
-      "issue249": 3,
+      "issue249": 2,
       "shared": 1,
       "F5": 1
     }
@@ -33,29 +33,6 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1029"
-    },
-    {
-      "pr": 1028,
-      "title": "fix(#249): recover Y1 index diagnostic as protected manual-only source",
-      "feature": "issue249",
-      "head_sha": "1a67aa24c9300aa2ffdaf43325a614fa53b2c052",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-y1-20261120",
-        "head_sha": "1a67aa24c9300aa2ffdaf43325a614fa53b2c052",
-        "claimed_at": "2026-11-19T21:30:42.766Z",
-        "expires_at": "2026-11-19T23:00:42.766Z"
-      },
-      "checkpoint": {
-        "owner": "manual-integration-chat-y1-20261120",
-        "head_sha": "1a67aa24c9300aa2ffdaf43325a614fa53b2c052",
-        "status": "Protected original read-only Y1 deployment/index diagnostic + owner-delegated one-shot bridge staged; exact-head CI running #44619861929; original five-route trial failed 2/5 indexing, independent rollback PASS 20/20, no repeat deploy.",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1028"
     },
     {
       "pr": 939,
@@ -124,5 +101,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1036"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T21:40:57.465Z"
+  "last_inventory_checked_at": "2026-11-19T21:47:17.124Z"
 }
