@@ -178,7 +178,7 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "ci-review-pending",
+      "phase": "ready-for-review",
       "claim": {
         "owner": "manual-integration-chat-c-20261119",
         "claimed_at": "2026-11-19T04:23:27.593Z",
@@ -186,12 +186,11 @@
         "head_sha": "9d5ded4037bc54fb7d3aae7a94831c3f25f85db1"
       },
       "checkpoint": {
-        "at": "2026-11-18T19:41:41.862Z",
+        "at": "2026-11-19T04:34:19.661Z",
         "owner": "manual-integration-chat-c-20261119",
         "head_after": "9d5ded4037bc54fb7d3aae7a94831c3f25f85db1",
-        "status": "shared docs reconciled to newer main, source-only",
-        "ci": "Prior exact docs head d735cf4 #44381450402 success 4/4; NEW final head 9d5ded4 requires fresh exact-head 4/4",
-        "next_action": "Wait for latest exact-head CI and independent affected F4/shared docs review; not merged"
+        "status": "ready-for-review",
+        "next_action": "Exact docs PR head CI #44383584218 4/4 SUCCESS; independent shared-doc/F4 review remains."
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/970"
     },
@@ -235,23 +234,23 @@
       "pr": 964,
       "title": "feat(coordination): serialize main merges and use CAS-backed PR queue",
       "feature": "shared",
-      "head_sha": "44461dcf5bb0b5b5cd67fe23a10d4c711b834632",
+      "head_sha": "67da2a97f3c50f6fcd04ae9a505cd7f78743944d",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "blocked",
+      "phase": "ci-review-pending",
       "claim": {
         "owner": "manual-integration-chat-c-20261119",
         "claimed_at": "2026-11-19T04:23:27.593Z",
         "expires_at": "2026-11-19T05:53:27.593Z",
-        "head_sha": "44461dcf5bb0b5b5cd67fe23a10d4c711b834632"
+        "head_sha": "67da2a97f3c50f6fcd04ae9a505cd7f78743944d"
       },
       "checkpoint": {
-        "at": "2026-11-18T19:34:40.475Z",
+        "at": "2026-11-19T04:34:19.661Z",
         "owner": "manual-integration-chat-c-20261119",
-        "head_after": "44461dcf5bb0b5b5cd67fe23a10d4c711b834632",
-        "status": "blocked",
-        "next_action": "Exact SHA 44461dc: 4/4 CI #44378154471 passed; shared governance docs and CAS queue require independent coordination review."
+        "head_after": "67da2a97f3c50f6fcd04ae9a505cd7f78743944d",
+        "status": "ci-review-pending",
+        "next_action": "Reconciled 9 paths from latest main, clean mergeable; CI #44458919848 running; independent shared-governance review remains."
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/964"
     },
@@ -259,23 +258,23 @@
       "pr": 944,
       "title": "fix(feature3 F3-08): pin injected Supabase JWT verifier to configured project",
       "feature": "F3",
-      "head_sha": "7a44c4b0837526f79207c848813cb0206781e9cb",
+      "head_sha": "a3dae8965c26c378797ca1be0f577655ee275482",
       "base_branch": "feat/feature3-f3-08-current-rights-attestation-20261106",
       "work_owner": "schedule-f3",
       "priority": "P0",
-      "phase": "blocked",
+      "phase": "ready-for-review",
       "claim": {
         "owner": "manual-integration-chat-c-20261119",
         "claimed_at": "2026-11-19T04:23:27.593Z",
         "expires_at": "2026-11-19T05:53:27.593Z",
-        "head_sha": "7a44c4b0837526f79207c848813cb0206781e9cb"
+        "head_sha": "a3dae8965c26c378797ca1be0f577655ee275482"
       },
       "checkpoint": {
-        "at": "2026-11-18T19:34:40.475Z",
+        "at": "2026-11-19T04:34:19.661Z",
         "owner": "manual-integration-chat-c-20261119",
-        "head_after": "7a44c4b0837526f79207c848813cb0206781e9cb",
-        "status": "blocked",
-        "next_action": "Exact SHA 7a44c4b: 4/4 push #43996652354; child targets #880, no direct-main merge or independent JWT/rights review."
+        "head_after": "a3dae8965c26c378797ca1be0f577655ee275482",
+        "status": "ready-for-review",
+        "next_action": "F3 private PNG full image validation and bad payload regressions; exact final-head CI #44458637840 SUCCESS all 4; independent security review and parent #880 gate remain."
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/944"
     },
