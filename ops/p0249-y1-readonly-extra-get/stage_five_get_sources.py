@@ -126,9 +126,15 @@ def stage_sources(repo: Path, target: Path) -> Path:
         source = repo / relative
         if not source.is_file() or source.is_symlink() or repo not in source.resolve().parents:
             raise ValueError("missing or symlinked allowlisted Y1 source: " + relative)
-        raw = source.read_bytes()
-        if not raw or len(raw) > MAX_SOURCE_BYTES:
+        # Never allocate an unbounded source blob. Keep the byte snapshot
+        # bound to a checked size before AST/manifest validation and copying.
+        size = source.stat().st_size
+        if not 0 < size <= MAX_SOURCE_BYTES:
             raise ValueError("Y1 source size outside approved limit")
+        with source.open("rb") as stream:
+            raw = stream.read(MAX_SOURCE_BYTES + 1)
+        if len(raw) != size:
+            raise ValueError("Y1 source changed during bounded read")
         approved[dest] = raw
         if dest.endswith(".py"):
             _validate_import_closure(ast.parse(raw.decode("utf-8"), filename=relative), relative)
