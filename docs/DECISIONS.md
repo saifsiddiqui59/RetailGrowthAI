@@ -1176,3 +1176,8 @@ Owner direction to reuse original VoiceStudio code implemented with unchanged pi
 
 ## 2026-11-19 — Exact-main CI requirement satisfied for isolated F5 CPU source
 - Source PR #1004 accepted only after exact merged main `4a8c9c437909089f21e388a3c884f71edac085bc` CI #44380019398 attempt 3 **4/4 SUCCESS**. Retired old stacked PR #724 **unmerged** after checking all four original Git file SHA blobs against current main, not as a release/hosted DONE. The source-only no-GPU/no-cloud rights boundary remains.
+
+## 2026-11-19 — #249 immutable staged bytes + original signed-auth release gates
+- Approve **source-only proposal** of #995's size-limited, immutable preflight byte capture for every explicit function/source/manifest/requirements file. Require exact GET-only manifest, Python import closure, pinned dependencies, safe target paths, and output readback **on the same validated bytes**; never validate then re-read a mutable checkout. #1025 reconciles this with #1001's original import-closure/negative-auth/rollback workflow. The source CI or an author's review comment does **not** confer independent review or DEV release authority.
+- The five-GET protected manual workflow must preserve original FC1, edit only tagged isolated Y1, deny unapproved routes/settings, and retain a two-GET rollback ZIP. This rollback reproduces approved route shapes, **not** exact historical hosted ZIP bytes. Workflow cancellation or unavailable protected approvals may require manual recovery.
+- A hosted handler-marked missing-JWT 401 is a **negative-auth** proof only, never genuine signed two-shop RLS, customer rights, private media, or write-route acceptance. No frontend cutover or #249 resolution without independently reviewed hosted acceptance.
