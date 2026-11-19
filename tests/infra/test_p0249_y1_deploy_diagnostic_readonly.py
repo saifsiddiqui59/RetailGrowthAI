@@ -111,5 +111,56 @@ class Y1DiagnosticSafetyTests(unittest.TestCase):
                 self.assertNotIn(forbidden, p)
 
 
+    def test_package_mode_only_emits_fixed_enums_never_sas_or_account_details(self):
+        cases = [
+            (None, "ABSENT"),
+            ("0", "DISABLED"),
+            ("1", "LOCAL_PACKAGE"),
+            ("https://store.example/path/app.zip?sig=DO_NOT_PRINT", "EXTERNAL_HTTPS_URL"),
+            ("http://store.example/path?key=PRIVATE", "UNRECOGNIZED"),
+            ("file:///tmp/password", "UNRECOGNIZED"),
+            ("https://user:password@host.example/zip", "UNRECOGNIZED"),
+            ("https://[invalid-host", "UNRECOGNIZED"),
+            (False, "UNRECOGNIZED"),
+        ]
+        for value, expected in cases:
+            with self.subTest(expected=expected):
+                result = diagnostic.classify_package_mode(value)
+                self.assertEqual(result, expected)
+                self.assertNotIn("DO_NOT_PRINT", result)
+                self.assertNotIn("PRIVATE", result)
+                self.assertNotIn("password", result)
+
+    def test_mixed_remote_build_flags_and_package_url_are_reported_without_secrets(self):
+        private_url = "https://storage.example/path.zip?sig=TOP_SECRET&key=PIN"
+        flags = diagnostic.setting_flags([
+            {"name": "SCM_DO_BUILD_DURING_DEPLOYMENT", "value": "true"},
+            {"name": "WEBSITE_RUN_FROM_PACKAGE", "value": private_url},
+            {"name": "AzureWebJobsStorage", "value": "AccountKey=NO_EXPOSURE"},
+        ])
+        self.assertEqual(flags["WEBSITE_RUN_FROM_PACKAGE"]["nonsecret_mode"],
+                         "EXTERNAL_HTTPS_URL")
+        self.assertEqual(flags["WEBSITE_RUN_FROM_PACKAGE"]["build_config_class"],
+                         "REMOTE_BUILD_FLAGS_MIXED")
+        for secret in ("TOP_SECRET", "NO_EXPOSURE", "storage.example", "PIN"):
+            self.assertNotIn(secret, str(flags))
+        self.assertFalse(flags["ENABLE_ORYX_BUILD"]["present"])
+
+    def test_genuine_remote_build_flag_alignment_not_confused_with_url_mode(self):
+        good = diagnostic.setting_flags([
+            {"name": "SCM_DO_BUILD_DURING_DEPLOYMENT", "value": "true"},
+            {"name": "ENABLE_ORYX_BUILD", "value": "true"},
+        ])
+        self.assertEqual(good["WEBSITE_RUN_FROM_PACKAGE"]["nonsecret_mode"], "ABSENT")
+        self.assertEqual(good["WEBSITE_RUN_FROM_PACKAGE"]["build_config_class"],
+                         "REMOTE_BUILD_FLAGS_ALIGNED")
+        external = diagnostic.setting_flags([
+            {"name": "WEBSITE_RUN_FROM_PACKAGE", "value": "https://store.test/app.zip?secret"},
+        ])
+        self.assertEqual(external["WEBSITE_RUN_FROM_PACKAGE"]["build_config_class"],
+                         "EXTERNAL_PACKAGE_MODE")
+
+
+
 if __name__ == "__main__":
     unittest.main()
