@@ -63,6 +63,9 @@ class PublicShadowTrialSafetyTests(unittest.TestCase):
             "RGAI_P0249_READONLY_SHADOW"})
         self.assertEqual(trial.key(), self.k)
         self.assertEqual(trial.EXPECTED_FUNCTIONS, {"p0249_health", "campaign_read"})
+        self.assertEqual(trial.EXTRA_FUNCTIONS,
+                         {"render_job_read", "poster_job_read", "poster_draft_read"})
+        self.assertNotIn(trial.EXTRA_SHADOW_FLAG, trial.NAMES)
 
     def test_reject_service_or_legacy_or_missing_keys(self):
         for key in ("", "eyJabc123", "sb_secret_abcdef0123456789",
@@ -84,7 +87,7 @@ class PublicShadowTrialSafetyTests(unittest.TestCase):
                          "all-three-absent")
 
     def test_preflight_refuses_to_override_any_existing_setting(self):
-        for name in trial.NAMES:
+        for name in (*trial.NAMES, trial.EXTRA_SHADOW_FLAG):
             with self.subTest(name=name), \
                  patch.object(trial, "verify_y1"), \
                  patch.object(trial, "indexed"), \
@@ -149,6 +152,16 @@ class PublicShadowTrialSafetyTests(unittest.TestCase):
              patch.object(trial, "mutate", side_effect=AssertionError("unsafe")):
             self.assertFalse(trial.rollback(self.path))
 
+    def test_rollback_refuses_secondary_shadow_flag_and_never_deletes_it(self):
+        self.marker()
+        with patch.object(trial, "verify_y1"), \
+             patch.object(trial, "current", return_value={
+                 trial.EXTRA_SHADOW_FLAG: "true",
+                 "RGAI_P0249_READONLY_SHADOW": "true",
+             }), \
+             patch.object(trial, "mutate", side_effect=AssertionError("unsafe")):
+            self.assertFalse(trial.rollback(self.path))
+
     def test_rollback_accepts_preexisting_absence_after_failed_activation(self):
         self.marker()
         with patch.object(trial, "verify_y1"), \
@@ -163,6 +176,36 @@ class PublicShadowTrialSafetyTests(unittest.TestCase):
                  patch.object(trial, "cli", return_value=names), \
                  self.assertRaises(RuntimeError):
                 trial.indexed()
+
+    def test_index_accepts_only_exact_two_or_five_named_routes(self):
+        for expected in (trial.EXPECTED_FUNCTIONS,
+                         trial.EXPECTED_FUNCTIONS | trial.EXTRA_FUNCTIONS):
+            with self.subTest(expected=expected), \
+                 patch.object(trial, "cli", return_value=[
+                     {"name": trial.SITE + "/" + name} for name in sorted(expected)
+                 ]):
+                self.assertEqual(trial.indexed(), frozenset(expected))
+        for rejected in (
+            trial.EXPECTED_FUNCTIONS | {"render_job_read"},
+            trial.EXPECTED_FUNCTIONS | trial.EXTRA_FUNCTIONS | {"timer"},
+            trial.EXPECTED_FUNCTIONS | (trial.EXTRA_FUNCTIONS - {"poster_draft_read"}),
+        ):
+            with self.subTest(rejected=rejected), \
+                 patch.object(trial, "cli", return_value=[
+                     {"name": name} for name in sorted(rejected)
+                 ]), self.assertRaises(RuntimeError):
+                trial.indexed()
+        with patch.object(trial, "cli", return_value=[
+            {"name": "p0249_health"}, {"name": "campaign_read"},
+            {"name": "campaign_read"},
+        ]), self.assertRaises(RuntimeError):
+            trial.indexed()
+
+    def test_current_observes_secondary_flag_without_mutation(self):
+        rows = [{"name": trial.EXTRA_SHADOW_FLAG, "value": "false"},
+                {"name": "OTHER_UNRELATED_AZURE_SETTING", "value": "secret"}]
+        with patch.object(trial, "cli", return_value=rows):
+            self.assertEqual(trial.current(), {trial.EXTRA_SHADOW_FLAG: "false"})
 
     def test_protected_workflow_has_separate_rollback_and_no_other_azure_mutation(self):
         work = (ROOT / ".github/workflows/p0249-dev-y1-public-shadow-bounded-once.yml").read_text()
@@ -199,6 +242,36 @@ class PublicShadowTrialSafetyTests(unittest.TestCase):
              )) as req:
             trial.test_negative()
         self.assertEqual(req.call_count, 16)
+
+    def test_five_route_negative_probe_requires_extra_get_flag_off(self):
+        functions = frozenset(trial.EXPECTED_FUNCTIONS | trial.EXTRA_FUNCTIONS)
+        observed = []
+
+        def get(path, token=""):
+            observed.append((path, token))
+            if path in trial.EXTRA_PATHS:
+                return (503 if token else 401), True, 0.3
+            return (401 if path == trial.CAMPAIGN_PATH else 200), True, 0.3
+
+        with patch.object(trial, "indexed", return_value=functions), \
+             patch.object(trial, "get", side_effect=get):
+            trial.test_negative()
+        self.assertEqual(len(observed), 22)
+        for path in trial.EXTRA_PATHS:
+            self.assertIn((path, ""), observed)
+            self.assertIn((path, "synthetic-untrusted-token"), observed)
+
+    def test_five_route_negative_probe_rejects_accidental_extra_activation(self):
+        functions = frozenset(trial.EXPECTED_FUNCTIONS | trial.EXTRA_FUNCTIONS)
+        def get(path, token=""):
+            if path in trial.EXTRA_PATHS and token:
+                return 401, True, 0.3  # signer ran; extra flag unexpectedly enabled
+            return (401 if path == trial.CAMPAIGN_PATH or path in trial.EXTRA_PATHS
+                    else 200), True, 0.3
+        with patch.object(trial, "indexed", return_value=functions), \
+             patch.object(trial, "get", side_effect=get), \
+             self.assertRaises(RuntimeError):
+            trial.test_negative()
 
     def test_live_negative_probe_fails_on_unmarked_401(self):
         with patch.object(trial, "indexed"), \
