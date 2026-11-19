@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-const HOST = 'https://e2e.supabase.test'
+const HOST = 'https://e2e-fixture.supabase.co'
 const SHOP = 'a1000000-0000-4000-8000-000000000001'
 const USER = 'a9000000-0000-4000-8000-000000000001'
 

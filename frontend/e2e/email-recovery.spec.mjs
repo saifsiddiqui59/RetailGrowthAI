@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-const HOST = 'https://e2e.supabase.test'
+const HOST = 'https://e2e-fixture.supabase.co'
 function reply(route, data, status = 200) {
   return route.fulfill({ status, contentType: 'application/json',
     headers: { 'Access-Control-Allow-Origin': '*',

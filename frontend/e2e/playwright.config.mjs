@@ -23,7 +23,7 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 60_000,
     env: {
-      VITE_SUPABASE_URL: 'https://e2e.supabase.test',
+      VITE_SUPABASE_URL: 'https://e2e-fixture.supabase.co',
       VITE_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_offline_test_only',
       VITE_CAMPAIGN_API_BASE_URL: 'https://api.e2e.retailgrowth.test',
     },

@@ -9,8 +9,8 @@ const UPLOADED = 'a9000000-0000-4000-8000-000000000001'
 const CAMPAIGN = 'c9000000-0000-4000-8000-000000000001'
 const JOB = 'e9000000-0000-4000-8000-000000000001'
 const USER = 'f9000000-0000-4000-8000-000000000001'
-const SIGNED = 'https://e2e.supabase.test/storage/v1/object/sign/retailgrowth-media/' + SHOP + '/renders/' + JOB + '.mp4?token=offline-fixture'
-const SUPABASE = 'https://e2e.supabase.test'
+const SIGNED = 'https://e2e-fixture.supabase.co/storage/v1/object/sign/retailgrowth-media/' + SHOP + '/renders/' + JOB + '.mp4?token=offline-fixture'
+const SUPABASE = 'https://e2e-fixture.supabase.co'
 const BACKEND = 'https://api.e2e.retailgrowth.test'
 
 function payload(status, body, route) {
