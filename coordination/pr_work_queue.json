@@ -42,14 +42,18 @@
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P2",
-      "phase": "ready-for-review",
-      "claim": null,
-      "checkpoint": {
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-y1-20261120",
         "head_sha": "68c0287bcc20241326446fbb9b8b45f97c2518c7",
-        "commits": 3,
-        "tests": "exact site index/provenance + duplicate setting privacy offline suite, CI all four PASS",
-        "ci": "#44594529414 exact HEAD 4/4 success",
-        "next_action": "Protected manual-only diagnostic needs shared workflow review and post-main 4/4; no Azure run"
+        "claimed_at": "2026-11-19T21:30:42.766Z",
+        "expires_at": "2026-11-19T23:00:42.766Z"
+      },
+      "checkpoint": {
+        "owner": "manual-integration-chat-y1-20261120",
+        "head_sha": "68c0287bcc20241326446fbb9b8b45f97c2518c7",
+        "next_action": "Investigate Y1 ZIP accepted but index remained 2; owner-delegated read-only diagnostic PR #1028, no repeat deployment until rollback confirmed and diagnostics reviewed.",
+        "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1028"
     },
