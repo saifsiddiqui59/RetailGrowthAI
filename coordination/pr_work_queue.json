@@ -169,23 +169,21 @@
       "base_branch": "feat/p0249-y1-extra-readonly-get-source-20261117",
       "work_owner": "manual-issue249",
       "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-g-20261119",
-        "claimed_at": "2026-11-19T07:55:11.333Z",
-        "expires_at": "2026-11-19T09:25:11.333Z",
-        "head_sha": "144c65b5af2ce55df1b9705c6f1fac46a550d9c9"
-      },
+      "phase": "blocked",
+      "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-g-20261119",
-        "at": "2026-11-19T07:55:11.333Z",
-        "status": "current source fixed O_NOFOLLOW and bounded regular descriptor read with symlink-swap regression; exact-head CI retry running",
-        "source_commits": [
-          "5d9f99fcb7396be26a1312d7ae73af0252e5ddcc",
-          "144c65b5af2ce55df1b9705c6f1fac46a550d9c9"
+        "at": "2026-11-19T07:58:52.224Z",
+        "status": "source defects repaired; exact-head PR #44482574026 attempt2 4/4 passed; no merged/hosted acceptance",
+        "fixes": [
+          "immutable validated-byte staging",
+          "bounded O_NOFOLLOW + O_NONBLOCK regular descriptor open",
+          "symlink swap regression after path check",
+          "3GiB sparse source rejection"
         ],
-        "ci": "run 44482574026 attempt2 in progress (attempt1 cancelled); no full 4/4 acceptance yet",
-        "blockers": "stacked on independent JWT/RLS source #968 and affected-lead review; NO Azure deployment"
+        "blockers": "stacked onto #968; independent auth/tenant/ops reviewer and protected DEV signed two-shop acceptance before integration",
+        "feature_done": false,
+        "CI_url": "https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/44482574026"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/995"
     },
