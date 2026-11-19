@@ -1566,3 +1566,15 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 ## 2026-11-19 — F5 source integration accepted; next real dependencies
 - **CLOSED:** Original stacked #724 after 4/4 Git blob identity to merged source in #1004. Final exact merged main `4a8c9c437909089f21e388a3c884f71edac085bc` [CI #44380019398](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/44380019398) attempt 3 **4/4 PASSED**. This supersedes earlier 'close #724 after successful CI' instruction. F5 cloud/rights/runtime approvals still separate and not DONE.
 - **NEXT:** Independently review current F2 #972, trace #979, F3 overlapping #879/#880/#944 and governance #964 before any merge. Canonical docs #970 require reviewed integration and latest-main revalidation. No Azure/GPU/PROD/WineShopPOS operations.
+
+## 2026-11-15 — Next integration control steps (owner requested)
+1. Review and merge PR execution queue/runbook proposal after its exact-head four-job CI and independent shared-coordination review; verify fresh postmerge `main` 4/4. The separate live queue branch is an operational snapshot; refresh its GitHub heads before claiming.
+2. Have every manual and hourly ChatGPT worker claim/release its PR via the GitHub Contents SHA precondition. Feature schedules own code/child PRs; one manual merge chat exclusively serializes `main` merges. On unavailable claim tooling, perform read-only triage, not an unverified exclusive edit.
+3. Focus on F2 #551/#848 and F4 #322 remaining unique source and conflicts, then F7 #513 and F3 #880/#944. Smaller current-main PRs with proven unique code and passing CI are preferred to blind merge of old branches. Preserve reviews and original task IDs; lower PR count does not imply feature DONE.
+
+## 2026-11-19 — Batch C remaining original PRs
+1. Verify #970 merged-main exact commit `111e14c` with isolated four-job CI #44462596910; ordinary main run #44461309164 was repeatedly canceled by concurrent main pushes, not reported green. The verification branch is a fixed-commit test runner, not a second deployment or release.
+2. Finish exact-head CI for #979 and recheck F2/F4 reviewer of trusted worker span RPC origin/JWT, SQL release candidate and browser evidence. Review #972 signed editorial motion plan/rights race fix at `c4b2708` against F4 consumer; source tests 4/4 are not a durable hosted CAS/rights acceptance.
+3. Review/merge parent F3 #880 (consolidates closed-unmerged #879 and #944 source) only after independent JWT/tenant/output rights safety review and current-main compatibility. Retired PRs reduce duplicate count but do not mark F3 or any original task DONE. Keep GPU OFF.
+4. #964 coordination policy/queue source needs exact-head CI and independent shared-governance review before merge; do not bypass GitHub required approvals, and reconcile only changed canonical sections with latest main.
+
