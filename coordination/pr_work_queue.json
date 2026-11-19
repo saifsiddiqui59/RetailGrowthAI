@@ -13,7 +13,7 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 17,
+    "open_prs": 16,
     "by_feature": {
       "shared": 4,
       "F2": 2,
@@ -138,19 +138,17 @@
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-f-20261119-resume",
-        "claimed_at": "2026-11-19T07:28:42.756Z",
-        "expires_at": "2026-11-19T08:58:42.756Z",
-        "head_sha": "c70a76100417af0811050f67e07cb9815244ca8b"
-      },
+      "phase": "closed-unmerged",
+      "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119-resume",
-        "at": "2026-11-19T07:31:53.361Z",
-        "status": "resolved docs conflict with latest main via safe two-parent merge; preserved four #249 source/TOCTOU evidence sections",
-        "ci": "exact-head 44480247191 and 44480239321 in progress",
-        "review": "independent shared project docs and #249 ops review still required; no deployment"
+        "at": "2026-11-19T07:46:19.024Z",
+        "status": "PR #1002 closed UNMERGED by concurrent chat after same four #249 original docs sections were archived #1023 and clean latest-main replacement #1026 opened; no shared docs merged by this PR",
+        "source_archive_pr": 1023,
+        "replacement_pr": 1026,
+        "merge": false,
+        "feature_done": false,
+        "review_required": true
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1002"
     },
