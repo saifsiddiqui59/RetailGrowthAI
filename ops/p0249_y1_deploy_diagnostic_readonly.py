@@ -34,7 +34,17 @@ def setting_flags(rows):
     allowed = ("SCM_DO_BUILD_DURING_DEPLOYMENT", "ENABLE_ORYX_BUILD",
                "WEBSITE_RUN_FROM_PACKAGE", "FUNCTIONS_WORKER_RUNTIME",
                "FUNCTIONS_EXTENSION_VERSION")
-    by_name = {str(r.get("name", "")).upper(): r.get("value") for r in rows}
+    by_name = {}
+    for row in rows:
+        raw_name = row.get("name")
+        if not isinstance(raw_name, str):
+            raise RuntimeError("Malformed app setting name")
+        name = raw_name.upper()
+        if name not in allowed:
+            continue  # Do not retain or print unrelated settings or secrets.
+        if name in by_name:
+            raise RuntimeError("Duplicate diagnostic app setting name")
+        by_name[name] = row.get("value")
     return {
         name: {
             "present": name in by_name,
@@ -86,7 +96,25 @@ def index_shape(names):
     """Return only fixed identifiers; never print unexpected function names."""
     if not isinstance(names, list) or any(not isinstance(name, str) for name in names):
         return "INVALID"
-    normalized = [name.split("/")[-1] for name in names]
+    normalized = []
+    prefix = SITE + "/"
+    styles = set()
+    for name in names:
+        if (not name or "\\\\" in name or
+                any(ord(char) <= 32 or ord(char) == 127 for char in name)):
+            return "INVALID"
+        prefixed = "/" in name
+        styles.add(prefixed)
+        if prefixed:
+            # Azure CLI normally returns SITE/function. Never classify a
+            # foreign host or nested ARM path by its final suffix alone.
+            if not name.startswith(prefix) or name.count("/") != 1:
+                return "OTHER_UNVERIFIED"
+            normalized.append(name[len(prefix):])
+        else:
+            normalized.append(name)
+    if len(styles) > 1:
+        return "OTHER_UNVERIFIED"
     two = {"p0249_health", "campaign_read"}
     five = two | {"render_job_read", "poster_job_read", "poster_draft_read"}
     if len(normalized) == 2 and set(normalized) == two:
