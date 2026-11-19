@@ -111,7 +111,7 @@ def _index():
 def _assert_settings(s):
     if any(k in s for k in SHADOWS):
         raise RuntimeError("Unexpected Y1 shadow or customer settings")
-    if s.get("SCM_DO_BUILD_DURING_DEPLOYMENT") != "true":
+    if str(s.get("SCM_DO_BUILD_DURING_DEPLOYMENT", "")).lower() != "true":
         raise RuntimeError("Y1 original build setting drifted")
 
 
@@ -156,7 +156,7 @@ def prepare():
     if (selected.get(BACKUP) != original or
             selected.get(OWNER) != run_id or
             "WEBSITE_RUN_FROM_PACKAGE" in selected or
-            selected.get("ENABLE_ORYX_BUILD") != "true"):
+            str(selected.get("ENABLE_ORYX_BUILD", "")).lower() != "true"):
         raise RuntimeError("Y1 remote-build transition incomplete")
     guard.verify()
     print("P0249_Y1_REMOTE_BUILD_MODE=READY_ORIGINAL_PACKAGE_BACKED_UP", flush=True)
@@ -226,7 +226,7 @@ def verify_five():
     _assert_settings(value)
     if (value.get(OWNER) != _run_id() or
             not _package_url(value.get(BACKUP)) or
-            value.get("ENABLE_ORYX_BUILD") != "true"):
+            str(value.get("ENABLE_ORYX_BUILD", "")).lower() != "true"):
         raise RuntimeError("Protected Y1 remote-build owner/mode drifted")
     if _index() != FIVE:
         raise RuntimeError("Five Y1 functions not actually indexed")
