@@ -38,10 +38,13 @@ class AptIndependentCISourceTests(unittest.TestCase):
 
     def test_real_renderer_and_pinned_codecs_remain_mandatory(self):
         for exact in (
-            "ffmpeg-static@5.3.0",
-            "@derhuerst/ffprobe-static@5.3.0",
+            "autobuild-2026-11-18-12-39",
+            "ffmpeg-n8.1.3-36-ge22a4510c9-linux64-gpl-8.1.tar.xz",
+            "fce424851b0a982bdd4ac4e96f0e7b32cf29de999e54500676d41ad175ed0c79",
+            "sha256sum --check",
             "ffmpeg -hide_banner -encoders",
-            "libx264", "aac",
+            "ffmpeg -hide_banner -filters",
+            "libx264", "aac", "drawtext",
             "ffmpeg -nostdin -hide_banner -loglevel error -y",
             "ffprobe", "ci-artifacts/ffmpeg-smoke.mp4",
             "bash video-engine/ci.sh",
