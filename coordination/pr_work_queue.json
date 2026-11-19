@@ -60,19 +60,19 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "ci-review-pending",
+      "phase": "ready-for-review",
       "claim": {
-        "owner": "manual-integration-chat-a-20261120",
+        "owner": "manual-integration-chat-1034-user-handoff-20261120",
         "head_sha": "126652e496336f5c4933910f89f1068dea40ec7f",
-        "claimed_at": "2026-11-19T21:56:19.118Z",
-        "expires_at": "2026-11-19T23:26:19.118Z"
+        "claimed_at": "2026-11-19T22:00:31.068Z",
+        "expires_at": "2026-11-19T22:30:31.068Z"
       },
       "checkpoint": {
-        "owner": "manual-integration-chat-a-20261120",
+        "owner": "manual-integration-chat-1034-user-handoff-20261120",
         "head_sha": "126652e496336f5c4933910f89f1068dea40ec7f",
-        "at": "2026-11-19T21:56:19.118Z",
-        "ci": "#44623492609 pending/running",
-        "status": "Reconciled to latest #249 main docs; only 4 additive F5/Voice integration evidence sections remain; #1036 source already merged"
+        "at": "2026-11-19T22:00:31.068Z",
+        "status": "User-directed takeover from manual-integration-chat-a-20261120 to complete #1034; docs-only append (4 files, 19 lines) and exact-head CI PASS 4/4; expected-sha merge next",
+        "ci": "PR run #44623492609 PASS 4/4; main postmerge pending"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1034"
     },
@@ -100,5 +100,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1039"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T21:55:00Z"
+  "last_inventory_checked_at": "2026-11-19T22:00:31.068Z"
 }
