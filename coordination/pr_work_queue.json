@@ -13,17 +13,108 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 20,
+    "open_prs": 23,
     "by_feature": {
-      "F5": 2,
-      "issue249": 8,
+      "F5": 3,
+      "issue249": 9,
       "shared": 3,
       "F2": 4,
       "F3": 3,
-      "F4": 1
+      "F4": 2
     }
   },
   "entries": [
+    {
+      "pr": 1018,
+      "title": "fix(#249): protect user JWT and service-role PostgREST from HTTP redirects",
+      "feature": "issue249",
+      "head_sha": "d108a38213fb1b15572e8f69d47297f0164c9e18",
+      "base_branch": "main",
+      "work_owner": "manual-integration-chat-f-20261119",
+      "priority": "P1",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119",
+        "head_sha": "d108a38213fb1b15572e8f69d47297f0164c9e18",
+        "claimed_at": "2026-11-19T04:43:30.551Z",
+        "expires_at": "2026-11-19T05:57:18.533Z"
+      },
+      "checkpoint": {
+        "owner": "manual-integration-chat-f-20261119",
+        "at": "2026-11-19T04:43:30.551Z",
+        "status": "source child of selected PR #965",
+        "source_parent": 965,
+        "original_tasks_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1018"
+    },
+    {
+      "pr": 1017,
+      "title": "docs(F4): reconcile all 188 original PR #322 paths and preserve four historical divergences",
+      "feature": "F4",
+      "head_sha": "a10bf4806c922c81dd75387cd09b4932c7f00ee1",
+      "base_branch": "main",
+      "work_owner": "manual-integration-chat-f-20261119",
+      "priority": "P1",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119",
+        "head_sha": "a10bf4806c922c81dd75387cd09b4932c7f00ee1",
+        "claimed_at": "2026-11-19T04:43:30.551Z",
+        "expires_at": "2026-11-19T05:57:18.533Z"
+      },
+      "checkpoint": {
+        "owner": "manual-integration-chat-f-20261119",
+        "at": "2026-11-19T04:43:30.551Z",
+        "status": "source child of selected PR #322",
+        "source_parent": 322,
+        "original_tasks_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1017"
+    },
+    {
+      "pr": 1016,
+      "title": "feat(F5): preserve all 48 original parent #323 source patch hunks without GPU",
+      "feature": "F5",
+      "head_sha": "4e56bd17355f80e349e00bfba97ad11a292912a2",
+      "base_branch": "main",
+      "work_owner": "manual-integration-chat-f-20261119",
+      "priority": "P1",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119",
+        "head_sha": "4e56bd17355f80e349e00bfba97ad11a292912a2",
+        "claimed_at": "2026-11-19T04:43:30.551Z",
+        "expires_at": "2026-11-19T05:57:18.533Z"
+      },
+      "checkpoint": {
+        "owner": "manual-integration-chat-f-20261119",
+        "at": "2026-11-19T04:43:30.551Z",
+        "status": "source child of selected PR #323",
+        "source_parent": 323,
+        "original_tasks_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1016"
+    },
+    {
+      "pr": 1015,
+      "title": "feat(F2): preserve 85 exact historical patches from obsolete stacked PR #848",
+      "feature": "F2",
+      "head_sha": "ba57b30bda8ffef158bf56f684040d9f7639bd78",
+      "base_branch": "main",
+      "work_owner": "manual-integration-chat-f-20261119",
+      "priority": "P1",
+      "phase": "merged",
+      "claim": null,
+      "checkpoint": {
+        "owner": "manual-integration-chat-f-20261119",
+        "at": "2026-11-19T04:43:30.551Z",
+        "status": "source child of selected PR #848",
+        "source_parent": 848,
+        "original_tasks_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1015"
+    },
     {
       "pr": 1013,
       "title": "feat(F5): restore original GPU-off human visual QA gate and negative tests",
