@@ -508,7 +508,7 @@ def build_feature2_voicestudio_api():
     origin = os.environ["RETAIL_SUPABASE_URL"]
     secret = os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]
     return VoiceStudioSignedAPI(
-        SupabaseJWTVerifier(origin),
+        cached_supabase_verifier(origin),
         TenantStore(origin, os.environ["RETAIL_SUPABASE_PUBLISHABLE_KEY"]),
         lambda verified_actor: VoiceStudioSqlStore(origin, secret, verified_actor),
         VoiceStudioPrivateStorage(origin, secret),
