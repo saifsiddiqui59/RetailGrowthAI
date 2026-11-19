@@ -97,8 +97,8 @@ const readers={
 const trusted=h.approveCreativeDraftFromTrustedReaders(
   original,'Bearer verified-jwt','shop-403',readers,KEY);
 assert.equal(h.verifyCreativeApproval(original,trusted,KEY,'shop-403'),true);
-assert.equal(observed.membership,2);
-assert.equal(observed.review,1);
+assert.equal(observed.membership,3);
+assert.equal(observed.review,2);
 const denyTrusted=(change,label)=>{
   const altered={
     ...readers,
@@ -133,6 +133,93 @@ observed.membership=0;
 fails(()=>h.approveCreativeDraftFromTrustedReaders(
   original,'Bearer verified-jwt','shop-403',revoking,KEY),
   'revoked during RLS source read is denied');
+// A valid first review is insufficient if rights, approval or membership
+// change while the trusted adapter is preparing its editorial-only receipt.
+for (const [name, mutate] of [
+  ['media rights revoked', {source_media_current:false}],
+  ['retailer claim revoked', {claims_current:false}],
+  ['human approval withdrawn', {approved_by_human:false}],
+  ['review record revoked', {revoked_at:'2026-10-30T00:00:00Z'}],
+  ['review plan replaced', {plan_sha256:'0'.repeat(64)}],
+  ['motion plan replaced', {motion_sha256:'0'.repeat(64)}],
+  ['reviewer replaced', {reviewer_id:'foreign-editor'}],
+]) {
+  let reads=0;
+  const changingReview={
+    ...readers,
+    readEditorialReview:()=>{
+      reads++;
+      return {...storedReview,...(reads===1?{}:mutate)};
+    }
+  };
+  fails(()=>h.approveCreativeDraftFromTrustedReaders(
+    original,'Bearer verified-jwt','shop-403',changingReview,KEY),
+    'second read rejects '+name);
+  assert.equal(reads,2);
+}
+let membershipReads=0;
+const lateRevocation={
+  ...readers,
+  currentMembership:(_token,actor,shop)=>{
+    membershipReads++;
+    return {shop_id:shop,user_id:actor,role:'OWNER',
+      active:membershipReads<3};
+  }
+};
+fails(()=>h.approveCreativeDraftFromTrustedReaders(
+  original,'Bearer verified-jwt','shop-403',lateRevocation,KEY),
+  'third membership read rejects revocation after editorial recheck');
+assert.equal(membershipReads,3);
+// An editor demoted to VIEWER after the first review must never receive
+// a signed editorial receipt, even if their membership remains active.
+let roleReads=0;
+const lateRoleDowngrade={
+  ...readers,
+  currentMembership:(_token,actor,shop)=>{
+    roleReads++;
+    return {shop_id:shop,user_id:actor,active:true,
+      role:roleReads===3?'VIEWER':'EDITOR'};
+  }
+};
+fails(()=>h.approveCreativeDraftFromTrustedReaders(
+  original,'Bearer verified-jwt','shop-403',lateRoleDowngrade,KEY),
+  'late reviewer role downgrade denies signing');
+assert.equal(roleReads,3);
+let secondReadCount=0;
+fails(()=>h.approveCreativeDraftFromTrustedReaders(
+  original,'Bearer verified-jwt','shop-403',{
+    ...readers,
+    readEditorialReview:()=>{
+      secondReadCount++;
+      if(secondReadCount===2) throw new Error('source unavailable');
+      return {...storedReview};
+    }
+  },KEY),'unavailable final rights recheck must fail closed');
+assert.equal(secondReadCount,2);
+
+// A trusted reader may observe an approved draft while a source-layer callback
+// mutates the motion prompt before the last recheck returns. The editable
+// prompt does not change the creative/garment SHA, so a final motion-digest
+// equality check is essential: never HMAC an unreviewed later prompt.
+const movingMotion = bundle();
+let motionReadCount = 0;
+const changingSourceAfterReview = {
+  ...readers,
+  readEditorialReview:()=>{
+    motionReadCount++;
+    if (motionReadCount===2) {
+      movingMotion.motion_direction_v1[0].generation_prompt =
+        'Not the script the independent human reviewed';
+    }
+    return {...storedReview};
+  }
+};
+fails(()=>h.approveCreativeDraftFromTrustedReaders(
+  movingMotion,'Bearer verified-jwt','shop-403',
+  changingSourceAfterReview,KEY),
+  'motion text changed between rights check and HMAC must be rejected');
+assert.equal(motionReadCount,2);
+
 // No alias should let the receiving editor mutate the reviewed original.
 const clean=h.editorHandoff(original,receipt,KEY,'shop-403');
 clean.creative_direction_v1.scenes[0].id='modified-in-editor';
