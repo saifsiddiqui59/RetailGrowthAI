@@ -1,0 +1,1713 @@
+diff --git a/tests/media/test_feature4_garment_integration.py b/tests/media/test_feature4_garment_integration.py
+--- a/tests/media/test_feature4_garment_integration.py
++++ b/tests/media/test_feature4_garment_integration.py
+@@ -0,0 +1,139 @@
++"""Feature4 garment reference + motion proxy: offline contracts, never model proof."""
++import json
++import subprocess
++import sys
++import tempfile
++import unittest
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[2]
++sys.path.insert(0, str(ROOT / "video-engine"))
++from feature4_garment_integration import (GARMENTS, MINUTE_GARMENTS, OUTRO, StockShowcaseError,
++    checked_garment, make_garment_project, retrieve_garment)
++from feature4_stock_showcase import CLIPS
++
++class GarmentIntegrationTests(unittest.TestCase):
++    def setUp(self):
++        ctx = tempfile.TemporaryDirectory()
++        self.addCleanup(ctx.cleanup)
++        self.root = Path(ctx.name)
++        self.media = self.root / "media"
++        self.media.mkdir()
++
++    def sources(self):
++        # Deliberate synthetic ONLY for local/CI unit tests.
++        for _, sid, _, _, _ in CLIPS:
++            subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-y",
++                "-f", "lavfi", "-i",
++                "testsrc2=size=128x224:rate=12:duration=6,format=yuv420p",
++                "-c:v", "libx264", "-preset", "ultrafast",
++                str(self.media / (sid + ".mp4"))],
++                check=True, capture_output=True, timeout=30)
++        for _, sid, _, _ in GARMENTS + MINUTE_GARMENTS:
++            subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-y",
++                "-f", "lavfi", "-i", "testsrc2=size=640x960:rate=1",
++                "-frames:v", "1", "-q:v", "2", str(self.media / (sid + ".jpg"))],
++                check=True, capture_output=True, timeout=18)
++
++    def test_real_contract_compiles_30s_with_media_rights_and_beat_grid(self):
++        self.sources()
++        proj, report = make_garment_project(self.media, self.root / "project")
++        html = (proj / "index.html").read_text()
++        config = json.loads((proj / "render-config.json").read_text())
++        self.assertEqual(config["duration_seconds"], 30)
++        self.assertEqual((config["width"], config["height"], config["fps"]), (1080, 1920, 24))
++        self.assertEqual(html.count('class="footage clip"'), 3)
++        self.assertEqual(html.count('class="product-photo"'), 3)
++        self.assertIn(OUTRO, html)
++        self.assertIn('id="soundtrack"', html)
++        self.assertNotIn('id="cta"', html)
++        self.assertNotIn('src="https:', html)
++        self.assertEqual(len(report["source_media"]), 5)
++        self.assertEqual(report["music_beat_source"], "Measured offline PCM onset detector, not invented beat grid")
++        beats=report["measured_beat_timestamps"]
++        self.assertGreater(len(beats),20)
++        self.assertTrue(all(any(abs(cut-beat)<.17 for beat in beats)
++                        for cut in report["synced_scene_starts"][1:]))
++        self.assertNotEqual(report["synced_scene_starts"][1],5)
++        self.assertFalse(report["showcase_eligible"])
++        self.assertFalse(report["commercial_release_eligible"])
++        self.assertFalse(report["model_garment_match_verified"])
++        self.assertEqual(sum(x["source_feature"] == "feature3_garment_proxy"
++            for x in report["source_media"]), 2)
++        self.assertEqual(sum(x["source_feature"] == "feature5_stock_proxy"
++            for x in report["source_media"]), 3)
++        with self.assertRaisesRegex(StockShowcaseError, "overwrite"):
++            make_garment_project(self.media, self.root / "project")
++
++
++    def test_real_contract_compiles_sixty_second_full_hd_storyboard(self):
++        self.sources()
++        proj, report = make_garment_project(
++            self.media, self.root / "minute-project", seconds=60)
++        config = json.loads((proj / "render-config.json").read_text())
++        html = (proj / "index.html").read_text()
++        self.assertEqual(config["duration_seconds"], 60)
++        self.assertEqual((config["width"], config["height"], config["fps"]), (1080,1920,24))
++        self.assertEqual(report["scene_count"], 12)
++        self.assertEqual(report["editorial_subtitle_kind"], "EDITORIAL_TEST_TITLES_NOT_SPOKEN_AUDIO")
++        cues = report["editorial_subtitle_cues"]
++        self.assertEqual(len(cues), 12)
++        from feature4_subtitles import compose_approved_subtitles
++        srt, vtt = compose_approved_subtitles(cues, duration_seconds=60)
++        self.assertEqual(srt.count(" --> "), 12)
++        self.assertEqual(vtt.count(" --> "), 12)
++        self.assertEqual([c["start"] for c in cues], report["synced_scene_starts"])
++        # The 60s stock candidate previously repeated a clothes-rack still
++        # until ~58s. Reserve a real separate text/disclaimer endcard from ~55s.
++        self.assertGreater(report["synced_scene_starts"][-1],54.5)
++        self.assertLess(report["synced_scene_starts"][-1],55.5)
++        self.assertGreaterEqual(report["scene_windows"][-1]["duration"],4.5)
++        self.assertEqual(cues[-1]["text"],OUTRO)
++        self.assertNotEqual(cues[-2]["text"],OUTRO)
++        self.assertFalse(report["actual_spoken_voiceover"])
++        self.assertTrue(report["reused_stock_video_clips"])
++        self.assertEqual(html.count('class="footage clip"'), 5)
++        self.assertEqual(html.count('class="product-photo"'), 6)
++        self.assertEqual(len(report["source_media"]), 7)
++        self.assertEqual(sum(a["source_feature"] == "feature3_garment_proxy"
++                             for a in report["source_media"]), 4)
++        self.assertEqual(len({a["source_id"] for a in report["source_media"]}), 7)
++        self.assertIn('id="scene11"', html)
++        self.assertNotIn('id="cta"', html)
++        self.assertFalse(report["model_garment_match_verified"])
++        self.assertFalse(report["commercial_release_eligible"])
++        self.assertFalse(report["actual_spoken_voiceover"])
++        self.assertGreater(len(report["measured_beat_timestamps"]), 45)
++        for cut in report["synced_scene_starts"][1:]:
++            self.assertTrue(any(abs(cut - beat) < .17
++                                for beat in report["measured_beat_timestamps"]))
++        with self.assertRaises(StockShowcaseError):
++            make_garment_project(self.media, self.root / "minute-project", seconds=60)
++
++    def test_unreviewed_full_minute_duration_fails_closed(self):
++        for seconds in (12, 31, 59, 61, True):
++            with self.assertRaisesRegex(StockShowcaseError, "Only 30s or 60s"):
++                make_garment_project(self.media, self.root / "no-project", seconds=seconds)
++
++    def test_missing_and_symlinked_input_rejected(self):
++        self.sources()
++        image = self.media / (GARMENTS[0][1] + ".jpg")
++        image.unlink()
++        image.symlink_to(self.media / (GARMENTS[1][1] + ".jpg"))
++        with self.assertRaisesRegex(StockShowcaseError, "Unsafe"):
++            checked_garment(image)
++        with self.assertRaisesRegex(StockShowcaseError, "Unsafe"):
++            make_garment_project(self.media, self.root / "project")
++
++    def test_non_image_rejected(self):
++        x = self.media / (GARMENTS[0][1] + ".jpg")
++        x.write_bytes(b"not-really-jpeg" * 3000)
++        with self.assertRaises(Exception):
++            checked_garment(x)
++
++    def test_unlisted_garment_id_rejected_offline(self):
++        with self.assertRaisesRegex(StockShowcaseError, "not allowlisted"):
++            retrieve_garment(self.media / "any.jpg", "bad-id")
++
++if __name__ == "__main__":
++    unittest.main()
+
+diff --git a/tests/media/test_feature4_http_handoff.py b/tests/media/test_feature4_http_handoff.py
+--- a/tests/media/test_feature4_http_handoff.py
++++ b/tests/media/test_feature4_http_handoff.py
+@@ -0,0 +1,182 @@
++"""Offline Feature4 additive HTTP handoff tests; NOT a deployed Azure endpoint."""
++import copy
++import sys
++import unittest
++from pathlib import Path
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "video-engine"))
++from feature4_http_handoff import Feature4HTTP  # noqa: E402
++
++SHOP = "11111111-1111-4111-8111-111111111111"
++OTHER = "44444444-4444-4444-8444-444444444444"
++CAMPAIGN = "22222222-2222-4222-8222-222222222222"
++JOB = "33333333-3333-4333-8333-333333333333"
++LEASE = "55555555-5555-4555-8555-555555555555"
++ASSET = "66666666-6666-4666-8666-666666666666"
++JWT = "authenticated-user-jwt"
++USER = "verified-user"
++
++
++def intent():
++    return {
++        "shop_id": SHOP, "campaign_id": CAMPAIGN, "approval_id": "feature2-approved-1",
++        "draft": {
++            "version": "rg_video_v2", "shop_id": SHOP,
++            "duration_seconds": 30,
++            "scenes": [
++                {"start": 0, "duration": 15, "headline": "Diwali Sale"},
++                {"start": 15, "duration": 15, "headline": "Visit Our Store"},
++            ],
++        },
++    }
++
++
++class Users:
++    def __init__(self):
++        self.allow_read = True
++        self.allow_write = True
++        self.campaign_data = {"shop_id": SHOP, "id": CAMPAIGN, "status": "DRAFT"}
++        self.job = {"shop_id": SHOP, "id": JOB, "status": "QUEUED",
++                    "output_asset_id": None}
++        self.asset_data = {"shop_id": SHOP, "mime_type": "video/mp4",
++                           "storage_bucket": "retailgrowth-media",
++                           "object_path": SHOP + "/renders/" + JOB + "/" + LEASE + ".mp4"}
++        self.signed = []
++
++    def campaign(self, token, user_id, campaign_id):
++        assert token == JWT and user_id == USER and campaign_id == CAMPAIGN
++        return self.campaign_data
++
++    def member(self, token, user_id, shop_id, write):
++        assert token == JWT and user_id == USER and shop_id in (SHOP, OTHER)
++        return self.allow_write if write else self.allow_read
++
++    def feature4_job(self, token, user_id, job_id):
++        assert token == JWT and user_id == USER and job_id == JOB
++        return self.job
++
++    def asset(self, token, shop_id, asset_id):
++        assert token == JWT and shop_id == SHOP and asset_id == ASSET
++        return self.asset_data
++
++    def sign_download(self, token, shop_id, object_path):
++        assert token == JWT and shop_id == SHOP
++        self.signed.append(object_path)
++        return "https://example.supabase.co/storage/v1/object/sign/retailgrowth-media/" + object_path + "?token=private-example"
++
++
++class Admin:
++    def __init__(self):
++        self.calls = []
++        self.jobs = {}
++
++    def create_feature4_intent(self, item):
++        self.calls.append(item)
++        key = item["idempotency_key"]
++        self.jobs.setdefault(key, {"id": JOB, "shop_id": SHOP, "status": "QUEUED"})
++        return self.jobs[key]
++
++
++class Feature4HTTPHandoffTests(unittest.TestCase):
++    def setUp(self):
++        self.users = Users()
++        self.admin = Admin()
++        self.api = Feature4HTTP(self.users, self.admin)
++
++    def create(self, body=None):
++        return self.api.create(JWT, USER, CAMPAIGN, intent() if body is None else body)
++
++    def test_create_authorized_once_and_stable_idempotency(self):
++        status, result = self.create()
++        self.assertEqual((status, result), (202, {"shop_id": SHOP, "job_id": JOB, "status": "QUEUED"}))
++        self.assertEqual(self.create(), (202, result))
++        self.assertEqual(len(self.admin.calls), 2)
++        self.assertEqual(len(self.admin.jobs), 1)  # atomic backend does one reservation
++        item = self.admin.calls[0]
++        self.assertEqual(item["preset"], "feature4_reel_v1")
++        self.assertEqual(item["shop_id"], SHOP)
++        self.assertEqual(item["requested_by"], USER)
++        self.assertEqual(item["idempotency_key"], self.admin.calls[1]["idempotency_key"])
++        self.assertEqual(len(item["idempotency_key"]), 64)
++
++    def test_invalid_path_tenant_or_body_cannot_reserve(self):
++        for modifier in (
++            lambda b: b.update(shop_id=OTHER),
++            lambda b: b.update(campaign_id=OTHER),
++            lambda b: b.update(approval_id="../../unsafe"),
++            lambda b: b["draft"].update(shop_id=OTHER),
++            lambda b: b["draft"].update(version="creative_reel_v1"),
++            lambda b: b["draft"].update(duration_seconds=1000),
++            lambda b: b["draft"].update(scenes=[]),
++            lambda b: b.update(asset_url="https://external.invalid/untrusted.png"),
++        ):
++            body = intent()
++            modifier(body)
++            with self.subTest(body=body):
++                status, _ = self.create(body)
++                self.assertIn(status, (400, 404))
++        self.assertEqual(self.admin.calls, [])
++
++    def test_missing_campaign_or_write_membership_blocks_paid_job(self):
++        self.users.campaign_data = None
++        self.assertEqual(self.create()[0], 404)
++        self.users.campaign_data = {"shop_id": OTHER}
++        self.assertEqual(self.create()[0], 404)
++        self.users.campaign_data = {"shop_id": SHOP}
++        self.users.allow_write = False
++        self.assertEqual(self.create()[0], 403)
++        self.assertEqual(self.admin.calls, [])
++
++    def test_status_scoped_to_shop_and_verifies_job_receipt(self):
++        self.assertEqual(self.api.get(JWT, USER, JOB),
++                         (200, {"shop_id": SHOP, "job_id": JOB, "status": "QUEUED"}))
++        self.users.allow_read = False
++        self.assertEqual(self.api.get(JWT, USER, JOB)[0], 404)
++        self.users.allow_read = True
++        self.users.job["shop_id"] = OTHER
++        self.users.allow_read = False
++        self.assertEqual(self.api.get(JWT, USER, JOB)[0], 404)
++
++    def test_download_is_only_private_same_shop_and_claim_token(self):
++        self.users.job.update(status="SUCCEEDED", output_asset_id=ASSET)
++        status, result = self.api.download(JWT, USER, JOB)
++        self.assertEqual(status, 200)
++        self.assertEqual(result["job_id"], JOB)
++        self.assertEqual(result["shop_id"], SHOP)
++        self.assertEqual(self.users.signed, [self.users.asset_data["object_path"]])
++
++    def test_no_signature_on_pending_failed_foreign_media(self):
++        self.assertEqual(self.api.download(JWT, USER, JOB)[0], 409)
++        self.users.job.update(status="FAILED", output_asset_id=ASSET)
++        self.assertEqual(self.api.download(JWT, USER, JOB)[0], 409)
++        self.users.job["status"] = "SUCCEEDED"
++        bad_records = [
++            {"shop_id": OTHER}, {"mime_type": "image/png"},
++            {"storage_bucket": "public"},
++            {"object_path": OTHER + "/renders/" + JOB + "/" + LEASE + ".mp4"},
++            {"object_path": SHOP + "/renders/" + OTHER + "/" + LEASE + ".mp4"},
++            {"object_path": SHOP + "/renders/" + JOB + "/../replay.mp4"},
++        ]
++        original = copy.deepcopy(self.users.asset_data)
++        for bad in bad_records:
++            with self.subTest(bad=bad):
++                self.users.asset_data = {**original, **bad}
++                self.assertEqual(self.api.download(JWT, USER, JOB)[0], 404)
++        self.assertEqual(self.users.signed, [])
++
++    def test_wrong_job_id_from_atomic_insert_fails_closed(self):
++        self.admin.create_feature4_intent = lambda item: {
++            "id": "not-a-uuid", "shop_id": SHOP, "status": "QUEUED",
++        }
++        with self.assertRaises(ValueError):
++            self.create()
++
++    def test_excessively_large_draft_is_rejected_pre_insert(self):
++        payload = intent()
++        payload["draft"]["scenes"][0]["headline"] = "x" * 100_000
++        self.assertEqual(self.create(payload)[0], 400)
++        self.assertEqual(self.admin.calls, [])
++
++
++if __name__ == "__main__":
++    unittest.main()
+
+diff --git a/tests/media/test_feature4_hyperframes_benchmark.py b/tests/media/test_feature4_hyperframes_benchmark.py
+--- a/tests/media/test_feature4_hyperframes_benchmark.py
++++ b/tests/media/test_feature4_hyperframes_benchmark.py
+@@ -0,0 +1,83 @@
++"""Cheap, no-render checks for F4-08/12 sample measurement integrity."""
++import hashlib
++import json
++import os
++from pathlib import Path
++import sys
++import tempfile
++import unittest
++
++ROOT = Path(__file__).resolve().parents[2]
++sys.path.insert(0, str(ROOT / "video-engine" / "hyperframes"))
++
++from benchmark_render import parse_proc_stat, sample_process_group, benchmark, verified_output_sha256
++
++
++class HyperFramesBenchTests(unittest.TestCase):
++    def test_stat_parser_handles_nested_process_names(self):
++        fields = ["S"] + ["0"] * 21
++        fields[1], fields[2], fields[11], fields[12], fields[21] = "10", "15", "42", "7", "9"
++        data = "123 (chromium (worker)) " + " ".join(fields)
++        self.assertEqual(parse_proc_stat(data), (123, 10, 15, 49, 9))
++        self.assertIsNone(parse_proc_stat("garbage"))
++        self.assertIsNone(parse_proc_stat("123 (broken)"))
++
++    @unittest.skipUnless(sys.platform.startswith("linux"), "Linux proc filesystem")
++    def test_sampling_current_process_group_has_nonzero_rss(self):
++        rss, ticks, count = sample_process_group(os.getpgrp())
++        self.assertGreater(rss, 0)
++        self.assertGreaterEqual(ticks, 0)
++        self.assertGreaterEqual(count, 1)
++
++    def test_benchmark_receipt_hashes_real_stable_original_bytes(self):
++        with tempfile.TemporaryDirectory() as folder:
++            path = Path(folder) / "synthetic-render.mp4"
++            data = b"test-only-render" * 200
++            path.write_bytes(data)
++            size, digest = verified_output_sha256(path)
++            self.assertEqual(size, len(data))
++            self.assertEqual(digest, hashlib.sha256(data).hexdigest())
++            self.assertEqual(len(digest), 64)
++
++    def test_rejects_symlink_truncated_and_missing_benchmark_source(self):
++        with tempfile.TemporaryDirectory() as folder:
++            root = Path(folder)
++            real = root / "original.mp4"
++            real.write_bytes(b"dummy" * 500)
++            alias = root / "foreign.mp4"
++            alias.symlink_to(real)
++            for candidate in (alias, root / "missing.mp4"):
++                with self.subTest(path=candidate), self.assertRaises(ValueError):
++                    verified_output_sha256(candidate)
++            real.write_bytes(b"short")
++            with self.assertRaisesRegex(ValueError, "nonempty"):
++                verified_output_sha256(real)
++
++    def test_existing_output_or_receipt_rejected_before_any_render(self):
++        with tempfile.TemporaryDirectory() as folder:
++            root = Path(folder)
++            project = root / "project"
++            project.mkdir()
++            (project / "render-config.json").write_text(json.dumps({
++                "contract_version": "rg_video_v2",
++                "renderer": "hyperframes", "duration_seconds": 30,
++                "width": 540, "height": 960, "fps": 24,
++            }), encoding="utf-8")
++            output = root / "render.mp4"
++            report = root / "report.json"
++            for occupied in (output, report):
++                occupied.write_bytes(b"already here")
++                with self.subTest(occupied=occupied), self.assertRaisesRegex(
++                        ValueError, "destinations must be new"):
++                    benchmark(project, output, report)
++                occupied.unlink()
++
++    def test_rejects_unbounded_timeout_before_loading_project(self):
++        for value in (0, 781, True, 20.5):
++            with self.subTest(value=value), self.assertRaises(ValueError):
++                benchmark("/nonexistent", "/invalid.mp4", "/invalid.json",
++                          timeout_seconds=value)
++
++
++if __name__ == "__main__":
++    unittest.main()
+
+diff --git a/tests/media/test_feature4_intent_compiler.py b/tests/media/test_feature4_intent_compiler.py
+--- a/tests/media/test_feature4_intent_compiler.py
++++ b/tests/media/test_feature4_intent_compiler.py
+@@ -0,0 +1,211 @@
++"""Server-authorized storyboard translation tests, no real AI inference or DB writes."""
++import copy
++import sys
++import unittest
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[2]
++sys.path.insert(0, str(ROOT / "video-engine"))
++from creative_contract import CreativeContractError, render_inputs
++from feature4_intent_compiler import compile_approved_storyboard
++
++SHOP = "11111111-1111-4111-8111-111111111111"
++OTHER = "44444444-4444-4444-8444-444444444444"
++CAMPAIGN = "22222222-2222-4222-8222-222222222222"
++JOB = "33333333-3333-4333-8333-333333333333"
++RIGHTS = {"license": "owned", "commercial_use": True,
++          "source": "Original local fixture", "evidence": "Reviewed synthetic-only fixture"}
++
++
++def pair():
++    def asset(kind, feature):
++        suffix = {"image": ".png", "poster": ".png", "logo": ".png",
++                  "video": ".mp4", "audio": ".mp3"}[kind]
++        mimetype = {"image": "image/png", "poster": "image/png",
++                    "logo": "image/png", "video": "video/mp4",
++                    "audio": "audio/mpeg"}[kind]
++        return {"shop_id": SHOP, "kind": kind, "source_feature": feature,
++                "approved": True, "storage_bucket": "retailgrowth-media",
++                "object_path": SHOP + "/feature4/sample-" + kind + suffix,
++                "mime_type": mimetype, "license_name": "owned",
++                "rights_evidence": RIGHTS["evidence"],
++                "rights_source": RIGHTS["source"]}
++    assets = {
++        "photokurti": asset("image", "feature3"),
++        "motionwalk": asset("video", "feature5"),
++        "saleposter": asset("poster", "feature3"),
++        "musicowned": asset("audio", "retailer"),
++        "storelogo": asset("logo", "retailer"),
++    }
++    draft = {
++        "version": "rg_video_v2", "shop_id": SHOP, "mode": "media",
++        "template": "cinematic", "duration_seconds": 30,
++        "output": {"width": 1080, "height": 1920, "fps": 24},
++        "cta": "Visit Our Store", "music_asset_id": "musicowned",
++        "scenes": [
++            {"start": 0, "duration": 10, "headline": "Diwali Fashion",
++             "asset_id": "photokurti", "animation_preset": "subtle_zoom",
++             "transition": "fade"},
++            {"start": 10, "duration": 10, "headline": "Luxury Boutique",
++             "asset_id": "motionwalk", "trim_start": 0, "mute_source": True},
++            {"start": 20, "duration": 10, "headline": "Visit Our Store",
++             "asset_id": "photokurti", "poster_overlay_asset_id": "saleposter",
++             "offer": "20% OFF", "animation_preset": "pop"},
++        ],
++    }
++    snapshot = {
++        "shop_id": SHOP, "campaign_id": CAMPAIGN, "video_job_id": JOB,
++        "approval_id": "approved-script-v1", "idempotency_key": "render-key-v2",
++        "script": {"approved": True, "source_feature": "feature2",
++                   "approval_id": "approved-script-v1", "cta": "Visit Our Store",
++                   "approved_text": ["Diwali Fashion", "Luxury Boutique",
++                                     "Visit Our Store", "20% OFF"]},
++        "brand": {"shop_name": "Synthetic Sample Boutique",
++                  "primary_color": "#d4a754", "logo_asset_id": "storelogo"},
++        "assets": assets,
++    }
++    return draft, snapshot
++
++
++class ApprovedIntentTests(unittest.TestCase):
++    def test_combines_feature3_poster_feature5_video_without_trusting_browser_provenance(self):
++        draft, trusted = pair()
++        result = compile_approved_storyboard(draft, trusted)
++        request, manifest, lineage = result["request"], result["manifest"], result["lineage"]
++        self.assertEqual(request["version"], "creative_reel_v1")
++        self.assertEqual(request["scenes"][0]["source_feature"], "feature3")
++        self.assertEqual(request["scenes"][1]["source_feature"], "feature5")
++        self.assertEqual(request["scenes"][1]["motion_status"], "ready")
++        self.assertEqual(request["scenes"][2]["text_overlay"], "20% OFF")
++        self.assertEqual(request["output"]["format"], "mp4")
++        self.assertEqual(request["output"]["width"], 1080)
++        self.assertEqual(set(manifest["assets"]),
++                         {"photokurti", "motionwalk", "saleposter", "musicowned", "storelogo"})
++        self.assertEqual(lineage["rendered_as"], "AUTHORIZED_ASSEMBLY")
++        self.assertEqual(lineage["fallback_events"], [])
++        self.assertEqual(render_inputs(request, manifest).audit, lineage)
++        self.assertNotIn("source_feature", draft["scenes"][1])
++        self.assertEqual(draft["scenes"][2]["offer"], "20% OFF")
++        self.assertEqual(trusted["assets"]["motionwalk"]["kind"], "video")
++        self.assertEqual(result["bundle"]["assets"]["motionwalk"]["object_path"],
++                         SHOP + "/feature4/sample-video.mp4")
++        self.assertTrue(result["manifest"]["assets"]["motionwalk"]["path"].endswith(".mp4"))
++
++    def test_failed_motion_never_sneaks_as_approved_clip(self):
++        draft, trusted = pair()
++        trusted["assets"]["motionwalk"]["approved"] = False
++        with self.assertRaisesRegex(CreativeContractError, "not approved"):
++            compile_approved_storyboard(draft, trusted)
++
++    def test_forged_tenant_media_claims_and_unreviewed_sales_are_rejected(self):
++        cases = [
++            ("foreign shop draft", lambda d, s: d.update(shop_id=OTHER)),
++            ("foreign asset", lambda d, s: s["assets"]["motionwalk"].update(shop_id=OTHER)),
++            ("wrong source", lambda d, s: s["assets"]["motionwalk"].update(source_feature="feature3")),
++            ("foreign storage key", lambda d, s: s["assets"]["motionwalk"].update(object_path=OTHER + "/private.mp4")),
++            ("unapproved storage bucket", lambda d, s: s["assets"]["motionwalk"].update(storage_bucket="public")),
++            ("unapproved rights", lambda d, s: s["assets"]["motionwalk"].update(license_name="unknown")),
++            ("bad mime", lambda d, s: s["assets"]["motionwalk"].update(mime_type="text/html")),
++            ("unknown asset", lambda d, s: d["scenes"][0].update(asset_id="untrusted")),
++            ("unapproved offer", lambda d, s: d["scenes"][2].update(offer="90% OFF")),
++            ("unapproved CTA", lambda d, s: d.update(cta="Fake discount")),
++            ("unapproved headline", lambda d, s: d["scenes"][0].update(headline="Free today")),
++            ("wrong reviewer", lambda d, s: s.update(approval_id="replaced")),
++            ("browser source injection", lambda d, s: d["scenes"][1].update(source_feature="retailer")),
++            ("browser JavaScript", lambda d, s: d["scenes"][1].update(javascript="alert(1)")),
++            ("custom soundtrack", lambda d, s: d.update(music_asset_id="foreign")),
++            ("custom export", lambda d, s: d["output"].update(width=8192)),
++            ("unapproved trim", lambda d, s: d["scenes"][0].update(trim_start=2)),
++            ("unknown poster", lambda d, s: d["scenes"][2].update(poster_overlay_asset_id="motionwalk")),
++            ("wrong storyboard order", lambda d, s: d["scenes"][1].update(start=11)),
++            ("timeline not full", lambda d, s: d["scenes"][2].update(duration=7)),
++            ("negative duration", lambda d, s: d["scenes"][0].update(duration=-3)),
++            ("boolean duration", lambda d, s: d.update(duration_seconds=True)),
++            ("bad media mode", lambda d, s: d.update(mode="freeform_html")),
++        ]
++        for label, mutate in cases:
++            draft, trusted = pair()
++            mutate(draft, trusted)
++            with self.subTest(label=label), self.assertRaises((CreativeContractError, TypeError)):
++                compile_approved_storyboard(draft, trusted)
++
++    def test_trusted_approved_copy_requires_exact_list_not_substring(self):
++        # A JSON string is iterable in Python: before this fence an unreviewed
++        # shorter headline could pass as a substring of a longer approved ad.
++        for malformed in (
++            "Diwali Fashion Luxury Boutique Visit Our Store 20% OFF",
++            ("Diwali Fashion", "Luxury Boutique"),
++            {"Diwali Fashion": True},
++            [],
++            ["Diwali Fashion", None],
++            ["Diwali Fashion", ""],
++        ):
++            draft, trusted = pair()
++            trusted["script"]["approved_text"] = malformed
++            with self.subTest(malformed=repr(malformed)), self.assertRaises(
++                    CreativeContractError):
++                compile_approved_storyboard(draft, trusted)
++
++    def test_malformed_trusted_script_fails_as_contract_error(self):
++        for malformed in (None, [], "approved", True):
++            draft, trusted = pair()
++            trusted["script"] = malformed
++            with self.subTest(malformed=repr(malformed)), self.assertRaises(
++                    CreativeContractError):
++                compile_approved_storyboard(draft, trusted)
++
++    def test_partial_headline_is_not_approved_even_with_valid_list(self):
++        draft, trusted = pair()
++        draft["scenes"][0]["headline"] = "Fashion"
++        with self.assertRaisesRegex(CreativeContractError, "Unreviewed"):
++            compile_approved_storyboard(draft, trusted)
++
++    def test_only_selected_approved_records_may_enter_media_bundle(self):
++        draft, trusted = pair()
++        trusted["assets"]["unrelated"] = copy.deepcopy(trusted["assets"]["photokurti"])
++        result = compile_approved_storyboard(draft, trusted)
++        self.assertNotIn("unrelated", result["manifest"]["assets"])
++        self.assertEqual(result["lineage"]["media_asset_ids"],
++                         sorted(result["manifest"]["assets"]))
++
++    def test_text_only_copy_requires_exact_existing_approved_script(self):
++        draft, trusted = pair()
++        draft["mode"] = "text"
++        draft["music_asset_id"] = None
++        draft["scenes"] = [{k: v for k, v in scene.items() if k in (
++            "start", "duration", "headline", "transition",
++        )} for scene in draft["scenes"]]
++        output = compile_approved_storyboard(draft, trusted)
++        self.assertEqual(output["request"]["mode"], "text")
++        self.assertEqual(set(output["manifest"]["assets"]), {"storelogo"})
++
++    def test_ui_duration_60_seconds_and_image_source_do_not_invent_motion(self):
++        draft, trusted = pair()
++        draft.update(mode="image", duration_seconds=60)
++        draft["scenes"] = [
++            {"start": 0, "duration": 30, "headline": "Diwali Fashion",
++             "asset_id": "photokurti"},
++            {"start": 30, "duration": 30, "headline": "Visit Our Store",
++             "asset_id": "photokurti"},
++        ]
++        result = compile_approved_storyboard(draft, trusted)
++        self.assertEqual(result["request"]["duration_seconds"], 60)
++        self.assertEqual(result["lineage"]["rendered_as"], "AUTHORIZED_ASSEMBLY")
++        self.assertNotIn("motion_status", result["request"]["scenes"][0])
++
++
++if __name__ == "__main__":
++    unittest.main()
++
++# Scene SFX uses the existing authorized compiler/HyperFrames audio track.
++class SceneSfxContractTests(unittest.TestCase):
++    def test_reviewed_audio_effect_is_bound_to_same_tenant_and_preserved(self):
++        draft,trusted=pair()
++        draft["scenes"][1]["sfx_asset_id"]="musicowned"
++        out=compile_approved_storyboard(draft,trusted)
++        self.assertEqual(out["request"]["scenes"][1]["sfx_asset_id"],"musicowned")
++        self.assertEqual(out["request"]["scenes"][1]["sfx_source"],"retailer")
++        self.assertEqual(render_inputs(out["request"],out["manifest"]).plan["scenes"][1]["sfx_asset_id"],"musicowned")
++        trusted["assets"]["musicowned"]["shop_id"]=OTHER
++        with self.assertRaises(CreativeContractError):
++            compile_approved_storyboard(draft,trusted)
+
+diff --git a/tests/media/test_feature4_lock_guard.py b/tests/media/test_feature4_lock_guard.py
+--- a/tests/media/test_feature4_lock_guard.py
++++ b/tests/media/test_feature4_lock_guard.py
+@@ -0,0 +1,65 @@
++"""Feature4 lock audit tests use original recovered CI lock when available.
++
++A local synthetic file cannot masquerade as an audited 138-entry package lock.
++"""
++import hashlib
++import json
++from pathlib import Path
++import sys
++import tempfile
++import unittest
++from unittest.mock import patch
++
++ROOT = Path(__file__).resolve().parents[2]
++sys.path.insert(0, str(ROOT / "video-engine" / "hyperframes"))
++from lock_guard import (verify_lock, DependencyLockError, PINNED_SHA256,
++                        PRODUCER_VERSION, LOCK_PACKAGES)
++
++
++class DependencyLockTests(unittest.TestCase):
++    def test_frozen_reviewed_pin_format_and_count(self):
++        self.assertEqual(len(PINNED_SHA256), 64)
++        self.assertTrue(all(c in "0123456789abcdef" for c in PINNED_SHA256))
++        self.assertEqual(PRODUCER_VERSION, "0.8.185")
++        self.assertEqual(LOCK_PACKAGES, 138)
++
++    def test_missing_or_modified_lock_fails_without_installing(self):
++        with tempfile.TemporaryDirectory() as root:
++            path = Path(root) / "package-lock.json"
++            for content in (b"", b"{}", b'{"lockfileVersion":3}', b"x" * 200_001):
++                path.write_bytes(content)
++                with self.subTest(length=len(content)), self.assertRaises(DependencyLockError):
++                    verify_lock(path)
++            with self.assertRaises(FileNotFoundError):
++                verify_lock(Path(root) / "missing.json")
++
++    def test_correct_shape_but_wrong_sha_is_never_accepted(self):
++        with tempfile.TemporaryDirectory() as root:
++            path = Path(root) / "lock.json"
++            path.write_text(json.dumps({"lockfileVersion": 3, "packages": {
++                "": {"dependencies": {"@hyperframes/producer": "0.8.185"}}
++            }}).ljust(1200))
++            with self.assertRaisesRegex(DependencyLockError, "drifted"):
++                verify_lock(path)
++
++    def test_cannot_override_sha_with_user_or_runtime_environment(self):
++        with tempfile.TemporaryDirectory() as root:
++            path = Path(root) / "lock.json"
++            path.write_bytes(b"x" * 1024)
++            with patch.dict("os.environ", {"FEATURE4_LOCK_SHA256": hashlib.sha256(path.read_bytes()).hexdigest()}):
++                with self.assertRaises(DependencyLockError):
++                    verify_lock(path)
++
++    def test_checked_in_lockfile_is_exact_frozen_audited_bytes(self):
++        # A clean checkout must ship the same reviewed CI lock; no resolver step.
++        lock = ROOT / "video-engine" / "hyperframes" / "package-lock.json"
++        self.assertTrue(lock.is_file(), "Git-tracked dependency lock is required")
++        self.assertEqual(hashlib.sha256(lock.read_bytes()).hexdigest(), PINNED_SHA256)
++        result = verify_lock(lock)
++        self.assertTrue(result["lockfile_committed_to_repository"])
++        self.assertFalse(result["legal_signoff_for_commercial_saas"])
++        self.assertEqual(result["package_entries_including_root"], LOCK_PACKAGES)
++
++
++if __name__ == "__main__":
++    unittest.main()
+
+diff --git a/tests/media/test_feature4_minute_quality_receipt.py b/tests/media/test_feature4_minute_quality_receipt.py
+--- a/tests/media/test_feature4_minute_quality_receipt.py
++++ b/tests/media/test_feature4_minute_quality_receipt.py
+@@ -0,0 +1,105 @@
++"""Offline fail-closed checks for native minute trace verification."""
++import sys
++import tempfile
++import unittest
++from unittest.mock import patch
++from pathlib import Path
++ROOT=Path(__file__).resolve().parents[2]
++sys.path.insert(0,str(ROOT/"video-engine"))
++from feature4_minute_quality_receipt import (MinuteProofError, validate_minute_evidence,
++    _require_distinct_render_stages, _require_changed_render_bytes)
++
++class MinuteEvidenceTests(unittest.TestCase):
++    def setUp(self):
++        self.t=tempfile.TemporaryDirectory()
++        self.addCleanup(self.t.cleanup)
++        self.root=Path(self.t.name)
++        self.paths={name:self.root/(name+('.mp4' if name in ('original','master','preview') else '.json'))
++              for name in ('original','master','preview','provenance','motion','master_proof','preview_proof','contact_image','contact_proof')}
++        self.paths['contact_image']=self.root/'review.jpg'
++        self.paths.update({
++            "captioned":self.root/"captioned.mp4",
++            "caption_srt":self.root/"review.srt",
++            "caption_vtt":self.root/"review.vtt",
++            "caption_proof":self.root/"caption-proof.json",
++            "visibility_proof":self.root/"visibility-proof.json",
++            "endcard_proof":self.root/"endcard-proof.json",
++        })
++    def fill_test_records(self):
++        # Ensure malformed media/symlinks are reached AFTER the mandatory
++        # evidence-present gate, instead of testing only missing arguments.
++        for key in ("provenance","motion","master_proof",
++                    "preview_proof","contact_proof"):
++            self.paths[key].write_text('{"probe": true}\n',encoding="utf-8")
++    def validate(self):
++        return validate_minute_evidence(**self.paths)
++    def test_every_caption_and_visibility_receipt_is_required(self):
++        full={**self.paths, "captioned":self.root/"captioned.mp4",
++              "caption_srt":self.root/"review.srt",
++              "caption_vtt":self.root/"review.vtt",
++              "caption_proof":self.root/"caption-proof.json",
++              "visibility_proof":self.root/"visibility-proof.json",
++              "endcard_proof":self.root/"endcard-proof.json"}
++        # No media inspection is allowed before the complete acceptance
++        # evidence is present; a false NOT_RUN success must be impossible.
++        for missing in ("captioned","caption_srt","caption_vtt",
++                        "caption_proof","visibility_proof","endcard_proof"):
++            with self.subTest(missing=missing):
++                kw={**full,missing:None}
++                with patch("feature4_minute_quality_receipt.inspect_mp4",
++                           side_effect=AssertionError("inspected incomplete source")):
++                    with self.assertRaisesRegex(MinuteProofError,
++                                                "Missing mandatory 60s"):
++                        validate_minute_evidence(**kw)
++
++    def test_same_path_cannot_be_source_and_master(self):
++        self.paths["original"].write_bytes(b"fake mp4 bytes"*8)
++        self.paths["master"]=self.paths["original"]
++        with patch("feature4_minute_quality_receipt.inspect_mp4",
++                   side_effect=AssertionError("alias must fail before media probe")):
++            with self.assertRaisesRegex(MinuteProofError,"distinct files"):
++                self.validate()
++
++    def test_hardlink_cannot_masquerade_as_new_master(self):
++        self.paths["original"].write_bytes(b"fake mp4 bytes"*8)
++        self.paths["master"].hardlink_to(self.paths["original"])
++        with patch("feature4_minute_quality_receipt.inspect_mp4",
++                   side_effect=AssertionError("hardlink must fail before media probe")):
++            with self.assertRaisesRegex(MinuteProofError,"distinct files"):
++                self.validate()
++
++    def test_all_four_stages_require_distinct_paths(self):
++        files=[self.root/name for name in ("source.mp4","master.mp4","preview.mp4")]
++        with self.assertRaisesRegex(MinuteProofError,"distinct files"):
++            _require_distinct_render_stages(*files,files[2])
++
++    def test_copy_without_mastering_or_reencode_is_not_evidence(self):
++        a,b,c=("a"*64,"b"*64,"c"*64)
++        _require_changed_render_bytes(a,b,c)
++        for stages in ((a,a,c),(a,b,b),(a,b,a)):
++            with self.subTest(stages=stages):
++                with self.assertRaisesRegex(MinuteProofError,"distinct encoded bytes"):
++                    _require_changed_render_bytes(*stages)
++
++    def test_garbage_or_unproven_mp4_rejected(self):
++        self.fill_test_records()
++        for k in ('original','master','preview'):
++            self.paths[k].write_bytes(b"not media" + k.encode("ascii")*100)
++        with self.assertRaisesRegex(MinuteProofError,"media/codec preflight"):
++            self.validate()
++    def test_symlinked_evidence_rejected(self):
++        self.fill_test_records()
++        for k in ("original","master","preview"):
++            self.paths[k].write_bytes(b"not media" + k.encode("ascii")*100)
++        backing=self.root/'evidence.json'
++        backing.write_text('{"valid": false}')
++        self.paths['provenance'].unlink()
++        self.paths['provenance'].symlink_to(backing)
++        with self.assertRaisesRegex(MinuteProofError,"Unsafe"):
++            self.validate()
++    def test_oversize_source_fails_without_loading_into_memory(self):
++        source=self.paths['original']
++        with source.open('wb') as handle:
++            handle.truncate(80_000_002)
++        with self.assertRaisesRegex(MinuteProofError,"Unsafe"):
++            self.validate()
+
+diff --git a/tests/media/test_feature4_motion_diagnostics.py b/tests/media/test_feature4_motion_diagnostics.py
+--- a/tests/media/test_feature4_motion_diagnostics.py
++++ b/tests/media/test_feature4_motion_diagnostics.py
+@@ -0,0 +1,50 @@
++"""CPU motion checks are a lower bound, NEVER commercial human approval."""
++import json
++import subprocess
++import sys
++import tempfile
++import unittest
++from pathlib import Path
++
++ROOT=Path(__file__).resolve().parents[2]
++sys.path.insert(0,str(ROOT/"video-engine"))
++from feature4_motion_diagnostics import inspect_staged_motion, MotionProbeError
++
++
++class MotionDiagnosticsTests(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        cls.temp=tempfile.TemporaryDirectory()
++        cls.path=Path(cls.temp.name)
++        for name,src in (("static","color=c=darkblue:s=180x320:r=12:d=3"),
++                         ("moving","testsrc2=size=180x320:rate=12:duration=3")):
++            subprocess.run(["ffmpeg","-nostdin","-v","error","-y",
++                            "-f","lavfi","-i",src,"-c:v","libx264",
++                            "-preset","ultrafast","-pix_fmt","yuv420p",
++                            str(cls.path/(name+".mp4"))],timeout=45,check=True)
++    @classmethod
++    def tearDownClass(cls):
++        cls.temp.cleanup()
++
++    def test_frozen_source_is_not_accepted_as_motion(self):
++        s=inspect_staged_motion(self.path/"static.mp4")
++        self.assertEqual(s["frame_freeze_check"],"FAILED_FROZEN_OR_LOW_MOTION")
++        self.assertFalse(s["visible_temporal_change"])
++        self.assertFalse(s["commercial_quality_approved"])
++        self.assertFalse(s["photoreal_human_verified"])
++
++    def test_real_temporal_pixel_change_does_not_certify_human_or_garment(self):
++        s=inspect_staged_motion(self.path/"moving.mp4")
++        self.assertEqual(s["samples"],6)
++        self.assertTrue(s["visible_temporal_change"])
++        self.assertEqual(s["frame_freeze_check"],"PASS")
++        self.assertGreater(s["mean_frame_delta"],1.2)
++        self.assertFalse(s["garment_identity_verified"])
++        self.assertFalse(s["commercial_quality_approved"])
++
++    def test_rejects_nonlocal_and_invalid_media(self):
++        for v in ("https://example.org/test.mp4",self.path/"missing.mp4",self.path/"x.txt"):
++            with self.subTest(v=str(v)),self.assertRaises(MotionProbeError):
++                inspect_staged_motion(v)
++
++if __name__=="__main__":unittest.main()
+
+diff --git a/tests/media/test_feature4_motion_handoff.py b/tests/media/test_feature4_motion_handoff.py
+--- a/tests/media/test_feature4_motion_handoff.py
++++ b/tests/media/test_feature4_motion_handoff.py
+@@ -0,0 +1,76 @@
++"""Feature4 source-only F2->F5 handoff: no GPU or cloud bills."""
++import copy
++import sys
++import unittest
++from pathlib import Path
++ROOT=Path(__file__).resolve().parents[2]
++sys.path.insert(0,str(ROOT/"video-engine"))
++from feature4_motion_handoff import (prepare_feature5_requests,dispatch_via_coordinator,
++                                     Feature4MotionHandoffError as E)
++SHOP="11111111-1111-4111-8111-111111111111"
++OTHER="22222222-2222-4222-8222-222222222222"
++CAMPAIGN="33333333-3333-4333-8333-333333333333"
++APPROVAL="44444444-4444-4444-8444-444444444444"
++SOURCE="55555555-5555-4555-8555-555555555555"
++def pair():
++    detail={"shot_id":"shot01","source_asset_id":SOURCE,"duration_seconds":5,
++            "prompt":"Adult model wearing exact reviewed embroidered kurti; two natural steps and a gentle turn.",
++            "negative_prompt":"No changed embroidery, extra hands or fake letters",
++            "camera":"slow dolly back", "choreography":"step-step-turn",
++            "lighting":"warm boutique", "fidelity_requirements":"exact original SKU front embroidery"}
++    d={"version":"creative_direction_v1","source_feature":"feature2","approved":True,
++       "shop_id":SHOP,"campaign_id":CAMPAIGN,"approval_id":APPROVAL,
++       "review_hash":"a"*64,"scenes":[{"motion_direction_v1":detail},{"headline":"Approved end poster"}]}
++    s={"shop_id":SHOP,"campaign_id":CAMPAIGN,"approval_id":APPROVAL,
++       "approved":True,"review_hash":"a"*64,"assets":{SOURCE:{"shop_id":SHOP,
++        "kind":"image","approved":True,"private":True,"commercial_rights":True}}}
++    return d,s
++
++class MotionHandoffTests(unittest.TestCase):
++    def test_exact_approved_wan_direction_is_not_rewritten_or_paid(self):
++        d,s=pair()
++        original=copy.deepcopy(d)
++        out=prepare_feature5_requests(d,s)
++        self.assertEqual(len(out),1)
++        self.assertEqual(out[0]["prompt"],d["scenes"][0]["motion_direction_v1"]["prompt"])
++        self.assertEqual(out[0]["motion_direction_v1"],d["scenes"][0]["motion_direction_v1"])
++        self.assertEqual(len(out[0]["idempotency_key"]),64)
++        self.assertEqual(d,original)
++        self.assertEqual(out,prepare_feature5_requests(d,s))
++        events=[]
++        self.assertEqual(dispatch_via_coordinator(out,lambda cmds: events.append(cmds) or "queued"),"queued")
++        self.assertEqual(len(events),1)
++    def test_tampered_revision_foreign_shop_revoked_or_public_reference_denied(self):
++        changes=[
++          lambda d,s:d.update(review_hash="b"*64),
++          lambda d,s:d.update(shop_id=OTHER),
++          lambda d,s:s.update(approved=False),
++          lambda d,s:s["assets"][SOURCE].update(shop_id=OTHER),
++          lambda d,s:s["assets"][SOURCE].update(commercial_rights=False),
++          lambda d,s:s["assets"][SOURCE].update(private=False),
++          lambda d,s:d["scenes"][0]["motion_direction_v1"].update(source_asset_id=OTHER),
++          lambda d,s:d["scenes"][0]["motion_direction_v1"].update(duration_seconds=10),
++          lambda d,s:d["scenes"][0]["motion_direction_v1"].update(prompt="a"*1600),
++          lambda d,s:d["scenes"][0]["motion_direction_v1"].update(prompt="https://private.example/file"),
++          lambda d,s:d["scenes"][0]["motion_direction_v1"].update(gpu_price="0"),
++        ]
++        for f in changes:
++            d,s=pair();f(d,s)
++            with self.subTest(f=f),self.assertRaises(E):prepare_feature5_requests(d,s)
++    def test_reject_duplicated_shots_and_poster_without_clean_layers(self):
++        d,s=pair()
++        d["scenes"].append(copy.deepcopy(d["scenes"][0]))
++        with self.assertRaises(E):prepare_feature5_requests(d,s)
++        d,s=pair();s["assets"][SOURCE]["kind"]="poster"
++        with self.assertRaises(E):prepare_feature5_requests(d,s)
++        s["assets"][SOURCE]["clean_layers"]=True
++        self.assertEqual(prepare_feature5_requests(d,s)[0]["mode"],"poster")
++    def test_billing_dispatch_is_exactly_one_atomic_callback_without_retries(self):
++        d,s=pair();commands=prepare_feature5_requests(d,s)
++        calls=[]
++        def fail(commands):calls.append(commands);raise RuntimeError("ambiguous coordinator response")
++        with self.assertRaises(RuntimeError):dispatch_via_coordinator(commands,fail)
++        self.assertEqual(len(calls),1)
++        with self.assertRaises(E):dispatch_via_coordinator(list(commands),lambda _:None)
++
++if __name__=="__main__":unittest.main()
+
+diff --git a/tests/media/test_feature4_narration.py b/tests/media/test_feature4_narration.py
+--- a/tests/media/test_feature4_narration.py
++++ b/tests/media/test_feature4_narration.py
+@@ -0,0 +1,168 @@
++"""Feature4 optional fixed-gain narration: all media is original synthetic test data.
++
++Uses existing reviewed private rights and HyperFrames HTML; does NOT run TTS.
++"""
++import math
++import struct
++import sys
++import tempfile
++import unittest
++import wave
++from pathlib import Path
++
++ROOT=Path(__file__).resolve().parents[2]
++sys.path.insert(0,str(ROOT/"video-engine"))
++sys.path.insert(0,str(ROOT/"tests"/"media"))
++from creative_contract import CreativeContractError, compile_creative_reel, render_inputs
++from feature4_caption_track import checked_caption_cues
++from professional import VideoPlanError
++from test_feature4_cross_feature import CreativeReelTests
++from test_feature4_intent_compiler import pair, OTHER
++from feature4_intent_compiler import compile_approved_storyboard
++
++def write_sound(path, seconds, freq):
++    with wave.open(str(path),"wb") as f:
++        f.setnchannels(1)
++        f.setsampwidth(2)
++        f.setframerate(16000)
++        for i in range(int(16000*seconds)):
++            t=i/16000
++            sample=int(10000*math.sin(2*math.pi*freq*t))
++            f.writeframesraw(struct.pack("<h", sample))
++
++class NarrationMediaTests(unittest.TestCase):
++    def fixture(self,seconds=30):
++        fixture=CreativeReelTests(methodName="test_diwali_30s_brand_logo_motion_poster_exact_offer")
++        fixture.setUp()
++        self.addCleanup(fixture.root_tmp.cleanup)
++        fixture.make_assets(with_video=False)
++        # No fabricated Feature5 video: substitute only an explicitly disclosed
++        # original synthetic still for the motions during narration CPU test.
++        s=fixture.request["scenes"][1]
++        s["asset_id"]="product_image"
++        s["asset_type"]="image"
++        s["source_feature"]="feature3"
++        s.pop("motion_status",None)
++        write_sound(fixture.assets/"narration.wav",seconds,350)
++        write_sound(fixture.assets/"licensed_music.wav",30,196)
++        fixture.add("approved_narration","narration.wav","audio","retailer")
++        fixture.add("licensed_music","licensed_music.wav","audio","retailer")
++        fixture.request["voiceover_asset_id"]="approved_narration"
++        fixture.request["voiceover_source"]="retailer"
++        fixture.request["music_asset_id"]="licensed_music"
++        fixture.request["music_source"]="retailer"
++        return fixture
++
++    def test_voice_is_full_length_and_renderer_ducks_bed_without_replacing_sfx(self):
++        f=self.fixture()
++        with tempfile.TemporaryDirectory() as tmp:
++            project=compile_creative_reel(f.request,f.manifest,f.assets,Path(tmp)/"render")
++            page=(project/"index.html").read_text()
++        self.assertIn('id="approved-voiceover"',page)
++        self.assertIn('data-duration="30" data-track-index="7" data-volume="1"',page)
++        self.assertIn('data-track-index="5" data-volume="0.12"',page)
++        self.assertEqual(page.count('id="approved-voiceover"'),1)
++        info=render_inputs(f.request,f.manifest)
++        self.assertEqual(info.plan["voiceover_asset_id"],"approved_narration")
++        self.assertIn("approved_narration",info.audit["media_asset_ids"])
++        self.assertIn("licensed_music",info.audit["media_asset_ids"])
++
++    def test_silent_or_short_narration_cannot_be_passed_as_full_reel(self):
++        f=self.fixture(seconds=7)
++        with tempfile.TemporaryDirectory() as tmp:
++            with self.assertRaisesRegex(VideoPlanError,"shorter"):
++                compile_creative_reel(f.request,f.manifest,f.assets,Path(tmp)/"render")
++
++    def test_compiler_accepts_optional_voice_and_rejects_wrong_kind_and_cross_shop(self):
++        draft,trusted=pair()
++        draft["voiceover_asset_id"]="musicowned"
++        output=compile_approved_storyboard(draft,trusted)
++        self.assertEqual(output["request"]["voiceover_source"],"retailer")
++        self.assertEqual(render_inputs(output["request"],output["manifest"]).plan["voiceover_asset_id"],"musicowned")
++        draft["voiceover_asset_id"]="photokurti"
++        with self.assertRaises(CreativeContractError):
++            compile_approved_storyboard(draft,trusted)
++        draft["voiceover_asset_id"]="musicowned"
++        trusted["assets"]["musicowned"]["shop_id"]=OTHER
++        with self.assertRaises(CreativeContractError):
++            compile_approved_storyboard(draft,trusted)
++
++    def test_reviewed_feature2_caption_cues_become_real_timed_root_clips(self):
++        f=self.fixture()
++        cues=[{"start":0.5,"duration":2.5,"text":"Diwali Collection"},
++              {"start":10.0,"duration":2.0,"text":"Silk & festive style"},
++              {"start":25.0,"duration":3.0,"text":"Visit Our Store"}]
++        f.request["script"]["transcript"]=cues
++        with tempfile.TemporaryDirectory() as tmp:
++            compiled=compile_creative_reel(f.request,f.manifest,f.assets,Path(tmp)/"render")
++            html=(compiled/"index.html").read_text()
++        self.assertEqual(html.count('class="clip spoken-caption"'),3)
++        self.assertIn('data-start="10.0" data-duration="2.0" data-track-index="8"',html)
++        self.assertIn("Silk &amp; festive style",html)
++        self.assertEqual(render_inputs(f.request,f.manifest).plan["caption_cues"],cues)
++
++    def test_approved_voice_music_and_spoken_captions_share_one_render_timeline(self):
++        # Exercise the existing HyperFrames project builder, not a second mixer.
++        # Narration, the ducked bed and approved spoken captions must coexist
++        # in the same compiled project without duplicate voice clips.
++        f = self.fixture()
++        cues = [
++            {"start": 0.5, "duration": 2.5, "text": "Festive collection"},
++            {"start": 12.0, "duration": 2.0, "text": "Made for you"},
++            {"start": 26.0, "duration": 3.0, "text": "Visit today"},
++        ]
++        f.request["script"]["transcript"] = cues
++        with tempfile.TemporaryDirectory() as tmp:
++            project = compile_creative_reel(
++                f.request, f.manifest, f.assets, Path(tmp) / "render")
++            page = (project / "index.html").read_text()
++            self.assertEqual(page.count('id="approved-voiceover"'), 1)
++            self.assertEqual(page.count('class="clip spoken-caption"'), len(cues))
++            self.assertIn('data-track-index="5" data-volume="0.12"', page)
++            self.assertIn('data-track-index="7" data-volume="1"', page)
++            self.assertIn('data-start="12.0" data-duration="2.0" data-track-index="8"', page)
++            info = render_inputs(f.request, f.manifest)
++            self.assertEqual(info.plan["caption_cues"], cues)
++            self.assertEqual(info.plan["voiceover_asset_id"], "approved_narration")
++            self.assertIn("licensed_music", info.audit["media_asset_ids"])
++
++    def test_reviewed_subtitle_milliseconds_preserved_without_tolerance_overlap(self):
++        cues=[
++            {"start":0.5,"duration":1.25,"text":"Silk & craft"},
++            {"start":1.75,"duration":0.5,"text":"Visit our store"}
++        ]
++        self.assertEqual(checked_caption_cues(cues,30),cues)
++        invalid=[
++            [{"start":0.5004,"duration":1.25,"text":"Submillisecond start"}],
++            [{"start":0.5,"duration":1.2504,"text":"Submillisecond duration"}],
++            [cues[0],{"start":1.749,"duration":0.5,"text":"One millisecond overlap"}],
++            [{"start":29.801,"duration":0.2,"text":"Beyond endpoint"}],
++        ]
++        for candidate in invalid:
++            with self.subTest(candidate=candidate),self.assertRaises(ValueError):
++                checked_caption_cues(candidate,30)
++
++    def test_invalid_untrusted_timed_captions_fail_closed(self):
++        valid={"start":0.5,"duration":2,"text":"Approved copy"}
++        invalid=[
++          [valid,{"start":1,"duration":1,"text":"Overlap"}],
++          [{"start":29,"duration":3,"text":"Outside Reel"}],
++          [{"start":True,"duration":2,"text":"Bool"}],
++          [{"start":float("nan"),"duration":2,"text":"NaN"}],
++          [{"start":0,"duration":0.1,"text":"Short"}],
++          [{"start":0,"duration":2,"text":"<script>alert(1)</script>"}],
++          [{"start":0,"duration":2,"text":"Text","css":"bad"}],
++          "not timed"
++        ]
++        for cues in invalid:
++            f=self.fixture()
++            f.request["script"]["transcript"]=cues
++            with self.subTest(cues=cues),self.assertRaises(CreativeContractError):
++                render_inputs(f.request,f.manifest)
++        f=self.fixture()
++        f.request["script"]["transcript"]=[valid]
++        f.request.pop("voiceover_asset_id")
++        with self.assertRaisesRegex(CreativeContractError,"voice recording"):
++            render_inputs(f.request,f.manifest)
++
++if __name__=="__main__":unittest.main()
+
+diff --git a/tests/media/test_feature4_private_preview.py b/tests/media/test_feature4_private_preview.py
+--- a/tests/media/test_feature4_private_preview.py
++++ b/tests/media/test_feature4_private_preview.py
+@@ -0,0 +1,162 @@
++"""Actual FFmpeg test for private small preview; no owner-release or hosted claims."""
++import subprocess
++import sys
++import tempfile
++import unittest
++from unittest import mock
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[2]
++sys.path.insert(0, str(ROOT / "video-engine"))
++from feature4_private_preview import (
++    PreviewExportError, export_private_preview, inspect_mp4,
++)
++
++class Feature4PreviewTests(unittest.TestCase):
++    def setUp(self):
++        self.temp = tempfile.TemporaryDirectory(prefix="rgai-preview-unit-")
++        self.addCleanup(self.temp.cleanup)
++        self.root = Path(self.temp.name)
++        self.source = self.root / "source.mp4"
++        self.output = self.root / "preview.mp4"
++
++    def make_source(self, *, seconds=15, size="540x960", codec="libx264"):
++        # Genuine video/audio encode, synthetic moving frames only, no borrowed clips.
++        subprocess.run([
++            "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error",
++            "-f", "lavfi", "-i", f"testsrc2=size={size}:rate=12:duration={seconds}",
++            "-f", "lavfi", "-i", f"sine=frequency=440:sample_rate=32000:duration={seconds}",
++            "-map", "0:v:0", "-map", "1:a:0", "-c:v", codec,
++            "-preset", "ultrafast", "-crf", "32", "-pix_fmt", "yuv420p",
++            "-c:a", "aac", "-b:a", "48k", "-shortest", "-threads", "2",
++            str(self.source),
++        ], check=True, capture_output=True, timeout=90)
++
++    def test_actual_video_preview_is_small_private_and_original_immutable(self):
++        self.make_source()
++        original = self.source.read_bytes()
++        report = export_private_preview(self.source, self.output, expected_seconds=15)
++        self.assertTrue(self.output.is_file())
++        self.assertEqual(self.source.read_bytes(), original)
++        self.assertEqual(report["status"], "PRIVATE_PREVIEW_ENCODED_NOT_PUBLISHED")
++        self.assertFalse(report["signed_download_ready"])
++        self.assertFalse(report["commercial_release_eligible"])
++        self.assertFalse(report["retailer_media_authorization_checked_here"])
++        self.assertLess(report["preview_bytes"], report["source_bytes"])
++        metadata = inspect_mp4(self.output, max_size=8 * 1024 * 1024)
++        self.assertEqual((metadata["width"], metadata["height"]), (540, 960))
++        self.assertAlmostEqual(metadata["seconds"], 15, delta=.45)
++        with self.assertRaisesRegex(PreviewExportError, "fresh"):
++            export_private_preview(self.source, self.output, expected_seconds=15)
++
++    def test_concurrent_destination_race_does_not_replace_existing_preview(self):
++        self.make_source()
++        def raced_link(src,dst):
++            Path(dst).write_bytes(b"another-render-owner")
++            raise FileExistsError("already exists")
++        with mock.patch("feature4_private_preview.os.link",side_effect=raced_link):
++            with self.assertRaisesRegex(PreviewExportError,"Unable to encode"):
++                export_private_preview(self.source,self.output,expected_seconds=15)
++        self.assertEqual(self.output.read_bytes(),b"another-render-owner")
++        self.assertEqual(list(self.root.glob(".preview-*.mp4")),[])
++
++    def test_source_mutation_during_encode_cannot_publish_wrong_provenance(self):
++        self.make_source()
++        original_run = subprocess.run
++        changed = False
++        def mutate_after_encode(args, **kwargs):
++            nonlocal changed
++            result = original_run(args, **kwargs)
++            if not changed and args[0] == "ffmpeg" and "-movflags" in args:
++                with self.source.open("ab") as source:
++                    source.write(b"concurrent-authorized-source-revision")
++                changed = True
++            return result
++        with mock.patch("feature4_private_preview.subprocess.run", side_effect=mutate_after_encode):
++            with self.assertRaisesRegex(PreviewExportError, "changed"):
++                export_private_preview(self.source, self.output, expected_seconds=15)
++        self.assertTrue(changed)
++        self.assertFalse(self.output.exists())
++        self.assertEqual(list(self.root.glob(".preview-*.mp4")), [])
++
++    def test_same_byte_atomic_swap_during_source_probe_fails(self):
++        self.make_source()
++        original_inspect = inspect_mp4
++        replaced = False
++
++        def swapped_probe(path, *, max_size):
++            nonlocal replaced
++            metadata = original_inspect(path, max_size=max_size)
++            if not replaced and Path(path) == self.source:
++                temp = self.root / "fresh-inode.mp4"
++                temp.write_bytes(self.source.read_bytes())
++                temp.replace(self.source)
++                replaced = True
++            return metadata
++
++        with mock.patch("feature4_private_preview.inspect_mp4",
++                        side_effect=swapped_probe):
++            with self.assertRaisesRegex(PreviewExportError, "changed"):
++                export_private_preview(self.source, self.output, expected_seconds=15)
++        self.assertTrue(replaced)
++        self.assertFalse(self.output.exists())
++        self.assertEqual(list(self.root.glob(".preview-*.mp4")), [])
++
++    def test_same_byte_atomic_swap_during_encode_fails(self):
++        self.make_source()
++        original_run = subprocess.run
++        replaced = False
++
++        def swapped_encode(args, **kwargs):
++            nonlocal replaced
++            result = original_run(args, **kwargs)
++            if not replaced and args[0] == "ffmpeg" and "-movflags" in args:
++                temp = self.root / "fresh-inode.mp4"
++                temp.write_bytes(self.source.read_bytes())
++                temp.replace(self.source)
++                replaced = True
++            return result
++
++        with mock.patch("feature4_private_preview.subprocess.run",
++                        side_effect=swapped_encode):
++            with self.assertRaisesRegex(PreviewExportError, "changed"):
++                export_private_preview(self.source, self.output, expected_seconds=15)
++        self.assertTrue(replaced)
++        self.assertFalse(self.output.exists())
++        self.assertEqual(list(self.root.glob(".preview-*.mp4")), [])
++
++    def test_oversized_source_fails_before_ffprobe(self):
++        with self.source.open("wb") as data:
++            data.truncate(80 * 1024 * 1024 + 1)
++        with mock.patch("feature4_private_preview.inspect_mp4") as probe:
++            with self.assertRaisesRegex(PreviewExportError, "oversized"):
++                export_private_preview(self.source, self.output, expected_seconds=15)
++        probe.assert_not_called()
++        self.assertFalse(self.output.exists())
++
++    def test_wrong_duration_and_bad_preset_denied(self):
++        self.make_source()
++        with self.assertRaisesRegex(PreviewExportError, "duration"):
++            export_private_preview(self.source, self.output, expected_seconds=60)
++        with self.assertRaisesRegex(PreviewExportError, "15/30/60"):
++            export_private_preview(self.source, self.output, expected_seconds=12)
++
++    def test_symlink_input_and_cross_aspect_denied(self):
++        self.make_source()
++        link = self.root / "untrusted.mp4"
++        link.symlink_to(self.source)
++        with self.assertRaisesRegex(PreviewExportError, "unsafe"):
++            export_private_preview(link, self.output, expected_seconds=15)
++        self.source.unlink()
++        self.make_source(size="640x360")
++        with self.assertRaisesRegex(PreviewExportError, "aspect"):
++            export_private_preview(self.source, self.output, expected_seconds=15)
++
++    def test_partial_or_garbage_media_cannot_be_published(self):
++        self.source.write_bytes(b"not a video" * 1000)
++        with self.assertRaises(PreviewExportError):
++            export_private_preview(self.source, self.output, expected_seconds=15)
++        self.assertFalse(self.output.exists())
++
++if __name__ == "__main__":
++    unittest.main()
+
+diff --git a/tests/media/test_feature4_professional.py b/tests/media/test_feature4_professional.py
+--- a/tests/media/test_feature4_professional.py
++++ b/tests/media/test_feature4_professional.py
+@@ -0,0 +1,326 @@
++"""Offline Feature #4 authoring, authorization and source-audio regression tests.
++
++These are compiler/unit tests; they do not assert a HyperFrames video was rendered.
++"""
++import copy
++import json
++import subprocess
++import sys
++import tempfile
++import unittest
++import wave
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[2]
++sys.path.insert(0, str(ROOT / "video-engine"))
++from professional import (
++    VideoPlanError, compile_composition, validate, checked_audio_mix,
++    SUPPORTED_ANIMATIONS, SUPPORTED_TRANSITIONS,
++)  # noqa: E402
++from creative_contract import ANIMATIONS, TRANSITIONS  # noqa: E402
++
++SHOP = "11111111-1111-4111-8111-111111111111"
++OTHER = "22222222-2222-4222-8222-222222222222"
++RIGHTS = {"commercial_use": True, "license": "owned", "evidence": "Fixture author grant",
++          "source": "original test pattern authored in CI"}
++
++
++class ProfessionalVideoTests(unittest.TestCase):
++    def setUp(self):
++        self.temp = tempfile.TemporaryDirectory()
++        self.addCleanup(self.temp.cleanup)
++        self.root = Path(self.temp.name)
++        self.media = self.root / "authorized"
++        self.media.mkdir()
++        self.output = self.root / "project"
++        self.manifest = {"shop_id": SHOP, "assets": {}}
++        self.plan = {
++            "version": "rg_video_v2", "shop_id": SHOP, "mode": "text",
++            "template": "streetwear", "duration_seconds": 15,
++            "output": {"width": 540, "height": 960, "fps": 24},
++            "scenes": [
++                {"start": 0, "duration": 5, "headline": "OUR NEW SEASON"},
++                {"start": 5, "duration": 5, "headline": "Hand-picked style"},
++                {"start": 10, "duration": 5, "headline": "The Boutique"},
++            ],
++            "cta": "Visit our shop",
++        }
++
++    def image(self):
++        # Real small staged PNG; the compiler's ffprobe preflight remains active.
++        p = self.media / "product.png"
++        subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
++                        "-f", "lavfi", "-i", "color=c=red:s=128x128:d=1",
++                        "-frames:v", "1", "-update", "1", str(p)],
++                       check=True, capture_output=True, timeout=20)
++        self.manifest["assets"]["photo1"] = {"kind": "image", "path": "product.png",
++                                              "rights": copy.deepcopy(RIGHTS)}
++        for s in self.plan["scenes"]:
++            s["asset_id"] = "photo1"
++
++    def audio(self):
++        p = self.media / "music.wav"
++        with wave.open(str(p), "wb") as wav:
++            wav.setnchannels(2)
++            wav.setsampwidth(2)
++            wav.setframerate(44100)
++            for _ in range(15):
++                wav.writeframes(b"\x00\x00\x00\x00" * 44100)
++        self.manifest["assets"]["music1"] = {"kind": "audio", "path": "music.wav",
++                                              "rights": copy.deepcopy(RIGHTS)}
++        self.plan["music_asset_id"] = "music1"
++
++    def test_mode_a_text_to_video_compiles_offline(self):
++        output = compile_composition(self.plan, self.manifest, self.media, self.output)
++        page = (output / "index.html").read_text()
++        self.assertIn('data-composition-id="main"', page)
++        self.assertIn('data-no-timeline', page)
++        self.assertIn("OUR NEW SEASON", page)
++        self.assertNotIn("<script", page)
++        self.assertTrue((output / "assets/silence.wav").is_file())
++        self.assertEqual(json.loads((output / "render-config.json").read_text())["renderer"], "hyperframes")
++
++    def test_full_hd_compiler_records_exact_dimensions_and_fps(self):
++        self.plan["output"] = {"width": 1080, "height": 1920, "fps": 30}
++        output = compile_composition(self.plan, self.manifest, self.media, self.output)
++        config = json.loads((output / "render-config.json").read_text())
++        page = (output / "index.html").read_text()
++        self.assertEqual((config["width"], config["height"], config["fps"]),
++                         (1080, 1920, 30))
++        self.assertIn('data-width="1080" data-height="1920"', page)
++        self.assertIn('data-fps="30"', page)
++        self.assertIn("role-intro", page)
++        self.assertIn("role-outro", page)
++        # On portrait export the product artwork must stop before the lower-third copy.
++        self.assertIn(".role-product .photo-wrap{top:6%;height:66%", page)
++
++    def test_sixty_second_script_acceptance_without_expensive_render(self):
++        self.plan["duration_seconds"] = 60
++        for index, scene in enumerate(self.plan["scenes"]):
++            scene["start"] = index * 20
++            scene["duration"] = 20
++        ordered, has_source_audio = validate(self.plan, self.manifest, self.media)
++        self.assertEqual(ordered, {})
++        self.assertFalse(has_source_audio)
++
++    def test_mode_b_image_to_video_reuses_actual_media(self):
++        self.image()
++        self.plan["mode"] = "image"
++        output = compile_composition(self.plan, self.manifest, self.media, self.output)
++        page = (output / "index.html").read_text()
++        self.assertIn("assets/asset00.png", page)
++        self.assertEqual(page.count('<img class="product-photo"'), 3)
++        self.assertEqual(len(list((output / "assets").glob("*.png"))), 1)
++
++    def test_mode_c_poster_to_video_retains_approved_offer(self):
++        self.image()
++        self.manifest["assets"]["photo1"]["kind"] = "poster"
++        self.plan["mode"] = "poster"
++        self.plan["template"] = "festival"
++        self.plan["scenes"][1]["offer"] = "20% OFF"
++        page = (compile_composition(self.plan, self.manifest, self.media, self.output) /
++                "index.html").read_text()
++        self.assertIn("20% OFF", page)
++        self.assertIn("CELEBRATE IN STYLE", page)
++
++    def test_mode_d_media_supports_scene_order(self):
++        self.image()
++        self.plan["mode"] = "media"
++        self.plan["template"] = "cinematic"
++        page = (compile_composition(self.plan, self.manifest, self.media, self.output) /
++                "index.html").read_text()
++        self.assertLess(page.index("OUR NEW SEASON"), page.index("Hand-picked style"))
++        self.assertIn("THE COLLECTION", page)
++
++    def test_mode_e_beat_grid_requires_music_and_alignment(self):
++        self.image()
++        self.audio()
++        self.plan["mode"] = "music_sync"
++        self.plan["beats"] = [0, 5, 10, 14]
++        output = compile_composition(self.plan, self.manifest, self.media, self.output)
++        self.assertIn('data-volume="0.55"', (output / "index.html").read_text())
++        self.assertFalse((output / "assets/silence.wav").exists())
++        self.plan["beats"] = [0, 4, 9, 14]
++        with self.assertRaisesRegex(VideoPlanError, "align"):
++            validate(self.plan, self.manifest, self.media)
++
++    def test_cross_shop_and_rights_revocation_rejected(self):
++        self.image()
++        self.manifest["shop_id"] = OTHER
++        with self.assertRaisesRegex(VideoPlanError, "shop_id"):
++            validate(self.plan, self.manifest, self.media)
++        self.manifest["shop_id"] = SHOP
++        self.manifest["assets"]["photo1"]["rights"]["commercial_use"] = False
++        with self.assertRaisesRegex(ValueError, "commercial-use"):
++            validate(self.plan, self.manifest, self.media)
++
++    def test_html_injection_escaped_and_template_expression_denied(self):
++        self.plan["scenes"][0]["headline"] = '<img src="http://attack" onerror="alert(1)">'
++        page = (compile_composition(self.plan, self.manifest, self.media, self.output) /
++                "index.html").read_text()
++        self.assertNotIn('<img src="http:', page)
++        self.assertIn("&lt;img", page)
++        self.plan["js"] = "process.exit()"
++        with self.assertRaisesRegex(VideoPlanError, "unsupported"):
++            validate(self.plan, self.manifest, self.media)
++
++    def test_traversal_and_remote_urls_rejected(self):
++        self.image()
++        self.manifest["assets"]["photo1"]["path"] = "../outside.png"
++        with self.assertRaises((ValueError, FileNotFoundError)):
++            validate(self.plan, self.manifest, self.media)
++        self.manifest["assets"]["photo1"]["path"] = "https://evil.invalid/a.png"
++        with self.assertRaisesRegex(ValueError, "server-staged"):
++            validate(self.plan, self.manifest, self.media)
++
++    def test_no_gaps_boolean_durations_or_unbounded_output(self):
++        self.plan["scenes"][1]["start"] = 6
++        with self.assertRaisesRegex(VideoPlanError, "contiguous"):
++            validate(self.plan, self.manifest, self.media)
++        self.plan["scenes"][1]["start"] = 5
++        self.plan["scenes"][1]["duration"] = True
++        with self.assertRaisesRegex(VideoPlanError, "finite"):
++            validate(self.plan, self.manifest, self.media)
++        self.plan["scenes"][1]["duration"] = 5
++        self.plan["output"]["width"] = 8192
++        with self.assertRaisesRegex(VideoPlanError, "portrait"):
++            validate(self.plan, self.manifest, self.media)
++
++    def test_source_video_voice_is_not_muted_by_default(self):
++        file = self.media / "shop.mp4"
++        subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y",
++                        "-f", "lavfi", "-i", "color=c=blue:s=120x200:r=12:d=15",
++                        "-f", "lavfi", "-i", "sine=frequency=440:duration=15",
++                        "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
++                        "-c:a", "aac", "-shortest", str(file)],
++                       check=True, capture_output=True, timeout=40)
++        self.manifest["assets"]["clip1"] = {"kind": "video", "path": "shop.mp4",
++                                             "rights": copy.deepcopy(RIGHTS)}
++        self.plan["mode"] = "media"
++        self.plan["scenes"] = [{"start": 0, "duration": 15, "headline": "Store tour", "asset_id": "clip1"}]
++        self.audio()
++        page = (compile_composition(self.plan, self.manifest, self.media, self.output) /
++                "index.html").read_text()
++        self.assertIn('<video class="footage clip"', page)
++        self.assertIn('data-has-audio="true"', page)
++        self.assertNotIn('playsinline muted', page)
++        self.assertIn('data-volume="0.12"', page)
++        self.assertIn('id="soundtrack0"', page)
++        self.assertIn('data-media-start="0"', page)
++
++        # A separate root video track previously ignored the approved scene
++        # transition: only the text/overlay animated. Check all three bounded
++        # renderer variants compile on the actual footage layer as well.
++        self.plan["scenes"] = [
++            {"start": 0, "duration": 5, "headline": "Opening",
++             "asset_id": "clip1", "transition": "fade"},
++            {"start": 5, "duration": 5, "headline": "Details",
++             "asset_id": "clip1", "transition": "slide"},
++            {"start": 10, "duration": 5, "headline": "Final",
++             "asset_id": "clip1", "transition": "cut"},
++        ]
++        transitions = (compile_composition(
++            self.plan, self.manifest, self.media, self.root / "transitions"
++        ) / "index.html").read_text()
++        for index, transition in enumerate(("fade", "slide", "cut")):
++            self.assertIn(
++                f'<video class="footage clip" id="video{index}" data-transition="{transition}"',
++                transitions,
++            )
++            self.assertIn(f'class="clip scene s{index%3} has-video', transitions)
++            self.assertIn(f'trans-{transition}', transitions)
++        self.assertIn('.footage[data-transition="fade"]{animation:editorialFade', transitions)
++        self.assertIn('.footage[data-transition="slide"]{animation:editorialSlide', transitions)
++        self.assertIn('.footage[data-transition="cut"]{animation:none}', transitions)
++        self.assertEqual(transitions.count('data-volume="1" style="--span:5s"'), 3)
++
++
++    def test_all_supported_editor_effects_compile_to_actual_css_keyframes(self):
++        """F4-05 source parity; no fake encoded-video/Chromium frame claim."""
++        self.assertEqual(ANIMATIONS, SUPPORTED_ANIMATIONS)
++        self.assertEqual(TRANSITIONS, SUPPORTED_TRANSITIONS)
++        animations = ("subtle_zoom", "fade", "slide", "pop", "glow")
++        transitions = ("fade", "slide", "cut")
++        self.plan["scenes"] = [{
++            "start": i * 3, "duration": 3, "headline": f"REVIEWED SCENE {i}",
++            "animation_preset": preset,
++            "transition": transitions[i % len(transitions)],
++        } for i, preset in enumerate(animations)]
++        output = compile_composition(self.plan, self.manifest, self.media, self.output)
++        page = (output / "index.html").read_text(encoding="utf-8")
++        for preset in animations:
++            with self.subTest(preset=preset):
++                self.assertIn(f"anim-{preset}", page)
++        for transition in transitions:
++            with self.subTest(transition=transition):
++                self.assertIn(f"trans-{transition}", page)
++        for keyframe in ("presetSubtleZoom", "presetFade", "presetSlide",
++                         "presetGlow", "promoPop", "editorialFade", "editorialSlide"):
++            with self.subTest(keyframe=keyframe):
++                self.assertIn(f"@keyframes {keyframe}", page)
++        for selector in (".anim-subtle_zoom .glass{animation:presetSubtleZoom",
++                         ".anim-fade .glass{animation:presetFade",
++                         ".anim-slide .glass{animation:presetSlide",
++                         ".anim-pop .glass{animation:promoPop",
++                         ".anim-glow .glass{animation:presetGlow",
++                         ".scene.trans-fade{animation:editorialFade",
++                         ".scene.trans-slide{animation:editorialSlide",
++                         ".scene.trans-cut{animation:none"):
++            with self.subTest(selector=selector):
++                self.assertIn(selector, page)
++        self.assertNotIn("<script", page)
++
++    def test_unsupported_effects_are_rejected_before_compilation(self):
++        for name, value in (("animation_preset", "3d_rotate"),
++                            ("animation_preset", "fade;position:absolute"),
++                            ("transition", "glitch"),
++                            ("transition", "slide;opacity:0")):
++            with self.subTest(name=name, value=value):
++                trial = copy.deepcopy(self.plan)
++                trial["scenes"][0][name] = value
++                with self.assertRaisesRegex(VideoPlanError, "Unknown"):
++                    validate(trial, self.manifest, self.media)
++
++    def test_approved_music_gain_changes_actual_renderer_audio_track(self):
++        self.audio()
++        self.plan["audio_mix"] = {"music": .37}
++        output = compile_composition(self.plan, self.manifest, self.media, self.output)
++        page = (output / "index.html").read_text()
++        self.assertIn('data-track-index="5" data-volume="0.37"', page)
++
++    def test_bounded_narration_and_sfx_gains_retaining_music_ducking(self):
++        self.audio()
++        self.manifest["assets"]["voice"] = {
++            "kind": "audio", "path": "music.wav", "rights": copy.deepcopy(RIGHTS),
++        }
++        self.manifest["assets"]["effect"] = {
++            "kind": "audio", "path": "music.wav", "rights": copy.deepcopy(RIGHTS),
++        }
++        self.plan["voiceover_asset_id"] = "voice"
++        self.plan["scenes"][1]["sfx_asset_id"] = "effect"
++        self.plan["audio_mix"] = {
++            "music": .8, "voiceover": .72, "sfx": .15,
++        }
++        page = (compile_composition(
++            self.plan, self.manifest, self.media, self.output) / "index.html").read_text()
++        self.assertIn('data-track-index="7" data-volume="0.72"', page)
++        self.assertIn('data-track-index="6" data-volume="0.15"', page)
++        self.assertIn('data-track-index="5" data-volume="0.12"', page)
++        self.assertNotIn('data-track-index="5" data-volume="0.8"', page)
++
++    def test_audio_gain_rejects_inert_unknown_and_nonfinite_controls(self):
++        for mix in (
++            {"music": 1}, {"sfx": 0}, {"voiceover": .5}, {"source": .5},
++            {"music": float("nan")}, {"source": True}, {"music": -.1},
++            {"music": .009}, {"unknown_track": 1}, {"music": "0.5"},
++        ):
++            with self.subTest(mix=mix), self.assertRaises(VideoPlanError):
++                validate({**self.plan, "audio_mix": mix}, self.manifest, self.media)
++        for mix in ([], "music=1", {"music": float("inf")}):
++            with self.subTest(mix=mix), self.assertRaises(VideoPlanError):
++                checked_audio_mix(
++                    mix, has_music=True, has_voice=False,
++                    has_source=False, has_sfx=False)
++
++if __name__ == "__main__":
++    unittest.main()
+
+diff --git a/tests/media/test_feature4_quality_receipt.py b/tests/media/test_feature4_quality_receipt.py
+--- a/tests/media/test_feature4_quality_receipt.py
++++ b/tests/media/test_feature4_quality_receipt.py
+@@ -0,0 +1,86 @@
++"""Cross-feature QA receipt is transparent and enforces source-to-export linkage."""
++import hashlib
++import json
++import sys
++import tempfile
++import unittest
++from pathlib import Path
++from unittest.mock import patch
++ROOT=Path(__file__).resolve().parents[2]
++sys.path.insert(0,str(ROOT/"video-engine"))
++from feature4_quality_receipt import QualityReceiptError, validate_stock_receipt
++
++class ReceiptTests(unittest.TestCase):
++    def setUp(self):
++        ctx=tempfile.TemporaryDirectory()
++        self.addCleanup(ctx.cleanup)
++        self.root=Path(ctx.name)
++        self.files=[self.root/f"{i}.mp4" for i in range(3)]
++        for i,x in enumerate(self.files):
++            x.write_bytes(bytes([i+1])*20000)
++        self.hashes=[hashlib.sha256(x.read_bytes()).hexdigest() for x in self.files]
++        self.provenance={"duration_seconds":30,"scene_count":7,
++            "status":"OFFLINE_CROSS_FEATURE_STOCK_TEST_ONLY",
++            "commercial_release_eligible":False,
++            "model_garment_match_verified":False,"actual_spoken_voiceover":False,
++            "showcase_eligible":False,
++            "source_media":[{"source_feature":("feature3_garment_proxy" if i<2 else "feature5_stock_proxy"),
++               "source_id":str(i),"page":"https://www.pexels.com/video/example"} for i in range(5)]}
++        self.motion={"status":"MOVING_PIXELS_VERIFIED_NOT_CONTENT_APPROVAL",
++            "source_sha256":self.hashes[0],"commercial_release_eligible":False,
++            "threshold_luma_difference":5,
++            "checked_moving_scenes":[{"luma_difference":6.1}]*3}
++        self.master={"status":"PRIVATE_AUDIO_MASTERED_NOT_PUBLISHED",
++            "source_sha256":self.hashes[0],"master_sha256":self.hashes[1],
++            "signed_download_ready":False,"commercial_release_eligible":False,
++            "source_audio_mean_db":-28,"mastered_audio_mean_db":-18}
++        self.preview={"status":"PRIVATE_PREVIEW_ENCODED_NOT_PUBLISHED",
++            "source_sha256":self.hashes[1],"preview_sha256":self.hashes[2],
++            "signed_download_ready":False,"commercial_release_eligible":False}
++        self.editorial={"caption_kind":"EDITORIAL_TEST_TITLES_NOT_SPOKEN_AUDIO",
++            "speech_text_alignment_verified_here":False,
++            "signed_download_ready":False,"cue_count":7}
++        self.keys=("provenance","motion_proof","master_proof","preview_proof","editorial_proof")
++        self.data=[self.provenance,self.motion,self.master,self.preview,self.editorial]
++        for key,val in zip(self.keys,self.data):
++            (self.root/(key+".json")).write_text(json.dumps(val))
++    def validate(self):
++        kwargs={"original":self.files[0],"master":self.files[1],"preview":self.files[2]}
++        kwargs.update({k:self.root/(k+".json") for k in self.keys})
++        return validate_stock_receipt(**kwargs)
++    def test_report_lists_every_feature_and_never_grants_release(self):
++        with patch("feature4_quality_receipt.inspect_mp4",
++                   side_effect=[{"seconds":30,"width":1080,"height":1920},
++                                {"seconds":30,"width":1080,"height":1920},
++                                {"seconds":30,"width":540,"height":960}]):
++            report=self.validate()
++        self.assertEqual(set(report["features"]),{"feature2","feature3","feature4","feature5","feature7"})
++        self.assertEqual(report["features"]["feature4"]["status"],"OFFLINE_MEDIA_TECHNICAL_PASS")
++        self.assertFalse(report["commercial_release_eligible"])
++        self.assertFalse(report["signed_download_ready"])
++        self.assertEqual(len(report["blockers"]),6)
++    def test_fake_motion_or_cross_source_hashes_never_pass(self):
++        self.motion["checked_moving_scenes"][0]["luma_difference"]=0
++        (self.root/"motion_proof.json").write_text(json.dumps(self.motion))
++        with patch("feature4_quality_receipt.inspect_mp4",
++                   side_effect=[{"seconds":30,"width":1080,"height":1920}]*2+
++                              [{"seconds":30,"width":540,"height":960}]):
++            with self.assertRaisesRegex(QualityReceiptError,"moving actor"):
++                self.validate()
++        self.motion["checked_moving_scenes"][0]["luma_difference"]=6.1
++        (self.root/"motion_proof.json").write_text(json.dumps(self.motion))
++        self.preview["source_sha256"]="0"*64
++        (self.root/"preview_proof.json").write_text(json.dumps(self.preview))
++        with patch("feature4_quality_receipt.inspect_mp4",
++                   side_effect=[{"seconds":30,"width":1080,"height":1920}]*2+
++                              [{"seconds":30,"width":540,"height":960}]):
++            with self.assertRaisesRegex(QualityReceiptError,"hashes"):
++                self.validate()
++    def test_no_spoken_approval_and_media_permissions(self):
++        self.editorial["speech_text_alignment_verified_here"]=True
++        (self.root/"editorial_proof.json").write_text(json.dumps(self.editorial))
++        with patch("feature4_quality_receipt.inspect_mp4",
++                   side_effect=[{"seconds":30,"width":1080,"height":1920}]*2+
++                              [{"seconds":30,"width":540,"height":960}]):
++            with self.assertRaisesRegex(QualityReceiptError,"caption"):
++                self.validate()
+
