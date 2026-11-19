@@ -85,6 +85,15 @@ class Y1FiveGetSourceStageTests(unittest.TestCase):
             stage.stage_sources(self.repo, self.target)
         self.assertFalse(self.target.exists())
 
+    def test_sparse_multigigabyte_module_is_denied_before_full_read(self):
+        source = self.repo / stage.SOURCES["security.py"]
+        # Sparse fixture: no multi-GB allocation, file transfer, or cloud IO.
+        with source.open("wb") as stream:
+            stream.truncate(3 * 1024 * 1024 * 1024)
+        with self.assertRaisesRegex(ValueError, "size outside approved limit"):
+            stage.stage_sources(self.repo, self.target)
+        self.assertFalse(self.target.exists())
+
     def test_reject_post_trigger_before_writing(self):
         source = self.repo / stage.SOURCES["poster_job_read/function.json"]
         manifest = json.loads(source.read_text())
