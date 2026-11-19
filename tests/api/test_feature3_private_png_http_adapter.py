@@ -2,6 +2,8 @@
 import sys
 import unittest
 from pathlib import Path
+from io import BytesIO
+from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "azure-functions" / "campaign-api"))
 from feature3_private_png_http_adapter import private_png_http_response
@@ -10,7 +12,13 @@ from tenant_store import StorageUnavailable
 
 SHOP = "11111111-1111-4111-8111-111111111111"
 JOB = "22222222-2222-4222-8222-222222222222"
-PNG = bytes((137, 80, 78, 71, 13, 10, 26, 10)) + b"synthetic-fixture" * 8
+def synthetic_png():
+    stream = BytesIO()
+    Image.new("RGB", (256, 256), (25, 45, 70)).save(stream, format="PNG")
+    return stream.getvalue()
+
+
+PNG = synthetic_png()
 
 
 class PrivatePNGHttpAdapterTests(unittest.TestCase):
@@ -77,6 +85,43 @@ class PrivatePNGHttpAdapterTests(unittest.TestCase):
                     shop_id=SHOP, job_id=JOB, bearer_token="Bearer synthetic0.jwt.fixture")
                 self.assertEqual((status, body), (404, b""))
                 self.assertNotIn("Content-Type", headers)
+
+    def test_valid_signature_with_invalid_png_chunks_or_pixel_data_is_denied(self):
+        # A forged reader may return bytes starting with a valid PNG magic
+        # without a valid PNG; no such bytes may receive an HTTP 200.
+        class Reader:
+            def __init__(self, result):
+                self.result = result
+
+            def read(self, **kwargs):
+                return self.result
+
+        invalid = [
+            PNG[:8] + b"synthetic-fixture" * 8,
+            PNG + b"trailing-private-data",
+            PNG[:-4] + b"FAIL",
+        ]
+        idat = PNG.index(b"IDAT")
+        corrupt = bytearray(PNG)
+        corrupt[idat + 4] ^= 0xFF
+        invalid.append(bytes(corrupt))
+        for payload in invalid:
+            with self.subTest(payload_len=len(payload)):
+                status, headers, body = private_png_http_response(
+                    reader_factory=lambda shop, job: Reader(payload),
+                    shop_id=SHOP, job_id=JOB,
+                    bearer_token="Bearer synthetic0.jwt.fixture",
+                )
+                self.assertEqual((status, body), (404, b""))
+                self.assertNotIn("Content-Type", headers)
+        # All malformed attempts must leave a subsequent legitimate private
+        # receipt readable, without a sticky fail-open or fail-closed state.
+        status, headers, body = private_png_http_response(
+            reader_factory=lambda shop, job: Reader(PNG),
+            shop_id=SHOP, job_id=JOB,
+            bearer_token="Bearer synthetic0.jwt.fixture",
+        )
+        self.assertEqual((status, body), (200, PNG))
 
     def test_oversized_png_and_untrusted_bearer_are_denied_before_delivery(self):
         calls = []
