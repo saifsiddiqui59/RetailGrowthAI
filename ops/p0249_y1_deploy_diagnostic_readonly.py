@@ -7,6 +7,7 @@ status booleans/enums and request outcome counts, not raw logs.
 """
 import json
 import subprocess
+from urllib.parse import urlsplit
 
 from p0249_y1_canary_guard import RG, SITE, verify
 
@@ -27,6 +28,28 @@ def az_read(*args):
         return None
 
 
+
+def classify_package_mode(value):
+    """Return a fixed nonsecret enum; never log a package URL or SAS token."""
+    if value is None:
+        return "ABSENT"
+    if not isinstance(value, str):
+        return "UNRECOGNIZED"
+    stripped = value.strip()
+    if stripped == "0":
+        return "DISABLED"
+    if stripped == "1":
+        return "LOCAL_PACKAGE"
+    try:
+        parsed = urlsplit(stripped)
+    except ValueError:
+        return "UNRECOGNIZED"
+    if (parsed.scheme == "https" and parsed.hostname and not parsed.username
+            and not parsed.password and stripped.startswith("https://")):
+        return "EXTERNAL_HTTPS_URL"
+    return "UNRECOGNIZED"
+
+
 def setting_flags(rows):
     """Permit only expected keys and their boolean states, not values."""
     if not isinstance(rows, list) or any(not isinstance(r, dict) for r in rows):
@@ -45,7 +68,7 @@ def setting_flags(rows):
         if name in by_name:
             raise RuntimeError("Duplicate diagnostic app setting name")
         by_name[name] = row.get("value")
-    return {
+    flags = {
         name: {
             "present": name in by_name,
             "is_true": str(by_name.get(name, "")).strip().lower() == "true",
@@ -54,6 +77,22 @@ def setting_flags(rows):
         }
         for name in allowed
     }
+    package_mode = classify_package_mode(by_name.get("WEBSITE_RUN_FROM_PACKAGE"))
+    flags["WEBSITE_RUN_FROM_PACKAGE"]["nonsecret_mode"] = package_mode
+    # This is only a compatibility hint, not a conclusion about a ZIP build.
+    # A pre-vendored local-build ZIP cannot be proven active from this read.
+    if flags["SCM_DO_BUILD_DURING_DEPLOYMENT"]["is_true"]:
+        flags["WEBSITE_RUN_FROM_PACKAGE"]["build_config_class"] = (
+            "REMOTE_BUILD_FLAGS_ALIGNED"
+            if flags["ENABLE_ORYX_BUILD"]["is_true"]
+            and package_mode in ("ABSENT", "DISABLED")
+            else "REMOTE_BUILD_FLAGS_MIXED"
+        )
+    elif package_mode == "EXTERNAL_HTTPS_URL":
+        flags["WEBSITE_RUN_FROM_PACKAGE"]["build_config_class"] = "EXTERNAL_PACKAGE_MODE"
+    else:
+        flags["WEBSITE_RUN_FROM_PACKAGE"]["build_config_class"] = "UNDETERMINED"
+    return flags
 
 
 def deployment_summary(rows):
