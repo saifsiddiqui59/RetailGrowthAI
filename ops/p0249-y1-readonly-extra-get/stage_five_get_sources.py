@@ -9,6 +9,8 @@ from __future__ import annotations
 import argparse
 import ast
 import json
+import os
+import stat
 from pathlib import Path
 
 MAX_SOURCE_BYTES = 2 * 1024 * 1024
@@ -94,12 +96,23 @@ def stage_sources(repo: Path, target: Path) -> Path:
         source = repo / relative
         if not source.is_file() or source.is_symlink() or repo not in source.resolve().parents:
             raise ValueError("missing or symlinked allowlisted Y1 source: " + relative)
-        # Bound the read BEFORE allocating a blob: a hostile or accidentally
-        # sparse multi-GB source must not exhaust the release builder's RAM.
-        size = source.stat().st_size
-        if not 0 < size <= MAX_SOURCE_BYTES:
-            raise ValueError("Y1 source size outside approved limit")
-        with source.open("rb") as stream:
+        # Anchor the actual read to a non-following regular file descriptor,
+        # not an unchecked Path.open after validation: a symlink swap between
+        # is_symlink() and open() must fail closed, never stage an outside file.
+        # O_NONBLOCK avoids hanging on a malicious FIFO replacement.
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+        try:
+            fd = os.open(source, flags)
+        except OSError as exc:
+            raise ValueError("missing or symlinked allowlisted Y1 source: " + relative) from exc
+        with os.fdopen(fd, "rb") as stream:
+            metadata = os.fstat(stream.fileno())
+            if not stat.S_ISREG(metadata.st_mode):
+                raise ValueError("Y1 source must remain a regular file")
+            size = metadata.st_size
+            # Bound memory BEFORE reading even a sparse multi-GB file.
+            if not 0 < size <= MAX_SOURCE_BYTES:
+                raise ValueError("Y1 source size outside approved limit")
             raw = stream.read(MAX_SOURCE_BYTES + 1)
         if len(raw) != size:
             raise ValueError("Y1 source changed during bounded read")
