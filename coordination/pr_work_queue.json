@@ -110,23 +110,19 @@
       "pr": 1007,
       "title": "docs(integration): evidence-backed 10-PR chat D closure checkpoint",
       "feature": "shared",
-      "head_sha": "2a35fe131dac57752b217d95c3d064711424a38e",
+      "head_sha": "6ed3aa3b47482ccbedc9361d3727d3b6889d2e44",
       "base_branch": "main",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-g-docs-20261119",
-        "head_sha": "2a35fe131dac57752b217d95c3d064711424a38e",
-        "claimed_at": "2026-11-19T08:00:55.810Z",
-        "expires_at": "2026-11-19T08:40:55.810Z"
-      },
+      "phase": "ready-for-review",
+      "claim": null,
       "checkpoint": {
-        "owner": "manual-integration-chat-f-20261119-resume",
-        "at": "2026-11-19T07:49:36.590Z",
-        "status": "Shared four-document PR #1007 source-only, latest exact-head 44462876075 success; independent shared-doc reviewer still absent; no merge",
-        "ci": "exact-head #44462876075 4/4 PASS",
-        "review_required": true,
+        "owner": "manual-integration-chat-g-docs-20261119",
+        "at": "2026-11-19T08:03:01.260Z",
+        "status": "four canonical docs append-only checkpoint on review PR; no main mutation; independent review required",
+        "head": "6ed3aa3b47482ccbedc9361d3727d3b6889d2e44",
+        "ci": "new exact-head #44484297479 in progress",
+        "evidence": "#995 #44482574026 attempt2 4/4; #1013 #44480645631 attempt3 4/4; #1002 external closed, #1023 historical archive, #1026 replacement",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1007"
