@@ -55,20 +55,21 @@
       "pr": 1043,
       "title": "fix(#249): reversible Linux Y1 remote-build five-GET DEV release",
       "feature": "issue249",
-      "head_sha": "a023535e7e867ebd80728713b23bf16be4393566",
+      "head_sha": "a7cbc08bb459c7cd13fcd71768d4a2cdb41d1ba2",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P0",
       "phase": "in-progress",
       "claim": {
         "owner": "manual-issue249-remote-build-release-chat-20261120",
-        "head_sha": "a023535e7e867ebd80728713b23bf16be4393566",
+        "head_sha": "a7cbc08bb459c7cd13fcd71768d4a2cdb41d1ba2",
         "claimed_at": "2026-11-19T22:17:00.140Z",
         "expires_at": "2026-11-19T23:47:00.140Z"
       },
       "checkpoint": {
         "owner": "manual-issue249-remote-build-release-chat-20261120",
-        "next_action": "Exact-head Part1 #44627060151 four-job CI, fix owned release code, then reviewed protected DEV remote-build deployment. Do not touch #1027/#964/#1007/#1022; no blind ZIP push.",
+        "head_sha": "a7cbc08bb459c7cd13fcd71768d4a2cdb41d1ba2",
+        "status": "Corrected bounded remote-build+SAS-redacted original package rollback source and one-shot protected dispatch in #1043; exact-head CI #44627478705 running; Python PASS, remaining pending. No Azure mutation.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1043"
