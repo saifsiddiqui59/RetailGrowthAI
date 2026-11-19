@@ -81,22 +81,23 @@
       "pr": 1036,
       "title": "security(F5): fail closed on equality-spoofed human visual reviews",
       "feature": "F5",
-      "head_sha": "5c3217525cf0521a3a4fe027bd983b9e6d2fa76b",
+      "head_sha": "e25d44cb8ce6d17c836dea3cbe238b4d185ad752",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P1",
-      "phase": "ci-review-pending",
+      "phase": "ready-for-review",
       "claim": {
         "owner": "manual-integration-chat-a-20261120",
-        "head_sha": "5c3217525cf0521a3a4fe027bd983b9e6d2fa76b",
-        "claimed_at": "2026-11-19T21:40:57.465Z",
-        "expires_at": "2026-11-19T23:10:57.465Z"
+        "head_sha": "e25d44cb8ce6d17c836dea3cbe238b4d185ad752",
+        "claimed_at": "2026-11-19T21:47:25.680Z",
+        "expires_at": "2026-11-19T23:17:25.680Z"
       },
       "checkpoint": {
         "owner": "manual-integration-chat-a-20261120",
-        "head_sha": "5c3217525cf0521a3a4fe027bd983b9e6d2fa76b",
-        "ci": "#44621042437 in progress",
-        "status": "Fix equality-spoofed Feature5 visual review identities/decisions/digests; original #1013 source merged, no GPU/paid usage"
+        "head_sha": "e25d44cb8ce6d17c836dea3cbe238b4d185ad752",
+        "at": "2026-11-19T21:47:25.680Z",
+        "ci": "#44621360998 4/4 PASS",
+        "status": "F5 exact primitive decision/JWT reviewer/digest and checklist hardening; AI-reviewed source, waiting serialized main CI #44621937036"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1036"
     }
