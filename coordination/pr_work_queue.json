@@ -32,8 +32,13 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-e-F5-20261119",
       "priority": "P1",
-      "phase": "ready-for-review",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119",
+        "claimed_at": "2026-11-19T04:27:18.533Z",
+        "expires_at": "2026-11-19T05:57:18.533Z",
+        "head_sha": "f561fbbc28100eba32bc33f49fdf0d7b88692692"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-e-F5-20261119",
         "at": "2026-11-18T20:04:09.444Z",
@@ -52,8 +57,13 @@
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P1",
-      "phase": "needs-triage",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119",
+        "claimed_at": "2026-11-19T04:27:18.533Z",
+        "expires_at": "2026-11-19T05:57:18.533Z",
+        "head_sha": "4576f14467750ac26bfaf7b327cd9bbc335967dc"
+      },
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1002"
     },
@@ -78,8 +88,13 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P2",
-      "phase": "ready-for-review",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119",
+        "claimed_at": "2026-11-19T04:27:18.533Z",
+        "expires_at": "2026-11-19T05:57:18.533Z",
+        "head_sha": "f9eb9b4993f6fde36f063f0f58089474885ed317"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-e-docs-20261119",
         "at": "2026-11-18T20:04:09.444Z",
@@ -97,8 +112,13 @@
       "base_branch": "feat/p0249-y1-extra-readonly-get-source-20261117",
       "work_owner": "manual-issue249",
       "priority": "P2",
-      "phase": "needs-triage",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119",
+        "claimed_at": "2026-11-19T04:27:18.533Z",
+        "expires_at": "2026-11-19T05:57:18.533Z",
+        "head_sha": "b0bfd329a8a53c7cfab8a21754c01a7d1fe9dce8"
+      },
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/995"
     },
@@ -183,8 +203,13 @@
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P2",
-      "phase": "needs-triage",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119",
+        "claimed_at": "2026-11-19T04:27:18.533Z",
+        "expires_at": "2026-11-19T05:57:18.533Z",
+        "head_sha": "a655e26ec88eea61930faabb144d746c812611a0"
+      },
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/968"
     },
@@ -196,8 +221,13 @@
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P2",
-      "phase": "needs-triage",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119",
+        "claimed_at": "2026-11-19T04:27:18.533Z",
+        "expires_at": "2026-11-19T05:57:18.533Z",
+        "head_sha": "63f5cbe4bbc3840b3ced6aeb60938976137782bc"
+      },
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/965"
     },
@@ -270,8 +300,13 @@
       "base_branch": "feat/feature2-voicestudio-register-wav-20261111",
       "work_owner": "schedule-f2",
       "priority": "P1",
-      "phase": "blocked",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119",
+        "claimed_at": "2026-11-19T04:27:18.533Z",
+        "expires_at": "2026-11-19T05:57:18.533Z",
+        "head_sha": "69a4edce42c3e7ed54c6984b9876a7bdd07d41f0"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-d-20261119",
         "at": "2026-11-18T19:21:27.166Z",
@@ -365,7 +400,12 @@
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
       "phase": "in-progress",
-      "claim": null,
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119",
+        "claimed_at": "2026-11-19T04:27:18.533Z",
+        "expires_at": "2026-11-19T05:57:18.533Z",
+        "head_sha": "a3e52192308f47a399bcea94fe5e87627e577b6e"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-d-20261119",
         "at": "2026-11-18T19:39:30.547Z",
@@ -395,8 +435,13 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
-      "phase": "blocked",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119",
+        "claimed_at": "2026-11-19T04:27:18.533Z",
+        "expires_at": "2026-11-19T05:57:18.533Z",
+        "head_sha": "ffc464c09f719a0bfb6b15b5c34608f89d76234b"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-e-F5-20261119",
         "at": "2026-11-18T20:04:09.444Z",
@@ -416,7 +461,12 @@
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
       "phase": "in-progress",
-      "claim": null,
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119",
+        "claimed_at": "2026-11-19T04:27:18.533Z",
+        "expires_at": "2026-11-19T05:57:18.533Z",
+        "head_sha": "b9525a9ea3d5e5aee351edf89a3c011c2314ed2e"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-e-20261119",
         "at": "2026-11-18T19:16:44.121Z",
