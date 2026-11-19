@@ -90,6 +90,21 @@ Original Flex `rgai-dev-functions-d4e5ddbd` is unchanged; issue #249 stays OPEN.
   real signed/expired JWKS, all media permissions and rollback hosting still
   require separate independent acceptance.
 
+## Read-only hosted Y1 health probe stays on exact host (2026-11-19)
+- The original `ops/p0249_y1_canary_guard.py` health/unknown check was
+  following HTTP 30x by default. A redirected request could be counted as
+  an expected code and marker even when the response came from another host.
+- The shared Y1 canary now uses an explicit deny-redirect opener, closes
+  HTTPError response bodies and refuses any 301/302/303/307/308 as health
+  or unknown-route acceptance. Five deterministic in-memory fake-HTTPS
+  cases prove no second request is issued to the `Location` hostname.
+  No Azure endpoint, customer JWT, live request, settings or deployment
+  is exercised by these source tests.
+- Both release soak windows and the independent two-route restore use the
+  same pinned host canary, so neither may report 20/20 from a redirected
+  server. This is test reliability, not signed-tenant authorization,
+  five-GET hosting, or resolution of original Flex markerless 503.
+
 ## Remaining before Y1 replacement
 1. Independent shared JWT/RLS/render/poster/Azure ops review of #968, #995,
    and this workflow; exact-head 4/4, main merge in parent-child order.
