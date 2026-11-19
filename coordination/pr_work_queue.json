@@ -250,16 +250,16 @@
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P2",
-      "phase": "blocked",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-y1-20261120",
+        "head_sha": "a655e26ec88eea61930faabb144d746c812611a0",
+        "claimed_at": "2026-11-19T18:44:29.570Z",
+        "expires_at": "2026-11-19T20:14:29.570Z"
+      },
       "checkpoint": {
-        "owner": "manual-integration-chat-g-security-20261119",
-        "at": "2026-11-19T08:14:51.282Z",
-        "status": "three Y1 GET route wrappers not merged; current main TenantStore follows redirects, must wait for reviewed #1018 no-redirect main security port",
-        "dependent_pr": 1018,
-        "blockers": "JWT/RLS affected-lead review, signed two-shop DEV, #995 stage child, protected manual release and rollback; original Flex 503 remains unresolved",
-        "source_ci": "#968 44126332677 4/4",
-        "feature_done": false
+        "next_action": "Review exact 3 GET original JWT/RLS source, verify 4/4 and fresh main after security #1018, parent-first merge; no hosted deployment.",
+        "head_sha": "a655e26ec88eea61930faabb144d746c812611a0"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/968"
     },
