@@ -153,6 +153,14 @@ jobs:
           test -z "$names" || {
             echo "::error::Existing Y1 shadow settings found; deny deployment"; exit 2;
           }
+      - name: Fail closed on external Y1 package URL before any ZIP write
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The previous protected trial #44618073780 uploaded a ZIP but Y1
+          # continued to index the 2 functions from an external package URL.
+          # Never repeat an unchanged ZIP against this pinned configuration.
+          python3 -u ops/p0249_y1_deploy_diagnostic_readonly.py --fail-if-pinned-package
       - name: Record possible code-write attempt before Azure ZIP
         id: mutation_marker
         shell: bash

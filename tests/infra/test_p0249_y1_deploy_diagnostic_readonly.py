@@ -162,5 +162,51 @@ class Y1DiagnosticSafetyTests(unittest.TestCase):
 
 
 
+    def test_release_zip_refuses_external_pointer_without_exposing_sas(self):
+        values = [
+            {"name": "WEBSITE_RUN_FROM_PACKAGE",
+             "value": "https://example.test/old-two.zip?sig=PRIVATE_SAS"},
+            {"name": "SCM_DO_BUILD_DURING_DEPLOYMENT", "value": "true"},
+        ]
+        from io import StringIO
+        from contextlib import redirect_stdout
+        buf = StringIO()
+        with patch.object(diagnostic, "verify"), \
+             patch.object(diagnostic, "az_read", return_value=values) as reader, \
+             redirect_stdout(buf), \
+             self.assertRaisesRegex(RuntimeError, "incompatible"):
+            diagnostic.assert_no_pinned_package_for_zip()
+        reader.assert_called_once()
+        self.assertIn("BLOCKED_PINNED_OR_MIXED", buf.getvalue())
+        self.assertNotIn("PRIVATE_SAS", buf.getvalue())
+        self.assertNotIn("example.test", buf.getvalue())
+
+    def test_release_zip_refuses_missing_azure_metadata_or_mixed_build_flags(self):
+        with patch.object(diagnostic, "verify"), \
+             patch.object(diagnostic, "az_read", return_value=None), \
+             self.assertRaisesRegex(RuntimeError, "unavailable"):
+            diagnostic.assert_no_pinned_package_for_zip()
+        with patch.object(diagnostic, "verify"), \
+             patch.object(diagnostic, "az_read", return_value=[
+                 {"name": "SCM_DO_BUILD_DURING_DEPLOYMENT", "value": "true"},
+             ]), self.assertRaisesRegex(RuntimeError, "incompatible"):
+            diagnostic.assert_no_pinned_package_for_zip()
+
+    def test_release_zip_never_reads_azure_after_failed_scope_proof(self):
+        with patch.object(diagnostic, "verify", side_effect=RuntimeError("bad Y1")), \
+             patch.object(diagnostic, "az_read", side_effect=AssertionError("no reads")), \
+             self.assertRaisesRegex(RuntimeError, "bad Y1"):
+            diagnostic.assert_no_pinned_package_for_zip()
+
+    def test_release_zip_guard_precedes_mutation_marker_and_config_zip(self):
+        workflow = (ROOT / ".github/workflows/p0249-dev-y1-five-get-release-manual.yml").read_text()
+        guard = workflow.index("--fail-if-pinned-package")
+        marker = workflow.index("Record possible code-write attempt before Azure ZIP")
+        deploy = workflow.index("az functionapp deployment source config-zip")
+        self.assertLess(guard, marker)
+        self.assertLess(marker, deploy)
+        self.assertIn("environment: dev", workflow)
+
+
 if __name__ == "__main__":
     unittest.main()

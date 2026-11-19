@@ -7,6 +7,7 @@ status booleans/enums and request outcome counts, not raw logs.
 """
 import json
 import subprocess
+import sys
 from urllib.parse import urlsplit
 
 from p0249_y1_canary_guard import RG, SITE, verify
@@ -190,9 +191,31 @@ def main():
         print("P0249_Y1_INDEX_SHAPE=" + index_shape(names), flush=True)
 
 
+def assert_no_pinned_package_for_zip():
+    """Abort before Azure writes if a Linux Y1 ZIP would leave old code active."""
+    verify()  # Scope to exact tagged isolated DEV Y1; never original Flex.
+    rows = az_read("functionapp", "config", "appsettings", "list",
+                   "-g", RG, "-n", SITE)
+    if rows is None:
+        raise RuntimeError("Y1 package-mode settings unavailable")
+    flags = setting_flags(rows)
+    mode = flags["WEBSITE_RUN_FROM_PACKAGE"]["nonsecret_mode"]
+    build = flags["WEBSITE_RUN_FROM_PACKAGE"]["build_config_class"]
+    # Both conditions were seen in hosted failed deployment #44618073780.
+    # Print only fixed enums, never actual URLs or credential-bearing values.
+    if mode != "ABSENT" or build == "REMOTE_BUILD_FLAGS_MIXED":
+        print("P0249_Y1_ZIP_PREFLIGHT=BLOCKED_PINNED_OR_MIXED_PACKAGE_MODE", flush=True)
+        raise RuntimeError("Y1 package mode incompatible with unchanged ZIP release")
+    print("P0249_Y1_ZIP_PREFLIGHT=NO_PINNED_PACKAGE_POINTER", flush=True)
+
 if __name__ == "__main__":
     try:
-        main()
+        if len(sys.argv) == 1:
+            main()
+        elif sys.argv[1:] == ["--fail-if-pinned-package"]:
+            assert_no_pinned_package_for_zip()
+        else:
+            raise RuntimeError("Unapproved diagnostic option")
     except Exception:
         print("P0249_Y1_READONLY_DIAGNOSTIC_FAILED", flush=True)
         raise SystemExit(1)
