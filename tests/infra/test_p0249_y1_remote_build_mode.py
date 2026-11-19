@@ -55,7 +55,7 @@ class Y1RemoteBuildModeTests(unittest.TestCase):
     def setUp(self):
         self.cloud = FakeAzure()
         self.patches = [
-            patch.object(y1, "_az", side_effect=self.cloud.execute),
+            patch.object(y1, "_az", side_effect=lambda *a: self.cloud.execute(*a)),
             patch.object(y1.guard, "verify", return_value=None),
             patch.object(y1.guard, "probe", return_value=None),
             patch.dict(os.environ, {"GITHUB_RUN_ID": "44630000000"}),
