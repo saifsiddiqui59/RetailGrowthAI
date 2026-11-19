@@ -2,9 +2,9 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-19T05:03:03Z",
-  "last_inventory_count": 19,
-  "last_inventory_checked_at": "2026-11-19T05:03:03Z",
+  "last_written_at": "2026-11-19T08:05:12.664Z",
+  "last_inventory_count": 18,
+  "last_inventory_checked_at": "2026-11-19T08:05:12.664Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
@@ -567,10 +567,12 @@
     "docs_postmerge_main_ci": {
       "run_id": 44377599370,
       "head_sha": "a65bb1503dd83af68de342329db45314aaa654cb",
-      "status": "completed",
+      "status": "SUCCESS",
       "conclusion": "success",
       "jobs_verified": 4,
-      "verified_at": "2026-11-18T20:59:19.650Z"
+      "verified_at": "2026-11-19T08:05:12.664Z",
+      "jobs_passed": 4,
+      "jobs_total": 4
     },
     "docs_files_updated": [
       "docs/PROJECT_STATE.md",
@@ -606,10 +608,8 @@
     "chatgpt_scheduler_runtime_increased": false
   },
   "current_automation_inspection": {
-    "checked_at": "2026-11-19T05:03:03Z",
-    "F2": "UNVERIFIED inaccessible",
-    "F3": "disabled",
-    "F4": "disabled",
-    "F7": "disabled"
+    "status": "UNVERIFIED",
+    "reason": "All four automation get calls returned 404; retain last verified run metadata",
+    "checked_at": "2026-11-19T08:05:12.664Z"
   }
 }
