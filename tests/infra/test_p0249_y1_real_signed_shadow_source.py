@@ -59,6 +59,33 @@ class RealSignedY1SafetyTests(unittest.TestCase):
         self.assertEqual(sent_to, [trial.Y1 + "/api/campaigns/" + trial.CAMPAIGN])
         self.assertIn("helper.NO_REDIRECT_OPENER.open", SCRIPT.read_text())
 
+    def test_signed_y1_and_admin_denials_release_http_handles(self):
+        headers = Message()
+        headers["X-Request-ID"] = "test-only"
+        packet = io.BytesIO(b'{"error":"UNAUTHORIZED"}')
+        denied = urllib.error.HTTPError(
+            trial.Y1 + "/api/campaigns/" + trial.CAMPAIGN,
+            401, "Unauthorized", headers, packet)
+        with patch.object(trial.helper.NO_REDIRECT_OPENER, "open",
+                          side_effect=denied):
+            status, marked, body, _ = trial.y1_read("synthetic")
+        self.assertEqual((status, marked, body),
+                         (401, True, {"error": "UNAUTHORIZED"}))
+        self.assertTrue(packet.closed)
+
+        admin_packet = io.BytesIO(b'{"error":"UNAUTHORIZED"}')
+        admin_denied = urllib.error.HTTPError(
+            trial.helper.SUPABASE + "/auth/v1/admin/users",
+            401, "Unauthorized", Message(), admin_packet)
+        with patch.object(trial.helper.NO_REDIRECT_OPENER, "open",
+                          side_effect=admin_denied):
+            status, body, _, _ = trial.helper.request(
+                trial.helper.SUPABASE + "/auth/v1/admin/users",
+                expected=(401,))
+        self.assertEqual(status, 401)
+        self.assertEqual(body, {"error": "UNAUTHORIZED"})
+        self.assertTrue(admin_packet.closed)
+
     def test_fixed_y1_origin_and_no_data_mutators(self):
         self.assertEqual(trial.Y1, "https://rgai-dev-y1-p0249-d4e5ddbd.azurewebsites.net")
         code = SCRIPT.read_text()
