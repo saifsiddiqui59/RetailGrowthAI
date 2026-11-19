@@ -1,0 +1,234 @@
+"""Source-only HTTP response contract; no Azure route or cloud credentials."""
+from pathlib import Path
+import sys
+from types import SimpleNamespace
+from uuid import uuid4
+
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "azure-functions" / "campaign-api"))
+import feature2_voicestudio_review_http as http  # noqa: E402
+
+
+def _call(auth="Bearer valid-test-token-do-not-use"):
+    return http.private_original_review_response(
+        request=SimpleNamespace(headers={"Authorization": auth}),
+        shop_id=str(uuid4()), campaign_id=str(uuid4()), request_id=str(uuid4()),
+        verify_token=lambda _: str(uuid4()), tenant_store=object(),
+        sql_store_factory=lambda _: object(), private_storage=object(),
+    )
+
+
+def test_private_audio_response_never_cacheable_on_denial():
+    status, headers, body = _call()
+    assert status == 404 and body == b""
+    assert headers["Cache-Control"] == "no-store, private"
+    assert headers["X-Content-Type-Options"] == "nosniff"
+    assert "Content-Type" not in headers
+
+
+def test_missing_authorization_fails_without_calling_dependencies():
+    status, headers, body = _call(None)
+    assert status == 401 and body == b""
+    assert headers["Pragma"] == "no-cache"
+
+
+def _valid_wav_envelope():
+    payload = b"WAVEfmt " + (16).to_bytes(4, "little") + b"\x01\x00\x01\x00" + (8000).to_bytes(4, "little") + (16000).to_bytes(4, "little") + b"\x02\x00\x10\x00" + b"data" + (2).to_bytes(4, "little") + b"\x00\x00"
+    return b"RIFF" + len(payload).to_bytes(4, "little") + payload
+
+
+def test_private_wav_success_has_exact_length_and_no_storage_identifier(monkeypatch):
+    payload = _valid_wav_envelope()
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: payload)
+    status, headers, body = _call()
+    assert status == 200 and body == payload
+    assert headers["Content-Type"] == "audio/wav"
+    assert headers["Content-Length"] == str(len(payload))
+    assert headers["Cache-Control"] == "no-store, private"
+
+
+def test_provider_exception_does_not_leak_message_or_private_bytes(monkeypatch):
+    def broken(**_):
+        raise RuntimeError("sensitive backend SQL diagnostic")
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", broken)
+    status, headers, body = _call()
+    assert status == 503 and body == b""
+    assert "sensitive" not in repr((headers, body))
+
+
+def test_nonbytes_service_result_is_never_disclosed(monkeypatch):
+    # Reject str, bytearray and memoryview: only immutable, checked WAV bytes pass.
+    for result in ("RIFFprivate", bytearray(b"RIFFprivate"), memoryview(b"RIFFprivate")):
+        monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: result)
+        status, headers, body = _call()
+        assert status == 404 and body == b""
+        assert "Content-Type" not in headers
+        assert "Content-Length" not in headers
+
+
+def test_missing_authorization_does_not_invoke_service(monkeypatch):
+    calls = []
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: calls.append(1))
+    for auth in (None, b"Bearer secret", ["Bearer secret"], 123):
+        status, headers, body = _call(auth)
+        assert status == 401 and body == b""
+        assert headers["Cache-Control"] == "no-store, private"
+    assert calls == []
+
+
+def test_review_denial_does_not_expose_private_response(monkeypatch):
+    def denied(**_):
+        raise http.VoiceStudioReviewDenied("private original key and token")
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", denied)
+    status, headers, body = _call()
+    assert status == 404 and body == b""
+    assert "Content-Type" not in headers
+    assert "Content-Length" not in headers
+    assert "private original key" not in repr((headers, body))
+
+
+def test_malformed_request_headers_fail_closed_without_service(monkeypatch):
+    calls = []
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: calls.append(1))
+    for request in (None, object(), SimpleNamespace(headers=None),
+                    SimpleNamespace(headers=[]),
+                    SimpleNamespace(headers=SimpleNamespace(get=lambda _: (_ for _ in ()).throw(ValueError("bad header")))),
+                    SimpleNamespace(headers=SimpleNamespace(get=lambda _: (_ for _ in ()).throw(KeyError("Authorization")))),
+                    SimpleNamespace(headers=SimpleNamespace(get=lambda _: (_ for _ in ()).throw(IndexError("Authorization"))))):
+        status, headers, body = http.private_original_review_response(
+            request=request, shop_id=str(uuid4()), campaign_id=str(uuid4()),
+            request_id=str(uuid4()), verify_token=lambda _: str(uuid4()),
+            tenant_store=object(), sql_store_factory=lambda _: object(),
+            private_storage=object(),
+        )
+        assert status == 401 and body == b""
+        assert headers["Cache-Control"] == "no-store, private"
+        assert "Content-Type" not in headers
+    assert not calls
+
+
+def test_private_wav_http_security_headers_on_success_and_denial(monkeypatch):
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: _valid_wav_envelope())
+    for auth, expected in (("Bearer valid-test-token-do-not-use", 200), (None, 401)):
+        status, headers, _ = _call(auth)
+        assert status == expected
+        assert headers["Vary"] == "Authorization"
+        assert headers["Referrer-Policy"] == "no-referrer"
+        assert headers["Cache-Control"] == "no-store, private"
+
+
+def test_empty_private_audio_is_denied_without_audio_headers(monkeypatch):
+    # Even a buggy backend reader must not return a successful empty WAV.
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: b"")
+    status, headers, body = _call()
+    assert status == 404 and body == b""
+    assert headers["Cache-Control"] == "no-store, private"
+    assert "Content-Type" not in headers
+    assert "Content-Length" not in headers
+
+
+def test_http_boundary_rejects_malformed_or_oversized_reader_bytes(monkeypatch):
+    good = _valid_wav_envelope()
+    invalid = (good + b"hidden", good[:4] + bytes(4) + good[8:],
+               b"NOTW" + good[4:], good[:8] + b"NOPE" + good[12:],
+               b"RIFF" + (8 * 1024 * 1024).to_bytes(4, "little") + b"WAVE" + b"x" * (8 * 1024 * 1024))
+    for payload in invalid:
+        monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: payload)
+        status, headers, body = _call()
+        assert status == 404 and body == b""
+        assert "Content-Type" not in headers and "Content-Length" not in headers
+
+
+def test_blank_authorization_never_reaches_private_audio_service(monkeypatch):
+    calls = []
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: calls.append(1))
+    for auth in ("", " ", "\t", "\r\n", "  \t  "):
+        status, headers, body = _call(auth)
+        assert status == 401 and body == b""
+        assert headers["Cache-Control"] == "no-store, private"
+        assert "Content-Type" not in headers
+    assert calls == []
+
+
+def test_control_characters_in_authorization_never_reach_service(monkeypatch):
+    calls = []
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: calls.append(1))
+    for auth in ("Bearer token\r\nX-Injected: yes", "Bearer token\x00",
+                 "Bearer token\x7f", "Bearer token\n", "Bearer token\t"):
+        status, headers, body = _call(auth)
+        assert status == 401 and body == b""
+        assert headers["Cache-Control"] == "no-store, private"
+        assert "Content-Type" not in headers
+    assert calls == []
+
+
+def test_http_boundary_rejects_structurally_invalid_pcm_even_from_injected_reader(monkeypatch):
+    good = _valid_wav_envelope()
+    # All samples retain a valid RIFF size and WAVE signature; the injected
+    # reader must not bypass the service's canonical PCM16 envelope policy.
+    invalid = (
+        good[:20] + bytes((3, 0)) + good[22:],  # IEEE float format, not PCM
+        good[:34] + bytes((8, 0)) + good[36:],  # 8-bit samples, not PCM16
+        good[:36] + b"JUNK" + good[40:],  # noncanonical data chunk
+        good[:40] + bytes(4) + good[44:],  # empty data
+    )
+    for payload in invalid:
+        monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: payload)
+        status, headers, body = _call()
+        assert status == 404 and body == b""
+        assert "Content-Type" not in headers and "Content-Length" not in headers
+
+
+def test_unexpected_header_accessor_error_denied_without_private_service(monkeypatch):
+    calls = []
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: calls.append(1))
+    def broken(_):
+        raise RuntimeError("untrusted header wrapper")
+    status, headers, body = http.private_original_review_response(
+        request=SimpleNamespace(headers=SimpleNamespace(get=broken)),
+        shop_id=str(uuid4()), campaign_id=str(uuid4()), request_id=str(uuid4()),
+        verify_token=lambda _: str(uuid4()), tenant_store=object(),
+        sql_store_factory=lambda _: object(), private_storage=object(),
+    )
+    assert status == 401 and body == b""
+    assert headers["Cache-Control"] == "no-store, private"
+    assert "Content-Type" not in headers and "Content-Length" not in headers
+    assert calls == []
+
+
+def test_non_ascii_authorization_never_reaches_private_service(monkeypatch):
+    calls = []
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: calls.append(1))
+    for auth in ("Bearer token\u0085", "Bearer token\u2028", "Bearer token\u00e9", "Bearer token\ufeff"):
+        status, headers, body = _call(auth)
+        assert status == 401 and body == b""
+        assert headers["Cache-Control"] == "no-store, private"
+        assert "Content-Type" not in headers and "Content-Length" not in headers
+    assert calls == []
+
+
+def test_oversized_authorization_is_denied_before_private_service(monkeypatch):
+    calls = []
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: calls.append(1))
+    for auth in ("Bearer " + "x" * 8192, "Bearer " + "x" * 100000):
+        status, headers, body = _call(auth)
+        assert status == 401 and body == b""
+        assert headers["Cache-Control"] == "no-store, private"
+        assert "Content-Type" not in headers
+    assert calls == []
+
+
+def test_authorization_string_subclass_is_rejected_before_private_read(monkeypatch):
+    # Header wrappers must not smuggle an overridden string representation
+    # through the HTTP boundary into JWT or tenant checks.
+    class UntrustedHeader(str):
+        def __str__(self):
+            raise RuntimeError("untrusted header conversion")
+
+    calls = []
+    monkeypatch.setattr(http, "read_current_voiceover_for_review", lambda **_: calls.append(1))
+    status, headers, body = _call(UntrustedHeader("Bearer valid-test-token-do-not-use"))
+    assert status == 401 and body == b""
+    assert headers["Cache-Control"] == "no-store, private"
+    assert "Content-Type" not in headers and "Content-Length" not in headers
+    assert calls == []

@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:retailgrowthai:feature2:motion_direction_v1",
+  "type": "object",
+  "required": [
+    "contract",
+    "shop_id",
+    "campaign_id",
+    "scene_id",
+    "shot_id",
+    "shot_start_seconds",
+    "duration_seconds",
+    "reference_media_id",
+    "product_sku",
+    "garment_lock",
+    "scene_goal",
+    "subject",
+    "character_continuity",
+    "wardrobe",
+    "camera",
+    "lighting",
+    "environment",
+    "choreography",
+    "generation_prompt",
+    "negative_constraints",
+    "requested_profile",
+    "previous_shot_id",
+    "next_shot_id",
+    "reference_facts_sha256"
+  ],
+  "properties": {
+    "contract": {
+      "const": "motion_direction_v1"
+    },
+    "shop_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+    },
+    "campaign_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+    },
+    "scene_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+    },
+    "shot_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+    },
+    "shot_start_seconds": {
+      "type": "number",
+      "minimum": 0
+    },
+    "duration_seconds": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 5
+    },
+    "reference_media_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$"
+    },
+    "product_sku": {
+      "type": "string",
+      "minLength": 1
+    },
+    "garment_lock": {
+      "type": "object",
+      "required": [
+        "color",
+        "neckline",
+        "sleeves",
+        "hem",
+        "embroidery"
+      ],
+      "properties": {
+        "color": {
+          "type": "string",
+          "minLength": 1
+        },
+        "neckline": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sleeves": {
+          "type": "string",
+          "minLength": 1
+        },
+        "hem": {
+          "type": "string",
+          "minLength": 1
+        },
+        "embroidery": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "scene_goal": {
+      "type": "string",
+      "minLength": 1
+    },
+    "subject": {
+      "type": "string",
+      "minLength": 1
+    },
+    "character_continuity": {
+      "type": "string",
+      "minLength": 1
+    },
+    "wardrobe": {
+      "type": "string",
+      "minLength": 1
+    },
+    "camera": {
+      "type": "object",
+      "required": [
+        "framing",
+        "lens",
+        "composition",
+        "movement"
+      ],
+      "properties": {
+        "framing": {
+          "type": "string",
+          "minLength": 1
+        },
+        "lens": {
+          "type": "string",
+          "minLength": 1
+        },
+        "composition": {
+          "type": "string",
+          "minLength": 1
+        },
+        "movement": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "lighting": {
+      "type": "string",
+      "minLength": 1
+    },
+    "environment": {
+      "type": "string",
+      "minLength": 1
+    },
+    "choreography": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "required": [
+          "start_seconds",
+          "end_seconds",
+          "human_action",
+          "camera_action",
+          "fabric_response"
+        ],
+        "properties": {
+          "start_seconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "end_seconds": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "human_action": {
+            "type": "string",
+            "minLength": 1
+          },
+          "camera_action": {
+            "type": "string",
+            "minLength": 1
+          },
+          "fabric_response": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "generation_prompt": {
+      "type": "string",
+      "minLength": 180,
+      "maxLength": 1600
+    },
+    "negative_constraints": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "requested_profile": {
+      "type": "object",
+      "required": [
+        "kind",
+        "aspect_ratio",
+        "target_width",
+        "target_height",
+        "target_fps",
+        "provider_profile_verified",
+        "inference_approved"
+      ],
+      "properties": {
+        "kind": {
+          "const": "image_to_video"
+        },
+        "aspect_ratio": {
+          "const": "9:16"
+        },
+        "target_width": {
+          "const": 1080
+        },
+        "target_height": {
+          "const": 1920
+        },
+        "target_fps": {
+          "const": 24
+        },
+        "provider_profile_verified": {
+          "const": false
+        },
+        "inference_approved": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "previous_shot_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "next_shot_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "reference_facts_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "additionalProperties": false
+}

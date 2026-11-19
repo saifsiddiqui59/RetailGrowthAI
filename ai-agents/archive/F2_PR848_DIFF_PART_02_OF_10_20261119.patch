@@ -1,0 +1,1549 @@
+diff --git a/ai-agents/src/ai_agents/feature2_creative_quality.py b/ai-agents/src/ai_agents/feature2_creative_quality.py
+--- a/ai-agents/src/ai_agents/feature2_creative_quality.py
++++ b/ai-agents/src/ai_agents/feature2_creative_quality.py
+@@ -7,11 +7,12 @@
+ from __future__ import annotations
+ 
+ from dataclasses import dataclass
++import unicodedata
+ import hashlib
+ import json
+ from collections.abc import Mapping
+ from copy import deepcopy
+-from datetime import datetime, timezone
++from datetime import date, datetime, timezone
+ 
+ 
+ RUBRIC_WEIGHTS = {
+@@ -274,7 +275,8 @@ def active():
+         if latest is not None or previous_sha256 != "0"*64:
+             raise Feature2TraceDenied("First trace must start an empty private chain")
+     elif (type(latest) is not dict or
+-          latest.get("sequence") != event_number-1 or
++          type(latest.get("sequence")) is not int or
++          latest["sequence"] != event_number-1 or
+           latest.get("event_sha256") != previous_sha256):
+         raise Feature2TraceDenied("Current private trace chain changed")
+     event={
+@@ -302,11 +304,30 @@ def active():
+         or receipt.get("campaign_id") != campaign_id
+         or receipt.get("workflow_id") != workflow_id
+         or receipt.get("event_id") != event_id
+-        or receipt.get("sequence") != event_number
++        or type(receipt.get("sequence")) is not int
++        or receipt["sequence"] != event_number
+         or receipt.get("event_sha256") != event_sha
+         or receipt.get("private") is not True
+-        or receipt.get("committed") is not True):
++        or receipt.get("committed") is not True
++        # A trace is never a release/paid entitlement, including when a
++        # writer returns an ambiguously false-looking string/number/null.
++        or any(flag in receipt and receipt[flag] is not False for flag in
++            ("can_publish","paid_motion_permitted","approved_to_publish",
++             "commercial_use_approved","paid_inference_authorized",
++             "can_dispatch_motion","may_auto_invoke_azure"))
++        or ("paid_calls" in receipt and
++            (type(receipt["paid_calls"]) is not int or
++             receipt["paid_calls"]!=0))
++        or ("billing" in receipt and receipt["billing"]!="NONE")
++        or ("private_download_url" in receipt and
++            receipt["private_download_url"] is not None)
++        or ("signed_url" in receipt and receipt["signed_url"] is not None)):
+         raise Feature2TraceDenied("Durable private trace append not verified")
++    # Coordinator-owned transactional writer must fence its own commit.
++    # This readback denies success after in-flight scope revocation.
++    receipt_snapshot=deepcopy(receipt)
++    if not active() or receipt!=receipt_snapshot:
++        raise Feature2TraceDenied("Trace source revoked during private append")
+     # Only bounded digests + enum; NEVER return the secret or full event body.
+     return {"schema":event["schema"],"event_sha256":event_sha,
+             "event_id":event_id,"sequence":event_number,
+@@ -340,6 +361,11 @@ def fetch():
+         return rows
+ 
+     source=fetch()
++    # A backend reader may return the SAME mutable list on both reads. Hold
++    # an independent snapshot before verifying HMACs, otherwise a callback
++    # that mutates the shared list during the final fetch can compare it to
++    # itself and bypass post-read scope/immutability checks.
++    original_snapshot=deepcopy(source)
+     prior="0"*64;verified=[]
+     expected_keys={
+         "schema","shop_id","campaign_id","workflow_id","event_id",
+@@ -354,7 +380,8 @@ def fetch():
+             stored.get("campaign_id")!=campaign_id or
+             stored.get("workflow_id")!=workflow_id or
+             not _trace_uuid(stored.get("event_id")) or
+-            stored.get("sequence")!=number or
++            type(stored.get("sequence")) is not int or
++            stored["sequence"]!=number or
+             stored.get("previous_sha256")!=prior or
+             stored.get("input_sha256")!=source_sha256 or
+             stored.get("stage") not in TRACE_STAGES or
+@@ -392,7 +419,7 @@ def fetch():
+                          "failure_code":stored["failure_code"],
+                          "event_sha256":digest,"can_publish":False})
+         prior=digest
+-    if fetch()!=source:
++    if fetch()!=original_snapshot or source!=original_snapshot:
+         raise Feature2TraceDenied("Private trace changed during readback")
+     return {"schema":"retailgrowth.feature2-private-trace-history.v1",
+             "shop_id":shop_id,"campaign_id":campaign_id,
+@@ -422,19 +449,26 @@ def stage_blind_human_review_revision(*,shop_id,campaign_id,experiment_id,
+             read_current_revision,save_review_cas))
+         or type(reviews) is not list or len(reviews)!=4):
+         raise Feature2TraceDenied("Authenticated versioned human A/B review required")
++    # A repository read callback may alias the same candidate dict passed in;
++    # an independent copy is necessary to detect in-place revisions.
++    candidates_snapshot=deepcopy(candidates)
++    reviews_snapshot=deepcopy(reviews)
+     def live():
+         return (current_editor(shop_id,campaign_id) is True and
+-                read_current_candidates(shop_id,campaign_id,experiment_id)==candidates)
++                read_current_candidates(shop_id,campaign_id,experiment_id)==candidates_snapshot
++                and candidates==candidates_snapshot
++                and reviews==reviews_snapshot)
+     if not live() or read_current_revision(shop_id,campaign_id,experiment_id)!=expected_revision:
+         raise Feature2TraceDenied("Current blind candidate/role revision revoked")
+     # Structural human rubric checks do not prove that any claimed reviewer
+     # actually exists: each complete exact receipt MUST verify externally.
+     result=blind_human_comparison(experiment_id=experiment_id,
+-                                  candidates=candidates,reviews=reviews)
++                                  candidates=candidates_snapshot,
++                                  reviews=reviews_snapshot)
+     try:
+         candidate_digests={key:content_fingerprint(value)
+-                           for key,value in candidates.items()}
+-        for item in reviews:
++                           for key,value in candidates_snapshot.items()}
++        for item in reviews_snapshot:
+             blob=json.dumps(item,ensure_ascii=False,sort_keys=True,
+                             separators=(",",":")).encode()
+             if len(blob)>4096 or verify_human_review(
+@@ -447,27 +481,46 @@ def live():
+     except (TypeError,KeyError,ValueError) as exc:
+         raise Feature2TraceDenied("Invalid individual signed review") from exc
+     receipt_digest=hashlib.sha256(json.dumps(
+-        {"candidate_hashes":candidate_digests,"reviews":reviews,
++        {"candidate_hashes":candidate_digests,"reviews":reviews_snapshot,
+          "experiment_id":experiment_id},ensure_ascii=False,sort_keys=True,
+          separators=(",",":")).encode()).hexdigest()
+     if not live() or read_current_revision(shop_id,campaign_id,experiment_id)!=expected_revision:
+         raise Feature2TraceDenied("Blind candidate changed before durable revision")
++    proposed={"schema":"retailgrowth.feature2-blind-review.v1",
++              "candidate_digests":candidate_digests,
++              "receipt_digest":receipt_digest,
++              "review_result":deepcopy(result),
++              "review_status":"HUMAN_SCORE_ONLY",
++              "can_publish":False,"paid_motion_permitted":False}
++    proposed_snapshot=deepcopy(proposed)
+     stored=save_review_cas(shop_id,campaign_id,experiment_id,
+-                           expected_revision,receipt_digest,
+-                           {"schema":"retailgrowth.feature2-blind-review.v1",
+-                            "candidate_digests":candidate_digests,
+-                            "receipt_digest":receipt_digest,
+-                            "review_result":result,
+-                            "review_status":"HUMAN_SCORE_ONLY",
+-                            "can_publish":False,"paid_motion_permitted":False})
+-    if (type(stored) is not dict or
++                           expected_revision,receipt_digest,proposed)
++    if (type(stored) is not dict or proposed!=proposed_snapshot or
+         stored.get("shop_id")!=shop_id or
+         stored.get("campaign_id")!=campaign_id or
+         stored.get("experiment_id")!=experiment_id or
+-        stored.get("revision")!=expected_revision+1 or
++        type(stored.get("revision")) is not int or
++        stored["revision"]!=expected_revision+1 or
+         stored.get("receipt_digest")!=receipt_digest or
+-        stored.get("private") is not True):
++        stored.get("private") is not True or
++        # A private score receipt cannot smuggle a publishing/paid grant as
++        # 1, "false", null or another truthy/false-looking JSON type. Older
++        # private CAS writers may omit these optional denial fields, but if
++        # present the *only* acceptable value is literal False.
++        any(key in stored and stored[key] is not False for key in
++            ("can_publish", "paid_motion_permitted", "approved_to_publish",
++             "commercial_use_approved", "can_dispatch_paid_motion")) or
++        ("paid_calls" in stored and
++         (type(stored["paid_calls"]) is not int or stored["paid_calls"] != 0)) or
++        ("billing" in stored and stored["billing"] != "NONE") or
++        ("private_download_url" in stored and
++         stored["private_download_url"] is not None) or
++        ("signed_url" in stored and stored["signed_url"] is not None) or
++        stored.get("review_status") not in (None,"HUMAN_SCORE_ONLY")):
+         raise Feature2TraceDenied("Durable human review revision not confirmed")
++    # CAS legitimately increments revision: recheck role/candidates, not old revision.
++    if not live():
++        raise Feature2TraceDenied("Blind review source revoked during private revision")
+     return {"schema":"retailgrowth.feature2-blind-review.v1",
+             "experiment_id":experiment_id,"revision":expected_revision+1,
+             "receipt_digest":receipt_digest,
+@@ -501,39 +554,69 @@ def source():
+             raise Feature2TraceDenied("Bounded private A/B review history unavailable")
+         return rows
+     rows=source()
++    # A private history reader may return the same mutable list on both reads.
++    # Freeze the first observation before independent receipt verification: a
++    # signer/reader callback must not mutate that shared object unnoticed.
++    initial_snapshot=deepcopy(rows)
+     result=[]
++    seen_receipts=set()
++    baseline_candidates=None
+     for i,item in enumerate(rows,1):
+         if (type(item) is not dict or item.get("shop_id")!=shop_id or
+             item.get("campaign_id")!=campaign_id or
+             item.get("experiment_id")!=experiment_id or
+-            item.get("revision")!=i or
++            type(item.get("revision")) is not int or
++            item["revision"]!=i or
+             item.get("review_status")!="HUMAN_SCORE_ONLY" or
+             item.get("private") is not True or
+             item.get("can_publish") is not False or
++            # Verify even optional grant/billing metadata from the private
++            # history reader; projecting only scores must not hide an elevated
++            # or commercially charged stored record.
++            any(key in item and item[key] is not False for key in
++                ("paid_motion_permitted", "approved_to_publish",
++                 "commercial_use_approved", "can_dispatch_paid_motion")) or
++            ("paid_calls" in item and
++             (type(item["paid_calls"]) is not int or item["paid_calls"] != 0)) or
++            ("billing" in item and item["billing"] != "NONE") or
++            ("private_download_url" in item and
++             item["private_download_url"] is not None) or
+             item.get("revoked_at") is not None or
+             type(item.get("receipt_digest")) is not str or
+             not _TRACE_SHA.fullmatch(item["receipt_digest"]) or
+             type(item.get("candidate_digests")) is not dict or
+             set(item["candidate_digests"])!={"A","B"} or
+             any(type(v) is not str or not _TRACE_SHA.fullmatch(v)
+                 for v in item["candidate_digests"].values()) or
++            item["candidate_digests"]["A"]==item["candidate_digests"]["B"] or
++            item["receipt_digest"] in seen_receipts or
+             type(item.get("human_scores")) is not dict or
+             set(item["human_scores"])!={"A","B"} or
+             any(type(v) not in (float,int) or not 0<=v<=100
+                 for v in item["human_scores"].values())):
+             raise Feature2TraceDenied("Private A/B score revision invalid")
++        # An experiment's blinded A/B assignments are immutable across score
++        # revisions. A signed receipt for a different candidate pair (or a
++        # swapped A/B label) must not silently rewrite historical comparisons.
++        if baseline_candidates is None:
++            baseline_candidates=dict(item["candidate_digests"])
++        elif item["candidate_digests"]!=baseline_candidates:
++            raise Feature2TraceDenied("Private A/B experiment candidates changed")
+         if verify_signed_history_receipt(
+             shop_id,campaign_id,experiment_id,i,
+             item["receipt_digest"],item["candidate_digests"]) is not True:
+             raise Feature2TraceDenied("Missing independent signed A/B history proof")
++        # A and B must identify different candidate bytes; a revision cannot
++        # replay an earlier signed score receipt as fresh editorial evidence.
++        seen_receipts.add(item["receipt_digest"])
+         result.append({"revision":i,"candidate_digests":dict(item["candidate_digests"]),
+                        "receipt_digest":item["receipt_digest"],
+                        "human_scores":dict(item["human_scores"]),
+                        "review_state":"HUMAN_SCORE_ONLY",
+                        "can_publish":False})
+     # A revoked role or changed receipt chain between validation and read must
+     # not leak even a summary of historical human preferences.
+-    if source()!=rows:
++    if source()!=initial_snapshot or rows!=initial_snapshot:
+         raise Feature2TraceDenied("Private A/B review history changed mid-read")
+     return {"schema":"retailgrowth.feature2-private-blind-review-history.v1",
+             "experiment_id":experiment_id,"records":result,
+@@ -596,7 +679,7 @@ def choose_evergreen_when_no_relevant_live_trend(
+ import json
+ import re
+ 
+-_CLAIM_PERCENT = re.compile(r"(?<!\d)\d{1,3}\s*(?:%|％|٪|percent|per[ -]?cent)\s*(?:off|discount|sale)?",re.I)
++_CLAIM_PERCENT = re.compile(r"(?<!\d)\d+\s*(?:%|％|٪|﹪|percent|per[ -]?cent|pct\.?)\s*(?:off|discount|sale)?",re.I)
+ # Reviewer-only warning for written-out percentages, including hyphenated
+ # discounts. A valid approved offer must still match its exact legal text.
+ _CLAIM_WORD_PERCENT = re.compile(
+@@ -613,11 +696,34 @@ def choose_evergreen_when_no_relevant_live_trend(
+ _CLAIM_LOCAL_PERCENT = re.compile(
+     r"(?<!\d)\d{1,3}\s*(?:प्रतिशत|फ़ीसदी|फीसदी|टक्के|टक्का)(?![\w\u0900-\u097f])", re.I
+ )
+-_CLAIM_PRICE = re.compile(r"(?:₹|Rs\.?\s*|INR\s*)\d[\d,.]*",re.I)
++_CLAIM_PRICE = re.compile(r"(?:₹\s*|Rs\.?\s*|INR\s*)\d[\d,.]*",re.I)
+ _CLAIM_URGENCY = re.compile(r"\b(?:only \d+ left|selling out|last chance|guaranteed|best in india|number one|no\.?1|viral|trending now|everyone is buying|free shipping|free delivery|same-day delivery|cash on delivery|bogo|buy\s+(?:one|1)\s+get\s+(?:one|1)\s+free)\b",re.I)
+-_CLAIM_WIDE = re.compile(r"\b(?:everything|all products|storewide|entire store|every item)\b",re.I)
++_CLAIM_WIDE = re.compile(r"\b(?:everything|all products|all items|all styles|all orders|all clothing|any item|any product|storewide|entire store|entire collection|every item)\b",re.I)
+ _CLAIM_MATERIAL = re.compile(r"\b(?:100% pure cotton|genuine silk|authentic gold|organic cotton)\b",re.I)
+ 
++# Reject invisible direction overrides and C1/Unicode line controls in display
++# text before any human review. Preserve legitimate Indic combining marks and
++# joiners (unlike a blanket ban on every Unicode format character).
++def _unsafe_editorial_display(value):
++    """Reject invisible claim spoofing, preserving Indic joiners only in script context."""
++    overrides={"RLO","LRO","RLE","LRE","PDF","RLI","LRI","FSI","PDI"}
++    for index,ch in enumerate(value):
++        if (ch in "<>\u200b\u200e\u200f\u061c" or
++            ord(ch)<32 or 0x7f<=ord(ch)<=0x9f or
++            unicodedata.category(ch) in ("Zl","Zp","Cs") or
++            unicodedata.bidirectional(ch) in overrides):
++            return True
++        if unicodedata.category(ch) == "Cf":
++            before = value[index-1] if index else ""
++            after = value[index+1] if index+1<len(value) else ""
++            script_context=(
++                "\u0900"<=before<="\u097f" and
++                (not after or after.isspace() or "\u0900"<=after<="\u097f")
++            )
++            if ch not in ("\u200c","\u200d") or not script_context:
++                return True
++    return False
++
+ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
+     """Review-only policy based on authoritative original retailer facts.
+ 
+@@ -635,23 +741,87 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
+     names=verified_context.get("approved_offers")
+     if type(names) is not list or len(names)>3:
+         raise EditorialBasisRejected("Approved bounded offer records required")
++    approved_texts=set()
+     for offer in names:
+         if (type(offer) is not dict or offer.get("approval_status")!="APPROVED" or
+             type(offer.get("approved_claim_text")) is not str or
+             not 10<=len(offer["approved_claim_text"])<=180 or
++            not offer["approved_claim_text"].strip() or
+             offer.get("shop_id")!=verified_context.get("shop_id")):
+             raise EditorialBasisRejected("Offer evidence not approved for shop")
++        claim=offer["approved_claim_text"]
++        if "percent_off" in offer:
++            percent=offer["percent_off"]
++            if type(percent) is not int or not 1<=percent<=100:
++                raise EditorialBasisRejected("Unsafe approved retailer offer percentage or SKU")
++            numeric_claims=list(_CLAIM_PERCENT.finditer(claim)) + list(_CLAIM_LOCAL_PERCENT.finditer(claim))
++            for occurrence in numeric_claims:
++                number=re.match(r"\d+",occurrence.group().lstrip())
++                if number and int(number.group()) != percent:
++                    raise EditorialBasisRejected("Unsafe approved retailer offer percentage or SKU")
++        if "eligible_product_skus" in offer:
++            sku_list=offer["eligible_product_skus"]
++            if (type(sku_list) is not list or not sku_list or
++                any(type(sku) is not str or
++                    re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,79}",sku) is None
++                    for sku in sku_list) or len(set(sku_list)) != len(sku_list)):
++                raise EditorialBasisRejected("Unsafe approved retailer offer percentage or SKU")
++        # A signed server row may still contain unsafe/malformed wording.
++        # Validate the original approved span before using it as the source
++        # authority for exact in-draft discount matching. It must not contain
++        # hidden controls, markup, external links or duplicate approvals.
++        if (_unsafe_editorial_display(claim) or "<" in claim or ">" in claim or
++            re.search(r"(?:https?://|www\.)",claim,flags=re.I) or
++            "javascript:" in claim.lower() or
++            claim.casefold() in approved_texts or
++            ("percent_off" in offer and
++             (type(offer["percent_off"]) is not int or
++              not 1<=offer["percent_off"]<=100))):
++            raise EditorialBasisRejected("Unsafe or duplicate approved retailer offer")
++        # Source-provenance labels can outlive an offer. When a signed offer
++        # record includes lifecycle fields, require ALL of them to match the
++        # authoritative campaign day before treating its exact legal wording
++        # as source-backed. Old metadata-free fixtures remain review-only and
++        # do not become publication or commercial-accuracy approvals.
++        lifecycle=("active","revoked_at","valid_from","valid_until")
++        if any(key in offer for key in lifecycle):
++            day=verified_context.get("campaign_date")
++            start=offer.get("valid_from")
++            end=offer.get("valid_until")
++            if (offer.get("active") is not True or
++                offer.get("revoked_at") is not None or
++                any(type(value) is not str or
++                    re.fullmatch(r"\d{4}-\d{2}-\d{2}",value) is None
++                    for value in (day,start,end))):
++                raise EditorialBasisRejected("Offer lifecycle not approved for campaign")
++            try:
++                campaign_day=date.fromisoformat(day)
++                start_day=date.fromisoformat(start)
++                end_day=date.fromisoformat(end)
++            except ValueError as exc:
++                raise EditorialBasisRejected(
++                    "Offer lifecycle not approved for campaign") from exc
++            if not start_day<=campaign_day<=end_day:
++                raise EditorialBasisRejected("Offer outside current campaign window")
++        approved_texts.add(claim.casefold())
+     issues=set()
+     for field,text in copy.items():
+         if (type(text) is not str or not 1<=len(text.strip())<=1800 or
+-            any(ord(ch)<32 for ch in text) or "<" in text or ">" in text or
+-            "https://" in text.lower() or "javascript:" in text.lower()):
++            _unsafe_editorial_display(text) or "<" in text or ">" in text or
++            re.search(r"(?:https?://|www\.)", text, flags=re.I) or
++            "javascript:" in text.lower()):
+             raise EditorialBasisRejected("Unsafe or unbounded retailer copy")
+-        if _CLAIM_PRICE.search(text):
++        # NFKC is detection-only; preserve original copy bytes and approved spans.
++        shadow="".join(
++            normalized if len(normalized)==1 else char
++            for char in text
++            for normalized in (unicodedata.normalize("NFKC",char),)
++        )
++        if _CLAIM_PRICE.search(shadow):
+             issues.add("UNVERIFIED_CURRENCY_PRICE")
+-        if _CLAIM_URGENCY.search(text):
++        if _CLAIM_URGENCY.search(shadow):
+             issues.add("UNVERIFIED_URGENCY_OR_TREND")
+-        if _CLAIM_MATERIAL.search(text):
++        if _CLAIM_MATERIAL.search(shadow):
+             issues.add("PRODUCT_MATERIAL_FACTS_NOT_VERIFIED")
+         # Having ONE legitimate offer substring must not launder a second
+         # invented percentage in that same sentence, headline or voiceover.
+@@ -663,10 +833,22 @@ def inspect_retailer_copy_claims(*, verified_context: dict, copy: dict) -> dict:
+             pattern=r"(?<!\w)"+re.escape(claim)+r"(?!\w)"
+             approved_spans.extend((m.start(),m.end()) for m in
+                                    re.finditer(pattern,text,flags=re.I))
+-        hits=(list(_CLAIM_PERCENT.finditer(text)) +
+-              list(_CLAIM_WORD_PERCENT.finditer(text)) +
+-              list(_CLAIM_LOCAL_PERCENT.finditer(text)))
+-        if hits and (not approved_spans or _CLAIM_WIDE.search(text) or
++        # Detection-only single-codepoint NFKC folds compatibility-width
++        # characters (e.g. 50ｐｅｒｃｅｎｔ), preserving original offsets.
++        # Never normalize signed offer wording, stored copy or the digest:
++        # source approval still requires the exact original text span.
++        # A compatibility glyph can expand into multiple ASCII digits (e.g.
++        # circled 20). Reject ambiguous expansions rather than silently
++        # skipping them during numeric offer detection.
++        if any(len(unicodedata.normalize("NFKC", ch)) > 1 and
++               any(c.isdecimal() or c == "%" for c in
++                   unicodedata.normalize("NFKC", ch)) for ch in text):
++            issues.add("DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED")
++
++        hits=(list(_CLAIM_PERCENT.finditer(shadow)) +
++              list(_CLAIM_WORD_PERCENT.finditer(shadow)) +
++              list(_CLAIM_LOCAL_PERCENT.finditer(shadow)))
++        if hits and (not approved_spans or _CLAIM_WIDE.search(shadow) or
+                      any(not any(a<=hit.start() and hit.end()<=b
+                                  for a,b in approved_spans) for hit in hits)):
+             issues.add("DISCOUNT_SCOPE_OR_WORDING_NOT_SOURCE_VERIFIED")
+@@ -736,7 +918,7 @@ def rank_source_backed_trends(*, verified_context, trends, now_utc,
+             not _TREND_SHA.fullmatch(str(row.get("source_sha256") or "")) or
+             type(row.get("headline")) is not str or
+             not 12<=len(row["headline"])<=180 or
+-            any(ord(c)<32 or c in "<>" for c in row["headline"]) or
++            _unsafe_editorial_display(row["headline"]) or
+             type(row.get("published_at")) is not str):
+             raise EditorialBasisRejected("Current authenticated RSS evidence missing")
+         if row["id"] in seen_ids:
+@@ -764,6 +946,13 @@ def rank_source_backed_trends(*, verified_context, trends, now_utc,
+                          "freshness_points":freshness,
+                          "review_score":min(overlap,10)*10+freshness})
+     selected.sort(key=lambda x:(-x["review_score"],x["trend_id"]))
++    # Existing #780 F2-04 gate: source grants may be revoked while ranking.
++    for candidate in selected[:10]:
++        original=next(row for row in trends if row["id"]==candidate["trend_id"])
++        if verify_source_provenance(shop,original["id"],
++                                    original["source_sha256"],
++                                    original["published_at"]) is not True:
++            raise EditorialBasisRejected("Signed RSS provenance revoked during ranking")
+     return {"schema":"retailgrowth.feature2-trend-review.v1",
+             "shop_id":shop,"status":"REVIEW_REQUIRED" if selected else "EVERGREEN_FALLBACK",
+             "candidates":selected[:10],
+@@ -827,7 +1016,7 @@ def active():
+     items=root.find("channel").findall("item")
+     if len(items)>25:
+         raise EditorialBasisRejected("Too many private RSS items")
+-    seen=set();rows=[];rejected_old=0
++    seen=set();seen_headlines=set();rows=[];rejected_old=0
+     for item in items:
+         title=item.find("title")
+         pub=item.find("pubDate")
+@@ -837,7 +1026,7 @@ def active():
+             raise EditorialBasisRejected("RSS headline/date source invalid")
+         headline=title.text.strip()
+         if not 12<=len(headline)<=180 or \
+-           any(ord(ch)<32 or ch in "<>" for ch in headline):
++           _unsafe_editorial_display(headline):
+             raise EditorialBasisRejected("Unsafe unreviewed RSS headline")
+         try:
+             published=parsedate_to_datetime(pub.text.strip())
+@@ -847,9 +1036,18 @@ def active():
+                      published.astimezone(timezone.utc)).total_seconds()
+         except (TypeError,ValueError,OverflowError) as exc:
+             raise EditorialBasisRejected("RSS source timestamp invalid") from exc
+-        identity=(guid.text.strip() if guid is not None and
+-                  len(guid)==0 and type(guid.text) is str and
+-                  1<=len(guid.text.strip())<=500 else
++        # Existing #801 F2-04 gate: different GUIDs cannot inflate a headline.
++        import unicodedata
++        headline_key=" ".join(unicodedata.normalize("NFKC",headline).casefold().split())
++        if headline_key in seen_headlines:
++            raise EditorialBasisRejected("Duplicated RSS headline in signed snapshot")
++        seen_headlines.add(headline_key)
++        # Existing #780 F2-04 gate: present malformed GUIDs fail closed.
++        if guid is not None and (
++            len(guid)!=0 or type(guid.text) is not str or
++            not 1<=len(guid.text.strip())<=500):
++            raise EditorialBasisRejected("Malformed signed RSS GUID")
++        identity=(guid.text.strip() if guid is not None else
+                   headline+"|"+published.isoformat())
+         source_id="rss_"+hashlib.sha256(identity.encode("utf-8")).hexdigest()[:32]
+         if source_id in seen:
+
+diff --git a/ai-agents/src/ai_agents/feature2_director_runtime_gate.py b/ai-agents/src/ai_agents/feature2_director_runtime_gate.py
+--- a/ai-agents/src/ai_agents/feature2_director_runtime_gate.py
++++ b/ai-agents/src/ai_agents/feature2_director_runtime_gate.py
+@@ -10,6 +10,7 @@
+ from hmac import compare_digest
+ import re
+ import struct
++import stat
+ from typing import Mapping
+ from zipfile import ZipFile
+ from .feature2_director_package import PINNED_UPSTREAM_BLOBS
+@@ -39,12 +40,37 @@ def _node_binary_attested(payload: bytes, expected_sha256: str | None) -> bool:
+     if (len(payload) < 64 or payload[:7] != b"\x7fELF\x02\x01\x01"
+             or struct.unpack_from("<H", payload, 18)[0] != 62):
+         return False
++    # A magic prefix and x86_64 machine ID alone also match forged ELF-like
++    # blobs. Check the ELF64 executable/shared-object header and an executable
++    # PT_LOAD segment before consulting the independently approved digest.
++    e_type, e_machine, e_version = struct.unpack_from("<HHI", payload, 16)
++    e_ehsize = struct.unpack_from("<H", payload, 52)[0]
++    if e_type not in (2, 3) or e_machine != 62 or e_version != 1 or e_ehsize != 64:
++        return False
+     phoff = struct.unpack_from("<Q", payload, 32)[0]
+     phentsize, phnum = struct.unpack_from("<HH", payload, 54)
+     if not phoff or phentsize < 56 or not 1 <= phnum <= 1024:
+         return False
+     if phoff + phentsize * phnum > len(payload):
+         return False
++    executable_load=False
++    for n in range(phnum):
++        offset=phoff+n*phentsize
++        p_type,p_flags=struct.unpack_from("<II",payload,offset)
++        if p_type!=1 or not (p_flags & 1):
++            continue
++        # ELF64 PT_LOAD: file offset, file bytes and mapped memory bytes.
++        # A header advertising an executable segment outside the signed file
++        # (or an empty executable segment) is not an executable Node image.
++        file_offset=struct.unpack_from("<Q",payload,offset+8)[0]
++        file_size,memory_size=struct.unpack_from("<QQ",payload,offset+32)
++        if (file_size>0 and memory_size>=file_size and
++            file_offset<=len(payload) and
++            file_size<=len(payload)-file_offset):
++            executable_load=True
++            break
++    if not executable_load:
++        return False
+     return compare_digest(sha256(payload).hexdigest(), expected_sha256)
+ PIN = "4ab1a40d15ee8c1a1427c092dce08dc7dfbefa6f"
+ 
+@@ -114,12 +140,22 @@ def audit_zip(path: str, *, runtime_linux_node22_verified=False,
+     with ZipFile(path) as z:
+         infos = z.infolist()
+         names = [info.filename for info in infos]
+-        if len(names) != len(set(names)) or len(names) > 200:
++        # Match the protected Functions deploy ZIP ceiling (package.py).
++        # A separate F2 audit must not certify a 121–200-member archive that
++        # the real deployment verifier rejects.
++        if len(names) != len(set(names)) or len(names) > 120:
+             raise ValueError("Unsafe duplicate or oversized runtime manifest")
+         if sum(info.file_size for info in infos) > 400 * 1024 * 1024:
+             raise ValueError("Oversized unpacked runtime ZIP")
+         for info in infos:
+             name = info.filename
++            # ZIP external attributes may encode Unix symlink entries even
++            # when their textual filenames look like safe .js or LICENSE
++            # paths. A later extractor could turn one into a filesystem path
++            # outside the Functions app or replace a pinned MIT source.
++            if (info.create_system==3 and
++                stat.S_IFMT(info.external_attr>>16)==stat.S_IFLNK):
++                raise ValueError("Unsafe runtime ZIP symlink member")
+             if (name.startswith("/") or ".." in name.split("/")
+                     or "\\" in name or name.startswith(".")):
+                 raise ValueError("Unsafe runtime ZIP member")
+
+diff --git a/ai-agents/src/ai_agents/feature2_kokoro_local.py b/ai-agents/src/ai_agents/feature2_kokoro_local.py
+--- a/ai-agents/src/ai_agents/feature2_kokoro_local.py
++++ b/ai-agents/src/ai_agents/feature2_kokoro_local.py
+@@ -13,6 +13,8 @@
+ from pathlib import Path
+ import os
+ import re
++import stat
++import unicodedata
+ import threading
+ import time
+ import wave
+@@ -42,14 +44,33 @@ class LocalSpeechUnavailable(ValueError):
+     pass
+ 
+ def _file_proof(path:Path,expected_name,expected_bytes,expected_sha):
+-    if not path.is_file() or path.is_symlink() or path.name!=expected_name:
++    """Hash pinned bytes through one regular-file descriptor, without symlinks.
++
++    The operator must keep the verified cache immutable while the upstream
++    loader opens model paths. This check itself is not a filesystem lease.
++    """
++    if path.name!=expected_name or path.is_symlink():
+         raise LocalSpeechUnavailable("Pinned local model original unavailable")
+-    if path.stat().st_size!=expected_bytes:
+-        raise LocalSpeechUnavailable("Pinned ONNX/voice size mismatch")
+     h=__import__("hashlib").sha256()
+-    with path.open("rb") as stream:
+-        for chunk in iter(lambda:stream.read(1024*1024),b""):
+-            h.update(chunk)
++    try:
++        # O_NOFOLLOW also protects an attacker swapping a regular file for
++        # a symlink between the initial path check and the actual open.
++        flags=os.O_RDONLY | getattr(os,"O_NOFOLLOW",0)
++        with os.fdopen(os.open(path,flags),"rb") as stream:
++            before=os.fstat(stream.fileno())
++            if not stat.S_ISREG(before.st_mode):
++                raise LocalSpeechUnavailable("Pinned local model original unavailable")
++            if before.st_size!=expected_bytes:
++                raise LocalSpeechUnavailable("Pinned ONNX/voice size mismatch")
++            for chunk in iter(lambda:stream.read(1024*1024),b""):
++                h.update(chunk)
++            after=os.fstat(stream.fileno())
++            if (after.st_size!=expected_bytes or
++                after.st_ino!=before.st_ino or
++                after.st_dev!=before.st_dev):
++                raise LocalSpeechUnavailable("Pinned ONNX/voice changed during verification")
++    except OSError as exc:
++        raise LocalSpeechUnavailable("Pinned local model original unavailable") from exc
+     if h.hexdigest()!=expected_sha:
+         raise LocalSpeechUnavailable("Pinned ONNX/voice digest mismatch")
+     return h.hexdigest()
+@@ -63,7 +84,10 @@ def verify_cache(cache_dir, *, model_sha=MODEL_SHA, voice_sha=VOICES_SHA,
+     """
+     if not isinstance(cache_dir,(str,Path)) or not str(cache_dir):
+         raise LocalSpeechUnavailable("Trusted speech cache required")
+-    root=Path(cache_dir).resolve(strict=True)
++    try:
++        root=Path(cache_dir).resolve(strict=True)
++    except (OSError,RuntimeError) as exc:
++        raise LocalSpeechUnavailable("Trusted speech cache required") from exc
+     if not root.is_dir():
+         raise LocalSpeechUnavailable("Trusted speech cache required")
+     _file_proof(root/MODEL_NAME,MODEL_NAME,model_size,model_sha)
+@@ -135,8 +159,16 @@ def synthesize_local(*,text,voice_id="af_heart",lang="en-us",
+     engine injection is ONLY for tests. Genuine caller must use verified model
+     cache and real upstream package. Synthetic test result is marked TEST_ONLY.
+     """
++    # Reject hidden/BiDi/C1 text before hashing model weights or acquiring
++    # the one CPU lease. JSON selector fields may be lists/dicts; avoid
++    # unhashable speed keys becoming a worker exception.
+     if (type(text) is not str or not _TEXT.fullmatch(text.strip()) or
+-        len(text.strip())>1400 or type(voice_id) is not str or
++        len(text.strip())>1400 or
++        any(0x7f<=ord(ch)<=0x9f or
++            unicodedata.category(ch) in ("Cf","Cs","Zl","Zp")
++            for ch in text) or
++        type(voice_id) is not str or type(lang) is not str or
++        type(speed) is not str or
+         SUPPORTED_VOICES.get(voice_id)!=lang or speed not in SPEEDS):
+         raise LocalSpeechUnavailable("Unsupported text/voice/language/speed")
+     if engine is not None and trusted_for_tests is not True:
+@@ -233,8 +265,13 @@ def rss_kib():
+             audio.get("model")!="Kokoro-82M-v1.0-int8" or
+             audio.get("upstream_revision")!=SOURCE_REVISION or
+             audio.get("voice_id")!=voice_id or audio.get("language")!=lang or
+-            audio.get("sample_rate_hz")!=24000 or
+-            audio.get("paid_calls")!=0 or
++            type(audio.get("sample_rate_hz")) is not int or
++            audio["sample_rate_hz"]!=24000 or
++            type(audio.get("paid_calls")) is not int or
++            audio["paid_calls"]!=0 or
++            audio.get("approved_to_publish") is not False or
++            audio.get("speech_transcript_verified") is not False or
++            audio.get("word_timestamps") is not None or
+             audio.get("test_only") is not trusted_for_tests or
+             audio.get("actual_inference_verified") is not (not trusted_for_tests) or
+             type(audio.get("audio_wav")) is not bytes or
+@@ -245,6 +282,30 @@ def rss_kib():
+             not audio["audio_wav"].startswith(b"RIFF") or
+             audio["audio_wav"][8:12]!=b"WAVE"):
+             raise LocalSpeechUnavailable("Benchmark source/audio provenance invalid")
++        # RIFF/WAVE magic and wave.open alone can accept hidden trailing
++        # bytes or duplicate data chunks. Reuse the EXISTING strict private
++        # source-audio validator before crediting CPU benchmark evidence.
++        # This is a format check, never evidence of real speech quality.
++        from .feature2_voiceover_upload import _inspect, VoiceUploadRejected
++        try:
++            _inspect(audio["audio_wav"],60)
++        except VoiceUploadRejected as exc:
++            raise LocalSpeechUnavailable("Benchmark original WAV RIFF boundary invalid") from exc
++        try:
++            with wave.open(BytesIO(audio["audio_wav"]),"rb") as reader:
++                count=reader.getnframes()
++                if (reader.getnchannels()!=1 or reader.getsampwidth()!=2 or
++                    reader.getframerate()!=24000 or
++                    reader.getcomptype()!="NONE" or count<2400 or count>24000*60):
++                    raise LocalSpeechUnavailable("Benchmark original WAV PCM invalid")
++                raw=reader.readframes(count)
++                if len(raw)!=2*count:
++                    raise LocalSpeechUnavailable("Benchmark original WAV truncated")
++                measured=round(count/24000,4)
++        except (OSError,ValueError,EOFError,wave.Error) as exc:
++            raise LocalSpeechUnavailable("Benchmark original WAV invalid") from exc
++        if abs(measured-audio["duration_seconds"])>0.0001:
++            raise LocalSpeechUnavailable("Benchmark original WAV duration mismatch")
+         observations.append({
+             "wall_seconds":round(wall,4),
+             "process_cpu_seconds":round(cpu,4),
+@@ -253,13 +314,23 @@ def rss_kib():
+             "process_high_water_rss_kib":rss_kib(),
+         })
+     after=rss_kib()
++    factors=sorted(row["real_time_factor"] for row in observations)
++    total_wall=sum(row["wall_seconds"] for row in observations)
++    # These are diagnostic readings from one process, not a per-job charge
++    # or a verified cold-to-warm speedup on hardware without actual weights.
+     return {
+         "schema":"retailgrowth.feature2-cpu-benchmark.v1",
+         "engine":"kokoro-onnx",
+         "model":"Kokoro-82M-v1.0-int8",
+         "upstream_revision":SOURCE_REVISION,
+         "voice_id":voice_id,"language":lang,"sample_count":repeats,
+         "observations":observations,
++        "total_measured_wall_seconds":round(total_wall,4),
++        "median_real_time_factor":round(factors[len(factors)//2],4)
++            if repeats%2 else round((factors[0]+factors[1])/2,4),
++        "worst_real_time_factor":factors[-1],
++        "warm_observation_count":max(0,repeats-1),
++        "cold_start_and_warm_are_same_process":True,
+         "process_hwm_rss_before_kib":before,
+         "process_hwm_rss_after_kib":after,
+         "rss_is_process_high_water_only":True,
+
+diff --git a/ai-agents/src/ai_agents/feature2_local_voice_workflow.py b/ai-agents/src/ai_agents/feature2_local_voice_workflow.py
+--- a/ai-agents/src/ai_agents/feature2_local_voice_workflow.py
++++ b/ai-agents/src/ai_agents/feature2_local_voice_workflow.py
+@@ -5,6 +5,7 @@
+ """
+ from __future__ import annotations
+ from hashlib import sha256
++from copy import deepcopy
+ from uuid import UUID
+ from .feature2_azure_speech import _plan, SpeechRejected
+ from .feature2_kokoro_local import synthesize_local
+@@ -100,8 +101,31 @@ def synthesize_and_stage(*,shop_id,campaign_id,source_plan,voice_id,lang,speed,
+     if (type(result) is not dict or not _uuid(result.get("audio_asset_id")) or
+         result.get("shop_id")!=shop_id or result.get("campaign_id")!=campaign_id or
+         result.get("original_audio_sha256")!=metrics["sha256"] or
+-        result.get("private") is not True):
++        result.get("private") is not True or
++        # Successful storage is neither a rights review nor a paid motion/
++        # publication grant. Reject ambiguous optional metadata rather than
++        # trusting the backend writer's booleans or URL.
++        any(k in result and result[k] is not False for k in
++            ("can_publish","can_dispatch_motion","commercial_use_approved",
++             "original_media_rights_verified","pronunciation_verified",
++             "paid_inference_authorized","may_auto_invoke_azure",
++             "approved_for_editing")) or
++        ("review_state" in result and
++         result["review_state"]!="PENDING_HUMAN_LISTEN_AND_RIGHTS") or
++        ("paid_calls" in result and
++         (type(result["paid_calls"]) is not int or result["paid_calls"]!=0)) or
++        ("billing" in result and result["billing"]!="NONE") or
++        ("signed_url" in result and result["signed_url"] is not None) or
++        ("private_download_url" in result and
++         result["private_download_url"] is not None) or
++        ("creative_plan_sha256" in result and
++         result["creative_plan_sha256"]!=review["plan_sha256"])):
+         raise LocalVoiceJobDenied("Original audio was not registered in private storage")
++    # Storage can finish after the editor loses access or the plan changes.
++    # A private writer must ALSO fence the commit in its durable transaction.
++    if (authorize_editor(shop_id,campaign_id) is not True or
++        read_current_plan(shop_id,campaign_id)!=source_plan):
++        raise LocalVoiceJobDenied("Editor or source revoked after private audio stage")
+     return {**envelope,"private_audio_asset_id":result["audio_asset_id"],
+             "audio_bytes":None,"signed_url":None,
+             "f4_must_recheck_private_rights":True}
+@@ -268,14 +292,18 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
+             authorize_current_editor,read_current_plan,
+             read_authoritative_quota,reserve_atomic_once))):
+         raise LocalVoiceJobDenied("Trusted budgeted voice job scope required")
++    # An auth callback can return the same mutable dict as source_plan.
++    # Pin the original BEFORE calling it, so self-equality cannot hide a revoke.
++    source_snapshot=deepcopy(source_plan)
+     try:
+         creative,approval,script=_plan(
+-            source_plan,shop_id=shop_id,campaign_id=campaign_id)
++            source_snapshot,shop_id=shop_id,campaign_id=campaign_id)
+     except SpeechRejected as exc:
+         raise LocalVoiceJobDenied("Current reviewed plan missing") from exc
+     plan_sha=approval["plan_sha256"]
+     if (authorize_current_editor(shop_id,campaign_id) is not True or
+-        read_current_plan(shop_id,campaign_id)!=source_plan):
++        read_current_plan(shop_id,campaign_id)!=source_snapshot or
++        source_plan!=source_snapshot):
+         raise LocalVoiceJobDenied("Voice editor or original source revoked")
+     quota=read_authoritative_quota(shop_id,campaign_id)
+     # The policy is trusted and signed by the backend, NEVER browser props.
+@@ -305,7 +333,9 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
+             now_ms/1000,timezone.utc).strftime("%Y-%m") or
+         quota.get("policy_state")!="ACTIVE"):
+         raise LocalVoiceJobDenied("Signed CPU budget policy invalid")
+-    reserved=quota["per_job_reserved_cpu_ms"]
++    # An atomic writer must not mutate an earlier signed quota view.
++    quota_snapshot=deepcopy(quota)
++    reserved=quota_snapshot["per_job_reserved_cpu_ms"]
+     if (quota["active_cpu_jobs"]>=quota["max_active_cpu_jobs"] or
+         quota["used_cpu_ms"]+quota["reserved_cpu_ms"]+reserved>
+             quota["monthly_cpu_limit_ms"]):
+@@ -315,14 +345,14 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
+          "original_script_sha256":sha256(script.encode()).hexdigest(),
+          "job_key":job_key,"voice_id":voice_id,"language":lang,
+          "speed":speed,"provider":"kokoro-onnx",
+-         "period_id":quota["period_id"],
+-         "budget_revision":quota["budget_revision"],
++         "period_id":quota_snapshot["period_id"],
++         "budget_revision":quota_snapshot["budget_revision"],
+          "reserved_cpu_ms":reserved,
+          "paid_api_calls_allowed":False}
+     request_sha=sha256(json.dumps(req,sort_keys=True,
+                      separators=(",",":")).encode()).hexdigest()
+     receipt=reserve_atomic_once(shop_id,campaign_id,job_key,request_sha,
+-                                quota["budget_revision"],reserved,dict(req))
++                                quota_snapshot["budget_revision"],reserved,dict(req))
+     if (type(receipt) is not dict or
+         receipt.get("schema")!="retailgrowth.feature2-local-cpu-reservation.v1" or
+         receipt.get("shop_id")!=shop_id or
+@@ -332,26 +362,40 @@ def reserve_budgeted_local_voice_job(*,shop_id,campaign_id,source_plan,
+         receipt.get("request_sha256")!=request_sha or
+         receipt.get("provider")!="kokoro-onnx" or
+         receipt.get("reserved_cpu_ms")!=reserved or
+-        receipt.get("period_id")!=quota["period_id"] or
++        receipt.get("period_id")!=quota_snapshot["period_id"] or
+         type(receipt.get("lease_fence")) is not int or
+         not 1<=receipt["lease_fence"]<2**63 or
+         type(receipt.get("lease_expires_ms")) is not int or
+         not now_ms<receipt["lease_expires_ms"]<=now_ms+300_000 or
+         receipt.get("status")!="RESERVED" or
+         receipt.get("private") is not True or
+-        receipt.get("paid_api_calls")!=0 or
++        # JSON bool compares equal to integer zero: require literal integer 0
++        # so a forged callback cannot ambiguously claim a paid budget state.
++        type(receipt.get("paid_api_calls")) is not int or
++        receipt["paid_api_calls"]!=0 or
+         receipt.get("can_publish") is not False or
++        any(flag in receipt and receipt[flag] is not False for flag in (
++            "can_dispatch_motion","commercial_use_approved",
++            "may_auto_invoke_azure","paid_inference_authorized")) or
++        ("paid_calls" in receipt and
++         (type(receipt["paid_calls"]) is not int or
++          receipt["paid_calls"]!=0)) or
++        ("billing" in receipt and receipt["billing"]!="NONE") or
+         receipt.get("atomic_unique_commit") is not True):
+         raise LocalVoiceJobDenied("Durable private CPU reservation evidence invalid")
++    # Late callback edits to aliased receipts must also fail closed.
++    receipt_snapshot=deepcopy(receipt)
+     if (authorize_current_editor(shop_id,campaign_id) is not True or
+-        read_current_plan(shop_id,campaign_id)!=source_plan):
++        read_current_plan(shop_id,campaign_id)!=source_snapshot or
++        source_plan!=source_snapshot or quota!=quota_snapshot or
++        receipt!=receipt_snapshot):
+         raise LocalVoiceJobDenied("Voice source revoked after CPU budget lease")
+-    return {"schema":receipt["schema"],"shop_id":shop_id,
++    return {"schema":receipt_snapshot["schema"],"shop_id":shop_id,
+             "campaign_id":campaign_id,"creative_plan_sha256":plan_sha,
+             "job_key":job_key,"request_sha256":request_sha,
+-            "lease_fence":receipt["lease_fence"],
+-            "lease_expires_ms":receipt["lease_expires_ms"],
+-            "reserved_cpu_ms":reserved,"period_id":quota["period_id"],
++            "lease_fence":receipt_snapshot["lease_fence"],
++            "lease_expires_ms":receipt_snapshot["lease_expires_ms"],
++            "reserved_cpu_ms":reserved,"period_id":quota_snapshot["period_id"],
+             "provider":"kokoro-onnx","private":True,
+             "can_publish":False,"paid_api_calls":0,
+             "real_model_inference_observed":False,
+@@ -400,12 +444,29 @@ def registered():
+             media.get("can_publish") is not False or
+             media.get("review_state")!="PENDING_HUMAN_LISTEN_AND_RIGHTS" or
+             media.get("revoked_at") is not None or
+-            media.get("local_inference_evidence") is not True):
++            media.get("local_inference_evidence") is not True or
++            # Private media metadata must not silently grant public reuse,
++            # paid provider calls or expose a URL while the bytes are pending
++            # human speech/rights review. Optional fields may be absent but
++            # their present denial must be literal False/zero/null.
++            any(key in media and media[key] is not False for key in
++                ("commercial_use_approved","approved_to_publish",
++                 "original_media_rights_verified","paid_motion_permitted",
++                 "paid_inference_authorized","customer_publishable")) or
++            ("paid_calls" in media and
++             (type(media["paid_calls"]) is not int or media["paid_calls"]!=0)) or
++            ("billing" in media and media["billing"]!="NONE") or
++            ("signed_url" in media and media["signed_url"] is not None) or
++            ("private_download_url" in media and
++             media["private_download_url"] is not None)):
+             raise LocalVoiceJobDenied("Private original WAV registration or rights changed")
+         return media
+     if not current():
+         raise LocalVoiceJobDenied("Editor revoked before original WAV download")
+-    prior=registered()
++    # Keep a copy independent of the backend adapter's cache: two reads
++    # returning the same mutable dict must never compare equal after a
++    # concurrent membership/rights update.
++    prior=dict(registered())
+     # Reader is server-selected by the registered asset; no client bucket or
+     # object path. Blob bytes must not be logged or cached in shared state.
+     raw=read_private_blob(shop_id,campaign_id,audio_asset_id)
+@@ -430,3 +491,142 @@ def registered():
+             "can_dispatch_motion":False,
+             "human_listen_required":True,
+             "commercial_rights_not_certified":True}
++
++
++def read_private_local_voice_job_status(*,shop_id,campaign_id,source_plan,
++        request_key,authorize_current_editor,read_current_plan,
++        read_registered_job,read_registered_private_asset):
++    """Read a once-submitted private Kokoro job; NEVER reserve/retry it.
++
++    Callbacks must be trusted JWT/RLS readers. This function only checks
++    their scoped evidence and returns the minimal UI status projection;
++    it does not authenticate a browser, lease a worker or create media.
++    """
++    import re
++    from .feature2_kokoro_local import SUPPORTED_VOICES
++    if (not all(_uuid(x) for x in (shop_id,campaign_id,request_key))
++        or not all(callable(f) for f in
++            (authorize_current_editor,read_current_plan,
++             read_registered_job,read_registered_private_asset))):
++        raise LocalVoiceJobDenied("Trusted original private status scope required")
++    try:
++        _,review,script=_plan(source_plan,shop_id=shop_id,campaign_id=campaign_id)
++    except SpeechRejected as exc:
++        raise LocalVoiceJobDenied("Current reviewed source plan required") from exc
++    plan_sha=review["plan_sha256"]
++    script_sha=sha256(script.encode("utf-8")).hexdigest()
++    def current():
++        return (authorize_current_editor(shop_id,campaign_id) is True
++                and read_current_plan(shop_id,campaign_id)==source_plan)
++    if not current():
++        raise LocalVoiceJobDenied("Private speech status editor or plan revoked")
++    states={"RESERVED","RUNNING","AWAITING_HUMAN_REVIEW",
++            "FAILED","DENIED","BLOCKED"}
++    terminal={"AWAITING_HUMAN_REVIEW","FAILED","DENIED","BLOCKED"}
++    def job_snapshot():
++        row=read_registered_job(shop_id,campaign_id,request_key)
++        if (type(row) is not dict or
++            row.get("schema")!="retailgrowth.feature2-private-voice-job-status.v1" or
++            row.get("shop_id")!=shop_id or row.get("campaign_id")!=campaign_id or
++            row.get("request_key")!=request_key or
++            row.get("creative_plan_sha256")!=plan_sha or
++            row.get("original_script_sha256")!=script_sha or
++            row.get("provider")!="kokoro-onnx" or
++            type(row.get("status")) is not str or
++            row["status"] not in states or
++            row.get("private") is not True or
++            row.get("can_publish") is not False or
++            row.get("can_dispatch_motion") is not False or
++            row.get("automatically_retried") is not False or
++            row.get("azure_fallback_used") is not False or
++            type(row.get("paid_api_calls")) is not int or
++            row["paid_api_calls"]!=0 or
++            row.get("revoked_at") is not None or
++            type(row.get("terminal")) is not bool or
++            row["terminal"]!=(row["status"] in terminal) or
++            row.get("review_status")!=(
++                "PENDING_HUMAN_LISTEN_AND_RIGHTS"
++                if row["status"]=="AWAITING_HUMAN_REVIEW" else "NOT_READY") or
++            type(row.get("request_sha256")) is not str or
++            not re.fullmatch(r"[a-f0-9]{64}",row["request_sha256"]) or
++            type(row.get("lease_fence")) is not int or
++            not 1<=row["lease_fence"]<2**63 or
++            type(row.get("voice_id")) is not str or
++            row["voice_id"] not in SUPPORTED_VOICES or
++            row.get("language")!=SUPPORTED_VOICES[row["voice_id"]] or
++            any(flag in row and row[flag] is not False for flag in (
++                "commercial_use_approved","may_auto_invoke_azure",
++                "paid_inference_authorized","customer_publishable",
++                "approved_to_publish","original_media_rights_verified")) or
++            ("paid_calls" in row and
++             (type(row["paid_calls"]) is not int or row["paid_calls"]!=0)) or
++            ("billing" in row and row["billing"]!="NONE") or
++            ("signed_url" in row and row["signed_url"] is not None) or
++            ("private_download_url" in row and
++             row["private_download_url"] is not None)):
++
++            raise LocalVoiceJobDenied("Tenant-private original voice job not verified")
++        completed=row["status"]=="AWAITING_HUMAN_REVIEW"
++        if completed:
++            if (not _uuid(row.get("audio_asset_id")) or
++                type(row.get("original_audio_sha256")) is not str or
++                not re.fullmatch(r"[a-f0-9]{64}",row["original_audio_sha256"])):
++                raise LocalVoiceJobDenied("Private job lacks registered original WAV")
++        elif row.get("audio_asset_id") is not None or row.get("original_audio_sha256") is not None:
++            raise LocalVoiceJobDenied("Nonreviewed job cannot expose original audio")
++        return row
++    # Keep a separate point-in-time view: a trusted adapter is allowed to
++    # reuse a mutable dictionary object on repeated database reads, and a
++    # self-comparison would otherwise miss a concurrent revocation/update.
++    job=dict(job_snapshot())
++    def private_media():
++        if job["status"]!="AWAITING_HUMAN_REVIEW":
++            return None
++        asset=read_registered_private_asset(
++            shop_id,campaign_id,job["audio_asset_id"])
++        if (type(asset) is not dict or
++            asset.get("schema")!="retailgrowth.feature2-to-feature4-original-voice.v1" or
++            asset.get("shop_id")!=shop_id or
++            asset.get("campaign_id")!=campaign_id or
++            asset.get("source_request_key")!=request_key or
++            asset.get("audio_asset_id")!=job["audio_asset_id"] or
++            asset.get("creative_plan_sha256")!=plan_sha or
++            asset.get("original_script_sha256")!=script_sha or
++            asset.get("original_audio_sha256")!=job["original_audio_sha256"] or
++            asset.get("provider")!="kokoro-onnx" or
++            asset.get("mime_type")!="audio/wav" or
++            asset.get("private") is not True or
++            asset.get("can_publish") is not False or
++            asset.get("review_state")!="PENDING_HUMAN_LISTEN_AND_RIGHTS" or
++            asset.get("revoked_at") is not None or
++            asset.get("local_inference_evidence") is not True or
++            any(key in asset and asset[key] is not False for key in
++                ("commercial_use_approved","paid_motion_permitted",
++                 "approved_to_publish","original_media_rights_verified",
++                 "paid_inference_authorized","customer_publishable")) or
++            ("paid_calls" in asset and
++             (type(asset["paid_calls"]) is not int or asset["paid_calls"]!=0)) or
++            ("billing" in asset and asset["billing"]!="NONE") or
++            ("signed_url" in asset and asset["signed_url"] is not None) or
++            ("private_download_url" in asset and
++             asset["private_download_url"] is not None)):
++            raise LocalVoiceJobDenied("Original job WAV rights or source revoked")
++        return asset
++    first_private=private_media()
++    original=dict(first_private) if first_private is not None else None
++    if not current() or job_snapshot()!=job or private_media()!=original:
++        raise LocalVoiceJobDenied("Private voice status revoked during read")
++    # Do not return the durable reservation digest, lease fence, actor claims,
++    # blob path, signed URL, tokens, raw transcript or unverified worker logs.
++    return {
++        "schema":"retailgrowth.feature2-private-voice-job-status.v1",
++        "shop_id":shop_id,"campaign_id":campaign_id,
++        "creative_plan_sha256":plan_sha,"request_key":request_key,
++        "provider":"kokoro-onnx","status":job["status"],
++        "private":True,"terminal":job["terminal"],
++        "review_status":job["review_status"],
++        "original_audio_sha256":job["original_audio_sha256"],
++        "audio_asset_id":job["audio_asset_id"],
++        "can_publish":False,"automatically_retried":False,
++        "azure_fallback_used":False,"paid_api_calls":0,
++    }
+
+diff --git a/ai-agents/src/ai_agents/feature2_pronunciation_dictionary.py b/ai-agents/src/ai_agents/feature2_pronunciation_dictionary.py
+--- a/ai-agents/src/ai_agents/feature2_pronunciation_dictionary.py
++++ b/ai-agents/src/ai_agents/feature2_pronunciation_dictionary.py
+@@ -6,18 +6,35 @@
+ from __future__ import annotations
+ import re
+ from hashlib import sha256
++from uuid import UUID
+ 
+ class PronunciationDenied(ValueError):pass
+ 
+-def _word(v):
+-    return type(v) is str and 1<=len(v)<=80 and re.fullmatch(r"[\w '-]+",v,re.UNICODE) is not None
++def _shop(v):
++    try:
++        return type(v) is str and UUID(v).version==4 and str(UUID(v))==v
++    except (AttributeError,ValueError,TypeError):
++        return False
++
++def _word(v, *, correction=False):
++    # English Kokoro's input dictionary maps ONE original token at a time.
++    # A multiword source cannot be matched by the bounded substitution regex;
++    # reject it rather than falsely claiming an approved change was applied.
++    chars=r"[\w'-]+" if not correction else r"[\w '-]+"
++    return (type(v) is str and 1<=len(v)<=80 and v==v.strip()
++            and v[0].isalnum() and v[-1].isalnum()
++            and re.fullmatch(chars,v,re.UNICODE) is not None)
+ 
+ def approve_dictionary_entry(*,shop_id,word,spoken_as,lang,editor_current,
+                              save_approved,expected_revision):
+-    if not callable(editor_current) or not callable(save_approved) or \
+-       editor_current(shop_id) is not True or \
+-       not _word(word) or not _word(spoken_as) or lang not in ("en-us","en-gb") or \
+-       type(expected_revision) is not int or not 0<=expected_revision<=999999:
++    if (not _shop(shop_id) or not callable(editor_current) or
++        not callable(save_approved) or not _word(word) or
++        not _word(spoken_as,correction=True) or
++        lang not in ("en-us","en-gb") or
++        type(expected_revision) is not int or
++        not 0<=expected_revision<=999999):
++        raise PronunciationDenied("Current authorized word preference required")
++    if editor_current(shop_id) is not True:
+         raise PronunciationDenied("Current authorized word preference required")
+     if word.casefold()==spoken_as.casefold():
+         raise PronunciationDenied("No meaningful correction provided")
+@@ -27,27 +44,73 @@ def approve_dictionary_entry(*,shop_id,word,spoken_as,lang,editor_current,
+             "actual_audio_quality_verified":False}
+     if editor_current(shop_id) is not True:
+         raise PronunciationDenied("Membership revoked")
+-    saved=save_approved(record)
++    # Do not hand a callback the authoritative returned record by reference.
++    # A storage adapter may edit its argument in-place before returning.
++    saved=save_approved(dict(record))
+     if (type(saved) is not dict or saved.get("shop_id")!=shop_id or
+         saved.get("word")!=word or saved.get("spoken_as")!=spoken_as or
+         type(saved.get("revision")) is not int or
+-        saved["revision"]!=expected_revision+1):
++        saved["revision"]!=expected_revision+1 or
++        ("language" in saved and saved["language"]!=lang) or
++        ("approval" in saved and
++         saved["approval"]!="RETAILER_EDITOR_REVIEWED_SPELLING_ONLY") or
++        ("actual_audio_quality_verified" in saved and
++         saved["actual_audio_quality_verified"] is not False) or
++        # A spelling preference does NOT confer publication, audio-quality,
++        # media-rights or paid-retry authority. Optional fields may be absent
++        # for older signed records but, if present, must be literal False.
++        any(flag in saved and saved[flag] is not False for flag in (
++            "can_publish","approved_to_publish","paid_motion_permitted",
++            "commercial_use_approved","audio_pronunciation_verified",
++            "may_auto_retry","may_auto_invoke_azure",
++            "paid_inference_authorized","can_dispatch_paid_motion",
++            "can_dispatch_motion")) or
++        ("paid_calls" in saved and
++         (type(saved["paid_calls"]) is not int or saved["paid_calls"]!=0)) or
++        ("billing" in saved and saved["billing"]!="NONE") or
++        ("private_download_url" in saved and
++         saved["private_download_url"] is not None) or
++        ("signed_url" in saved and saved["signed_url"] is not None)):
+         raise PronunciationDenied("Atomic shop dictionary save not confirmed")
+-    return {**record,"revision":saved["revision"]}
++    # The trusted DB CAS must fence the transaction against revocation and
++    # clean orphaned writes on failure. A successful receipt is not a current
++    # permission when the editor loses access during the write.
++    if editor_current(shop_id) is not True:
++        raise PronunciationDenied("Membership revoked after private dictionary save")
++    return {**record,"revision":saved["revision"],
++            "can_publish":False,"can_dispatch_motion":False,
++            "automatic_voice_retry_allowed":False}
+ 
+ def apply_approved_local_corrections(*,script,shop_id,lang,read_current_entries):
+-    if type(script) is not str or not 1<=len(script)<=1800 or \
+-       lang not in ("en-us","en-gb") or not callable(read_current_entries):
++    if (type(script) is not str or not 1<=len(script)<=1800 or
++        not _shop(shop_id) or lang not in ("en-us","en-gb") or
++        not callable(read_current_entries)):
+         raise PronunciationDenied("Trusted original script required")
+     entries=read_current_entries(shop_id,lang)
+     if type(entries) is not list or len(entries)>40:
+         raise PronunciationDenied("Too many unverified pronunciation entries")
+     substitutions={}
+     for row in entries:
+-        if type(row) is not dict or row.get("shop_id")!=shop_id or \
+-           row.get("language")!=lang or row.get("approval")!=\
+-           "RETAILER_EDITOR_REVIEWED_SPELLING_ONLY" or \
+-           not _word(row.get("word")) or not _word(row.get("spoken_as")):
++        if (type(row) is not dict or row.get("shop_id")!=shop_id or
++            row.get("language")!=lang or
++            row.get("approval")!="RETAILER_EDITOR_REVIEWED_SPELLING_ONLY" or
++            not _word(row.get("word")) or
++            not _word(row.get("spoken_as"),correction=True) or
++            any(flag in row and row[flag] is not False for flag in
++                ("can_publish","audio_pronunciation_verified",
++                 "paid_motion_permitted","may_auto_retry",
++                 "approved_to_publish","commercial_use_approved",
++                 "may_auto_invoke_azure","paid_inference_authorized")) or
++            ("actual_audio_quality_verified" in row and
++             row["actual_audio_quality_verified"] is not False) or
++            ("can_dispatch_motion" in row and
++             row["can_dispatch_motion"] is not False) or
++            ("paid_calls" in row and
++             (type(row["paid_calls"]) is not int or row["paid_calls"]!=0)) or
++            ("billing" in row and row["billing"]!="NONE") or
++            ("private_download_url" in row and
++             row["private_download_url"] is not None) or
++            ("signed_url" in row and row["signed_url"] is not None)):
+             raise PronunciationDenied("Current signed pronunciation review missing")
+         key=row["word"].casefold()
+         if key in substitutions:raise PronunciationDenied("Duplicated preferred spelling")
+
+diff --git a/ai-agents/src/ai_agents/feature2_sentence_retake.py b/ai-agents/src/ai_agents/feature2_sentence_retake.py
+--- a/ai-agents/src/ai_agents/feature2_sentence_retake.py
++++ b/ai-agents/src/ai_agents/feature2_sentence_retake.py
+@@ -7,9 +7,10 @@
+ """
+ from __future__ import annotations
+ from hashlib import sha256
++from copy import deepcopy
+ from uuid import UUID
+ import re
+-from .feature2_kokoro_local import synthesize_local
++from .feature2_kokoro_local import synthesize_local, SUPPORTED_VOICES, SPEEDS
+ from .feature2_voice_quality import pcm_stats
+ from .feature2_pronunciation_dictionary import apply_approved_local_corrections
+ from .feature2_azure_speech import _plan, SpeechRejected
+@@ -29,17 +30,24 @@ def local_sentence_retake(*,shop_id,campaign_id,source_plan,sentence_index,
+         type(sentence_index) is not int or not 0<=sentence_index<=12 or
+         type(flagged_audio_sha256) is not str or
+         not re.fullmatch("[a-f0-9]{64}",flagged_audio_sha256) or
++        type(voice_id) is not str or type(language) is not str or
++        SUPPORTED_VOICES.get(voice_id)!=language or
++        type(speed) is not str or speed not in SPEEDS or
+         not all(callable(x) for x in (current_editor,read_plan,read_approved_words,
+                                      claim_one_retake,write_pending_private))):
+         raise RetakeDenied("Trusted single-sentence retake required")
+-    try:creative,review,script=_plan(source_plan,shop_id=shop_id,campaign_id=campaign_id)
++    # Preserve an independent source before any editor/model/storage callback.
++    source_snapshot=deepcopy(source_plan)
++    try:creative,review,script=_plan(source_snapshot,shop_id=shop_id,campaign_id=campaign_id)
+     except SpeechRejected as exc:raise RetakeDenied("Reviewed source script unavailable") from exc
+     # Keep actual approved sentence boundaries; punctuation remains in source.
+     sentences=[x.strip() for x in re.findall(r"[^.!?]+[.!?]?",script) if x.strip()]
+     if len(sentences)>13 or sentence_index>=len(sentences):
+         raise RetakeDenied("Requested sentence is outside original script")
+     original=sentences[sentence_index]
+-    if current_editor(shop_id,campaign_id) is not True or read_plan(shop_id,campaign_id)!=source_plan:
++    if (current_editor(shop_id,campaign_id) is not True or
++        read_plan(shop_id,campaign_id)!=source_snapshot or
++        source_plan!=source_snapshot):
+         raise RetakeDenied("Active editor or current original script not verified")
+     corrected=apply_approved_local_corrections(
+         script=original,shop_id=shop_id,lang=language,
+@@ -66,7 +74,9 @@ def local_sentence_retake(*,shop_id,campaign_id,source_plan,sentence_index,
+     if summary["sha256"]!=result.get("audio_sha256") or \
+        summary["duration_seconds"]>creative["duration_seconds"]:
+         raise RetakeDenied("Retake produced invalid original audio")
+-    if current_editor(shop_id,campaign_id) is not True or read_plan(shop_id,campaign_id)!=source_plan:
++    if (current_editor(shop_id,campaign_id) is not True or
++        read_plan(shop_id,campaign_id)!=source_snapshot or
++        source_plan!=source_snapshot):
+         raise RetakeDenied("Source revoked after retake")
+     data={"schema":"retailgrowth.feature2-sentence-retake.v1",
+           "shop_id":shop_id,"campaign_id":campaign_id,
+@@ -89,8 +99,46 @@ def local_sentence_retake(*,shop_id,campaign_id,source_plan,sentence_index,
+     if (type(saved) is not dict or not _uuid(saved.get("asset_id")) or
+         saved.get("shop_id")!=shop_id or
+         saved.get("new_audio_sha256")!=summary["sha256"] or
+-        saved.get("private") is not True):
++        saved.get("private") is not True or
++        ("campaign_id" in saved and saved["campaign_id"]!=campaign_id) or
++        ("creative_plan_sha256" in saved and
++         saved["creative_plan_sha256"]!=review["plan_sha256"]) or
++        ("prior_audio_sha256" in saved and
++         saved["prior_audio_sha256"]!=flagged_audio_sha256) or
++        ("sentence_index" in saved and
++         (type(saved["sentence_index"]) is not int or
++          saved["sentence_index"]!=sentence_index))):
+         raise RetakeDenied("Private sentence retake not registered")
++    # Tenant-private registered bytes are still pending fresh STT and
++    # human listening. The writer cannot grant publication, media rights,
++    # billed provider work, or return a signed/public URL in its receipt.
++    if (any(key in saved and saved[key] is not False for key in
++            ("can_publish","can_dispatch_paid_motion","commercial_use_approved",
++             "audio_rights_approved","actual_pronunciation_success_verified",
++             "azure_fallback_used","paid_inference_authorized",
++             "may_auto_invoke_azure")) or
++        ("review_status" in saved and
++         saved["review_status"]!="PENDING_NEW_STT_AND_HUMAN_LISTEN") or
++        ("requires_new_feature7_transcription" in saved and
++         saved["requires_new_feature7_transcription"] is not True) or
++        ("requires_feature4_scene_assembly" in saved and
++         saved["requires_feature4_scene_assembly"] is not True) or
++        ("paid_calls" in saved and
++         (type(saved["paid_calls"]) is not int or saved["paid_calls"]!=0)) or
++        ("billing" in saved and saved["billing"]!="NONE") or
++        ("signed_url" in saved and saved["signed_url"] is not None) or
++        ("private_download_url" in saved and
++         saved["private_download_url"] is not None)):
++        raise RetakeDenied("Private writer attempted to bypass retake review")
++    # A private writer may run after editor access or the original plan was
++    # revoked. Do not return a successful retake receipt in that race.
++    # The real storage adapter MUST make its commit conditional on current
++    # tenant authorization and clean up orphaned pending bytes atomically;
++    # this source-only recheck does not prove such a transaction exists.
++    if (current_editor(shop_id,campaign_id) is not True or
++        read_plan(shop_id,campaign_id)!=source_snapshot or
++        source_plan!=source_snapshot):
++        raise RetakeDenied("Retake source revoked during private registration")
+     return {**data,"private_sentence_audio_asset_id":saved["asset_id"],
+             "requires_feature4_scene_assembly":True,
+             "requires_new_feature7_transcription":True}
+
+diff --git a/ai-agents/src/ai_agents/feature2_voice_quality.py b/ai-agents/src/ai_agents/feature2_voice_quality.py
+--- a/ai-agents/src/ai_agents/feature2_voice_quality.py
++++ b/ai-agents/src/ai_agents/feature2_voice_quality.py
+@@ -23,6 +23,29 @@ class VoiceQualityDenied(ValueError):
+     pass
+ 
+ 
++def _unsafe_audio_display(value):
++    """Reject bidi/zero-width spoofing and active markup in review text.
++
++    Preserve Indic vowel marks and U+200C/U+200D native joining. This
++    source-only filter does not certify an ASR token as real spoken audio.
++    """
++    if type(value) is not str:
++        return True
++    for index,ch in enumerate(value):
++        if ch in ("\u200c","\u200d"):
++            # Preserve a legitimate Devanagari virama conjunct, but prevent
++            # hidden text differences in an otherwise ordinary brand/word.
++            following=value[index+1] if index+1<len(value) else ""
++            if (index>0 and value[index-1]=="\u094d" and
++                "\u0900"<=following<="\u097f" and
++                unicodedata.category(following).startswith("L")):
++                continue
++            return True
++        if ch in "<>" or unicodedata.category(ch) in ("Cc","Cf","Cs","Zl","Zp"):
++            return True
++    return False
++
++
+ def _words(text):
+     """Unicode-grapheme-aware candidates; NEVER a pronunciation certificate.
+ 
+@@ -34,7 +57,9 @@ def _words(text):
+     tokens, chars = [], []
+     for ch in unicodedata.normalize("NFC", text):
+         category = unicodedata.category(ch)
+-        if category[0] in ("L", "N") or (category[0] == "M" and chars):
++        if (category[0] in ("L", "N") or
++            (category[0] == "M" and chars) or
++            (ch in ("\u200c","\u200d") and chars)):
+             chars.append(ch)
+         elif ch in ("'", "’") and chars:
+             chars.append("'")
+@@ -130,6 +155,7 @@ def consume_feature7_stt(*,shop_id,campaign_id,source_sha256,
+             raise VoiceQualityDenied("Invalid Feature7 word record")
+         word=row["word"];start=row["start"];end=row["end"];conf=row["confidence"]
+         if (type(word) is not str or not 1<=len(word)<=80 or
++            _unsafe_audio_display(word) or
+             len(_words(word))!=1 or type(start) not in (float,int) or
+             type(end) not in (float,int) or
+             (conf is not None and type(conf) not in (float,int)) or
+@@ -201,11 +227,11 @@ def project_offline_openpronounce_review(*,audio_sha256,result):
+         ipa_actual="" if item.get("actual") is None else item.get("actual")
+         confidence=item.get("confidence")
+         if (type(word) is not str or not 1<=len(word)<=80 or
+-            any(ord(c)<32 or c in "<>" for c in word) or
++            _unsafe_audio_display(word) or
+             type(index) is not int or not 0<=index<=600 or
+             type(ipa_expected) is not str or len(ipa_expected)>100 or
+             type(ipa_actual) is not str or len(ipa_actual)>100 or
+-            any(ord(c)<32 or c in "<>" for c in ipa_expected+ipa_actual) or
++            _unsafe_audio_display(ipa_expected+ipa_actual) or
+             (confidence is not None and
+              (type(confidence) not in (int,float) or
+               not math.isfinite(confidence) or
+@@ -242,7 +268,15 @@ def run_openpronounce_lazy(*,original_wav,expected_script,lang="en",enabled=Fals
+         os.getenv("OPENPRONOUNCE_PHONEME_MODEL")=="off" or
+         os.getenv("RETAIL_F2_REFERENCE_AUDIO_PRELOADED")!="true"):
+         raise VoiceQualityDenied("Offline calibrated English reference model not approved")
+-    if type(expected_script) is not str or not 1<=len(expected_script)<=1800:
++    # Validate the operator's actual original script BEFORE reading audio or
++    # importing multi-gigabyte scoring libraries. Whitespace-only, invisible
++    # direction marks, HTML and extremely token-dense scripts are not safe
++    # references for pronunciation diagnostics (and prove no real voice).
++    if (type(expected_script) is not str or
++        not 1<=len(expected_script)<=1800 or
++        not expected_script.strip() or
++        _unsafe_audio_display(expected_script) or
++        not 1<=len(_words(expected_script))<=250):
+         raise VoiceQualityDenied("Actual reference script required")
+     stats=pcm_stats(original_wav)
+     try:
+@@ -353,6 +387,7 @@ def review_signed_audio_transcript(*, receipt, shop_id, campaign_id,
+                  set(item) != {"word", "startMs", "endMs"} or
+                  type(item.get("word")) is not str or
+                  not 1 <= len(item["word"].strip()) <= 80 or
++                 _unsafe_audio_display(item["word"]) or
+                  type(item.get("startMs")) is not int or
+                  type(item.get("endMs")) is not int or
+                  not previous_end <= item["startMs"] < item["endMs"] <=
+@@ -468,6 +503,7 @@ def compare_signed_feature7_word_error_rate(*,receipt,shop_id,campaign_id,
+     if human_transcript is not None:
+         if (type(human_transcript) is not str or
+             not 1<=len(human_transcript)<=1800 or
++            _unsafe_audio_display(human_transcript) or
+             not callable(verify_signed_human_transcript)):
+             raise VoiceQualityDenied("Independently signed human transcript required")
+         human_words=_words(human_transcript)
+
+diff --git a/ai-agents/src/ai_agents/feature2_voiceover_upload.py b/ai-agents/src/ai_agents/feature2_voiceover_upload.py
+--- a/ai-agents/src/ai_agents/feature2_voiceover_upload.py
++++ b/ai-agents/src/ai_agents/feature2_voiceover_upload.py
+@@ -27,6 +27,46 @@ def _inspect(bytes_,seconds_limit):
+     if type(bytes_) is not bytes or not 100<=len(bytes_)<=_MAX_ORIGINAL or \
+        not bytes_.startswith(b"RIFF") or bytes_[8:12]!=b"WAVE":
+         raise VoiceUploadRejected("Bounded original PCM WAV required")
++    # wave.open() stops at the first data chunk and does not check that the
++    # declared RIFF extent covers the entire submitted file. Never register
++    # unreviewed trailing bytes, duplicate data or hidden chunks as audio.
++    if int.from_bytes(bytes_[4:8],"little")!=len(bytes_)-8:
++        raise VoiceUploadRejected("Original WAV RIFF extent mismatch")
++    offset=12
++    seen_fmt=False
++    seen_data=False
++    data_bytes=None
++    chunks=0
++    while offset<len(bytes_):
++        if len(bytes_)-offset<8 or chunks>=32:
++            raise VoiceUploadRejected("Malformed or excessive original WAV chunks")
++        tag=bytes_[offset:offset+4]
++        size=int.from_bytes(bytes_[offset+4:offset+8],"little")
++        end=offset+8+size
++        padded_end=end+(size&1)
++        if padded_end>len(bytes_):
++            raise VoiceUploadRejected("Original WAV chunk exceeds RIFF extent")
++        if tag==b"fmt ":
++            if seen_fmt or seen_data:
++                raise VoiceUploadRejected("Duplicate or reordered WAV format")
++            # PCM/WAVEFORMATEXTENSIBLE describes its audio layout in a small
++            # bounded fmt chunk. wave.open() reads the leading fields but can
++            # ignore arbitrarily large tails: those bytes must never be
++            # accepted as an original speech asset or a private MP3 derivative.
++            if not 16<=size<=64:
++                raise VoiceUploadRejected("Original WAV format metadata unbounded")
++            seen_fmt=True
++        elif tag==b"data":
++            if seen_data or not seen_fmt:
++                raise VoiceUploadRejected("Multiple or unbound original WAV streams")
++            seen_data=True
++            data_bytes=size
++        elif size>65536:
++            raise VoiceUploadRejected("Excessive embedded WAV metadata")
++        offset=padded_end
++        chunks+=1
++    if not seen_fmt or not seen_data or offset!=len(bytes_):
++        raise VoiceUploadRejected("Complete original PCM chunks required")
+     try:
+         with wave.open(io.BytesIO(bytes_),"rb") as wav:
+             if (wav.getnchannels() not in (1,2) or
+@@ -35,8 +75,9 @@ def _inspect(bytes_,seconds_limit):
+                 raise VoiceUploadRejected("Review requires PCM16 WAV")
+             seconds=wav.getnframes()/wav.getframerate()
+             actual=wav.readframes(wav.getnframes())
++            expected_bytes=wav.getnframes()*wav.getsampwidth()*wav.getnchannels()
+             if (not 0.2<=seconds<=seconds_limit or
+-                len(actual)!=wav.getnframes()*wav.getsampwidth()*wav.getnchannels()):
++                data_bytes!=expected_bytes or len(actual)!=expected_bytes):
+                 raise VoiceUploadRejected("Narration duration/bytes invalid")
+     except (EOFError,OSError,ValueError,wave.Error) as exc:
+         raise VoiceUploadRejected("Original WAV cannot be independently inspected") from exc
+@@ -71,12 +112,41 @@ def accept_unreviewed_wav(*,shop_id,campaign_id,plan,original_audio,
+        read_authoritative_plan(shop_id,campaign_id)!=plan:
+         raise VoiceUploadRejected("Source or membership revoked before private upload")
+     result=store_private_pending(shop_id,campaign_id,original_audio,dict(receipt))
+-    if (not isinstance(result,dict) or
++    # A writer receipt proves only a private PENDING object exists. Refuse an
++    # elevated writer response even if the immutable original SHA/ID matches.
++    # Absent optional metadata is compatible with the old private storage
++    # writer, but any present metadata must agree with this exact source.
++    forbidden_grants=(
++        "can_publish","commercial_use_approved","actual_spoken_words_verified",
++        "audio_pronunciation_verified","rights_reviewed",
++        "original_media_rights_verified","can_dispatch_motion",
++        "paid_inference_authorized","may_auto_invoke_azure",
++    )
++    if (type(result) is not dict or
+         result.get("shop_id")!=shop_id or result.get("campaign_id")!=campaign_id or
+         result.get("original_audio_sha256")!=sha or result.get("private") is not True or
+         not _uuid(result.get("asset_id")) or
+-        result.get("review_state")!="PENDING_RIGHTS_AND_SPEECH_REVIEW"):
++        result.get("review_state")!="PENDING_RIGHTS_AND_SPEECH_REVIEW" or
++        any(flag in result and result[flag] is not False
++            for flag in forbidden_grants) or
++        ("paid_calls" in result and
++         (type(result["paid_calls"]) is not int or result["paid_calls"]!=0)) or
++        ("billing" in result and result["billing"]!="NONE") or
++        ("private_download_url" in result and
++         result["private_download_url"] is not None) or
++        ("mime_type" in result and result["mime_type"]!="audio/wav") or
++        ("creative_plan_sha256" in result and
++         result["creative_plan_sha256"]!=approval["plan_sha256"]) or
++        ("duration_seconds" in result and
++         (type(result["duration_seconds"]) not in (int,float) or
++          result["duration_seconds"]!=duration))):
+         raise VoiceUploadRejected("Private original was not registered pending review")
++    # A valid storage receipt is not a current authorization. The trusted writer
++    # must also fence the commit transaction against revocation; this readback
++    # prevents a stale successful response after an in-flight permission change.
++    if (authenticated_editor(shop_id,campaign_id) is not True or
++        read_authoritative_plan(shop_id,campaign_id)!=plan):
++        raise VoiceUploadRejected("Source or membership revoked after private upload")
+     return {**receipt,"asset_id":result["asset_id"],
+             "private_download_url":None,"billing":"NONE"}
+ 
+@@ -100,7 +170,7 @@ def decode_unreviewed_mp3_to_private_wav(*, original_mp3, max_seconds,
+         not (original_mp3.startswith(b"ID3") or
+              (original_mp3[0]==0xff and original_mp3[1] & 0xe0==0xe0)) or
+         type(max_seconds) is not int or max_seconds not in (15,30,60) or
+-        type(operator_ffmpeg_path) not in (str,Path)):
++        type(operator_ffmpeg_path) not in (str,type(Path()))):
+         raise VoiceUploadRejected("Bounded MPEG layer-3 original required")
+     binary=Path(operator_ffmpeg_path)
+     if (not binary.is_absolute() or not binary.is_file() or
+@@ -120,6 +190,12 @@ def decode_unreviewed_mp3_to_private_wav(*, original_mp3, max_seconds,
+                  "-threads","1","-protocol_whitelist","file,pipe",
+                  "-f","mp3","-i",str(original),"-map","0:a:0",
+                  "-vn","-sn","-dn","-ac","1","-ar","24000",
++                 # Bound temporary output BEFORE a hostile long/low-bitrate
++                 # MP3 can fill disk. Decode one second beyond the allowed
++                 # Reel length: a longer recording will still FAIL _inspect
++                 # rather than being silently accepted as truncated audio.
++                 "-t",str(max_seconds+1),
++                 "-fs",str((max_seconds+1)*24000*2+65536),
+                  "-c:a","pcm_s16le","-f","wav",str(output)]
+             process=subprocess.run(
+                 cmd,stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,
+@@ -184,16 +260,54 @@ def accept_unreviewed_mp3(*,shop_id,campaign_id,plan,original_mp3,
+         "private":True,"paid_calls":0}
+     saved=store_both_private_pending(
+         shop_id,campaign_id,original_mp3,decoded["derived_wav"],dict(receipt))
+-    if (type(saved) is not dict or not _uuid(saved.get("asset_id")) or
+-        not _uuid(saved.get("derived_wav_asset_id")) or
+-        saved.get("derived_wav_asset_id")==saved.get("asset_id") or
++    # A receipt for only the MP3 object is NOT proof that the independently
++    # hashed derivative was atomically registered as a second private object.
++    # These assertions constrain a trusted backend writer; a browser callback
++    # or a fixture response cannot authorize durable storage or media rights.
++    original_id=saved.get("asset_id") if type(saved) is dict else None
++    derived_id=saved.get("derived_wav_asset_id") if type(saved) is dict else None
++    if (type(saved) is not dict or not _uuid(original_id) or
++        not _uuid(derived_id) or derived_id==original_id or
+         saved.get("shop_id")!=shop_id or saved.get("campaign_id")!=campaign_id or
+         saved.get("original_mp3_sha256")!=receipt["original_mp3_sha256"] or
+         saved.get("derived_wav_sha256")!=receipt["derived_wav_sha256"] or
+         saved.get("review_state")!="PENDING_RIGHTS_AND_SPEECH_REVIEW" or
+-        saved.get("private") is not True):
+-        raise VoiceUploadRejected("Private original/derived MP3 pair not registered")
+-    return {**receipt,"asset_id":saved["asset_id"],
+-            "derived_wav_asset_id":saved.get("derived_wav_asset_id"),
++        saved.get("private") is not True or
++        saved.get("derived_wav_private") is not True or
++        saved.get("atomic_pair_registered") is not True or
++        # A false-looking string, 0, None or an unexpected truth value is
++        # NOT an explicit denial of a right. The original WAV writer already
++        # requires literal False; apply the same boundary to the MP3 pair.
++        any(flag in saved and saved[flag] is not False for flag in
++            ("can_publish","can_dispatch_motion","commercial_use_approved",
++             "original_media_rights_verified","human_speech_alignment_verified",
++             "actual_spoken_words_verified","audio_pronunciation_verified",
++             "rights_reviewed","paid_inference_authorized",
++             "may_auto_invoke_azure",
++             "derived_wav_is_registered_feature7_source")) or
++        ("paid_calls" in saved and
++         (type(saved["paid_calls"]) is not int or saved["paid_calls"]!=0)) or
++        ("billing" in saved and saved["billing"]!="NONE") or
++        ("private_download_url" in saved and
++         saved["private_download_url"] is not None) or
++        ("creative_plan_sha256" in saved and
++         saved["creative_plan_sha256"]!=receipt["creative_plan_sha256"]) or
++        ("source_mime_type" in saved and
++         saved["source_mime_type"]!="audio/mpeg") or
++        ("derived_mime_type" in saved and
++         saved["derived_mime_type"]!="audio/wav") or
++        ("schema" in saved and saved["schema"]!=receipt["schema"]) or
++        ("duration_seconds" in saved and
++         (type(saved["duration_seconds"]) not in (int,float) or
++          saved["duration_seconds"]!=receipt["duration_seconds"]))):
++        raise VoiceUploadRejected("Both private MP3/WAV objects must be atomically registered pending review")
++    # The atomic writer owns commit-time tenant fencing and rollback/orphan
++    # cleanup. A valid pair receipt alone cannot authorize a response if the
++    # editor or exact source plan changed while the writer was in flight.
++    if (authenticated_editor(shop_id,campaign_id) is not True or
++        read_authoritative_plan(shop_id,campaign_id)!=plan):
++        raise VoiceUploadRejected("Source or membership revoked after private MP3/WAV upload")
++    return {**receipt,"asset_id":original_id,
++            "derived_wav_asset_id":derived_id,
+             "original_wav_is_registered_feature7_source":False,
+             "private_download_url":None,"billing":"NONE"}
+

@@ -1,0 +1,10 @@
+# Feature7 F7-L / F7-P — reuse upstream VoiceStudio transcription
+
+VoiceStudio already implements `POST /v1/audio/transcriptions` with `response_format=verbose_json` and `timestamp_granularities[]=word`. This stacked Feature7 PR adds a private, disabled-by-default service-to-service adapter to that real API, with a bounded original WAV, expected SHA256, no redirects, fixed model selector, optional en/hi/mr locale, strict JSON/word timing checks and no retry. Synthetic tests validate source/response integrity and Hindi words without a real ASR model.
+
+The returned object is **UNSIGNED, NOT RENDERABLE, NOT APPROVED**. It is deliberately not a substitute for existing Feature7 HMAC tenant-scoped signed transcript, actual word alignment QA, original footage preflight or human review. Existing Feature7 parent PR #513 continues to own those contracts. This change is stacked onto its existing branch rather than replacing working STT checks with a new engine.
+
+Next: adapt this validated word list to the existing Feature7 signed transcript production/lease, run actual offline CPU inference using licensed pinned weights and signed two-shop inputs, then hand caption cues to Feature4. Upstream VoiceStudio commercial model/component rights and AGPL need review. All GPU/paid/prod/hosted operations remain OFF.
+
+## 2026-11-11 direct-main fast path
+The original 3-file VoiceStudio ASR adapter was merged into Feature7 parent PR #513 via stacked PR #911 (CI 4/4). Because parent #513 has 126 unrelated source/test files still awaiting integration review, this **same, unchanged upstream API adaptation** is also proposed independently against `main` on `feat/feature7-voicestudio-asr-main-fastpath-20261111`. No other Feature7 parent classes are imported by this module. This is the shortest route to make source-level VoiceStudio ASR available to F2/F4 consumers without waiting for the entire semantic editor. A future parent merge must compare/deduplicate this identical source and preserve all remaining signed transcript and editing functionality. This is source-only, model OFF and result still explicitly not renderable.

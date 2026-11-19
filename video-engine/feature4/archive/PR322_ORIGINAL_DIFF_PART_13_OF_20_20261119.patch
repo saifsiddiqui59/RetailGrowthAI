@@ -1,0 +1,446 @@
+diff --git a/video-engine/feature4/INTEGRATION_SPRINT_F405_F411_F415_20261117.md b/video-engine/feature4/INTEGRATION_SPRINT_F405_F411_F415_20261117.md
+--- a/video-engine/feature4/INTEGRATION_SPRINT_F405_F411_F415_20261117.md
++++ b/video-engine/feature4/INTEGRATION_SPRINT_F405_F411_F415_20261117.md
+@@ -0,0 +1,81 @@
++# Feature4 integration sprint — F4-05 / F4-11 / F4-15 (2026-11-17)
++
++Original task IDs are unchanged. This is **Feature4 parent source-in-progress**, not main/hosted accepted DONE.
++
++- Live parent PR [#322](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322) retains newer footage transition, per-download lease/authorization checks, signed private-media guard contracts and all previously existing regressions.
++- Surviving stacked [#828](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/828) is the source of the originally consolidated code/test and handoff material from closed-unmerged draft #822/#824/#827. No wholesale stale-parent merge was attempted.
++- **F4-11:** source original MP4 SHA/device/inode/size/mtime identity checking, no-follow regular-file validation before and after actual motion-frame decode, finite scene/threshold validation; original source/test exact Git blobs from #828 copied into the latest parent in commits `e0bc41b4`, `70762243`.
++- **F4-15:** ported approved local staged-media SHA/inode/symlink integrity helper, verifies every staged original after render before private upload. Kept existing parent's **additional per-asset current-lease/rights checks** and bundle recheck. Added three negative tests for same-content inode swap, staged-size policy, and renderer tampering while preserving prior per-download-lease revocation tests. Commits `e69cb722`, `f486099a`.
++- **F4-05:** reused actual renderer effect allowlists from professional.py in editor contract; preserved **newer footage-layer transition behavior** missing in older #828 version and its regression tests. Added source parity/effect rejection tests from old #828 to current test suite, without removing existing tests. Commits `c1b415cb`, `da8870a0`, `31be150d`.
++- Exact-original handoff documents for these three workstreams are preserved alongside this checkpoint. The old #828 full source blobs should NOT be copied wholesale over this newer combined source.
++- CI: exact final parent head 4/4 not yet verified at this checkpoint. One earlier Actions attempt was cancelled on a newer push. Do not represent it as passed; recheck new latest head, then inspect any failed job/test.
++- Next: verify final parent PR four jobs, repair owned code failures, compare #828's remaining docs/source/task history and retire #828 only if preservation and task traceability are confirmed; separately require fresh main code integration and review for original F4 task DONE.
++- GPU OFF, paid provider OFF, no Azure/SQL/DEV/PROD changes or WineShopPOS modifications.
++
++## Additional preserved F4-15 preflight (same source batch)
++- Parent additionally checks the active claim **before** `load_feature4_bundle` (`0e634f8d`), retaining its independent post-bundle and per-download rights/lease rechecks and its stable staged original hashes. Added source-original stale-claim negative test (`25d60c99`). This restores the #828 preflight without regressing more recent protection.
++- The exact-final-parent CI must be checked after this latest documentation commit; older cancelled-in-flight runs do not qualify.
++
++## Source reconciliation: originals #690 / #731 / #792 (2026-11-17)
++- #690 head `211312a68061bf5fe605f0e9e44653db4dd2cfcf`: current parent F4-15 staged no-follow SHA+inode/path postrender validation and original negative tests supersede original patch. Original stronger handoff and this checkpoint preserve traceability. PR closure = dedup, NOT original task DONE.
++- #731 head `fdf615bdd09cad80e4129bf6d8527e0112eadd47`: prior streaming double-SHA of encoded media is superseded by stable-source inode/size/mtime + SHA before/after sampling. Ported original after-second-decode mutation regression, in addition to current same-content atomic swap checks. F4-11 IN PROGRESS.
++- #792 head `47db93529edfd50b9ea7b68a610bbc805545ab49`: current parent already retains post-bundle and per-download lease/rights checks, but old source had unique F4-13 storage-key guards. Ported rejects for dot-only segments, trailing slash, ASCII control chars and original negatives. F4-13/F4-15 remain IN PROGRESS, no hosted acceptance.
++- Source-only batch. Require exact-head four-job CI and eventual main integration/independent review for DONE. GPU/paid/cloud/PROD/WineShopPOS OFF.
++
++## F4-13 original #803 auxiliary rights release gate integration (2026-11-17)
++- Original stale DRAFT #803 head `73f0549e84ff9fba91ad57bb027829689149398f` contributes fail-closed current same-tenant rights verification for **every** composed asset (not only product/motion): images, videos, logos, audio, commercial use and provenance, synthetic fixture rejection, duplicate/malformed lineage IDs, and canonical output asset ID.
++- Reconciled unchanged original code/test Git blobs `0fa57285f` and `a875fd90` into current parent #322; these strictly strengthen existing release checks while retaining all preexisting current parent behavior, + saved original source handoff `FEATURE4_F4_13_AUX_MEDIA_RIGHTS_HANDOFF_20261030.md` exact blob `05100d3c`.
++- Even a successful source-only gate is **not** actual authenticated DB identity, real human media review or commercial release authorization; F4-13/F4-31 remain IN PROGRESS pending exact-head CI, main integration, real tenant entitlement/rights and human editorial sign-off. GPU, paid model, cloud/PROD/WineShopPOS unchanged.
++
++## 2026-11-17 — original F4-02 #799 distinct encoded render-stage proof
++- Original #799 head `94388aa16d7d4e1f2348eae3a9d2b0a791ac0499` supplied fail-closed 60s source/master/preview/captioned render-stage path/inode/hardlink separation; distinct original/master/preview SHA and captioned-vs-preview actual bytes, with malformed aliases/no-op hashing negative tests. Preserved original unchanged source blob `42f7612e` and original tests blob `f717d826` onto current Feature4 parent; all previous current code/test logic was contained in the original version apart from import formatting. Original handoff unchanged blob `cf013146` added.
++- **This is only synthetic/source QA**; it does not mean a new actual 60s Full-HD media chain was rendered or approved, nor that F4-02 is DONE. Verify final-head 4/4 and hosted/approved media/rights separately. GPU/paid cloud/PROD/WineShopPOS OFF.
++
++## 2026-11-17 — exact-head media CI negative-fixture repair after #799
++- PR #322 head `3c29fec1718b4bf03ae29c54dedd52cc701ce2b2` CI [#43985207669](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/43985207669) **FFmpeg FAILED** with 2 negative assertion failures (730/732 tests passed). Existing `test_garbage_or_unproven_mp4_rejected` and `test_symlinked_evidence_rejected` wrote byte-identical invalid content to original/master/preview, so original #799's *correct* no-op hash guard raised earlier than those expected error gates. Fix only test fixtures to use three distinct invalid byte streams; leave `_require_distinct_render_stages`, `_require_changed_render_bytes`, and evidence symlink guards untouched. Require fresh four-job exact-head CI; no PASS claim before verification.
++
++## Original #828 final distinct staged lease-race regression (2026-11-17)
++- Audit of 12 original changed paths: 5 exact current-parent Git blobs, 7 diverged. All original named functions/tests from 7 nonidentical paths were present in current parent **except** one F4-15 scenario `test_claim_revoked_after_staging_never_reaches_cpu_renderer`. Ported original negative scenario with latest parent-compatible four-step lease freshness (pre-bundle, post-bundle, after-download, before-render), ensuring one staged download then STALE without CPU/upload/completion. No gate weakened. Remaining mismatches in `professional.py`, `feature4_worker_handoff.py`, `creative_contract.py` are current newer security/footage/CSS behavior, with original tests still present. Four original handoff blobs are exactly retained. Old tracker historical lines remain in original branch and this handoff; original F4-05/11/15 tasks still IN PROGRESS. Latest CI must pass before retiring #828 object.
++
++## 2026-11-17 — #851/#852 encoded output and same-shop private key safeguards
++- Current parent #322 now has stable original encoded MP4 SHA/size/inode verification from #852 `render_adapter.py`, and verifies the actual output against the FFprobe proof before upload, after upload, and against the **exact** shop/job/lease private object key returned by storage. It also rechecks tenant authority after upload. Source staged SHA/inode guards, prebundle and per-download claim/rights checks remain.
++- Private media names now require canonical nonempty path segments and `[A-Za-z0-9._/-]+`, denying encoded traversal, query fragments, Unicode control and dot components. Four original #852 negative tests for wrong key, upload-time mutation, invalid and approved nested keys + an SHA-forgery proof negative were added. Original exact renderer source and tests, original handoffs, and newer current parent F4 safeguards preserved.
++- #852 remains OPEN with other distinct frontend/subtitle/audio work; do not equate this partial integration with task DONE. New exact-head four-job CI and current main/hosted acceptance required. GPU/paid/PROD/WineShopPOS OFF.
++
++## 2026-11-17 — canonical-key regex dependency CI fix
++- Current parent exact-head run #43999989563 FFmpeg/Python-media job failed with 149 worker test errors and one cascading assertion: `NameError: name 're' is not defined` at newly integrated canonical private-key check. Renderer/security logic was valid but module lacked standard-library `import re`. Added only the missing standard-library import, fixed one source-test comment newline, **did not disable tests or weaken output SHA/lease/canonical path validation**. Recheck fresh exact-head four-job CI; original tasks remain IN PROGRESS.
++
++## 2026-11-17 — F4-15 encoded output same-byte atomic swap CI failure
++- Current parent `587f5a0ab061225b75115a6a2be32b01c3550b46` CI [#44000451010](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/44000451010): Python, frontend, Supabase **PASS**; FFmpeg fails 1/738 media tests, `test_verified_output_cannot_change_during_private_upload` same-byte `os.replace` case. Root cause: `_staged_fingerprint` already verifies inode stability *within* a read, but returned only size + SHA; two separate reads across a same-byte atomic path replacement therefore compared equal.
++- Source fix: keep size and SHA at tuple indices 0/1, append `st_dev/st_ino/st_mtime_ns` to fingerprint. This preserves existing producer SHA proof and staged-media limit interfaces and makes both pre/post staged-media and upload comparisons reject same-byte inode swaps. Existing negative regression unchanged; do not weaken it. Fresh exact-head 4/4 required, F4-15 still IN PROGRESS.
++
++## 2026-11-17 — F4-04/F4-20 persisted Feature7 editor decision digest
++- Safe import from original #906 head `6f3ebd3c2392b64db3dba20c6ddde789ab7f27bc` into current parent: verified `feature4_edit_execution.py` original Git source blob `efd57f56` preserves all existing parent logic except intentionally replacing direct `compile_approved_storyboard(new_draft,snapshot)` with a strict persisted `edit_decision_sha256` check and stripped internal trust-envelope before compiled rendering. Original tests `937dee49` are a strict superset of current 7.8kB test source and add nested edit order/trim/duration tampering and canonical JSON key-order cases.
++- Original affected Feature7 review and authenticated same-shop DB approval persistence remain **OPEN**. This is only Feature4 source integration, not legal approval, live hosted editor safety or main DONE. Old #715 source/tracker archive and #906 handoff are preserved in current parent. Mandatory 4/4 exact-parent CI and review required; no GPU/cloud/PROD/WineShopPOS.
++
++## 2026-11-17 — F4-14 original #779 three-length CPU matrix reconciled
++- Original source #779 HEAD `c1d66e9b3903c45ae4cc9930ad1362a38b3f8843`, copied **exact original blob** `6e0dbe55` (`feature4_cpu_matrix.py`), `d03ab1da` (`tests/media/test_feature4_cpu_matrix.py`), `69256391` (`hyperframes/benchmark_render.py`, backwards-compatible additive declared Git SHA evidence), and `5f2d75c1` (original F4-14 handoff). Existing `feature4_export_matrix.py` source is blob-identical #779 vs current parent, so its mocked/real ffprobe and SHA contract is reused unchanged.
++- This is an **OFFLINE SOURCE** aggregator with synthetic tests. The required three actual 15/30/60 private 1080×1920 encoded media files plus measured CPU receipts **were not produced** by copying code; cannot claim duration/cost acceptance, real commercial footage, signed CI attestation or F4-14 DONE. Require exact F4 final head CI and separately approved CPU benchmark run. No GPU/paid inference/deploy/PROD/WineShopPOS.
++
++## 2026-11-17 — #779 F4-11 continuous FFmpeg black-hold QA and F4-02 v3 60s receipt
++- Imported original v3 scene visibility implementation and original tests from current #779 (Git blobs `c4e1ba05`, `0d8cc50d`, `cb5f2b78`), original contiguous-window negative fixture `57c226e6`, original handoff `78e07970`. Continuous FFmpeg `blackdetect` scans all frames for sustained >=0.65s near-black holds **between** sampled interior scene timecodes. The 60s receipt now requires v3 scan proof with zero continuous long holds + exact 12 finite positive contiguous scene windows covering entire minute. Existing stronger F4-02 **distinct path/inode, hash-separated source/master/preview/captioned** guard from #799 was **not replaced**. Tests synthetic/offline only; no newly approved complete private 60s artefact, garment fidelity, visual signoff or commercial rights. Exact final-head 4/4 CI pending, F4-02/F4-11 still IN PROGRESS. GPU/paid/cloud/PROD/WineShopPOS untouched.
++
++### 2026-11-17 — F4-14 original CPU three-duration evidence aggregator
++- Imported untouched current #779 source blobs `feature4_cpu_matrix.py` (`6e0dbe55`), negative unit tests (`d03ab1da`) and original F4-14 handoff (`5f2d75c1`) to parent #322. Required runtime dependencies `feature4_export_matrix.py`, `hyperframes/benchmark_render.py`, and media export matrix tests were already **byte-identical** between surviving #779 and current parent.
++- This function is OFFLINE AND READ-ONLY: it checks receipts for existing 15/30/60 H264/AAC MP4s and measures reported CPU/RSS, but runs no render, cloud, paid inference, GPU, API or billing. Fixtures use mocked probe and fake bytes; **no measured three-profile real accepted matrix yet**.
++- F4-14 remains IN PROGRESS until actual same-head private encoded media, measured reports, exact parent CI/main integration, independent review. #779 remains open pending other source reconciliation.
++
++### 2026-11-17 — Original #779/F4-07 controlled four-channel audio gain source
++- Reconciled optional bounded `audio_mix` from #779 in F4 professional compiler and reviewed cross-feature `creative_reel_v1` source adapter: finite 0.01-step source/music/voiceover/SFX gains only for authorized present tracks. Existing scene-local licensed-bed ducking and newer footage transition/style retained. Ported 3 original compiler negative/positive methods + 1 cross-feature source-gain test, no freeform browser effect/FFmpeg flags. Source-only; shared F2/F7 contract security review and exact-head CI/main/hosted acceptance PENDING. No actual paid/GPU audio generation.
++
++### 2026-11-17 — F4-04 #745/#773 source-only near-cut and in-clip motion proof recovered
++- Current parent F4 edited-export QA retains strict independently-pinned renderer SHA, inode/no-follow/size identity and separate stronger 6-frame duplicate checker, while adding old #779 intra-clip 3s/17s decoded motion and near-cut 5/13/15/21s scene-family probes. Added original 3 fail-closed negative tests (truncated/wrong-type frames, still video, delayed/replaced cut); `_luma_delta` requires consistent exact grayscale buffer size for **both** 72×128 split editor and 72×96 duplicate decoder. No exact trim-frame, product identity or human commercial quality claim. Exact-head FFmpeg CI pending; F4-04 remains IN PROGRESS.
++
++### 2026-11-17 — F4-10 old #701/#784 pointer lifetime and cancelled drag source/test reconciliation
++- Current parent #322 now includes original #779 `pendingResize` cancellation, pointerId-matched release/cancel, `liveDraft`+approval guard on async clip trim, `dragend` reset and rejected foreign/cancelled/native drops, while retaining newer bounded frame seek, `onSeek` original-video preview, audio-mix display and approved-media privacy. Added original test-only `mountFeature4ResizeRace` harness and both browser Playwright negative regressions from #701/#784; source/code stays F4-10 IN PROGRESS pending Chromium CI, actual DEV tenant auth and main integration. No GPU/paid/cloud/PROD/WineShopPOS.
++
++### 2026-11-17 — F4-02/F4-15 private audio receipt durability and race fences
++- Reconciled old #779 private audio receipt hardening with **newer** parent source SHA/inode-stable audio master. Proof writes remain 0600 exclusive O_NOFOLLOW, now flush+fsync before success; cleanup only unlinks the exact owned inode, not a concurrent replacement; path preflight denies symlinked ancestors; unreceipted private master cleanup verifies exact same inode and streamed content before deleting. Added four offline negative tests for fsync failure, proof race, replacement master race and ancestor symlink. This is local source/test acceptance only, not a hosted audio rights grant; task F4-02/F4-15 IN PROGRESS pending exact-head CI and reviewed main merge.
++
++### 2026-11-17 — Exact-head #44011387138 media CI 765/766 repair
++- Source head `c2bc9ff9b47c46c9186a72b9faa86e894bebb1cd` four mandatory jobs: Python/Supabase/Frontend PASS, FFmpeg FAILED 1 of 766 deterministic tests: same-content atomic inode swap during MP4 media-probe was only checked after 10 decoded frames, while older negative fixture mocked four. Stronger fix: revalidate the **same exact SHA+device/inode/mtime/ctime** immediately after `inspect_mp4` and before any FFmpeg decode, retaining post-decode fence. This avoids decoding replaced media, not a relaxed assertion. Recheck final-head 4/4 after fix; task IN PROGRESS.
+
+diff --git a/video-engine/feature4/ORIGINAL_715_PROVENANCE_20261117.md b/video-engine/feature4/ORIGINAL_715_PROVENANCE_20261117.md
+--- a/video-engine/feature4/ORIGINAL_715_PROVENANCE_20261117.md
++++ b/video-engine/feature4/ORIGINAL_715_PROVENANCE_20261117.md
+@@ -0,0 +1,27 @@
++# Original F4-04/F4-20 #715 — immutable Feature7 edit decision provenance (2026-11-17)
++
++Original obsolete draft #715 head `dbae534f002940545aa130668f718215c8dc8528`. Original source `video-engine/feature4_edit_execution.py` Git blob `efd57f5685b105308c220d9ffc084164583b805c` is EXACTLY preserved in surviving OPEN draft #906, and every original test method and nonblank test line is preserved (with additional regressions in #906). Original #715 had separately revised task tracker and Azure handoff; unique historical text is retained verbatim below. Never restore stale #715 entire tracker/Azure handoff over current parent, nor claim original task DONE.
++
++## Original task tracker excerpt
++
++## 2026-10-30 — F4-04 / F4-20 approved-edit decision integrity (stacked PR #715)
++
++- **Security gap found:** source-only Feature7 editor execution previously matched only the approval ID / four review metadata fields and original draft hash; an attacker able to substitute a scene decision could replay a valid approval ID with altered trim/reorder/transition instructions.
++- **Owned source fix:** require `snapshot.edit_decision_sha256` (server-persisted canonical SHA-256 of the **entire approved Feature7 decision**, including every scene command). Reject missing, invalid, changed or unbound decisions before any compiler output; remove this internal trust-envelope field before calling the existing immutable renderer contract. Negative tests cover tampered order/trim, forged or missing digest, and independent malformed trusted decisions. No customer media, external inference, or cloud calls.
++- **Coordinator dependency / acceptance:** coordinator-owned authenticated approval transaction must persist the digest when human review occurs and load it independently from the submitted render request, in the same authorized snapshot. Do **not** derive the trusted hash from a browser request; do not auto-approve a Feature7 recommendation. F7 owns actual reviewed decision input; coordinator owns JWT/RLS and persistence. Until a reviewed coordinator adapter and exact-head CI pass, this is **source IN PROGRESS**, not accepted or hosted DONE.
++- **PR:** [#714](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/715) targets the existing Feature4 branch under [draft #322](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322). This is not a change to shared contracts, migrations, production, or the canonical task_progress ledger.
++
++
++## Original Azure handoff excerpt
++
++## 2026-10-30 — Feature7 reviewed scene-decision binding (PR #715)
++
++The source-only `feature4_edit_execution.execute_approved_edit` now requires a **trusted, persisted** `snapshot.edit_decision_sha256` matching the canonical JSON SHA-256 of the full `approved_edits` object. This closes a review-ID replay gap: the prior check verified review metadata and original draft hash, not the approved edit commands themselves. The function removes the internal digest field before invoking the unchanged `creative_reel_v1` compiler.
++
++**Coordinator-owned blocker:** within an authenticated, same-shop, RLS-authorized approval transaction, persist the exact approved Feature7 decision hash; when rendering, independently reload the immutable reviewed decision and its digest alongside the original draft. Never compute the *trusted* digest from the browser/model-supplied decision, never accept unapproved edits, and never bypass the existing quota/outbox and media rights checks. Acceptance requires tests for modified scene order, trim, transition, cross-tenant review, revoked review and stale draft plus hosted negative paths. PR #715 is stacked source-only and does not attest real DEV sign-in or production release.
++
++
++## Required continuation
++- Keep #906 open until its conflict with newer Feature4 parent #322 is resolved safely, all mandatory exact-head CI passes, and affected Feature7 reviewer independently checks persisted snapshot digest authorization and cross-tenant replay risks.
++- This is a code path with **no authenticated hosted DB persistence yet**. No main/hosted acceptance, no approved customer media, and no F4-04/F4-20 DONE by dedup closure.
++- No GPU, paid AI, cloud deployment, PROD or WineShopPOS changes.
+
+diff --git a/video-engine/feature4/ORIGINAL_723_PROVENANCE_20261117.md b/video-engine/feature4/ORIGINAL_723_PROVENANCE_20261117.md
+--- a/video-engine/feature4/ORIGINAL_723_PROVENANCE_20261117.md
++++ b/video-engine/feature4/ORIGINAL_723_PROVENANCE_20261117.md
+@@ -0,0 +1,14 @@
++# Original #723 F4-04 proof preservation — 2026-11-17
++
++- Original head: `e71a4e401e6634120f3a4f5e85571b4f807b88f8`. Original change contains fail-closed exact 72x128 grayscale buffer length/type validation plus four negative malformed frame regressions, now ported to this surviving #779 source branch without changing existing split/reorder/duplicate semantics.
++- Original #723 worker per-download authorization/lease protection was already recovered in newer CURRENT Feature4 parent #322, and per-download negative tests retained there. Do not restore the older #723 worker over newer staged SHA/inode rights checks.
++- Historical original tracker notes preserved verbatim below; original PR/source remains available after any unmerged closure.
++- This is source integration, **F4-04/F4-15 IN PROGRESS** not accepted main/hosted DONE; #779 still conflicts with newer #322 and cannot bulk merge. Exact-head 4/4 and safe source reconciliation are required.
++- GPU/paid inference/PROD/WineShopPOS untouched.
++
++> ## 2026-10-30 — F4-04 decoded frame integrity, stacked review PR #723
++> 
++> - Existing draft PR #322 at `e32a8da61a6272666d757b6c51b0ec2576d7602f` was verified as **DRAFT/UNMERGED**. The prior exact-head PR workflow #40937402426 failed; no green merged-base acceptance is claimed. Canonical `coordination/task_progress.json` has zero reviewed DONE events.
++> - Feature4-owned stacked [PR #723](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/723) hardens `feature4_edited_export_qa._luma_delta`: strict 72x128 grayscale byte-length and type validation prevents silent `zip` truncation of malformed decoded frames. Added four negative cases (short, long, non-byte and empty frames) in `tests/media/test_feature4_edited_export_qa.py`.
++> - **Status F4-04: IN PROGRESS / SOURCE CHANGE PROPOSED, NOT DONE.** No test result is asserted until exact-head CI or a reproducible targeted run finishes. Existing 30s fixture remains an illustrated MOCK technical regression, not commercial product/garment/voice approval. Duplicate-clip encoded parity, actual human visual review and full renderer equivalence remain open.
++> - Coordinator task-status proposal (not an authoritative shared event): `{task_id: F4-04, proposed_status: IN_PROGRESS, evidence_pr: 723, source_only: true, accepted_integrated_done: false}`. Coordinator must review and write `coordination/task_progress.json` only after accepted integration and fresh main 4/4 CI.
+
+diff --git a/video-engine/feature4/ORIGINAL_735_PROVENANCE_20261117.md b/video-engine/feature4/ORIGINAL_735_PROVENANCE_20261117.md
+--- a/video-engine/feature4/ORIGINAL_735_PROVENANCE_20261117.md
++++ b/video-engine/feature4/ORIGINAL_735_PROVENANCE_20261117.md
+@@ -0,0 +1,12 @@
++# Feature4 F4-04 original #735 duplicate editor project contract — 2026-11-17
++
++- Original PR #735 head `8f80480f9d6d27cb781d6389a423ee843a67e8d3` had independent real JS duplicate → trusted Python compiler → HyperFrames project regression `tests/media/test_feature4_duplicate_project.py`, absent from surviving #779.
++- Restored its single real-project assertion with minimal adaptation to **current** approved API: `make_edited_project(operation="duplicate")` and `editor_operation`. The test still checks two 0-second original video inpoints, exactly two media clips and one approved source-audio, HTML track composition, bad offer suppression, and explicit OWNER_REJECTED/false publication/false AI claims.
++- Current #779 code already physically encodes and QA-checks the independent 30s duplicate path in `hyperframes/ci-smoke.sh`, **stronger than original #735 opt-in** path, and current `feature4_edited_export_qa.py` supports `operation="duplicate"` with distinct encoded replay proof.
++- Source-only; current #779 has stale parent conflicts and still needs source CI/current parent integration/hosted acceptance; original F4-04 IN PROGRESS. No GPU, paid provider, cloud/PROD/WineShopPOS changes.
++
++## Preserved original tracker notes
++> ## 2026-10-30 — F4-04 duplicate-editor encoded QA source (stacked PR #735)
++> - Source-only extension of the existing real Timeline Studio JS `studioDuplicate` → trusted Python compiler → HyperFrames fixture generator, with separate `--edit-mode duplicate` and a fail-closed two-timestamp-per-scene decoded pixel comparison. Frozen/replayed, wrong-duration and mutated-input negative unit tests added. This is not a second generated AI video or approved retailer media.
++> - **Execution gate:** `FEATURE4_DUPLICATE_PARITY_CI=1 bash video-engine/hyperframes/ci-smoke.sh` is required to render and inspect the new actual encoded duplicate MP4. The default 4-job CI runs the new Python tests but deliberately does **not** spend extra CPU encoding time on the opt-in video. Do not mark F4-04 integrated DONE from source or unit tests alone.
++> - Dedicated feature-owned branch `feat/feature4-duplicate-encoded-qa-20261030`, stacked draft [PR #735](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/735) onto existing Feature4 draft PR #322. Coordinator must review and merge to main, then verify fresh main 4/4. The current external ZIP #650 and real approved-media gates remain unchanged. No GPU, paid model, PROD, Supabase SQL or WineShopPOS changes.
+
+diff --git a/video-engine/feature4/ORIGINAL_745_773_PROVENANCE_20261117.md b/video-engine/feature4/ORIGINAL_745_773_PROVENANCE_20261117.md
+--- a/video-engine/feature4/ORIGINAL_745_773_PROVENANCE_20261117.md
++++ b/video-engine/feature4/ORIGINAL_745_773_PROVENANCE_20261117.md
+@@ -0,0 +1,16 @@
++# Feature4 F4-04 original #745/#773 trace — 2026-11-17
++
++- Original #745 HEAD `bd9088ebe8c401441e0a27e66f85e648ed8d24d7`: 3/17-second intra-clip moving-source encoded probes and frozen negative cases.
++- Original #773 HEAD `31dd9d72e8b059eaa92005a596cad7aa7acdac6c`: 5/13/15/21-second near-cut decoded scene-family comparisons, rejecting early/missing/delayed segments.
++- Both distinct QA requirements and regression tests have been ported to surviving #779 F4-04 split/reorder path. Duplicate-operation remains independently 4-frame and unchanged. Source SHA is verified **after all** the extra decoded frames, and the original stricter exact grayscale length/type test from #723 remains active.
++- The positive proof reports separate motion/boundary metrics and explicitly `commercial_release_eligible=false`. No hosted video/human product signoff/actual frame-exact trim proof. Original task F4-04 remains IN PROGRESS, not main/hosted DONE. Full exact-head CI / video integration with current parent #322 pending. No paid GPU/Azure/PROD/WineShopPOS changes.
++
++## Original #745 tracker notes
++> ## 2026-10-30 — F4-04 frozen-clip regression (source-only, awaiting CI)
++> - Dedicated source branch `feat/feature4-encoded-edit-motion-qa-20261030` adds two actual FFmpeg decoded interior video samples at 3s and 17s to the existing 2/7/16/24s encoded parity gate. The QA now fails closed if either supposed moving clip is frozen, even when four different scene-family images could otherwise pass. Adds negative unit tests for first/second/both frozen clips and explicit technical-only deltas in the SHA-linked receipt.
++> - No new render, network fetch, GPU, model inference, cloud deployment or sample publication is required. Existing 30s media CI already exercises this validator. Exact-head CI and review remain necessary; do **not** mark integrated DONE. Coordinator owns main merge, shared task-status events and postmerge 4/4 checks. Separate issue #650 Python ZIP member guard remains coordinator-owned; do not bypass it.
++
++## Original #773 tracker notes
++> ## 2026-10-30 — F4-04 encoded near-cut parity (separate reviewed staging branch)
++> - The existing 30s/540p FFmpeg-decoded edited output proof now samples 5, 13, 15 and 21 seconds in addition to 2, 7, 16 and 24 seconds. It rejects late product-photo entry, early photo exit, late trimmed-video entry and late offer entry, using conservative relative luma scene-family checks. It still **does not** establish exact trim frame, fade duration, product identity or commercial visual approval.
++> - Regression tests add four boundary-mutation cases and preserve source SHA, symlink, replay, scene-order, duration and immutable-media negatives. The existing synthetic illustrated fixture remains OWNER_REJECTED; no new user-facing sample was made.
+
+diff --git a/video-engine/feature4/ORIGINAL_753_PROVENANCE_20261117.md b/video-engine/feature4/ORIGINAL_753_PROVENANCE_20261117.md
+--- a/video-engine/feature4/ORIGINAL_753_PROVENANCE_20261117.md
++++ b/video-engine/feature4/ORIGINAL_753_PROVENANCE_20261117.md
+@@ -0,0 +1,15 @@
++# Source preservation: original F4-02 #753 — 2026-11-17
++
++Original PR head: `eeec8c363627b1085cfff33dcc62d85a57973800`. Source was F4-02 v2 minute visibility receipts; surviving #779 currently requires *v3* full-reel continuous near-black scan. Only the missing **contiguous positive finite 12-window coverage** guard was ported, together with original four fixture tests adapted for v3 required fields. Never restore the older v2 schema over v3. Original distinct tracker/handoff text follows.
++
++## Original tracker excerpt
++> ## 2026-10-30 — F4-02 additional negative coverage (source proposal)
++> A dedicated stacked branch proposes a fail-closed `feature4_minute_quality_receipt.validate_visibility_evidence` contiguous-window check and deterministic negative tests. It prevents a 60-second QA report when both provenance and visibility JSON consistently skip or overlap time, or contain nonfinite/zero-length scene windows. **F4-02 remains IN PROGRESS** until exact-head CI, the actual updated private 60s media+SHA+report chain, coordinator integration and acceptance. F4-01 and F4-12 remain unverified for the new native encoded minute; no production approval is implied. Shared blocker #650 remains with coordinator.
++
++## Original handoff excerpt
++> ## 2026-10-30 — F4-02 full-minute visibility QA integrity (proposed, not integrated)
++> - Dedicated review branch `fix/feature4-visibility-contiguous-windows-20261030` based on Feature4 PR #322 head `e32a8da61a6272666d757b6c51b0ec2576d7602f`. New guard in `feature4_minute_quality_receipt.py` requires 12 finite, positive, contiguous scene windows spanning exactly 60 seconds before a technical-only receipt can pass; matching forged provenance and sample JSON may not omit or overlap time.
++> - Added `tests/media/test_feature4_visibility_window_integrity.py` for contiguous positive, gapped/overlapping forged JSON, incomplete last window, NaN/infinite/nonpositive duration, and unexpected metadata. This is deterministic mocked JSON regression only, **not** a newly rendered 60s video or approved product media.
++> - Integration and QA pending: targeted Python/uv and exact-head four-job CI, coordinator review into #322/main, a new private native 60s encoded render and actual human visual acceptance. The existing Python ZIP >120 failure is coordinator-owned issue #650; no guard relaxation, GPU/PROD/paid inference, hosted SQL, or WineShopPOS changes.
++
++Still **F4-02 IN PROGRESS**. No actual approved private 60s render, complete human visual acceptance, legal rights, main merge or PROD. CPU/mock-only; GPU/paid/cloud/WineShopPOS untouched.
+
+diff --git a/video-engine/feature4/ORIGINAL_779_ABSENT_PATHS_20261117.md b/video-engine/feature4/ORIGINAL_779_ABSENT_PATHS_20261117.md
+--- a/video-engine/feature4/ORIGINAL_779_ABSENT_PATHS_20261117.md
++++ b/video-engine/feature4/ORIGINAL_779_ABSENT_PATHS_20261117.md
+@@ -0,0 +1,19 @@
++# Feature4 consolidated #779 source provenance — 2026-11-17
++
++This is archival source traceability. Surviving Feature4 parent #322 imported **12 exact Git blobs** from consolidated OPEN #779 at head `c1d66e9b3903c45ae4cc9930ad1362a38b3f8843`, and adapted one self-contained duplicate mock project test for the CURRENT `edit_mode` API (the old test used `operation`). The 13 paths are:
++
++- `tests/media/test_feature4_duplicate_project.py`
++- `video-engine/FEATURE4_ACCELERATED_BATCH_HANDOFF_20261030.md`
++- `video-engine/FEATURE4_AUDIO_GAIN_HANDOFF_20261030.md`
++- `video-engine/FEATURE4_POINTER_LIFECYCLE_HANDOFF_20261029.md`
++- `video-engine/feature4/ORIGINAL_723_PROVENANCE_20261117.md`
++- `video-engine/feature4/ORIGINAL_735_PROVENANCE_20261117.md`
++- `video-engine/feature4/ORIGINAL_745_773_PROVENANCE_20261117.md`
++- `video-engine/feature4/ORIGINAL_753_PROVENANCE_20261117.md`
++- `video-engine/feature4/ORIGINAL_784_PROVENANCE_20261117.md`
++- `video-engine/feature4/ORIGINAL_808_816_PROVENANCE_20261117.md`
++- `video-engine/feature4/ORIGINAL_830_PROVENANCE_20261117.md`
++- `video-engine/feature4/RUN_CHECKPOINT_F4_07.md`
++- `video-engine/feature4/RUN_CHECKPOINT_INTEGRATION.md`
++
++Copying source documents does NOT mean the old stacked source was merged whole, that model weights/GPU/paid cloud ran, real media is approved, or any original task is DONE. The duplicate project regression is a deterministic synthetic CPU/FFmpeg fixture only. The 21 other differing source/test paths of #779 still require careful comparison with current parent, and exact-head mandatory CI plus independent main integration remain pending.
+
+diff --git a/video-engine/feature4/ORIGINAL_784_PROVENANCE_20261117.md b/video-engine/feature4/ORIGINAL_784_PROVENANCE_20261117.md
+--- a/video-engine/feature4/ORIGINAL_784_PROVENANCE_20261117.md
++++ b/video-engine/feature4/ORIGINAL_784_PROVENANCE_20261117.md
+@@ -0,0 +1,10 @@
++# Feature4 F4-10 #784 original cancelled-drag preservation — 2026-11-17
++
++Original head `55832723c784bc08694ea73d4a9cd6ba72452c65` (stale DRAFT). Source-only guard clears `dragFrom` on `dragend`, rejects unrelated/external drops, invalid old indices and locked approvedDirection, preventing a cancelled clip drag from silently reordering the next render. Original Playwright browser DragEvent regression was ported with the existing newer fixture and guard. Newer bounded playhead seek and pointer-resize tenant fencing were *not* overwritten.
++
++> ## 2026-10-30 — F4-10 cancelled native drag safety (review pending)
++> - Dedicated stacked branch `fix/feature4-cancelled-drag-reorder-20261030-run3` against draft PR #322 head `e32a8da61a6272666d757b6c51b0ec2576d7602f` proposes clearing clip drag state on `dragend`, rejecting unrelated/external drops, and rejecting synthetic drag start while an approved direction is locked. Previously a cancelled drag left `dragFrom.current` stale and a later drop could unexpectedly reorder the draft.
++> - Added Playwright negative regression using actual browser `DragEvent` and render-submission ordering; **tests/CI not yet verified at this checkpoint**. No approval, production media, live deployment, paid GPU or shared coordinator files touched.
++> - This is a F4-10 mobile/browser safety subtask, **not** full task completion. Await exact-head CI and coordinator review; retain 0 integrated DONE unless accepted on main with 4/4.
++
++Not main/hosted DONE. Original F4-10 remains IN PROGRESS; #779 must be reconciled into current #322 with exact-head four-job CI, real signed DEV identity and review. GPU/paid/cloud/PROD/WineShopPOS OFF.
+
+diff --git a/video-engine/feature4/ORIGINAL_808_816_PROVENANCE_20261117.md b/video-engine/feature4/ORIGINAL_808_816_PROVENANCE_20261117.md
+--- a/video-engine/feature4/ORIGINAL_808_816_PROVENANCE_20261117.md
++++ b/video-engine/feature4/ORIGINAL_808_816_PROVENANCE_20261117.md
+@@ -0,0 +1,43 @@
++# Feature4 #808/#816 historical source notes — preserved on #779 (2026-11-17)
++
++**ARCHIVE ONLY — does not merge source into main, run a live 60s render, or accept tasks.** Original #808 F4-11 continuous black-hold and #816 F4-14 CPU three-profile evidence are source-in-progress drafts stacked on obsolete parent refs. Their core code/test source is preserved unchanged in surviving OPEN source consolidation PR #779: #808 5/5 code/test/handoff paths identical Git blobs (its tracker differs); #816 4/4 code/test/profile handoff paths identical Git blobs (tracker and CPU benchmark handoff differ). This archive preserves missing historical lines without reverting newer source or claiming quality/commercial acceptance.
++
++### Original #808: `video-engine/FEATURE4_31_TASK_PARALLEL_TRACKER_20261029.md`
++- Original head: `81023702673f48730d85e4b33fae26936e8b30cd`
++- Original Git blob: `39a9ecf11255579b6a7447238f59ec15e4e2351a`
++- Surviving tracker Git blob before archive: `30a6b8b2fb0973cf13bad4766b0133b4069a8549`
++- Unretained original lines (3, quoted verbatim):
++
++> ## 2026-10-30 — F4-11 independent continuous full-video black hold QA (draft #808)
++> - After consolidated source batch draft #779, F4-11 adds one FFmpeg continuous decode scan of the actual encoded 15/30/60s video, denying near-black holds of at least 0.65s that all five sampled interior frames can miss. The v3 60s SHA-linked source receipt requires this scan and explicitly disclaims shorter flashes, lettering/garment identity/rights and human approval; exact test-only 15s synthetic black-gap regression encodes a real 0.8s hidden hold. PR #808 is **draft, not merged**, dependency unchanged.
++> - First exact-head media CI #41052416541 caught an over-escaped raw regular expression while all other jobs passed; corrected parser and negative regression test in this follow-up source repair. Main integration/actual updated 60s technical and human acceptance still pending; F4-11 remains IN PROGRESS.
++
++### Original #816: `video-engine/FEATURE4_31_TASK_PARALLEL_TRACKER_20261029.md`
++- Original head: `d01e3c716b4f651809d645684c921c6f0413c343`
++- Original Git blob: `c8bfbf92538923e11dfe27174240fdfc230cdaa7`
++- Surviving tracker Git blob before archive: `30a6b8b2fb0973cf13bad4766b0133b4069a8549`
++- Unretained original lines (7, quoted verbatim):
++
++> ## 2026-10-30 — F4-11 independent continuous full-video black hold QA (draft #808)
++> - After consolidated source batch draft #779, F4-11 adds one FFmpeg continuous decode scan of the actual encoded 15/30/60s video, denying near-black holds of at least 0.65s that all five sampled interior frames can miss. The v3 60s SHA-linked source receipt requires this scan and explicitly disclaims shorter flashes, lettering/garment identity/rights and human approval; exact test-only 15s synthetic black-gap regression encodes a real 0.8s hidden hold. PR #808 is **draft, not merged**, dependency unchanged.
++> - First exact-head media CI #41052416541 caught an over-escaped raw regular expression while all other jobs passed; corrected parser and negative regression test in this follow-up source repair. Main integration/actual updated 60s technical and human acceptance still pending; F4-11 remains IN PROGRESS.
++> ## 2026-10-30 F4-14 three-length CPU evidence aggregator (NEW source, CI pending)
++> Draft stack on F4-11 #808, based on exact 4/4 head `81023702673f48730d85e4b33fae26936e8b30cd`. The new `feature4_cpu_matrix.py` requires three **real** 15/30/60 original 1080×1920/24fps H264/AAC MP4 files and their corresponding independently measured `benchmark_render.py` receipts. It reuses F4-03's stable hash / actual ffprobe verification, rejects swapped media, wrong duration, forged benchmark SHA/bytes, missing or altered Git checkout claim, false Azure/cloud/commercial flags, non-finite/missing timing/RSS data, path traversal and symlinked JSON. No media render is executed by this aggregator; unit tests use explicit fake probe, not real GPU/quality evidence.
++> `benchmark_render.py` now embeds a **declared local Git SHA**, not an independently signed Actions attestation. The matrix aggregates source-only 15/30/60 sampled CPU/RSS observations and marks `cloud_budget_accepted=false`, `code_commit_attested_by_ci=false`, `human_visual_approval=false`. It **does not** claim a matrix actually ran: required three same-code real encoded outputs and measured reports do not yet exist together. F4-14 remains IN PROGRESS; later opt-in full 60s CPU run is required, never automatically trigger repeated lengthy GPU/CPU or public samples.
++> CI and coordinator review/main merge/fresh main 4/4 must be verified before an accepted source task. No Azure Functions/PROD, priced AI, SQL, WineShopPOS.
++
++### Original #816: `video-engine/FEATURE4_CPU_BENCHMARK_HANDOFF_20261029.md`
++- Original head: `d01e3c716b4f651809d645684c921c6f0413c343`
++- Original Git blob: `c171b0fbd341c6610b165c42fd7007dd1e0c85eb`
++- Surviving tracker Git blob before archive: `6e4040b0977b579dce4bd25a8fcc242bad729548`
++- Unretained original lines (4, quoted verbatim):
++
++> ## 2026-10-30 F4-14 three-length CPU evidence aggregator (NEW source, CI pending)
++> Draft stack on F4-11 #808, based on exact 4/4 head `81023702673f48730d85e4b33fae26936e8b30cd`. The new `feature4_cpu_matrix.py` requires three **real** 15/30/60 original 1080×1920/24fps H264/AAC MP4 files and their corresponding independently measured `benchmark_render.py` receipts. It reuses F4-03's stable hash / actual ffprobe verification, rejects swapped media, wrong duration, forged benchmark SHA/bytes, missing or altered Git checkout claim, false Azure/cloud/commercial flags, non-finite/missing timing/RSS data, path traversal and symlinked JSON. No media render is executed by this aggregator; unit tests use explicit fake probe, not real GPU/quality evidence.
++> `benchmark_render.py` now embeds a **declared local Git SHA**, not an independently signed Actions attestation. The matrix aggregates source-only 15/30/60 sampled CPU/RSS observations and marks `cloud_budget_accepted=false`, `code_commit_attested_by_ci=false`, `human_visual_approval=false`. It **does not** claim a matrix actually ran: required three same-code real encoded outputs and measured reports do not yet exist together. F4-14 remains IN PROGRESS; later opt-in full 60s CPU run is required, never automatically trigger repeated lengthy GPU/CPU or public samples.
++> CI and coordinator review/main merge/fresh main 4/4 must be verified before an accepted source task. No Azure Functions/PROD, priced AI, SQL, WineShopPOS.
++
++## Next
++- Independently test and reconcile #779 into the current F4 parent #322, preserving its newer lease/rights/security implementation and F4-05/11/15 work.
++- Do NOT close #808/#816 until original source/negative tests, these preserved notes, review/CI and surviving references are checked; do not mark original F4-11/F4-14 DONE by PR closure.
++- Paid AI, GPU, Azure/SQL/PROD and WineShopPOS remain untouched.
+
+diff --git a/video-engine/feature4/ORIGINAL_830_PROVENANCE_20261117.md b/video-engine/feature4/ORIGINAL_830_PROVENANCE_20261117.md
+--- a/video-engine/feature4/ORIGINAL_830_PROVENANCE_20261117.md
++++ b/video-engine/feature4/ORIGINAL_830_PROVENANCE_20261117.md
+@@ -0,0 +1,6 @@
++# Feature4 F4-06 original audio gain integration checkpoint — 2026-11-17
++
++- Original #830 head `a86884dd1d676719b9000515dec0cdfe4df06ffb` stacked on old #828 contains a narrowly bounded four-channel gain contract, renderer wiring, trusted cross-feature source lowering, and negative tests for inert, missing, unknown, NaN, float-step, string and bool controls.
++- Source-backed directly into surviving #779 as **six original unchanged Git file blobs** (Python 4 source/tests and two handoffs); no whole old-parent merge, no JS UI gain control enabled.
++- Audio output fixed `data-volume` limits and preexisting music ducking remain required. This source-only integration does not establish actual decoded final AAC gain parity, hosted tenant authorization, audio listening quality, music license, publication signoff, main merge or original F4-06/F4-07 task DONE.
++- Follow-up: re-validate #779 exact-head source tests and selectively reconcile into newer main-targeted F4 parent #322 while preserving its footage transitions, lease and all-asset rights checks. GPU/paid/PROD/WineShopPOS OFF.
+
+diff --git a/video-engine/feature4/ORIGINAL_852_PROVENANCE_20261117.md b/video-engine/feature4/ORIGINAL_852_PROVENANCE_20261117.md
+--- a/video-engine/feature4/ORIGINAL_852_PROVENANCE_20261117.md
++++ b/video-engine/feature4/ORIGINAL_852_PROVENANCE_20261117.md
+@@ -0,0 +1,70 @@
++# Feature4 #852 original canonical path and atomic-source identity proof — 2026-11-17
++
++Original DRAFT #852 head `7ce7dbfea81a9ee028d7378f7ad6f3889dfe5ac9`, stacked on `feat/feature4-output-integrity-fence-20261030`, NOT main. Feature4 parent #322 now implements matching or stronger same-shop canonical storage keys (strict conservative alphabet, no encoded escapes/empty/dot segments), pre/after bundle and between-download rights/lease rechecks, and SHA/device/inode/mtime-bound source and output fingerprints.
++
++Original #852 code contains a *distinct regression* for same-byte replacement of a **staged source** by a different inode while the CPU renderer runs. That negative was ported verbatim into current `tests/media/test_feature4_worker_handoff.py` as `test_original_input_same_byte_inode_swap_during_cpu_is_denied`, in addition to existing during-hash inode swap and during-upload output-swap negatives. Original two source handoff docs `FEATURE4_CANONICAL_PRIVATE_PATH_HANDOFF_20261030.md` and `FEATURE4_OUTPUT_SHA_FENCE_HANDOFF_20261030.md` retain exact original Git blobs on current parent.
++
++## Original tracker lines not in newest parent
++
++> ## 2026-10-29 — F4-04 independent encoded duplication parity batch
++> - Task **F4-04** remains IN PROGRESS until coordinator-reviewed integration and fresh main 4/4 CI. Stacked branch `feat/feature4-encoded-duplicate-parity-20261029` is isolated from coordinator/shared files and based on Feature4 #322 head `e32a8da61a6272666d757b6c51b0ec2576d7602f`.
++> - Reuses exact pinned Timeline Studio JS `studioDuplicate` via `duplicated_draft()`; trusted Python `compile_approved_storyboard` and the existing HyperFrames real 30s 540p H264/AAC CPU media job now physically encode both split/reorder and **separate 10/5/5/10 duplicate** actions. The real decoder checks two encoded replay positions 11.5s and 16.5s, distinct photo segments and source SHA; tests reject advanced replay, forged photo pairs, unexpected operations and missing proof. No GPU, paid inference, PROD, customer or WineShopPOS media.
++> - This is a deterministic **OWNER-REJECTED synthetic fixture**, not real retailer footage, commercial quality, or exact original-frame matching. Remain explicit `commercial_release_eligible=false`; source and QA are only complete after final branch/stack PR full four-job CI. Source-implemented is not integrated DONE; Feature4 #322 remains draft until coordinator resolves ZIP packaging and merges.
++> ## 2026-10-30 — Unified branch-green source handoff; source is NOT integrated DONE
++> Five nonoverlapping technical source drafts have been batched for one final integration CI run: #686 F4-04 encoded duplicate parity (4/4 #40955296326), #690 F4-13/F4-15 staged input mutation guard (4/4 #40955734381), #695 F4-14 immutable CPU benchmark (4/4 #40961371565), #701 F4-10 tenant-safe pointer editing (4/4 #40961280016), and #705 F4-03 exact-head 15/30/60 evidence verifier (4/4 #40966895351). Combined branch `feat/feature4-batched-source-handoff-20261030` is intentionally made as one tree/commit from existing #322 parent. None are coordinator-merged or commercial accepted. F4-03 actual three same-head MP4s, F4-14 all duration CPU budgets and F4-10 manual accessibility still OPEN; #650, #249 and real approved F2/F3/F5/F7 outputs remain external. Original draft PRs become trace evidence only, not five changes to apply twice. No GPU, paid AI, hosted actions, PROD or WineShopPOS.
++> ## 2026-10-30 — F4-11 independent continuous full-video black hold QA (draft #808)
++> - After consolidated source batch draft #779, F4-11 adds one FFmpeg continuous decode scan of the actual encoded 15/30/60s video, denying near-black holds of at least 0.65s that all five sampled interior frames can miss. The v3 60s SHA-linked source receipt requires this scan and explicitly disclaims shorter flashes, lettering/garment identity/rights and human approval; exact test-only 15s synthetic black-gap regression encodes a real 0.8s hidden hold. PR #808 is **draft, not merged**, dependency unchanged.
++> - First exact-head media CI #41052416541 caught an over-escaped raw regular expression while all other jobs passed; corrected parser and negative regression test in this follow-up source repair. Main integration/actual updated 60s technical and human acceptance still pending; F4-11 remains IN PROGRESS.
++> ## 2026-10-30 F4-14 three-length CPU evidence aggregator (NEW source, CI pending)
++> Draft stack on F4-11 #808, based on exact 4/4 head `81023702673f48730d85e4b33fae26936e8b30cd`. The new `feature4_cpu_matrix.py` requires three **real** 15/30/60 original 1080×1920/24fps H264/AAC MP4 files and their corresponding independently measured `benchmark_render.py` receipts. It reuses F4-03's stable hash / actual ffprobe verification, rejects swapped media, wrong duration, forged benchmark SHA/bytes, missing or altered Git checkout claim, false Azure/cloud/commercial flags, non-finite/missing timing/RSS data, path traversal and symlinked JSON. No media render is executed by this aggregator; unit tests use explicit fake probe, not real GPU/quality evidence.
++> `benchmark_render.py` now embeds a **declared local Git SHA**, not an independently signed Actions attestation. The matrix aggregates source-only 15/30/60 sampled CPU/RSS observations and marks `cloud_budget_accepted=false`, `code_commit_attested_by_ci=false`, `human_visual_approval=false`. It **does not** claim a matrix actually ran: required three same-code real encoded outputs and measured reports do not yet exist together. F4-14 remains IN PROGRESS; later opt-in full 60s CPU run is required, never automatically trigger repeated lengthy GPU/CPU or public samples.
++> CI and coordinator review/main merge/fresh main 4/4 must be verified before an accepted source task. No Azure Functions/PROD, priced AI, SQL, WineShopPOS.
++> ## 2026-10-30 — F4-05 animation/transition renderer CSS parity repair (draft pending)
++> - Verified trusted Python writer accepts animations `subtle_zoom/fade/slide/pop/glow` and transitions `fade/slide/cut`. Before this patch, **`anim-fade` and text-only `anim-subtle_zoom` were accepted but had no distinct matched CSS effects**, and `anim-glow` without an offer had no visible glow. Repaired the actual HyperFrames HTML/CSS compiler so all five modes act visibly on the glass layer, including text-only scenes. Client-to-compiler allowlists now import the single trusted renderer vocabulary; unexpected CSS/effects fail closed.
++> - Added offline tests for every approved enum and exact compiled stylesheet-keyframe selector, and rejects unsupported effect/preset injection. **Source-only parity, NOT actual decoded animation-frame QA**. Exact new-head four-job CI, coordinator-owned main integration and postmerge 4/4 required; F4-05 remains IN PROGRESS pending encoded visual/pixel review and UI/device QA. No paid inference, customer media or GPU.
++> ## 2026-10-30 — F4-06 bounded four-channel audio-gain source contract (draft pending)
++> - Source-only addition to trusted `rg_video_v2` and internal `creative_reel_v1`: optional `audio_mix` with independently bounded **source video [0.20,1], music [0,1], narration [0.20,1], SFX [0,0.50]** linear channel gains. Values are finite, centi-unit precision, never booleans; unknown fields, missing track assets and unauthorized controls fail closed. No arbitrary gain curves, user HTML, filtergraphs or auto-billing.
++> - Compiled HyperFrames HTML uses existing `data-volume` semantics on each authorized original source, music, licensed voice and timed SFX track. Music under sound/narration remains capped at 0.12; original fixed gain defaults remain byte-semantically unchanged for old requests. This is a **trusted, reviewer-snapshot-only internal contract**; browser gain sliders remain OFF until coordinator binds approved immutable gain requests/tenant and verifies real AAC export.
++> - Added compiler/contract regressions for source, music, narration and SFX, ducking cap, invalid/missing/unapproved control negatives. Full four-job branch CI, reviewer approval and fresh main 4/4 required. **F4-06 IN PROGRESS**, not customer audio release or per-clip automation; paid GPU/model, PROD and WineShopPOS untouched.
++> ## 2026-10-30 — F4-07 final audio-master original-source continuity
++> - Existing private AAC loudnorm-master source checked bytes only by `source.read_bytes()` before/after encode. A same-byte *atomic path/inode replacement* could silently pass while measuring pre-swap audio and publishing post-swap proof. New `feature4_audio_master._stable_source` checks the local source with no-follow regular FD SHA256 and stable dev/inode/size/mtime/lstat **before ffprobe**, after ffprobe, after encode and immediately before no-clobber output. Original bytes and object identity must remain equal; no public output on failure.
++> - Tests use actual local synthetic H264/AAC mastering and force `os.replace` with byte-identical but different-inode source after FFmpeg mastering. Fail closed with private scratch cleanup; empty/symlinked input negatives remain. The earlier append mutation negative still runs.
++> - This is source-only **F4-07 IN PROGRESS**: no new audio, no human voice/music rights acceptance, no loudness perceptual guarantee or hosted signed output. Exact new-head 4/4, coordinator main merge and fresh main 4/4 required. GPU/paid model/PROD/WineShopPOS unchanged.
++> ## 2026-10-30 — F4-11 encoded stock endcard proof source identity (draft, unmerged)
++> - The existing 60s endcard test used a pre/post SHA256 computed by reopening the pathname, which could return **equal hashes for two different source file inodes** after a same-content atomic replacement between real FFmpeg frame samples. That permits pixel observations to refer to an object different from the original approved source even though bytes are equal.
++> - This new F4-only batch reuses the already-proven F4-11 no-follow local `_stable_source` verification: the same **dev/inode/size/mtime plus streaming SHA256** must survive three decoded endcard probes. Any swapped path raises `EndcardProofError` and **no quality receipt** is returned. Added a real synthetic 60s H264/AAC regression that performs byte-identical `os.replace` after first actual FFmpeg sampled frame, proving this rejection and preserving original bytes. Existing repeated-shots, legacy-endcard and in-place mutations retain their gates.
++> - **F4-11 remains IN PROGRESS** pending revised full-HD 60s native render, signed source/garment rights, visual/legibility review, and approved integration into main with fresh 4/4 CI. This is only a source integrity improvement; it does not validate actual consumer product or prevent a subsequent malicious local write after the final check. No GPU, paid media service, PROD or WineShopPOS.
++> ## 2026-10-30 F4-12 multilingual spoken caption typography + anti-spoofing
++> - Source-only `feature4_caption_track.checked_caption_cues` now blocks explicit Unicode bidi overrides/isolates, hidden formatting marks/BOM/soft-hyphen and non-renderable-only cues; it preserves reviewed Arabic and Devanagari shaping (including necessary joiners). Identical server-reviewed wording/timing still drives HTML/SRT/VTT; the compiler never silently rewrites marketing copy.
++> - `professional.py` chooses a deterministic bounded **per-caption 9:16 font size** for <=45, 46–70 and 71–90 approved characters, with balanced wrapping. Previous long approved captions used the same giant font as short cues and could overflow their portrait caption region. Unit tests compile actual trusted HyperFrames source and verify precise text/time retention and short/long CSS size; SRT/VTT tests verify multilingual preservation and reject Unicode visual spoofing. No OCR, actual Chromium pixel or live voice timing evidence is claimed.
++> - F4-12 remains **IN PROGRESS** pending genuine rendered caption legibility and approved customer/reviewer full-HD 60s QA. Stack source draft on #835; exact-head four-job CI and coordinator-reviewed merge/fresh main 4/4 mandatory. No paid GPU/model/PROD/WineShopPOS.
++> ## 2026-10-30 F4-08 actual timeline seek linked to authorized preview (new draft)
++> - Found UI semantic gap: OpenReel `FrameTimecodeInput` / one-frame keyboard jog / scene clip click updated **only the timeline's local playhead**. Parent `VideoStudio` storyboard source preview and signed existing rendered MP4 were not sought to the selected frame. That made timeline frame scrub appear to work without moving actual video.
++> - `TimelineStudioSurface.onPreviewSeek` now publishes only bounded 24/30fps frame-quantized timeline seconds; `VideoStudio` updates the **currently authenticated/same-shop media preview only**: signed render if existing submission is genuinely SUCCEEDED (never OWNER_REJECTED), else previously verified private source footage at `sourceWindow.start + (playhead - scene.start)` clamped inside the reviewed trim. Metadata-loaded races also seek. No authoring write, storage URL grant or approval inferred. Shop/approval/draft switches clear stale preview time, and old signed video remains hidden after any edit.
++> - Playwright DOM regression mounts real React Studio with **fake media clock** (no file loaded or cloud action), seeks to 6.5s using OpenReel timecode, clicks scene-2 center to 7.5s, checks actual signed video element currentTime was updated, confirms no extra render calls, then editing hides old signed media. Real full-duration FFmpeg-decoded frame accuracy, source media authenticity and device/latency QA remain unverified; **F4-08 IN PROGRESS**, not accepted DONE. New exact-head four-job CI + coordinator main integration/fresh main 4/4 required; GPU/paid inference/PROD/WineShopPOS off.
++> ## 2026-10-30 — F4-02 60s QA receipt exact-path/inode read fence (new source batch)
++> - The 60s QA receipt previously reopened approved evidence twice (`_sha(path)` and `read_text(path)`), so provenance could change between what was hashed and the JSON that got parsed. `_sha` also used a path-open with only a prior is_symlink check, not an atomic original inode/path guard. A different file containing identical bytes could replace a source during hashing while the reported SHA remained equal.
++> - New `_stable_file` opens with O_NOFOLLOW, enforces bounded regular-file size before reading, hashes in bounded chunks, checks byte count and the same dev/inode/mtime/size on descriptor **and final pathname**, and returns optional JSON bytes from that exact same single read. `_record` parses only that locked read, never reopens. All existing 60s media/receipt approval/tenant disclaimers remain unchanged; no direct input/public upload.
++> - Regression tests simulate exact-byte `os.replace` during `_sha` AND `_record` digest updates, reject symlink, oversize and malformed JSON, retain hash compatibility. Technical *local source acceptance* only, not server-signed immutable storage, customer approval or a full successful 60s production export. **F4-02 IN PROGRESS** until exact-head 4/4 branch CI, reviewed main integration/postmerge CI, and final actual 60s proof. GPU/paid inference/PROD/WineShopPOS remain OFF/untouched.
++> ## 2026-10-30 — F4-10 async shop/render-response UI race fence (draft)
++> - Source bug: `VideoStudio.submit` awaited the authenticated render callback, then **unconditionally** set `submitted=true`, `error` or `busy=false` even if the user had since switched shops, changed approved Feature2 direction, or edited the draft. Under a rapid shop change, completion of prior Shop A's request could make Shop B's existing signed artifact falsely look like the current submitted Reel; a stale denial could overwrite Shop B's active render state.
++> - Introduced monotonically increasing local render epoch, synchronous in-flight lock, and live-shop/approval context check. Shop/approval switches and draft edits/retimes/new projects invalidate pending UI callbacks and unlock a fresh editor submit. Only the matching current epoch AND same shop/direction may update submitted/error/busy. Starting a new request hides old signed video. Unmount invalidates callbacks. No request gets cancelled or billed again: backend idempotency, tenant JWT and ledger remain coordinator duties.
++> - Real mounted React Playwright browser harness simulates two synthetic shops, pending/deferred ACKs, late old-shop success, old-shop error arriving after new-shop request, and same-shop edit while pending. Asserts no stale signed video or error/busy contamination, and current approved draft still submits. Does **not** exercise real Azure JWT or signed URL expiration. F4-10 remains IN PROGRESS pending exact-head full 4/4, coordinator main merge/main 4/4 and manual mobile/security E2E. No GPU, paid AI, PROD or WineShopPOS.
++> - **F4-10 follow-up:** approval direction transitions must invalidate pending render even if the approved direction is removed and later restored to the original value. Fourth Playwright synthetic React race test exercises revoke→restore→old ACK with no stale signed preview. Branch CI superseded on each source update; use only latest exact SHA, never claim prior queued/green runs for latest branch. Still unmerged IN PROGRESS.
++> ## 2026-10-30 — F4-15 output SHA and original-inode integrity through private upload
++> - Existing local renderer emitted an FFprobe metadata-only `output_probe`; `feature4_worker_handoff._verified_render_result` checked dimensions, codecs and bytes but not original content digest. Tampering with same-length encoded bytes or atomic file replacement after metadata sampling could bypass this source-only upload boundary; original staged-input fingerprint compared only SHA/size across CPU, so a same-content inode swap between checks could also pass.
++> - The trusted renderer now fingerprints the **actual original encoder scratch MP4** before/after ffprobe, compares the same bytes after private copy, and fingerprints the no-clobber final path; it adds a bounded lowercase SHA256 field to its private `output_probe`. The worker **requires** that digest and matching local media size and checks the complete stable size/SHA/dev/inode/mtime original-output fingerprint before AND after private upload. Its same stronger five-field fingerprint is used for staged inputs across CPU. No newly minted signed URLs or second bill.
++> - Actual synthetic H264/AAC proof test checks stable file hash and different-inode same-byte object identity; fake-claimed worker regressions reject forged/missing SHA, input same-byte inode replacement during CPU and output append/overwrite/same-byte atomic swap during private upload. Uploaded corrupted objects may be **orphans** and need coordinator cleanup; the worker never calls completion RPC after integrity fails. This local barrier is not an authenticated remote-object digest receipt or hosted ledger CAS. New branch exact-head CI and coordinator main integration/postmerge CI plus real signed DEV E2E pending; **F4-15 IN PROGRESS**, no customer/media release.
++> ## 2026-10-30 — F4-13 canonical tenant-private asset key before backend download
++> - `feature4_worker_handoff._bundle` previously required the correct tenant path prefix and rejected literal `..`/backslashes/`//`, but still permitted `/./`, percent-encoded traversal, fragments, query delimiters, hidden formatting characters and other non-canonical storage keys. These might be handled inconsistently by storage/signing adapters and are inconsistent with existing `privateMediaPreviewUrl` browser validation.
++> - F4-13 source-only repair applies the **same strict ASCII [A-Za-z0-9._/-] canonical object-key character set as the browser source preview**, additionally rejecting empty, single-dot or parent-dot path segments, wrong shop prefix and length >1000. Existing natural canonical keys and nested `approved/...` paths work. This is checked on server-derived approved asset rows BEFORE any private download/CPU; no backend URL, user upload, or rights are fabricated. Regression negatives include `/./`, `%2e%2e`, encoded slash, query/fragment, newline, invisible marks, spaces, `//`, parent segments; positive nested safe path still renders offline.
++> - **Compatibility gate:** source keys with Unicode/whitespace that were previously accepted must be migrated/re-registered only by the coordinator after verifying DB/storage, never silently renamed in Feature4. F4-13 remains IN PROGRESS until approved hosted path corpus verified, exact-head 4/4 branch CI, coordinator integration/fresh main 4/4, and commercial rights review. GPU/paid AI/PROD/WineShopPOS untouched.
++> ## 2026-10-31 — F4-15 original-claim upload key fence
++> - Independently identified an output-finalization risk: after successful private `media.upload`, the worker accepted **any returned object key** and passed it to the claim completion RPC. A stale or malformed uploader response could bind a new job to a foreign tenant, wrong job or old lease despite valid encoded output SHA/inode. The trusted worker now requires exact `shop_id/renders/job_id/render_claim_token.mp4` as a **string**, after postupload SHA/inode check and before final authorization/CAS. All missing/foreign/URL/query/traversal/nonstring values deny completion. The existing service RPC must still independently verify DB tenant/lease and remote storage; local code cannot attest cloud persistence.
++> - Eleven failure variants and one valid canonical key use existing offline claimed-worker fixture; every failed key leaves zero completions, records only a permanent invalid-input failure and may leave an orphan upload for coordinator reconciliation. The scope is Feature4 source-only; no automatic delete, rights approval or new uploads in DEV. **F4-15 remains IN PROGRESS** until independent review and green current-main integration plus real hosted proof. No paid model/GPU, PROD or WineShopPOS.
++> ## 2026-10-31 — F4-15 pre-transfer private staging fence (source checkpoint)
++> - F4-15 **IN PROGRESS**, not integrated: on the existing stacked Feature4 source branch, the worker now revalidates authoritative rights **and** the atomic claim before each private object download (including the first one after bundle loading), rather than downloading every asset before a single final check. It preserves existing pre-CPU, pre-upload, post-upload and finalize guards.
++> - Two offline fake-service regression tests cover (1) lease/rights revocation during the first of two approved asset downloads and (2) lease loss during authoritative bundle loading. Both require zero later transfers/CPU/ACK and no billing or signed output; fixtures are not real F3/F5 output.
++> - Evidence required: exact new commit + targeted test and fresh four-job CI; no DONE until compatible main merge and postmerge main 4/4. No Azure/hosted database, paid GPU/models, PROD, owner approvals, or WineShopPOS changes.
++
++Closing obsolete #852 can only retire a duplicate PR, NOT accept F4-13/F4-15 DONE: exact final-head 4/4 CI, current main merge, signed rights and real media tests remain separate. GPU/paid inference/PROD/WineShopPOS OFF.
+
+diff --git a/video-engine/feature4/RUN_CHECKPOINT.md b/video-engine/feature4/RUN_CHECKPOINT.md
+--- a/video-engine/feature4/RUN_CHECKPOINT.md
++++ b/video-engine/feature4/RUN_CHECKPOINT.md
+@@ -0,0 +1,24 @@
++# Feature #4 durable run checkpoint — 2026-10-30
++
++## Current task and source change
++
++- Task: **F4-08** (accurate frame scrub/playback), partial source hardening only; NOT complete, NOT integrated.
++- Parent: draft PR #322, `feat/feature4-professional-video-studio`, observed SHA `e32a8da61a6272666d757b6c51b0ec2576d7602f`.
++- Owned stacked PR: **#838** `feat/feature4-f4-08-finite-frame-seek-20261030` targeting the parent branch.
++- Code head before this checkpoint: `15eef682fcb5003e5c00021ba671eded449ba10c`.
++- Files: `frontend/src/features/video/frame-seek.mjs` (finite/bounded/24-30fps normalization), `frontend/src/features/video/TimelineStudioSurface.jsx` (uses safe helper and refuses nonfinite incoming positions), `tests/frontend/feature4-frame-seek.test.mjs` (two negative/positive node:test cases).
++- Local targeted verification: Node v22.16.0, `node --test` on an equivalent isolated copy of the new pure helper/test: **2 passed, 0 failed**. This is NOT an exact-checkout run and is not proof of the entire frontend or full PR CI.
++- GitHub exact-head CI: **not verified yet**; inspect PR #838 after this checkpoint push and require 4/4 before coordinator review. Do not merge or mark DONE.
++- Still missing for F4-08 acceptance: real decoded-preview visual parity and device/browser verification; no customer media or production release claims.
++- Cross-feature blockers: none for this finite-seek guard. Global coordinator integration/hosted gates remain outside this task.
++- **NEXT independent task**: F4-06 (multi-track independent audio levels). First inspect existing renderer semantics and other open F4 PRs to avoid duplicating work. If that is too broad, proceed with another small unblocked owned test or hardening task.
++- Keep GPU OFF; no paid model, PROD, Azure deployment, unapproved SQL or WineShopPOS edits. Do not alter shared canonical status. Coordinator reviews task evidence and integration separately.
++
++## Continuation — second run (2026-10-30)
++
++- Resumed the verified existing F4-08 stacked PR #838 rather than duplicating the task or modifying main. F4-06 multi-track gain automation remains unsupported by current renderer and is deferred pending actual renderer semantics; do **not** enable gain sliders as fake controls.
++- Source commits: `2664ee2d0b9448aced0281dae3b7ad89a200be1c` (validated scene midpoint helper), `61d848267e7ba36ba0b4378ec53c2b1290b320cf` (caption and scene clicks now frame-normalized), `2e177eb1b1d49de4a9422ced7ea3378e497dc174` (positive/negative tests).
++- Files: `frontend/src/features/video/frame-seek.mjs`, `frontend/src/features/video/TimelineStudioSurface.jsx`, `tests/frontend/feature4-frame-seek.test.mjs`. Scene/caption click paths no longer bypass finite frame normalization; malformed scene spans fail closed.
++- Targeted verification: Node v22.16.0, `node --test /tmp/f4seek/tests/frontend/feature4-frame-seek.test.mjs` on an **isolated source-equivalent copy**, **4 passed / 0 failed**. NOT an exact GitHub checkout, browser test, decoded-video parity, or complete 4-job CI.
++- Full exact-head CI: pending inspection after checkpoint commit. Do not claim PR-ready, integrated or accepted F4-08. Parent #322 and stacked #838 remain draft/unmerged as observed.
++- Remaining F4-08: real decoded-preview parity and browser/device verification. NEXT independent eligible: **F4-07** offline audio fade/ducking negative-path test after checking existing audio renderer and related branches; if already covered, select another F4-owned source test. Do not bypass licensed voice/music approvals.
+
+diff --git a/video-engine/feature4/RUN_CHECKPOINT_F4_07.md b/video-engine/feature4/RUN_CHECKPOINT_F4_07.md
+--- a/video-engine/feature4/RUN_CHECKPOINT_F4_07.md
++++ b/video-engine/feature4/RUN_CHECKPOINT_F4_07.md
+@@ -0,0 +1,44 @@
++# Feature4 F4-07 source-only checkpoint — 2026-10-30
++
++- **Task:** F4-07 actual audio fades/ducking and final QA. This PR is a *partial security/reliability hardening*, not the full task or an accepted output.
++- **PR:** #845, draft, stacked onto Feature4 parent draft #322 (`feat/feature4-professional-video-studio`). Pre-checkpoint head `e45a9bc833584bb85f74c0993cf17ac9e9454a89`.
++- **Changes:** `video-engine/feature4_audio_master.py` now checks a new private JSON proof path before running local FFmpeg and creates the receipt exclusively; `tests/media/test_feature4_audio_master.py` checks existing proof causes no mastering and rejects symlink parent/non-JSON destinations.
++- **Verification:** Python 4/4 isolated *source-equivalent* preflight tests passed in temporary local copy. These are not full repository tests. Exact-checkout tests, FFmpeg regression and 4-job exact-head CI are **not verified**; inspect after this checkpoint commit.
++- **Why:** Prior CLI ran mastering and created private output before discovering an existing proof path, leaving an unreceipted output. New preflight denies that known unsafe case. Concurrent proof creation after preflight still requires error/cleanup review; do not claim fully atomic output/report transaction.
++- **Next:** F4-07: inspect audio-master report-write failure/cleanup semantics and real fade/ducking test coverage without introducing unsupported UI gain automation. Alternative independent F4-09: test currently disabled unsupported controls and history correctness.
++- **Ownership:** Feature4-owned code/test/handoff only. Coordinator controls shared task status, PR merge, fresh main CI, hosted validation and commercial release. F2 licensed voice/audio remains required. GPU OFF; no paid model, PROD, Azure deployment, SQL or WineShopPOS changes.
++
++## Continuation — receipt failure atomicity hardening (2026-10-30)
++
++- **Task:** F4-07, partial source-only reliability fix. No voice/music license or final mix quality acceptance.
++- **Existing stacked PR:** #845, base `feat/feature4-professional-video-studio` (draft parent #322). No new PR or duplicate work.
++- **Code/test commits before checkpoint:** `0720a49d6cbc7e9d60f7309c051eb1b88d6f2343`, `30f4efcf4cf027fa5bf8a8b634519054cd06a8be`, `49189f7bae3c00f3f967377e6e498555769df00f`, `b816782c3b8578f63203e31f40add544e5517390`.
++- **Changed files:** `video-engine/feature4_audio_master.py`, `tests/media/test_feature4_audio_master.py`. If an exclusive JSON receipt write fails after MP4 mastering, the CLI now removes only a matching unchanged output SHA; it also removes a partially written receipt only if the same inode created by this process still exists. Replaced/different output is not deleted. Negative tests inject proof-open failure, post-master output replacement, and partial receipt-write failure.
++- **Verification:** Changes committed through connected GitHub and source reread; exact checkout targeted Python tests **not run** in this execution (GitHub source unavailable to local test runner). GitHub PR-triggered workflow lookup at pre-checkpoint head `b816782c3b8578f63203e31f40add544e5517390` returned no runs, and combined statuses returned none; **full 4/4 CI not verified**. Recheck exact new head after this checkpoint push; never mark PR-ready/integrated without checks.
++- **Remaining F4-07:** actual licensed narration/music, multiple realistic duck/fade profiles, source-authorized commercial signoff, and exact-head CI. The new failure-path tests are mocked, not real MP4 QA.
++- **NEXT:** F4-09 independent UI history/disabled-control negative-path regression, or F4-06 renderer-backed multi-track levels only after actual semantics verified. Do not duplicate open PR #838 F4-08 or other owned PRs. Coordinator owns canonical task status, review/merge, and fresh main 4/4.
++- **Cost/security:** GPU OFF, no cloud/PROD/SQL writes, no WineShopPOS or customer media.
++
++## Next-task ownership reconciliation
++
++- Rechecked candidate **F4-09**: existing open PR **#769** already implements bounded history; do not create a competing branch.
++- Rechecked candidate **F4-06**: existing open PRs **#830** (independent gain contract) and **#739** (truthful fixed-gain preview); do not duplicate those implementations.
++- F4-05 already has PRs #711/#822; F4-15 has multiple in-flight branches. The next run should first inspect the freshest exact heads and focus on **F4-07 exact-checkout tests/CI and receipt failure semantics** or another truly unclaimed scoped task. No atomic worktree lease was claimed.
++- **Checkpoint commit context:** code/test head `b816782c3b8578f63203e31f40add544e5517390`; previous checkpoint commit `5bee81aab0e4e26e76d3a72b0ef3ceb4bdb6d558`. Recheck the final head after this update.
++
++## Continuation — private proof confidentiality and durability (2026-10-30)
++
++- **Task:** F4-07, partial security/reliability hardening only; real audio fades/ducking and final QA remain incomplete.
++- **PR/branch:** Draft #845, `feat/feature4-f4-07-proof-preflight-20261030`, stacked on draft #322; no merge or task DONE claimed.
++- **Code commits:** `06ca86b6fe778f2b5bf64b941e4dbe7a13fc0aea`, `b60bf4215e8203493485b61507e89ef789623454`. **Tests commit:** `118d925337e772d959c95e63c20008fcc7b135da`.
++- **Changed:** `video-engine/feature4_audio_master.py` uses atomic `os.open(O_CREAT|O_EXCL|O_NOFOLLOW, mode=0600)` for private proof receipts, rejects symlinked ancestors, flushes and fsyncs receipt before reporting success. This prevents permissive-umask disclosure and nested symlink traversal; failure continues to use existing receipt/output cleanup.
++- **Tests added/updated:** `tests/media/test_feature4_audio_master.py` now patches the secure report opener for injected errors and checks owner-only 0600 permissions under umask 000, plus nested symlink-parent rejection.
++- **Verification:** Three isolated **source-equivalent** local Python checks passed (0600 mode, no-clobber, nested symlink denial). Exact repository tests **not run**: this runtime cannot resolve GitHub for local checkout. At pre-checkpoint head `b60bf4215e8203493485b61507e89ef789623454`, GitHub PR-triggered workflow lookup returned **0 runs**, combined status **0**; exact-head 4/4 CI **not verified**. Source-equivalent checks are not full CI.
++- **Remaining:** Verify full repository tests and 4/4 exact-head CI, assess actual multi-track fade/duck behavior with licensed audio, commercial reviewer signoff, and coordinator integration. No new live media, user sample, paid model, GPU, PROD, SQL or WineShopPOS.
++- **NEXT:** F4-07 exact-checkout targeted `python -m unittest tests/media/test_feature4_audio_master.py` (adjust module invocation to repository convention) and required 4-job CI. If still CI-blocked, inspect F4-09 existing PR #769 or F4-06 #830/#739 for nonoverlapping tests rather than duplicating their work. Coordinator owns review, main merge and task receipt.
++- **Final head:** checkpoint commit will advance branch beyond the pre-checkpoint code SHA; reread PR #845 head before claiming CI.
++
++### Additional fail-closed regression (same run)
++
++- Commit `9175f746fe20d0796898204326bccdeaddeed9a5` adds a mocked `os.fsync` failure regression. Expected behavior: CLI exits code 2 and removes only its own private proof and matching output; no success is reported. This test is **committed but not executed in exact repository checkout**. It supplements, not replaces, the three local source-equivalent checks.
++- NEXT remains exact-head repository test/4-job CI verification followed by F4-07 actual licensed fade/ducking acceptance. No verified task DONE.
+

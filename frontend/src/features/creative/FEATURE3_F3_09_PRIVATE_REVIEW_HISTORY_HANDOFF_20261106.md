@@ -1,0 +1,6 @@
+# F3-09 — Strict private v2 draft history / review-state UX (2026-11-06)
+
+- The signed browser listDesigns adapter validates exact expected server row fields and top-level response, tenant/campaign/day UUID IDs, positive revision, DRAFT/APPROVED/REJECTED status, canonical SHA256 syntax, variation UUID/null and poster design schema/tenant. Reject duplicate IDs, malformed records and injected signed URLs, raw Storage paths or forged approval fields before caching.
+- The optional v2 workspace displays safe **read-only** review states for all returned private drafts. DRAFT is the only editable status. APPROVED is explicitly a server status, **not** a publication or licensing grant; REJECTED is read-only. No approval mutation or public download was added.
+- Synthetic Node tests exercise genuine-shaped signed-backend rows, three statuses, duplicate/cross-shop/malformed records, forged link/approval fields and UX checks. SHA syntax verification does not claim cryptographic equality with PostgreSQL JSON serialization or rights approval.
+- No hosted identities/SQL mutations, GPU/paid model, PROD or WineShopPOS changes, nor root router edits. This is F3-09 source component, not entire parent task DEV_CODE_DONE. Verify final-head four-job CI and fresh main CI and record accepted merge and remaining hosted gates.
