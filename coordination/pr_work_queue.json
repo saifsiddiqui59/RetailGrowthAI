@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 4,
+    "open_prs": 5,
     "by_feature": {
-      "issue249": 2,
+      "issue249": 3,
       "shared": 1,
       "F5": 1
     }
@@ -100,7 +100,20 @@
         "status": "F5 exact primitive decision/JWT reviewer/digest and checklist hardening; AI-reviewed source, waiting serialized main CI #44621937036"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1036"
+    },
+    {
+      "pr": 1038,
+      "title": "docs(#249): real Y1 five-route failure, successful rollback and deployment-mode investigation",
+      "feature": "issue249",
+      "head_sha": "86902c032ae2895aaf9969536ba9e6291a37c9fc",
+      "base_branch": "main",
+      "work_owner": "manual-issue249",
+      "priority": "P2",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1038"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T21:47:17.124Z"
+  "last_inventory_checked_at": "2026-11-19T21:48:51.517Z"
 }
