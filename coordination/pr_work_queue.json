@@ -13,7 +13,7 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 21,
+    "open_prs": 20,
     "by_feature": {
       "F5": 3,
       "issue249": 9,
@@ -24,6 +24,30 @@
     }
   },
   "entries": [
+    {
+      "pr": 1020,
+      "title": "feat(F4): preserve four PR322 divergence patches; 184 original files already identical to main",
+      "feature": "F4",
+      "head_sha": "83e4adbefa81bf9dacf6a2a77196db7c929b8c3c",
+      "base_branch": "main",
+      "work_owner": "manual-integration-chat-f-20261119",
+      "priority": "P2",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119",
+        "claimed_at": "2026-11-19T04:55:49.776Z",
+        "expires_at": "2026-11-19T06:10:49.776Z",
+        "head_sha": "83e4adbefa81bf9dacf6a2a77196db7c929b8c3c"
+      },
+      "checkpoint": {
+        "owner": "manual-integration-chat-f-20261119",
+        "at": "2026-11-19T04:55:49.776Z",
+        "status": "F4 original #322 184 exact main blobs, 4 patch hunks archived; PR CI pending",
+        "source_parent": 322,
+        "original_tasks_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1020"
+    },
     {
       "pr": 1021,
       "title": "feat(F2): preserve all three stale protected VoiceStudio route patches from #925",
@@ -147,7 +171,7 @@
       "pr": 1013,
       "title": "feat(F5): restore original GPU-off human visual QA gate and negative tests",
       "feature": "F5",
-      "head_sha": "f561fbbc28100eba32bc33f49fdf0d7b88692692",
+      "head_sha": "8aecc7c687c217b5c7a0b67498ef9a4a53400824",
       "base_branch": "main",
       "work_owner": "manual-integration-chat-e-F5-20261119",
       "priority": "P1",
@@ -155,16 +179,19 @@
       "claim": {
         "owner": "manual-integration-chat-f-20261119",
         "claimed_at": "2026-11-19T04:27:18.533Z",
-        "expires_at": "2026-11-19T05:57:18.533Z",
-        "head_sha": "f561fbbc28100eba32bc33f49fdf0d7b88692692"
+        "expires_at": "2026-11-19T06:10:49.776Z",
+        "head_sha": "8aecc7c687c217b5c7a0b67498ef9a4a53400824"
       },
       "checkpoint": {
-        "owner": "manual-integration-chat-e-F5-20261119",
-        "at": "2026-11-18T20:04:09.444Z",
-        "status": "source-ready; independent F4 reviewer required before cross-feature handoff",
-        "ci": "exact-head #44385923152 4/4 PASS",
-        "integrated_done": false,
-        "head_sha": "f561fbbc28100eba32bc33f49fdf0d7b88692692"
+        "owner": "manual-integration-chat-f-20261119",
+        "at": "2026-11-19T04:55:49.776Z",
+        "status": "real F5 QA security fix: current authenticated reviewer must match stored reviewer; source-only, protected F4 interface",
+        "code_commits": [
+          "6a400723c0014f17a9cb3e8163eb059403ed8b3c",
+          "f6eb1fe75fd59935132c56feecbcdd0a2a631058"
+        ],
+        "ci": "44461405531 queued",
+        "review": "independent F4 auth/security review required"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1013"
     },
@@ -180,15 +207,15 @@
       "claim": {
         "owner": "manual-integration-chat-f-20261119",
         "claimed_at": "2026-11-19T04:27:18.533Z",
-        "expires_at": "2026-11-19T05:57:18.533Z",
+        "expires_at": "2026-11-19T06:10:49.776Z",
         "head_sha": "a5f531aab5d448a22fc898d8d893f75a2f2e218b"
       },
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T04:48:00.629Z",
-        "status": "canonical #249 docs updated with #995 preflight/copy security fix and exact-head 4/4",
-        "CI": "new head 44460427036 pending",
-        "independentReview": "required before docs merge"
+        "at": "2026-11-19T04:55:49.776Z",
+        "status": "all four canonical docs updated re #995 TOCTOU code and CI",
+        "ci": "44460427036 pending",
+        "review": "independent docs/JWT ops approval required"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1002"
     },
@@ -565,17 +592,19 @@
       "claim": {
         "owner": "manual-integration-chat-f-20261119",
         "claimed_at": "2026-11-19T04:27:18.533Z",
-        "expires_at": "2026-11-19T05:57:18.533Z",
+        "expires_at": "2026-11-19T06:10:49.776Z",
         "head_sha": "b9525a9ea3d5e5aee351edf89a3c011c2314ed2e"
       },
       "checkpoint": {
-        "owner": "manual-integration-chat-e-20261119",
-        "at": "2026-11-18T19:16:44.121Z",
-        "status": "BLOCKED",
-        "summary": "Feature4 188-file draft WIP, owner visual acceptance rejected; existing offline media tests cannot attest customer-quality render. Shared frontend/video overlap; cannot self-merge.",
-        "next_action": "Feature4 owner resolve visual QA, merge conflicts and verify exact-head 4/4 + fresh postmerge main",
-        "merged": false,
-        "verified_integrated_done": false
+        "owner": "manual-integration-chat-f-20261119",
+        "at": "2026-11-19T04:55:49.776Z",
+        "status": "current main already contains 184/188 exact original F4 source blobs; four newer F4 variants recorded in archive PR #1020",
+        "archive_pr": 1020,
+        "source_original": "b9525a9ea3d5e5aee351edf89a3c011c2314ed2e",
+        "exact_blobs": 184,
+        "differing_paths": 4,
+        "ci": "#1020 exact-head 44461045029 pending",
+        "original_tasks_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322"
     }
