@@ -113,20 +113,15 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-f-20261119-resume",
-        "claimed_at": "2026-11-19T07:28:42.756Z",
-        "expires_at": "2026-11-19T08:58:42.756Z",
-        "head_sha": "2a35fe131dac57752b217d95c3d064711424a38e"
-      },
+      "phase": "blocked",
+      "claim": null,
       "checkpoint": {
-        "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T05:08:38.516Z",
-        "status": "clean append-only two-parent reconciliation of latest main docs, existing unique sections preserved",
-        "ci": "#44462876075 queued/running",
-        "blocker": "independent shared docs review",
-        "mergeBase": "20473f0d4d5452ee8c641ced1a33a919d7b61544"
+        "owner": "manual-integration-chat-f-20261119-resume",
+        "at": "2026-11-19T07:49:36.590Z",
+        "status": "Shared four-document PR #1007 source-only, latest exact-head 44462876075 success; independent shared-doc reviewer still absent; no merge",
+        "ci": "exact-head #44462876075 4/4 PASS",
+        "review_required": true,
+        "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1007"
     },
@@ -237,18 +232,14 @@
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-f-20261119-resume",
-        "claimed_at": "2026-11-19T07:28:42.756Z",
-        "expires_at": "2026-11-19T08:58:42.756Z",
-        "head_sha": "a655e26ec88eea61930faabb144d746c812611a0"
-      },
+      "phase": "blocked",
+      "claim": null,
       "checkpoint": {
-        "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T05:11:40.474Z",
-        "status": "independent JWT/RLS/Functions/tenant GET approval pending for protected three-route Y1; #995 stacked; no hosted deployment",
-        "required_review": "independent affected security/issue249 lead",
+        "owner": "manual-integration-chat-f-20261119-resume",
+        "at": "2026-11-19T07:49:36.590Z",
+        "status": "Three Y1 GET route wrappers source-only, no live signed two-shop acceptance; independent Functions/JWT/tenant reviewer absent; #995 stacked",
+        "ci": "exact-head #44126332677 4/4 PASS",
+        "review_required": true,
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/968"
@@ -261,18 +252,14 @@
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-f-20261119-resume",
-        "claimed_at": "2026-11-19T07:28:42.756Z",
-        "expires_at": "2026-11-19T08:58:42.756Z",
-        "head_sha": "63f5cbe4bbc3840b3ced6aeb60938976137782bc"
-      },
+      "phase": "blocked",
+      "claim": null,
       "checkpoint": {
-        "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T05:11:40.474Z",
-        "status": "protected original auth/F2 root shared PR; split current-main hardening #1018 under 4/4 CI/security review",
-        "required_review": "independent affected security/issue249 lead",
+        "owner": "manual-integration-chat-f-20261119-resume",
+        "at": "2026-11-19T07:49:36.590Z",
+        "status": "Original global JWT/tenant/AdminStore route hardening, independent auth/security reviewer absent; scoped separate #1018 exists but does not supersede all original",
+        "ci": "exact-head #44089856853 4/4 PASS",
+        "review_required": true,
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/965"
