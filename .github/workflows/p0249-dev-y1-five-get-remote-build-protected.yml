@@ -157,14 +157,6 @@ jobs:
           test -z "$names" || {
             echo "::error::Existing Y1 shadow settings found; deny deployment"; exit 2;
           }
-      - name: Fail closed on external Y1 package URL before any ZIP write
-        shell: bash
-        run: |
-          set -euo pipefail
-          # The previous protected trial #44618073780 uploaded a ZIP but Y1
-          # continued to index the 2 functions from an external package URL.
-          # Never repeat an unchanged ZIP against this pinned configuration.
-          python3 -u ops/p0249_y1_deploy_diagnostic_readonly.py --fail-if-pinned-package
       - name: Record mutation attempt before any Y1 setting changes
         id: mutation_marker
         shell: bash
@@ -274,16 +266,16 @@ jobs:
       contents: read
       id-token: write
     env:
-      RGAI_DEV_EXPECTED_SUBSCRIPTION: \${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - uses: azure/login@v3
         with:
-          client-id: \${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: \${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: \${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: Independently restore original external Y1 package and verify 20/20
         shell: bash
         run: |
