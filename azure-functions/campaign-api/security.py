@@ -7,9 +7,15 @@ from uuid import UUID
 
 import jwt
 from jwt import PyJWKClient
+from jwt.exceptions import PyJWKClientConnectionError
 
 
 class AuthenticationError(ValueError):
+    pass
+
+
+class SigningKeysUnavailable(RuntimeError):
+    """Temporary project signing-key dependency outage, never invalid JWT proof."""
     pass
 
 
@@ -40,6 +46,10 @@ class SupabaseJWTVerifier:
             if claims.get("role") != "authenticated" or claims.get("is_anonymous") is True:
                 raise AuthenticationError("non-user token")
             return str(UUID(claims["sub"]))
+        except PyJWKClientConnectionError as exc:
+            # Upstream JWKS transport outage is a 503 dependency failure, not a
+            # forged/expired JWT. Never trust unverified claims or leak details.
+            raise SigningKeysUnavailable("JWT signing keys unavailable") from exc
         except (jwt.PyJWTError, KeyError, ValueError, TypeError) as exc:
             raise AuthenticationError("invalid authentication token") from exc
 
