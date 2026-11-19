@@ -1,0 +1,83 @@
+name: "RetailGrowthAI #249 single owner-delegated READ-ONLY Y1 diagnostic bridge"
+# Owner-requested, one-shot push bridge. NEVER directly touches Azure.
+# The target diagnostic retains protected dev workflow_dispatch and read-only scope.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/p0249-y1-owner-delegated-readonly-diagnostic-bridge-once.yml"
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: rgai-p0249-owner-delegated-readonly-diagnostic-once
+  cancel-in-progress: false
+jobs:
+  dispatch:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'ops(#249): owner-delegated single READ-ONLY Y1 diagnostic')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 23
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Pin original manual diagnostic and read-only source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          verify_blob() { test "$(git rev-parse "HEAD:$1")" = "$2"; }
+          verify_blob .github/workflows/p0249-y1-deploy-diagnostic-readonly-once.yml 6aea8239fd3e61babbe6048a0fb2a488d984354e
+          verify_blob ops/p0249_y1_deploy_diagnostic_readonly.py 7ce649ec7512407d2c628c5b9110c21b27eb3852
+          verify_blob tests/infra/test_p0249_y1_deploy_diagnostic_readonly.py 0f6fae4c7b6dba3e5355a1cb0d2efa19149ee62b
+          echo "P0249_READONLY_DIAGNOSTIC_PINNED_SOURCES=PASS"
+      - name: Require 4/4 exact-main Part1 CI before diagnostic dispatch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          accepted=false
+          for attempt in $(seq 1 78); do
+            runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&event=push&per_page=40")"
+            run_id="$(jq -r --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha == $sha and .name == "RetailGrowthAI Part 1 CI")] | sort_by(.created_at) | last | .id // empty' <<< "$runs")"
+            if [ -n "$run_id" ]; then
+              state="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .status)"
+              if [ "$state" = "completed" ]; then
+                outcome="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .conclusion)"
+                test "$outcome" = "success" || { echo "::error::Exact main CI failed"; exit 2; }
+                gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" | jq -e '
+                  [.jobs[] | select(
+                    .name == "Python / uv + campaign contract tests" or
+                    .name == "Supabase isolation + authentication client tests" or
+                    .name == "Frontend build + contract tests" or
+                    .name == "FFmpeg codecs + renderer tests"
+                  ) | .conclusion] | length == 4 and all(.[]; . == "success")
+                ' >/dev/null
+                echo "P0249_DIAGNOSTIC_BRIDGE_EXACT_MAIN_CI_4OF4=PASS"
+                accepted=true
+                break
+              fi
+            fi
+            sleep 15
+          done
+          test "$accepted" = "true" || { echo "::error::Exact-main CI timed out"; exit 2; }
+      - name: Dispatch protected read-only diagnostic exactly once
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)"
+          test "$current" = "$GITHUB_SHA" || { echo "::error::Main changed, no dispatch"; exit 2; }
+          prior="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?event=workflow_dispatch&per_page=100")"
+          count="$(jq -r --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha==$sha and .name=="RetailGrowthAI #249 isolated Y1 deployment and indexing diagnostic (read only)")] | length' <<< "$prior")"
+          test "$count" = "0" || { echo "::error::Already dispatched at this SHA"; exit 2; }
+          jq -nc '{ref:"main", inputs:{confirm:"YES-Y1-READONLY-BUILD"}}' |
+            gh api -X POST "repos/$GITHUB_REPOSITORY/actions/workflows/p0249-y1-deploy-diagnostic-readonly-once.yml/dispatches" --input -
+          echo "P0249_PROTECTED_READONLY_DIAGNOSTIC=DISPATCH_REQUESTED"
+          echo "No Azure writes from bridge or protected diagnostic."
