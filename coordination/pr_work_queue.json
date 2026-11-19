@@ -13,13 +13,13 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 14,
+    "open_prs": 13,
     "by_feature": {
       "F2": 2,
       "F3": 1,
       "F5": 1,
       "issue249": 8,
-      "shared": 2
+      "shared": 1
     }
   },
   "entries": [
@@ -84,24 +84,6 @@
         "status": "non-force merge commit preserving original nine release-only blobs on exact updated parent #995; 4/4 CI pending; manual protected DEV dispatch not executed",
         "feature_done": false
       }
-    },
-    {
-      "pr": 1022,
-      "title": "docs(F3): record #879/#944 source consolidation and #880 4/4 evidence",
-      "head_sha": "dfff7942f95fca0d394bdd550ba5b4bd8666f08f",
-      "feature": "shared",
-      "base_branch": "main",
-      "work_owner": "manual-integration-chat-c-20261119",
-      "priority": "P1",
-      "phase": "blocked",
-      "claim": null,
-      "checkpoint": {
-        "at": "2026-11-19T18:56:57.802Z",
-        "status": "30/30 original added docs lines preserved on main #0939cfb3; dependent descendant-main Part1 4/4 pending after #1030 fixes 11-test #968/#1018 regression",
-        "dependent_pr": 1007,
-        "source_main_sha": "0939cfb367e169c64faaa0fcf3da8f91e3b17417"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1022"
     },
     {
       "pr": 1019,
@@ -289,5 +271,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1031"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T18:56:57.802Z"
+  "last_inventory_checked_at": "2026-11-19T18:59:20.373Z"
 }
