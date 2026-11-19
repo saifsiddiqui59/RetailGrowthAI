@@ -1,0 +1,12 @@
+# Feature4 F4-04 original #735 duplicate editor project contract — 2026-11-17
+
+- Original PR #735 head `8f80480f9d6d27cb781d6389a423ee843a67e8d3` had independent real JS duplicate → trusted Python compiler → HyperFrames project regression `tests/media/test_feature4_duplicate_project.py`, absent from surviving #779.
+- Restored its single real-project assertion with minimal adaptation to **current** approved API: `make_edited_project(operation="duplicate")` and `editor_operation`. The test still checks two 0-second original video inpoints, exactly two media clips and one approved source-audio, HTML track composition, bad offer suppression, and explicit OWNER_REJECTED/false publication/false AI claims.
+- Current #779 code already physically encodes and QA-checks the independent 30s duplicate path in `hyperframes/ci-smoke.sh`, **stronger than original #735 opt-in** path, and current `feature4_edited_export_qa.py` supports `operation="duplicate"` with distinct encoded replay proof.
+- Source-only; current #779 has stale parent conflicts and still needs source CI/current parent integration/hosted acceptance; original F4-04 IN PROGRESS. No GPU, paid provider, cloud/PROD/WineShopPOS changes.
+
+## Preserved original tracker notes
+> ## 2026-10-30 — F4-04 duplicate-editor encoded QA source (stacked PR #735)
+> - Source-only extension of the existing real Timeline Studio JS `studioDuplicate` → trusted Python compiler → HyperFrames fixture generator, with separate `--edit-mode duplicate` and a fail-closed two-timestamp-per-scene decoded pixel comparison. Frozen/replayed, wrong-duration and mutated-input negative unit tests added. This is not a second generated AI video or approved retailer media.
+> - **Execution gate:** `FEATURE4_DUPLICATE_PARITY_CI=1 bash video-engine/hyperframes/ci-smoke.sh` is required to render and inspect the new actual encoded duplicate MP4. The default 4-job CI runs the new Python tests but deliberately does **not** spend extra CPU encoding time on the opt-in video. Do not mark F4-04 integrated DONE from source or unit tests alone.
+> - Dedicated feature-owned branch `feat/feature4-duplicate-encoded-qa-20261030`, stacked draft [PR #735](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/735) onto existing Feature4 draft PR #322. Coordinator must review and merge to main, then verify fresh main 4/4. The current external ZIP #650 and real approved-media gates remain unchanged. No GPU, paid model, PROD, Supabase SQL or WineShopPOS changes.

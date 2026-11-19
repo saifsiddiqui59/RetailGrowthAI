@@ -59,4 +59,15 @@ def test_public_http_adapter_still_declared_and_jwt_path_not_removed():
     assert {"build_api","dispatch","create_campaign","read_campaign",
             "request_poster_render","select_poster_banner",
             "render_campaign_reel","render_campaign_poster","dispatch_pending_posters"} <= names
-    assert "SupabaseJWTVerifier" in SOURCE.read_text(encoding="utf-8")
+    # The original shared project JWT verifier is now cached for warm Flex
+    # requests: verify the real Function builders use it, rather than looking
+    # for a removed class name string in this module's source text.
+    security_imports = {alias.asname or alias.name
+                        for node in TREE.body if isinstance(node, ast.ImportFrom)
+                        and node.module == "security" for alias in node.names}
+    assert "cached_supabase_verifier" in security_imports
+    for name in ("build_api", "build_feature2_api"):
+        calls = {node.func.id for node in ast.walk(_function(name))
+                 if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
+        assert "cached_supabase_verifier" in calls, name
+        assert "SupabaseJWTVerifier" not in calls, name

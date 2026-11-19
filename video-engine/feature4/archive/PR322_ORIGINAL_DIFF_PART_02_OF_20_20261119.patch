@@ -1,0 +1,1978 @@
+diff --git a/frontend/src/features/video/beat-preview.mjs b/frontend/src/features/video/beat-preview.mjs
+--- a/frontend/src/features/video/beat-preview.mjs
++++ b/frontend/src/features/video/beat-preview.mjs
+@@ -0,0 +1,20 @@
++// Pure UI-only beat-coordinate preview; server must verify beat grid, music rights,
++// shop membership and approved snapshot independently before rendering.
++export function proposedBeatMarkers(draft, musicAssets = []) {
++  if (!draft || draft.mode !== 'music_sync' ||
++      ![15,30,60].includes(draft.duration_seconds) ||
++      !Array.isArray(draft.beats) || draft.beats.length < 2 ||
++      draft.beats.length > 300 || !Array.isArray(musicAssets) ||
++      typeof draft.music_asset_id !== 'string' ||
++      !musicAssets.some(a => a?.authorized === true && a.kind === 'audio' &&
++        a.id === draft.music_asset_id && a.shop_id === draft.shop_id)) return []
++  let previous = -1
++  for (const b of draft.beats) {
++    if (typeof b !== 'number' || !Number.isFinite(b) ||
++        b <= previous || b < 0 || b >= draft.duration_seconds ||
++        b !== Math.round(b * 1000) / 1000) return []
++    previous = b
++  }
++  const stride = Math.ceil(draft.beats.length / 120)
++  return draft.beats.filter((_, i) => i % stride === 0)
++}
+
+diff --git a/frontend/src/features/video/creative-direction-adapter.mjs b/frontend/src/features/video/creative-direction-adapter.mjs
+--- a/frontend/src/features/video/creative-direction-adapter.mjs
++++ b/frontend/src/features/video/creative-direction-adapter.mjs
+@@ -0,0 +1,112 @@
++// Feature #2 controls all creative direction, voice lines, offers and motion briefs.
++// Proposed read-only F2 handoff adapter. No trust is conferred by browser approval.
++import { compatibleMedia, validateVideoDraft } from './video-model.mjs'
++const id = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,100}$/.test(value)
++// Read-only preview of the Feature2-reviewed timed transcript. Server approval
++// and audio provenance MUST be independently verified before a render.
++export function checkedPreviewCaptionCues(cues,duration) {
++  if(cues == null) return []
++  if(!Array.isArray(cues) || cues.length<1 || cues.length>60 ||
++     ![15,30,60].includes(duration)) throw Error('Unsupported approved spoken subtitles')
++  let priorMs=0
++  return cues.map(c=>{
++    if(!c || typeof c!=='object' || Array.isArray(c) ||
++       Object.keys(c).sort().join(',')!=='duration,start,text' ||
++       typeof c.start!=='number' || !Number.isFinite(c.start) ||
++       typeof c.duration!=='number' || !Number.isFinite(c.duration) ||
++       c.start<0 || c.duration<.2 || c.duration>6 ||
++       c.start!==Math.round(c.start*1000)/1000 ||
++       c.duration!==Math.round(c.duration*1000)/1000 ||
++       Math.round(c.start*1000)<priorMs ||
++       Math.round(c.start*1000)+Math.round(c.duration*1000)>duration*1000 ||
++       typeof c.text!=='string' || c.text!==c.text.trim() ||
++       !c.text.length || c.text.length>90 || /[<>\x00-\x1F\x7F]/.test(c.text)) {
++      throw Error('Feature2 spoken subtitle has unsafe or overlapping timecodes')
++    }
++    priorMs=Math.round(c.start*1000)+Math.round(c.duration*1000)
++    return {start:c.start,duration:c.duration,text:c.text}
++  })
++}
++
++export function inspectCreativeDirection(packageData, { shopId, mediaAssets = [], musicAssets = [] } = {}) {
++  if (!packageData || typeof packageData !== 'object' || Array.isArray(packageData) ||
++      packageData.version !== 'creative_direction_v1' ||
++      packageData.source_feature !== 'feature2' || packageData.approved !== true ||
++      packageData.shop_id !== shopId || !id(packageData.approval_id) ||
++      !id(packageData.campaign_id) || ![15, 30, 60].includes(packageData.duration_seconds) ||
++      !Array.isArray(packageData.scenes) || packageData.scenes.length < 1 ||
++      packageData.scenes.length > 12 || !id(packageData.review_hash)) {
++    throw Error('Trusted, versioned Feature #2 creative direction is required')
++  }
++  const creative = packageData.scenes
++  const assets = compatibleMedia('media', mediaAssets, shopId)
++  let position = 0
++  const scenes = creative.map((shot, index) => {
++    const source = assets.find(a => a.id === shot?.asset_id)
++    const overlay = shot?.poster_overlay_asset_id
++    const legalPoster = overlay == null || mediaAssets.some(a =>
++      a.id === overlay && a.shop_id === shopId && a.authorized === true &&
++      a.kind === 'poster' && overlay !== shot.asset_id)
++    const videoSource = source?.kind === 'video'
++    if (!shot || !Number.isFinite(shot.duration) || shot.duration < 0.5 ||
++        typeof shot.headline !== 'string' || !shot.headline.trim() ||
++        shot.headline.length > 110 || typeof shot.asset_id !== 'string' ||
++        !assets.some(a => a.id === shot.asset_id) ||
++        !['fade', 'slide', 'cut'].includes(shot.transition) ||
++        !['subtle_zoom', 'fade', 'slide', 'pop', 'glow'].includes(shot.animation_preset) ||
++        !legalPoster ||
++        (shot.trim_start != null && (!videoSource ||
++          typeof shot.trim_start !== 'number' || !Number.isFinite(shot.trim_start) ||
++          shot.trim_start < 0 || shot.trim_start > 180 ||
++          (typeof source.duration_seconds === 'number' &&
++           source.duration_seconds > 0 && shot.trim_start + shot.duration > source.duration_seconds + .02))) ||
++        (shot.mute_source != null && (!videoSource || typeof shot.mute_source !== 'boolean')) ||
++        (shot.offer != null && (typeof shot.offer !== 'string' || shot.offer.length > 70)) ||
++        (shot.sfx_asset_id != null && !musicAssets.some(track =>
++          track.id === shot.sfx_asset_id && track.shop_id === shopId &&
++          track.authorized === true && track.kind === 'audio'))) {
++      throw Error('Feature #2 scene '+(index + 1)+' needs approved assets and renderable effects')
++    }
++    const s = { start: position, duration: shot.duration, asset_id: shot.asset_id,
++      headline: shot.headline, transition: shot.transition, animation_preset: shot.animation_preset,
++      ...(shot.offer ? { offer: shot.offer } : {}),
++      ...(shot.sfx_asset_id ? { sfx_asset_id: shot.sfx_asset_id } : {}),
++      ...(overlay != null ? { poster_overlay_asset_id: overlay } : {}),
++      ...(shot.trim_start != null ? { trim_start: shot.trim_start } : {}),
++      ...(shot.mute_source != null ? { mute_source: shot.mute_source } : {}) }
++    position = Math.round((position + s.duration) * 1000) / 1000
++    return s
++  })
++  if (Math.abs(position - packageData.duration_seconds) > 0.001 ||
++      typeof packageData.cta !== 'string' || !packageData.cta.trim() ||
++      packageData.cta.length > 110 || !['cinematic','streetwear','festival'].includes(packageData.template) ||
++      (packageData.music_asset_id && !musicAssets.some(a => a.id === packageData.music_asset_id &&
++        a.authorized === true && a.shop_id === shopId && a.kind === 'audio'))) {
++    throw Error('Feature #2 direction has unsupported timeline, CTA or licensed soundtrack')
++  }
++  if (packageData.voiceover_asset_id != null &&
++      !musicAssets.some(a => a.id === packageData.voiceover_asset_id &&
++        a.shop_id === shopId && a.authorized === true && a.kind === 'audio')) {
++    throw Error('Feature #2 narration is not rights-authorized for this shop')
++  }
++  const sourceScript=packageData.script
++  if(sourceScript != null && (sourceScript.source_feature!=='feature2' ||
++      sourceScript.approved!==true || sourceScript.approval_id!==packageData.approval_id)) {
++    throw Error('Feature2 spoken transcript revision is not approved')
++  }
++  const captionCues=checkedPreviewCaptionCues(sourceScript?.transcript,packageData.duration_seconds)
++  if(captionCues.length && !packageData.voiceover_asset_id) {
++    throw Error('Spoken subtitles require reviewed narration media')
++  }
++  const draft = { version: 'rg_video_v2', shop_id: shopId, mode: 'media',
++    template: packageData.template, duration_seconds: packageData.duration_seconds,
++    output: { width: 1080, height: 1920, fps: 30 }, scenes,
++    cta: packageData.cta, music_asset_id: packageData.music_asset_id || null,
++    voiceover_asset_id: packageData.voiceover_asset_id || null }
++  const issues = validateVideoDraft(draft, mediaAssets, musicAssets)
++  if (issues.length) throw Error(issues.join('; '))
++  // Full original package (including camera details and motion prompts) stays
++  // independently persisted by Feature2/coordinator, NEVER in an editable browser draft.
++  return { draft, approvalId: packageData.approval_id, campaignId: packageData.campaign_id,
++    reviewHash: packageData.review_hash, captionCues, readOnly: true }
++}
+
+diff --git a/frontend/src/features/video/frame-seek.mjs b/frontend/src/features/video/frame-seek.mjs
+--- a/frontend/src/features/video/frame-seek.mjs
++++ b/frontend/src/features/video/frame-seek.mjs
+@@ -0,0 +1,20 @@
++// Feature4 timeline-only seek normalization. No draft/media authorization changes.
++// Do not allow malformed UI, beat markers or pointer geometry to poison the
++// React playhead with NaN/Infinity or an out-of-range position.
++export function boundedFrameSeek(requestedSeconds, durationSeconds, fps) {
++  if (!Number.isFinite(requestedSeconds) || !Number.isFinite(durationSeconds) ||
++      durationSeconds <= 0 || (fps !== 24 && fps !== 30)) return null
++  const bounded = Math.min(durationSeconds, Math.max(0, requestedSeconds))
++  return Math.min(durationSeconds, Math.max(0, Math.round(bounded * fps) / fps))
++}
++
++// Scene click navigation must share the same frame boundary as timecode/keyboard.
++// Invalid or out-of-bounds spans are not usable preview positions.
++export function boundedSceneMidpointSeek(startSeconds, sceneDurationSeconds, durationSeconds, fps) {
++  if (!Number.isFinite(startSeconds) || !Number.isFinite(sceneDurationSeconds) ||
++      !Number.isFinite(durationSeconds) || startSeconds < 0 ||
++      sceneDurationSeconds <= 0 || durationSeconds <= 0 ||
++      startSeconds >= durationSeconds ||
++      sceneDurationSeconds > durationSeconds - startSeconds + 1e-6) return null
++  return boundedFrameSeek(startSeconds + sceneDurationSeconds / 2, durationSeconds, fps)
++}
+
+diff --git a/frontend/src/features/video/timeline-studio-bridge.mjs b/frontend/src/features/video/timeline-studio-bridge.mjs
+--- a/frontend/src/features/video/timeline-studio-bridge.mjs
++++ b/frontend/src/features/video/timeline-studio-bridge.mjs
+@@ -0,0 +1,186 @@
++// Tenant-safe bridge: Timeline Studio's real editing primitives -> existing rg_video_v2.
++// Upstream editing engine copyright (c) 2026 MartinDelophy (MIT).
++// This module does not authorize assets, rewrite approved scripts or export media.
++import { getVisualSegmentTimeline, reorderTimelineItems } from './vendor/timeline.js'
++import { splitVisualSegmentState } from './vendor/timelineCut.js'
++import { recalculateScenes, validateVideoDraft } from './video-model.mjs'
++
++function recalc(scenes, duration) {
++  const next = recalculateScenes(scenes)
++  const sum = next.reduce((n, s) => n + s.duration, 0)
++  if (next.length > 12 || next.some(s => !Number.isFinite(s.duration) || s.duration < 0.5) ||
++      Math.abs(sum - duration) > 0.001) throw Error('Timeline edits must preserve the approved 15/30/60 second duration')
++  return next
++}
++export function studioRanges(draft) {
++  return getVisualSegmentTimeline(draft.scenes.map((scene, index) =>
++    ({ id: String(index), duration: scene.duration })))
++}
++export function studioReorder(draft, from, to) {
++  if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 ||
++      to < 0 || from >= draft.scenes.length || to >= draft.scenes.length) throw Error('Invalid clip reorder')
++  return { ...draft, scenes: recalc(reorderTimelineItems(draft.scenes, from, to), draft.duration_seconds) }
++}
++export function studioSplit(draft, index, offset, mediaAssets) {
++  const scene = draft.scenes[index]
++  if (!scene || !Number.isFinite(offset) || offset < 0.5 || scene.duration - offset < 0.5 ||
++      draft.scenes.length >= 12) throw Error('Split requires at least 0.5s per clip and at most 12 clips')
++  const media = (mediaAssets || []).find(a => a.id === scene.asset_id &&
++    a.shop_id === draft.shop_id && a.authorized === true)
++  if (draft.mode !== 'text' && !media) throw Error('Cannot split an unapproved media source')
++  const isVideo = media?.kind === 'video'
++  // HyperFrames places approved scene SFX at the scene's first 0-2 seconds.
++  // Splitting inside that window would change its true export duration, and
++  // copying the SFX to both new clips would cause an unauthorized replay.
++  const fxSeconds = Math.min(2, scene.duration)
++  if (scene.sfx_asset_id != null && offset < fxSeconds - 0.001) {
++    throw Error('Split would cut through the approved 2-second sound effect')
++  }
++  const parts = splitVisualSegmentState({
++    type: isVideo ? 'video' : 'image',
++    sourceStart: isVideo ? (scene.trim_start || 0) : 0,
++    playbackRate: 1, duration: scene.duration,
++  }, offset, scene.duration - offset)
++  // Preserve EXACT approved claim, caption and asset identity in both pieces.
++  const scenes = [ ...draft.scenes.slice(0, index),
++    ...parts.map((part, partIndex) => {
++      const { sfx_asset_id, ...rest } = scene
++      return {
++        ...rest, duration: part.duration,
++        ...(partIndex === 0 && sfx_asset_id != null ? { sfx_asset_id } : {}),
++        ...(isVideo ? { trim_start: part.sourceStart } : {}),
++      }
++    }),
++    ...draft.scenes.slice(index + 1),
++  ]
++  return { ...draft, scenes: recalc(scenes, draft.duration_seconds) }
++}
++// Duplicate the VISUAL content in place by replaying the first half twice.
++// Preserve the fixed 15/30/60s output contract and review-locked offer/copy.
++// A source video intentionally restarts from its approved in-point, rather than
++// pretending source footage exists beyond the authorized media duration.
++export function studioDuplicate(draft, index, mediaAssets = []) {
++  const scene = draft.scenes?.[index]
++  if (!Number.isInteger(index) || !scene || draft.scenes.length >= 12 ||
++      !Number.isFinite(scene.duration) || scene.duration < 1) {
++    throw Error('Duplication needs a clip of at least 1 second and fewer than 12 scenes')
++  }
++  const media = mediaAssets.find(a => a.id === scene.asset_id &&
++    a.shop_id === draft.shop_id && a.authorized === true &&
++    ['image','poster','video'].includes(a.kind))
++  if (draft.mode !== 'text' && !media) throw Error('Cannot duplicate a foreign or unapproved clip')
++  const first = Math.round(scene.duration * 500) / 1000
++  const second = Math.round((scene.duration - first) * 1000) / 1000
++  if (first < .5 || second < .5) throw Error('Duplicate clips must remain at least 0.5 seconds')
++  if (scene.sfx_asset_id != null && first < Math.min(2, scene.duration)) {
++    throw Error('Duplication would truncate an approved 2-second scene sound effect')
++  }
++  const {sfx_asset_id, ...withoutEffect} = scene
++  const copy = { ...withoutEffect, duration: second,
++    ...(media?.kind === 'video' ? {trim_start: scene.trim_start || 0} : {}) }
++  const original = {...scene, duration: first}
++  return { ...draft, scenes: recalc([
++    ...draft.scenes.slice(0,index), original, copy,
++    ...draft.scenes.slice(index+1)
++  ],draft.duration_seconds) }
++}
++
++export function studioTrimPair(draft, index, delta, mediaAssets = []) {
++  if (!Number.isInteger(index) || !Number.isFinite(delta) || index < 0 ||
++      index >= draft.scenes.length - 1) throw Error('Select an internal clip boundary')
++  const a = draft.scenes[index], b = draft.scenes[index + 1]
++  const durationA = Math.round((a.duration + delta) * 1000) / 1000
++  const durationB = Math.round((b.duration - delta) * 1000) / 1000
++  if (durationA < 0.5 || durationB < 0.5) throw Error('Each clip must remain at least 0.5 seconds')
++  // Fixed-gain HyperFrames scene SFX plays for min(2s, scene duration).
++  // Shortening an approved 2s effect to 1s (or extending a shorter effect)
++  // silently changes the sound. Reject the boundary edit, never retime audio.
++  if ((a.sfx_asset_id != null && Math.min(2, a.duration) !== Math.min(2, durationA)) ||
++      (b.sfx_asset_id != null && Math.min(2, b.duration) !== Math.min(2, durationB))) {
++    throw Error('Boundary trim would change an approved scene sound-effect duration')
++  }
++  // Left-hand VIDEO can gain duration: verify the newly exposed frames exist
++  // whenever a trusted/probed source duration is available.
++  const leftMedia = mediaAssets.find(asset => asset.id === a.asset_id &&
++    asset.shop_id === draft.shop_id && asset.authorized === true)
++  if (leftMedia?.kind === 'video' && typeof leftMedia.duration_seconds === 'number' &&
++      Number.isFinite(leftMedia.duration_seconds) && leftMedia.duration_seconds > 0 &&
++      (a.trim_start || 0) + durationA > leftMedia.duration_seconds + 0.02) {
++    throw Error('Boundary trim exceeds verified source video duration')
++  }
++  // A right-hand VIDEO clip must start later in its source if its timeline
++  // start is pushed right. Otherwise moving the boundary silently replays the
++  // original frames and the editor's timing is not reproduced by FFmpeg.
++  const rightMedia = mediaAssets.find(a => a.id === b.asset_id &&
++    a.shop_id === draft.shop_id && a.authorized === true)
++  const isVideo = rightMedia?.kind === 'video' || b.trim_start != null
++  const rightStart = b.trim_start || 0
++  const nextRightStart = Math.round((rightStart + delta) * 1000) / 1000
++  if (isVideo && nextRightStart < 0) {
++    throw Error('Cannot extend video before its source begins')
++  }
++  return { ...draft, scenes: recalc(draft.scenes.map((scene, i) => i === index ?
++    { ...scene, duration: durationA } : i === index + 1 ?
++      { ...scene, duration: durationB,
++        ...(isVideo ? {trim_start:nextRightStart} : {}) } : scene), draft.duration_seconds) }
++}
++export function studioSourceTrim(draft, index, seconds, mediaAssets) {
++  const scene = draft.scenes[index]
++  const source = (mediaAssets || []).find(m => m.id === scene?.asset_id &&
++    m.kind === 'video' && m.shop_id === draft.shop_id && m.authorized === true)
++  if (!source || !Number.isFinite(seconds) || seconds < 0 || seconds > 180) {
++    throw Error('Source trim is only allowed on the current tenant’s approved video')
++  }
++  if (typeof source.duration_seconds === 'number' && Number.isFinite(source.duration_seconds) &&
++      seconds + scene.duration > source.duration_seconds + 0.02) {
++    throw Error('Video trim exceeds verified source length')
++  }
++  return { ...draft, scenes: draft.scenes.map((item, i) =>
++    i === index ? { ...item, trim_start: seconds } : item) }
++}
++// The UI is never the authorizing store. This catches accidental cross-shop
++// preview/edits early; the trusted compiler revalidates all grants at render time.
++export function studioValidatedDraft(draft, mediaAssets, musicAssets) {
++  if (!draft || typeof draft.shop_id !== 'string' || !Array.isArray(draft.scenes)) {
++    throw Error('Missing or invalid tenant timeline')
++  }
++  const media = Array.isArray(mediaAssets) ? mediaAssets : []
++  const music = Array.isArray(musicAssets) ? musicAssets : []
++  const sameShop = (id, records, allowedKinds) => {
++    if (!records.some(a => a.id === id && a.shop_id === draft.shop_id &&
++        a.authorized === true && allowedKinds.includes(a.kind))) {
++      throw Error('Foreign, unlicensed or revoked media cannot enter this timeline')
++    }
++  }
++  for (const scene of draft.scenes) {
++    if (draft.mode !== 'text') {
++      sameShop(scene.asset_id, media, ['image', 'poster', 'video'])
++    }
++    if (scene.poster_overlay_asset_id != null) {
++      sameShop(scene.poster_overlay_asset_id, media, ['poster'])
++    }
++    if (scene.sfx_asset_id != null) {
++      sameShop(scene.sfx_asset_id, music, ['audio'])
++    }
++    if (scene.trim_start != null) {
++      const asset = media.find(a => a.id === scene.asset_id && a.shop_id === draft.shop_id)
++      if (!asset || asset.kind !== 'video' || typeof scene.trim_start !== 'number' ||
++          !Number.isFinite(scene.trim_start) || scene.trim_start < 0 ||
++          scene.trim_start > 180) throw Error('Invalid approved video trim')
++    }
++    const asset = media.find(a => a.id === scene.asset_id && a.shop_id === draft.shop_id)
++    const duration = asset?.duration_seconds
++    // Duration is server-probed media metadata, when available. A missing value
++    // is NOT interpreted as unlimited footage: final worker probes the source.
++    if (asset?.kind === 'video' && typeof duration === 'number' &&
++        Number.isFinite(duration) && duration > 0 &&
++        (scene.trim_start || 0) + scene.duration > duration + 0.02) {
++      throw Error('Video trim exceeds verified source length')
++    }
++  }
++  if (draft.music_asset_id != null) sameShop(draft.music_asset_id, music, ['audio'])
++  if (draft.voiceover_asset_id != null) sameShop(draft.voiceover_asset_id, music, ['audio'])
++  const issues = validateVideoDraft(draft, mediaAssets, musicAssets)
++  if (issues.length) throw Error(issues.join('; '))
++  return draft
++}
+
+diff --git a/frontend/src/features/video/vendor/LICENSE b/frontend/src/features/video/vendor/LICENSE
+--- a/frontend/src/features/video/vendor/LICENSE
++++ b/frontend/src/features/video/vendor/LICENSE
+@@ -0,0 +1,14 @@
++MIT License
++
++Copyright (c) 2026 MartinDelophy
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+diff --git a/frontend/src/features/video/vendor/TimelineClips.jsx b/frontend/src/features/video/vendor/TimelineClips.jsx
+--- a/frontend/src/features/video/vendor/TimelineClips.jsx
++++ b/frontend/src/features/video/vendor/TimelineClips.jsx
+@@ -0,0 +1,89 @@
++import { TimelineGain } from "./TimelineGain.jsx";
++import { memo } from "react";
++import { formatCompactDuration, formatTime } from "./timeline.js";
++import { WaveformStrip } from "./WaveformStrip.jsx";
++
++// Geometry/selection changes rerender the affected clip. Playback ticks keep
++// the clip subtree intact; pointer actions always read the latest parent
++// handlers so memoization cannot retain an old selection, lock or seek state.
++export const TimelineAudioClip = memo(function TimelineAudioClip({
++  segment,
++  laneIndex,
++  timelineDuration,
++  selected,
++  rangeSelected,
++  waveformVisible,
++  gainDisabled,
++  hideGain = false,
++  t,
++  handlersRef,
++}) {
++  const left = timelineDuration > 0 ? (segment.start / timelineDuration) * 100 : 0;
++  const width = timelineDuration > 0 ? (segment.duration / timelineDuration) * 100 : 0;
++  return (
++    <div
++      className={`audio-clip ${segment.sourceKind === "video-source" ? "is-video-source" : ""} ${selected ? "is-selected" : ""}`}
++      data-timeline-segment-track="audio"
++      data-timeline-segment-id={segment.id}
++      data-range-selected={rangeSelected || undefined}
++      style={{ left: `${left}%`, width: `${width}%` }}
++      onPointerDown={(event) => handlersRef.current.startAudioSegmentMove(event, segment.id, laneIndex)}
++      onContextMenu={(event) => handlersRef.current.showTrackContextMenu(event, "audio", segment.id)}
++      onClick={(event) => handlersRef.current.selectAudioClip(event, segment.id)}
++    >
++      {waveformVisible ? <WaveformStrip peaks={segment.peaks} volume={segment.volume ?? 1} timeline active /> : null}
++      {!hideGain && <TimelineGain volume={segment.volume ?? 1} disabled={gainDisabled} t={t} onChange={(volume) => handlersRef.current.setAudioSegments((items) => items.map((item) => item.id === segment.id ? { ...item, volume } : item))} />}
++      <span className="audio-clip-duration" data-compact-duration={formatCompactDuration(segment.duration)}>{formatTime(segment.duration)}</span>
++    </div>
++  );
++});
++
++export const TimelineCaptionClip = memo(function TimelineCaptionClip({
++  segment,
++  index,
++  laneIndex,
++  start,
++  duration,
++  timelineDuration,
++  current,
++  selected,
++  dragging,
++  reorderTarget,
++  rangeSelected,
++  placeholder,
++  handlersRef,
++}) {
++  const left = start !== undefined && timelineDuration > 0
++    ? Math.max(0, Math.min(100, (start / timelineDuration) * 100))
++    : 0;
++  const width = timelineDuration > 0
++    ? Math.max(0.01, Math.min(100, (duration / timelineDuration) * 100))
++    : 0;
++  return (
++    <button
++      type="button"
++      className={`caption-segment ${current ? "is-current" : ""} ${selected ? "is-selected-segment" : ""} ${segment.hidden ? "is-hidden" : ""} ${dragging ? "is-reorder-dragging" : ""} ${reorderTarget ? "is-reorder-target" : ""}`}
++      data-timeline-segment-track="caption"
++      data-timeline-segment-index={index}
++      data-timeline-segment-id={segment.id}
++      data-range-selected={rangeSelected || undefined}
++      data-placeholder={placeholder}
++      style={{ "--caption-left": `${left}%`, "--caption-width": `${width}%` }}
++      onPointerDown={(event) => handlersRef.current.startTimelineClipDrag(event, "caption", segment.id, index)}
++      onContextMenu={(event) => handlersRef.current.showTrackContextMenu(event, "caption", segment.id, `caption-${laneIndex}`)}
++      onClick={(event) => handlersRef.current.selectCaptionClip(event, segment.id, index, start)}
++    >
++      <span
++        className="caption-resize-handle is-start"
++        aria-hidden="true"
++        onPointerDown={(event) => handlersRef.current.startCaptionResize(event, segment.id, index, "start")}
++      />
++      <span className="caption-segment-label">{segment.text}</span>
++      <span
++        className="caption-resize-handle is-end"
++        aria-hidden="true"
++        onPointerDown={(event) => handlersRef.current.startCaptionResize(event, segment.id, index, "end")}
++      />
++    </button>
++  );
++});
+
+diff --git a/frontend/src/features/video/vendor/TimelineGain.css b/frontend/src/features/video/vendor/TimelineGain.css
+--- a/frontend/src/features/video/vendor/TimelineGain.css
++++ b/frontend/src/features/video/vendor/TimelineGain.css
+@@ -0,0 +1,10 @@
++.audio-clip .timeline-gain {
++  position: absolute; left: 7px; right: 7px; height: 16px;
++  transform: translateY(-50%); z-index: 3; cursor: ns-resize;
++  touch-action: none; outline: none;
++}
++.timeline-gain::before { content: ""; position: absolute; left: 0; right: 0; top: 7px; height: 2px; background: rgb(255 255 255 / 65%); box-shadow: 0 1px 2px #0008; }
++.timeline-gain:hover::before, .timeline-gain:focus-visible::before, .timeline-gain.is-adjusting::before { background: #67e8f9; box-shadow: 0 0 4px #22d3ee; }
++.timeline-gain[aria-disabled="true"] { pointer-events: none; opacity: .35; }
++
++.timeline-gain-tooltip { position: fixed; z-index: 100000; transform: translateX(-50%); padding: 3px 6px; border: 1px solid #3c6f79; border-radius: 5px; background: #10252f; color: #e5fcff; font-size: 11px; line-height: 16px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; pointer-events: none; box-shadow: 0 2px 8px #0005; }
+
+diff --git a/frontend/src/features/video/vendor/TimelineGain.jsx b/frontend/src/features/video/vendor/TimelineGain.jsx
+--- a/frontend/src/features/video/vendor/TimelineGain.jsx
++++ b/frontend/src/features/video/vendor/TimelineGain.jsx
+@@ -0,0 +1,82 @@
++import { useRef, useState } from "react";
++import { createPortal } from "react-dom";
++import "./TimelineGain.css";
++
++const MIN_DB = -60;
++const MAX_DB = 20 * Math.log10(4);
++const toDb = (gain) => gain > 0 ? Math.max(MIN_DB, Math.min(MAX_DB, 20 * Math.log10(gain))) : MIN_DB;
++const toGain = (db) => db <= MIN_DB ? 0 : Math.min(4, 10 ** (db / 20));
++
++// Edits the existing linear gain, shared by project persistence, preview and export.
++export function TimelineGain({ volume = 1, disabled, onChange, t, compact = false }) {
++  const drag = useRef(null);
++  const [active, setActive] = useState(false);
++  const [hovered, setHovered] = useState(false);
++  const [focused, setFocused] = useState(false);
++  const [anchor, setAnchor] = useState({ x: 0, y: 0 });
++  const locate = (event) => {
++    const rect = event.currentTarget.getBoundingClientRect();
++    setAnchor({ x: Math.max(40, Math.min(window.innerWidth - 40, event.clientX ?? (rect.left + rect.right) / 2)), y: Math.max(8, rect.top - 25) });
++  };
++  const db = toDb(volume);
++  // Reserve most of the rail above unity for boosting; keep attenuation below it.
++  const unityPosition = 65;
++  const linePosition = db >= 0
++    ? unityPosition - (db / MAX_DB) * (unityPosition - (compact ? 8 : 18))
++    : unityPosition + (db / MIN_DB) * ((compact ? 80 : 82) - unityPosition);
++  const label = volume <= 0 ? "−∞ dB" : `${db > 0 ? "+" : ""}${db.toFixed(1)} dB`;
++  const finish = (event, cancel = false) => {
++    if (!drag.current || event.pointerId !== drag.current.id) return;
++    const original = drag.current.volume;
++    drag.current = null;
++    setActive(false);
++    if (cancel) onChange(original);
++    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
++  };
++  return <><div
++    className={`timeline-gain ${active ? "is-adjusting" : ""}`}
++    style={{ top: `${linePosition}%` }}
++    role="slider" tabIndex={disabled ? -1 : 0} aria-disabled={disabled}
++    aria-label={t("timelineGain")} aria-valuemin={MIN_DB} aria-valuemax={MAX_DB}
++    aria-valuenow={db} aria-valuetext={label} aria-orientation="vertical"
++    aria-description={t("timelineGainHint")}
++    onPointerEnter={(event) => { locate(event); setHovered(true); }}
++    onPointerLeave={() => setHovered(false)}
++    onFocus={(event) => { locate(event); setFocused(true); }}
++    onBlur={() => setFocused(false)}
++    onClick={(event) => event.stopPropagation()}
++    onDoubleClick={(event) => { event.stopPropagation(); if (!disabled) onChange(1); }}
++    onPointerDown={(event) => {
++      event.stopPropagation();
++      if (disabled || event.button !== 0) return;
++      event.preventDefault();
++      event.currentTarget.focus({ preventScroll: true });
++      event.currentTarget.setPointerCapture(event.pointerId);
++      drag.current = { id: event.pointerId, y: event.clientY, db, volume };
++      setActive(true);
++    }}
++    onPointerMove={(event) => {
++      locate(event);
++      if (!drag.current || event.pointerId !== drag.current.id || disabled) return;
++      event.stopPropagation();
++      const next = Math.max(MIN_DB, Math.min(MAX_DB, drag.current.db + (drag.current.y - event.clientY) * 0.25));
++      onChange(toGain(Math.abs(next) < 0.2 ? 0 : next));
++    }}
++    onPointerUp={(event) => finish(event)}
++    onPointerCancel={(event) => finish(event, true)}
++    onLostPointerCapture={(event) => finish(event, true)}
++    onKeyDown={(event) => {
++      if (!["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "Escape"].includes(event.key)) return;
++      event.stopPropagation(); event.preventDefault();
++      if (disabled) return;
++      if (event.key === "Escape") {
++        if (drag.current) { onChange(drag.current.volume); drag.current = null; setActive(false); }
++        return;
++      }
++      const step = event.shiftKey ? 0.1 : 1;
++      onChange(event.key === "Home" ? 1 : event.key === "End" ? 0 : toGain(Math.max(MIN_DB, Math.min(MAX_DB, db + (["ArrowUp", "ArrowRight"].includes(event.key) ? step : -step)))));
++    }}
++  />{!disabled && (hovered || focused || active) ? createPortal(
++    <div className="timeline-gain-tooltip" style={{ left: anchor.x, top: anchor.y }}>{label}</div>, document.body,
++  ) : null}</>;
++}
+
+diff --git a/frontend/src/features/video/vendor/WaveformStrip.jsx b/frontend/src/features/video/vendor/WaveformStrip.jsx
+--- a/frontend/src/features/video/vendor/WaveformStrip.jsx
++++ b/frontend/src/features/video/vendor/WaveformStrip.jsx
+@@ -0,0 +1,9 @@
++import { memo } from 'react'
++// Timeline Studio's WaveformStrip had deep model/audio-canvas dependencies.
++// Feature4 only renders a static preview of already authorized metadata;
++// it does not synthesize audio or present a fake waveform.
++export const WaveformStrip = memo(function WaveformStrip({ peaks }) {
++  return <div className="f4-vendor-waveform" aria-hidden="true">{Array.isArray(peaks) && peaks.length
++    ? peaks.slice(0, 48).map((n, i) => <i key={i} style={{ height: (Math.max(0.08, Math.min(1, Number(n) || 0)) * 100) + '%' }} />)
++    : <span>Audio analysis unavailable</span>}</div>
++})
+
+diff --git a/frontend/src/features/video/vendor/editorConfig.js b/frontend/src/features/video/vendor/editorConfig.js
+--- a/frontend/src/features/video/vendor/editorConfig.js
++++ b/frontend/src/features/video/vendor/editorConfig.js
+@@ -0,0 +1,9 @@
++// Adapted numeric constants from MartinDelophy/ai-video-editor@e1091feccca3be8832b507eb7e17c9e55eb2233a (MIT)
++export const DEFAULT_TIMELINE_DURATION_SECONDS = 10;
++export const MAX_TIMELINE_DURATION_SECONDS = 24 * 60 * 60;
++export const IMAGE_SEGMENT_SECONDS = 2;
++export const MIN_VISUAL_SEGMENT_SECONDS = 0.05;
++export const MIN_CAPTION_SEGMENT_SECONDS = 1.2;
++export const MAX_CAPTION_SEGMENT_SECONDS = 12;
++export const MAX_IMAGE_THUMBNAILS = 80;
++export const DEFAULT_STICKER_SEGMENT_SECONDS = 3;
+
+diff --git a/frontend/src/features/video/vendor/editorHistoryCore.mjs b/frontend/src/features/video/vendor/editorHistoryCore.mjs
+--- a/frontend/src/features/video/vendor/editorHistoryCore.mjs
++++ b/frontend/src/features/video/vendor/editorHistoryCore.mjs
+@@ -0,0 +1,40 @@
++export function createEditorHistory(initial) {
++  return { past: [], current: initial, future: [] };
++}
++
++export function pushEditorHistory(
++  history,
++  next, limit = 50,
++) {
++  // The adapted upstream editor keeps snapshots in memory. Invalid limits
++  // (NaN/Infinity) must never silently disable the bound during long edits.
++  const safeLimit = Number.isFinite(limit)
++    ? Math.min(50, Math.max(1, Math.floor(limit))) : 50;
++  return {
++    past: [...history.past, history.current].slice(-safeLimit),
++    current: next,
++    future: [],
++  };
++}
++
++export function undoEditorHistory(history) {
++  const previous = history.past.at(-1);
++  if (previous === undefined) return { history, value: history.current, changed: false };
++  const nextHistory = {
++    past: history.past.slice(0, -1),
++    current: previous,
++    future: [history.current, ...history.future],
++  };
++  return { history: nextHistory, value: previous, changed: true };
++}
++
++export function redoEditorHistory(history) {
++  const next = history.future[0];
++  if (next === undefined) return { history, value: history.current, changed: false };
++  const nextHistory = {
++    past: [...history.past, history.current],
++    current: next,
++    future: history.future.slice(1),
++  };
++  return { history: nextHistory, value: next, changed: true };
++}
+
+diff --git a/frontend/src/features/video/vendor/openreel/FrameTimecodeInput.jsx b/frontend/src/features/video/vendor/openreel/FrameTimecodeInput.jsx
+--- a/frontend/src/features/video/vendor/openreel/FrameTimecodeInput.jsx
++++ b/frontend/src/features/video/vendor/openreel/FrameTimecodeInput.jsx
+@@ -0,0 +1,58 @@
++/* Adapted from OpenReel apps/web/src/components/editor/PreviewTimecode.tsx
++ * 367d7e90b61b5181f9861b852bb8b9d7a7d2954a, MIT © 2024–2026 Augustus Otu and Contributors.
++ * No OpenReel stores, credentials, storage, export or auth are imported.
++ */
++import { useId, useRef, useState } from 'react'
++import { formatFrameTimecode, parseFrameTimecode } from './frame-timecode.mjs'
++import { stepEditingFrame } from './editing-frame-rate.mjs'
++
++export function FrameTimecodeInput({ position, duration, frameRate, onSeek }) {
++  const id = useId()
++  const [editing, setEditing] = useState(false)
++  const [draft, setDraft] = useState('')
++  const [error, setError] = useState(false)
++  const cancel = useRef(false)
++  const seek = seconds => onSeek(Math.min(duration, Math.max(0, seconds)))
++  return <div className="f4-frame-timecode">
++    <input aria-label="Playhead timecode" aria-describedby={id}
++      title={`Go to a frame · ${frameRate} fps · HH:MM:SS:FF (non-drop-frame); seconds accepted`}
++      value={editing ? draft : formatFrameTimecode(position, frameRate)}
++      aria-invalid={error} spellCheck={false}
++      onFocus={() => {
++        cancel.current = false
++        setError(false)
++        setDraft(formatFrameTimecode(position, frameRate))
++        setEditing(true)
++      }}
++      onChange={event => { setDraft(event.currentTarget.value); setError(false) }}
++      onBlur={() => {
++        setEditing(false)
++        if (cancel.current) { cancel.current = false; return }
++        const time = parseFrameTimecode(draft, frameRate)
++        if (time === null) { setError(true); return }
++        seek(time)
++      }}
++      onKeyDown={event => {
++        if (event.key === 'Enter') { event.preventDefault(); event.currentTarget.blur() }
++        else if (event.key === 'Escape') {
++          event.preventDefault()
++          cancel.current = true
++          setError(false)
++          event.currentTarget.blur()
++        } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
++          event.preventDefault()
++          const direction = event.key === 'ArrowUp' ? 1 : -1
++          let time = parseFrameTimecode(draft, frameRate) ?? position
++          for (let count = 0; count < (event.shiftKey ? 10 : 1); count++)
++            time = stepEditingFrame(time, direction, frameRate)
++          time = Math.min(duration, time)
++          setDraft(formatFrameTimecode(time, frameRate))
++          seek(time)
++        }
++      }} />
++    <span aria-hidden="true">/</span>
++    <output aria-label="Project duration">{formatFrameTimecode(duration, frameRate)}</output>
++    <span id={id} className="f4-sr-only">Enter HH:MM:SS:FF or seconds. Up/down move one frame; Shift moves ten.</span>
++    {error && <span role="alert" className="f4-frame-error">Enter valid HH:MM:SS:FF or seconds, such as 12.5.</span>}
++  </div>
++}
+
+diff --git a/frontend/src/features/video/vendor/openreel/LICENSE b/frontend/src/features/video/vendor/openreel/LICENSE
+--- a/frontend/src/features/video/vendor/openreel/LICENSE
++++ b/frontend/src/features/video/vendor/openreel/LICENSE
+@@ -0,0 +1,21 @@
++MIT License
++
++Copyright (c) 2024-2026 Augustus Otu and Contributors
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the "Software"), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
+
+diff --git a/frontend/src/features/video/vendor/openreel/clip-snap.mjs b/frontend/src/features/video/vendor/openreel/clip-snap.mjs
+--- a/frontend/src/features/video/vendor/openreel/clip-snap.mjs
++++ b/frontend/src/features/video/vendor/openreel/clip-snap.mjs
+@@ -0,0 +1,61 @@
++// Extracted from augani/openreel-video/packages/core/src/timeline/clip-manager.ts
++// Pinned 367d7e90b61b5181f9861b852bb8b9d7a7d2954a; MIT © 2024-2026 Augustus Otu and Contributors.
++// Original ClipManager.snapToGrid, with TS syntax removed. No action executor.
++export class OpenReelClipSnapper {
++  constructor({ snapToGridEnabled = true, gridSize = 1, snapThreshold = 8 } = {}) {
++    this.snapToGridEnabled = snapToGridEnabled
++    this.gridSize = gridSize
++    this.snapThreshold = snapThreshold
++  }
++  snapToGrid(time, timeline, trackId, pixelsPerSecond, excludeClipId) {
++    if (!this.snapToGridEnabled) {
++      return { snappedTime: time, didSnap: false };
++    }
++    const timeThreshold = this.snapThreshold / pixelsPerSecond;
++
++    let closestSnap = time;
++    let closestDistance = Infinity;
++    let snapTarget = undefined;
++
++    // Snap to grid lines
++    const gridSnap = Math.round(time / this.gridSize) * this.gridSize;
++    const gridDistance = Math.abs(time - gridSnap);
++    if (gridDistance < timeThreshold && gridDistance < closestDistance) {
++      closestSnap = gridSnap;
++      closestDistance = gridDistance;
++      snapTarget = "grid";
++    }
++
++    // Snap to clip boundaries on the same track
++    const track = timeline.tracks.find((t) => t.id === trackId);
++    if (track) {
++      for (const clip of track.clips) {
++        if (clip.id === excludeClipId) continue;
++
++        // Snap to clip start
++        const startDistance = Math.abs(time - clip.startTime);
++        if (startDistance < timeThreshold && startDistance < closestDistance) {
++          closestSnap = clip.startTime;
++          closestDistance = startDistance;
++          snapTarget = "clip-start";
++        }
++
++        // Snap to clip end
++        const clipEnd = clip.startTime + clip.duration;
++        const endDistance = Math.abs(time - clipEnd);
++        if (endDistance < timeThreshold && endDistance < closestDistance) {
++          closestSnap = clipEnd;
++          closestDistance = endDistance;
++          snapTarget = "clip-end";
++        }
++      }
++    }
++
++    return {
++      snappedTime: closestSnap,
++      didSnap: closestDistance < timeThreshold,
++      snapTarget,
++    };
++  }
++
++}
+
+diff --git a/frontend/src/features/video/vendor/openreel/editing-frame-rate.mjs b/frontend/src/features/video/vendor/openreel/editing-frame-rate.mjs
+--- a/frontend/src/features/video/vendor/openreel/editing-frame-rate.mjs
++++ b/frontend/src/features/video/vendor/openreel/editing-frame-rate.mjs
+@@ -0,0 +1,44 @@
++// Port of augani/openreel-video@367d7e90b61b5181f9861b852bb8b9d7a7d2954a
++// MIT © 2024–2026 Augustus Otu and Contributors; vendor/openreel/LICENSE.
++export const DEFAULT_EDITING_FRAME_RATE = 30;
++
++export const EDITING_FRAME_RATE_OPTIONS = [
++  { value: 23.976, label: "23.976 fps" },
++  { value: 24, label: "24 fps" },
++  { value: 25, label: "25 fps" },
++  { value: 29.97, label: "29.97 fps" },
++  { value: 30, label: "30 fps" },
++  { value: 50, label: "50 fps" },
++  { value: 59.94, label: "59.94 fps" },
++  { value: 60, label: "60 fps" },
++];
++
++export function normalizeEditingFrameRate(frameRate) {
++  if (!Number.isFinite(frameRate) || frameRate <= 0) {
++    return DEFAULT_EDITING_FRAME_RATE;
++  }
++  return Math.min(240, frameRate);
++}
++
++export function editingFrameDurationMs(frameRate) {
++  return 1000 / normalizeEditingFrameRate(frameRate);
++}
++
++export function editingFrameStepSeconds(frameRate) {
++  return 1 / normalizeEditingFrameRate(frameRate);
++}
++
++/** Move to an adjacent frame boundary, including after a fractional-time seek. */
++export function stepEditingFrame(
++  position,
++  direction,
++  frameRate,
++) {
++  const rate = normalizeEditingFrameRate(frameRate);
++  const frame = Math.max(0, Number.isFinite(position) ? position : 0) * rate;
++  // Tolerate floating point error when an existing seek is exactly on a frame.
++  const next = direction === 1
++    ? Math.floor(frame + 1e-7) + 1
++    : Math.ceil(frame - 1e-7) - 1;
++  return Math.max(0, next / rate);
++}
+
+diff --git a/frontend/src/features/video/vendor/openreel/frame-timecode.mjs b/frontend/src/features/video/vendor/openreel/frame-timecode.mjs
+--- a/frontend/src/features/video/vendor/openreel/frame-timecode.mjs
++++ b/frontend/src/features/video/vendor/openreel/frame-timecode.mjs
+@@ -0,0 +1,32 @@
++// Port of augani/openreel-video@367d7e90b61b5181f9861b852bb8b9d7a7d2954a
++// MIT © 2024–2026 Augustus Otu and Contributors; vendor/openreel/LICENSE.
++import { normalizeEditingFrameRate } from "./editing-frame-rate.mjs";
++
++/** Non-drop-frame labels count frames, including at fractional project rates. */
++export function formatFrameTimecode(seconds, frameRate) {
++  const rate = normalizeEditingFrameRate(frameRate);
++  const nominal = Math.max(1, Math.round(rate));
++  const total = Math.max(0, Math.round((Number.isFinite(seconds) ? seconds : 0) * rate));
++  const frames = total % nominal;
++  const whole = Math.floor(total / nominal);
++  return [Math.floor(whole / 3600), Math.floor(whole / 60) % 60, whole % 60, frames]
++    .map((value, index) => String(value).padStart(index === 3 && nominal > 100 ? 3 : 2, "0")).join(":");
++}
++
++/** Accept HH:MM:SS:FF, MM:SS:FF, MM:SS, or a number of seconds. */
++export function parseFrameTimecode(value, frameRate) {
++  const rate = normalizeEditingFrameRate(frameRate);
++  const parts = value.trim().split(":");
++  let frames;
++  if (parts.length === 1 && /^\d+(?:\.\d+)?$/.test(parts[0])) {
++    frames = Math.round(Number(parts[0]) * rate);
++  } else if (parts.length === 2 && /^\d+$/.test(parts[0]) && /^\d{1,2}(?:\.\d+)?$/.test(parts[1]) && Number(parts[1]) < 60) {
++    frames = Math.round((Number(parts[0]) * 60 + Number(parts[1])) * rate);
++  } else if ((parts.length === 3 || parts.length === 4) && parts.every((part) => /^\d+$/.test(part))) {
++    const nominal = Math.max(1, Math.round(rate));
++    const [hours, minutes, seconds, frame] = parts.length === 4 ? parts.map(Number) : [0, ...parts.map(Number)];
++    if (seconds >= 60 || frame >= nominal || (parts.length === 4 && minutes >= 60)) return null;
++    frames = ((hours * 60 + minutes) * 60 + seconds) * nominal + frame;
++  } else return null;
++  return Number.isSafeInteger(frames) && frames >= 0 ? frames / rate : null;
++}
+
+diff --git a/frontend/src/features/video/vendor/openreel/timeline-item-actions.mjs b/frontend/src/features/video/vendor/openreel/timeline-item-actions.mjs
+--- a/frontend/src/features/video/vendor/openreel/timeline-item-actions.mjs
++++ b/frontend/src/features/video/vendor/openreel/timeline-item-actions.mjs
+@@ -0,0 +1,70 @@
++// Copied functional subset from augani/openreel-video/apps/web/src/utils/timeline-item-actions.ts
++// Pinned 367d7e90b61b5181f9861b852bb8b9d7a7d2954a; MIT © 2024-2026 Augustus Otu and Contributors.
++// Removed TypeScript types and store-mutating handlers. Pure track/clip selection only.
++export function getTimelineItemRanges(project) {
++  const items = [];
++
++  for (const track of project.timeline.tracks) {
++    for (const clip of track.clips) {
++      items.push({
++        id: clip.id,
++        trackId: track.id,
++        startTime: clip.startTime,
++        duration: clip.duration,
++        kind: "media",
++      });
++    }
++  }
++
++  const append = (clips, kind) => {
++    for (const clip of clips ?? []) {
++      items.push({ ...clip, kind });
++    }
++  };
++
++  append(project.textClips, "text");
++  append(project.shapeClips, "shape");
++  append(project.svgClips, "svg");
++  append(project.stickerClips, "sticker");
++
++  return items;
++}
++
++export function getSplittableTimelineItemIds(
++  project, selectedIds, time) {
++  const selected = new Set(selectedIds);
++  return getTimelineItemRanges(project)
++    .filter(
++      (item) =>
++        selected.has(item.id) &&
++        time > item.startTime &&
++        time < item.startTime + item.duration,
++    )
++    .map((item) => item.id);
++}
++
++export function getTimelineSelectionItems(project) {
++  return getTimelineItemRanges(project).map(toSelectionItem);
++}
++
++/** Select every media or overlay clip assigned to one timeline track. */
++export function getTimelineTrackSelection(
++  project, trackId) {
++  return getTimelineItemRanges(project)
++    .filter((item) => item.trackId === trackId)
++    .sort((left, right) =>
++      left.startTime === right.startTime
++        ? left.id.localeCompare(right.id)
++        : left.startTime - right.startTime,
++    )
++    .map(toSelectionItem);
++}
++
++function toSelectionItem(item) {
++  return {
++    id: item.id,
++    trackId: item.trackId,
++    type: item.kind === "media" ? "clip" : item.kind === "text" ? "text-clip" : "shape-clip",
++  };
++}
++
+
+diff --git a/frontend/src/features/video/vendor/projectTrackState.js b/frontend/src/features/video/vendor/projectTrackState.js
+--- a/frontend/src/features/video/vendor/projectTrackState.js
++++ b/frontend/src/features/video/vendor/projectTrackState.js
+@@ -0,0 +1,31 @@
++export const DEFAULT_TRACK_VISIBILITY = Object.freeze({
++  image: true,
++  overlay: true,
++  caption: true,
++  sticker: true,
++  source: true,
++  audio: true,
++  music: true,
++});
++
++export const DEFAULT_TRACK_LOCKS = Object.freeze({
++  image: false,
++  overlay: false,
++  caption: false,
++  sticker: false,
++  source: false,
++  audio: false,
++  music: false,
++});
++
++function isTrackState(value) {
++  return value && typeof value === "object" && !Array.isArray(value);
++}
++
++export function normalizeTrackVisibility(value) {
++  return { ...DEFAULT_TRACK_VISIBILITY, ...(isTrackState(value) ? value : {}) };
++}
++
++export function normalizeTrackLocks(value) {
++  return { ...DEFAULT_TRACK_LOCKS, ...(isTrackState(value) ? value : {}) };
++}
+
+diff --git a/frontend/src/features/video/vendor/timeline.js b/frontend/src/features/video/vendor/timeline.js
+--- a/frontend/src/features/video/vendor/timeline.js
++++ b/frontend/src/features/video/vendor/timeline.js
+@@ -0,0 +1,489 @@
++import {
++  DEFAULT_STICKER_SEGMENT_SECONDS,
++  MAX_CAPTION_SEGMENT_SECONDS,
++  MAX_IMAGE_THUMBNAILS,
++  MAX_TIMELINE_DURATION_SECONDS,
++  MIN_CAPTION_SEGMENT_SECONDS,
++  MIN_VISUAL_SEGMENT_SECONDS,
++  IMAGE_SEGMENT_SECONDS,
++} from "./editorConfig.js";
++
++const MIN_TIMED_CAPTION_SECONDS = 0.2;
++
++export function makeId(prefix) {
++  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
++}
++
++export function ensureUniqueVisualSegmentIds(segments = []) {
++  const seen = new Set();
++  let changed = false;
++  const normalized = segments.map((segment) => {
++    let id = typeof segment?.id === "string" ? segment.id.trim() : "";
++    if (!id || seen.has(id)) {
++      id = makeId("visual");
++      changed = true;
++    }
++    seen.add(id);
++    return id === segment.id ? segment : { ...segment, id };
++  });
++  return { changed, segments: normalized };
++}
++
++function cloneVisualSegmentValue(value) {
++  if (Array.isArray(value)) {
++    return value.map(cloneVisualSegmentValue);
++  }
++  if (!value || typeof value !== "object") {
++    return value;
++  }
++  const prototype = Object.getPrototypeOf(value);
++  if (prototype !== Object.prototype && prototype !== null) {
++    return value;
++  }
++  return Object.fromEntries(
++    Object.entries(value).map(([key, nestedValue]) => [key, cloneVisualSegmentValue(nestedValue)]),
++  );
++}
++
++export function cloneVisualSegment(segment, overrides = {}) {
++  return {
++    ...cloneVisualSegmentValue(segment),
++    ...cloneVisualSegmentValue(overrides),
++  };
++}
++
++export function getImageThumbnailCount(duration) {
++  return Math.min(
++    MAX_IMAGE_THUMBNAILS,
++    Math.max(1, Math.ceil(duration / IMAGE_SEGMENT_SECONDS)),
++  );
++}
++
++export function getVisualAssetPayload(asset) {
++  if (!asset) {
++    return {};
++  }
++
++  return {
++    assetId: asset.assetId ?? asset.id ?? "",
++    type: asset.type ?? "image",
++    src: asset.src ?? "",
++    thumbnail: asset.thumbnail ?? "",
++    originalSrc: asset.originalSrc ?? "",
++    name: asset.name ?? "",
++    meta: asset.meta ?? "",
++    blob: asset.blob ?? null,
++    projectMedia: asset.projectMedia ?? undefined,
++    compatibilityAudioBlob: asset.compatibilityAudioBlob ?? null,
++    volume: Math.max(0, Math.min(4, Number(asset.volume ?? 1))),
++    spatialEffect: asset.spatialEffect ?? "original",
++    spatialAmount: asset.spatialAmount ?? 1,
++    audioSeparated: asset.audioSeparated === true,
++    width: asset.width ?? asset.naturalWidth ?? 0,
++    height: asset.height ?? asset.naturalHeight ?? 0,
++    sourceStart: Math.max(0, Number(asset.sourceStart) || 0),
++    sourceDuration: Math.max(0, Number(asset.sourceDuration ?? asset.duration) || 0),
++    playbackRate: Math.max(0.25, Math.min(4, Number(asset.playbackRate) || 1)),
++    trackFrames: Array.isArray(asset.trackFrames) ? asset.trackFrames : [],
++    trackFrameSampling: asset.trackFrameSampling ?? "",
++    trackFrameDuration: Math.max(
++      0,
++      Number(asset.trackFrameDuration ?? asset.sourceDuration ?? asset.duration) || 0,
++    ),
++    generatedBy: asset.generatedBy ?? "",
++    generationMetadata: asset.generationMetadata ? { ...asset.generationMetadata } : undefined,
++    kind: asset.kind ?? "",
++    vectorBody: asset.vectorBody ?? "",
++    vectorBackground: asset.vectorBackground ?? "",
++    vectorColorSlots: asset.vectorColorSlots ? {
++      primary: [...(asset.vectorColorSlots.primary || [])],
++      secondary: [...(asset.vectorColorSlots.secondary || [])],
++      accent: [...(asset.vectorColorSlots.accent || [])],
++    } : undefined,
++    vectorDesign: asset.vectorDesign ? { ...asset.vectorDesign } : undefined,
++    preparing: Boolean(asset.preparing),
++    prepareStage: asset.prepareStage === "download" ? "download" : asset.prepareStage === "prepare" ? "prepare" : "",
++    prepareProgress: Math.max(0, Math.min(1, Number(asset.prepareProgress) || 0)),
++  };
++}
++
++export function createVisualSegment(duration = 4, asset = null) {
++  return {
++    id: makeId("visual"),
++    duration: Math.max(MIN_VISUAL_SEGMENT_SECONDS, Math.min(MAX_TIMELINE_DURATION_SECONDS, duration)),
++    ...getVisualAssetPayload(asset),
++  };
++}
++
++export function createStickerSegment(sticker, start = 0, duration = DEFAULT_STICKER_SEGMENT_SECONDS) {
++  const safeDuration = Math.max(
++    MIN_VISUAL_SEGMENT_SECONDS,
++    Math.min(MAX_TIMELINE_DURATION_SECONDS, duration || DEFAULT_STICKER_SEGMENT_SECONDS),
++  );
++
++  return {
++    id: makeId("sticker"),
++    stickerId: sticker?.stickerId ?? sticker?.id ?? "",
++    name: sticker?.name ?? "",
++    nameEn: sticker?.nameEn ?? "",
++    category: sticker?.category ?? "",
++    src: sticker?.src ?? "",
++    start: Math.max(0, Math.min(MAX_TIMELINE_DURATION_SECONDS - safeDuration, start || 0)),
++    duration: safeDuration,
++    x: Number.isFinite(sticker?.x) ? sticker.x : 82,
++    y: Number.isFinite(sticker?.y) ? sticker.y : 20,
++    scale: Number.isFinite(sticker?.scale) ? sticker.scale : 1,
++    rotation: Number.isFinite(sticker?.rotation) ? sticker.rotation : 0,
++    opacity: Number.isFinite(sticker?.opacity) ? sticker.opacity : 1,
++  };
++}
++
++export function getTimedSegmentsEnd(segments) {
++  return segments.reduce(
++    (end, segment) => Math.max(end, Math.max(0, segment.start || 0) + Math.max(0, segment.duration || 0)),
++    0,
++  );
++}
++
++export function normalizeTimedSegmentIds(segments, prefix = "segment") {
++  const seen = new Set();
++  let changed = false;
++  const normalized = segments.map((segment) => {
++    const id = String(segment?.id || "");
++    if (id && !seen.has(id)) {
++      seen.add(id);
++      return segment;
++    }
++    const next = { ...segment, id: makeId(prefix) };
++    seen.add(next.id);
++    changed = true;
++    return next;
++  });
++  return changed ? normalized : segments;
++}
++
++export function packTimedSegmentsIntoLanes(segments, { preferredLaneKey = "" } = {}) {
++  const lanes = [];
++  const orderedSegments = preferredLaneKey
++    ? [...segments]
++    : [...segments].sort((a, b) => (a.start || 0) - (b.start || 0));
++  orderedSegments.forEach((segment) => {
++    const laneAccepts = (lane = []) => {
++      const start = segment.start || 0;
++      const end = start + (segment.duration || 0);
++      return lane.every((item) => {
++        const itemStart = item.start || 0;
++        const itemEnd = itemStart + (item.duration || 0);
++        return itemEnd <= start + 0.001 || end <= itemStart + 0.001;
++      });
++    };
++    const preferredLane = preferredLaneKey && Number.isInteger(segment?.[preferredLaneKey])
++      ? Math.max(0, segment[preferredLaneKey])
++      : -1;
++    while (preferredLane >= lanes.length) lanes.push([]);
++    const laneIndex = preferredLane >= 0 && laneAccepts(lanes[preferredLane])
++      ? preferredLane
++      : lanes.findIndex(laneAccepts);
++    if (laneIndex >= 0) {
++      lanes[laneIndex].push(segment);
++      lanes[laneIndex].sort((a, b) => (a.start || 0) - (b.start || 0));
++    }
++    else lanes.push([segment]);
++  });
++  return lanes.length ? lanes : [[]];
++}
++
++export function getTimedSegmentLaneStateKey(segments, segmentId, track = "audio") {
++  const laneIndex = packTimedSegmentsIntoLanes(segments, {
++    preferredLaneKey: track === "audio" ? "lane" : "",
++  }).findIndex((lane) => (
++    lane.some((segment) => String(segment.id) === String(segmentId))
++  ));
++  return laneIndex >= 0 ? `${track}-${laneIndex}` : track;
++}
++
++export function isTimedSegmentLaneVisible(segments, segmentId, visibility, track = "audio") {
++  if (visibility?.[track] === false) return false;
++  return visibility?.[getTimedSegmentLaneStateKey(segments, segmentId, track)] !== false;
++}
++
++export function isTimedSegmentLaneLocked(segments, segmentId, locks, track = "audio") {
++  if (locks?.[track] === true) return true;
++  return locks?.[getTimedSegmentLaneStateKey(segments, segmentId, track)] === true;
++}
++
++export function filterTimedSegmentsByLaneVisibility(segments, visibility, track = "audio") {
++  if (visibility?.[track] === false) return [];
++  const lanes = packTimedSegmentsIntoLanes(segments, {
++    preferredLaneKey: track === "audio" ? "lane" : "",
++  });
++  return lanes.flatMap((lane, laneIndex) => (
++    visibility?.[`${track}-${laneIndex}`] === false ? [] : lane
++  ));
++}
++
++export function packCaptionSegmentsIntoLanes(segments, timeline) {
++  const lanes = [];
++  segments
++    .map((segment, index) => ({ segment, index, range: timeline[index] }))
++    .sort((a, b) => (a.range?.start || 0) - (b.range?.start || 0))
++    .forEach((item) => {
++      const laneIndex = lanes.findIndex((lane) => {
++        const last = lane.at(-1);
++        return !last || (last.range?.end || 0) <= (item.range?.start || 0) + 0.001;
++      });
++      if (laneIndex >= 0) lanes[laneIndex].push(item);
++      else lanes.push([item]);
++    });
++  return lanes.length ? lanes : [[]];
++}
++
++export function getTimedSegmentIndexAtTime(segments, time) {
++  const safeTime = Math.max(0, Number.isFinite(time) ? time : 0);
++  for (let index = segments.length - 1; index >= 0; index -= 1) {
++    const segment = segments[index];
++    const start = Math.max(0, segment.start || 0);
++    const end = start + Math.max(0, segment.duration || 0);
++    if (safeTime >= start && safeTime < end) {
++      return index;
++    }
++  }
++
++  return -1;
++}
++
++export function getVisualSegmentsTotal(segments) {
++  return segments.reduce((sum, segment) => sum + Math.max(0, segment.duration || 0), 0);
++}
++
++export function reorderTimelineItems(items, fromIndex, toIndex) {
++  if (
++    fromIndex === toIndex ||
++    fromIndex < 0 ||
++    toIndex < 0 ||
++    fromIndex >= items.length ||
++    toIndex >= items.length
++  ) {
++    return items;
++  }
++
++  const nextItems = [...items];
++  const [movedItem] = nextItems.splice(fromIndex, 1);
++  nextItems.splice(toIndex, 0, movedItem);
++  return nextItems;
++}
++
++export function moveTimedCaptionSegment(segments, segmentId, start, end) {
++  const safeStart = Math.max(0, Number(start) || 0);
++  const source = segments.find((segment) => segment.id === segmentId);
++  const minimum = hasExplicitCaptionTiming(source)
++    ? Math.min(MIN_TIMED_CAPTION_SECONDS, source.end - source.start) : MIN_TIMED_CAPTION_SECONDS;
++  const safeEnd = Math.max(safeStart + minimum, Number(end) || safeStart);
++  return segments.map((segment) =>
++    segment.id === segmentId ? { ...segment, start: safeStart, end: safeEnd } : segment,
++  );
++}
++
++export function materializeCaptionTimings(segments, targetDuration) {
++  const timeline = getCaptionTimeline(segments, targetDuration);
++  return segments.map((segment, index) => ({
++    ...segment,
++    start: timeline[index]?.start ?? 0,
++    end: timeline[index]?.end ?? Math.max(MIN_TIMED_CAPTION_SECONDS, timeline[index]?.start ?? 0),
++  }));
++}
++
++export function getVisualSegmentTimeline(segments) {
++  let cursor = 0;
++  return segments.map((segment) => {
++    const duration = Math.max(0, segment.duration || 0);
++    const item = {
++      id: segment.id,
++      start: cursor,
++      end: cursor + duration,
++      duration,
++    };
++    cursor += duration;
++    return item;
++  });
++}
++
++export function getVisualSegmentIndexAtTime(segments, time) {
++  if (!segments.length) {
++    return -1;
++  }
++
++  const timeline = getVisualSegmentTimeline(segments);
++  const clampedTime = Math.max(0, Math.min(getVisualSegmentsTotal(segments), time));
++  const index = timeline.findIndex(
++    (segment) => clampedTime >= segment.start && clampedTime < segment.end,
++  );
++  return index >= 0 ? index : timeline.length - 1;
++}
++
++export function getCaptionDefaultWeight(text) {
++  const compact = text.replace(/\s/g, "");
++  return Math.max(1, Math.min(4, Math.ceil(compact.length / 14)));
++}
++
++export function getCaptionBaseDuration(text) {
++  const compact = text.replace(/\s/g, "");
++  if (!compact) {
++    return MIN_CAPTION_SEGMENT_SECONDS;
++  }
++  return Math.max(
++    MIN_CAPTION_SEGMENT_SECONDS,
++    Math.min(MAX_CAPTION_SEGMENT_SECONDS, compact.length / 4.2 + 0.45),
++  );
++}
++
++export function getCaptionSegmentDuration(segment) {
++  if (hasExplicitCaptionTiming(segment)) {
++    // Explicit speech/SRT timing is authoritative, even for words under 200ms.
++    return segment.end - segment.start;
++  }
++
++  const defaultWeight = getCaptionDefaultWeight(segment.text);
++  const weight = Number.isFinite(segment.weight) ? segment.weight : defaultWeight;
++  const weightScale = Math.max(0.35, weight / defaultWeight);
++  return getCaptionBaseDuration(segment.text) * weightScale;
++}
++
++export function hasExplicitCaptionTiming(segment) {
++  return Number.isFinite(segment?.start) && Number.isFinite(segment?.end) && segment.end > segment.start;
++}
++
++export function getCaptionTimeline(captionSegments, targetDuration = 0) {
++  if (captionSegments.some(hasExplicitCaptionTiming)) {
++    let cursor = 0;
++    return captionSegments.map((segment) => {
++      const hasTiming = hasExplicitCaptionTiming(segment);
++      const start = hasTiming ? Math.max(0, segment.start) : cursor;
++      const duration = hasTiming
++        ? segment.end - segment.start
++        : getCaptionSegmentDuration(segment);
++      const timelineItem = {
++        start,
++        end: start + duration,
++        duration,
++      };
++      cursor = timelineItem.end;
++      return timelineItem;
++    });
++  }
++
++  const naturalDurations = captionSegments.map((segment) => getCaptionSegmentDuration(segment));
++  const naturalTotal = naturalDurations.reduce((sum, duration) => sum + duration, 0);
++  const shouldAlignToTarget = targetDuration > 0 && naturalTotal > 0;
++  const scale = shouldAlignToTarget ? targetDuration / naturalTotal : 1;
++  let cursor = 0;
++  return captionSegments.map((segment, index) => {
++    const duration = naturalDurations[index] * scale;
++    const timelineItem = {
++      start: cursor,
++      end: cursor + duration,
++      duration,
++    };
++    cursor += duration;
++    return timelineItem;
++  });
++}
++
++export function createCaptionSegments(text) {
++  return getScriptSegments(text).map((segment) => ({
++    id: makeId("caption"),
++    text: segment,
++    weight: getCaptionDefaultWeight(segment),
++    hidden: false,
++    fontId: "default",
++  }));
++}
++
++export function getCaptionScript(segments) {
++  return segments.map((segment) => segment.text).join("\n");
++}
++
++export function getSegmentIndexAtTime(captionSegments, currentTime, targetDuration = 0) {
++  if (!captionSegments.length) {
++    return -1;
++  }
++
++  const timeline = getCaptionTimeline(captionSegments, targetDuration);
++  const time = Math.max(0, currentTime);
++  for (let index = 0; index < timeline.length; index += 1) {
++    if (time >= timeline[index].start && time <= timeline[index].end) {
++      return index;
++    }
++  }
++
++  return -1;
++}
++
++export function getSegmentStartTime(captionSegments, index, targetDuration = 0) {
++  return getCaptionTimeline(captionSegments, targetDuration)[Math.max(0, index)]?.start ?? 0;
++}
++
++export function getVisualSegmentStartTime(visualSegments, index) {
++  const safeIndex = Math.max(0, Math.min(Array.isArray(visualSegments) ? visualSegments.length : 0, Number(index) || 0));
++  return (visualSegments || []).slice(0, safeIndex).reduce(
++    (total, segment) => total + Math.max(0, Number(segment?.duration) || 0),
++    0,
++  );
++}
++
++export function formatTime(value) {
++  const seconds = Math.max(0, Number.isFinite(value) ? value : 0);
++  const minutes = Math.floor(seconds / 60);
++  const wholeSeconds = Math.floor(seconds % 60);
++  const centiseconds = Math.floor((seconds % 1) * 100);
++  return `${String(minutes).padStart(2, "0")}:${String(wholeSeconds).padStart(
++    2,
++    "0",
++  )}.${String(centiseconds).padStart(2, "0")}`;
++}
++
++export function formatCompactDuration(value) {
++  const seconds = Math.max(0, Number.isFinite(value) ? value : 0);
++  if (seconds < 10) return `${seconds.toFixed(1)}s`;
++  const roundedSeconds = Math.round(seconds);
++  if (roundedSeconds < 60) return `${roundedSeconds}s`;
++  const minutes = Math.floor(roundedSeconds / 60);
++  return `${minutes}:${String(roundedSeconds % 60).padStart(2, "0")}`;
++}
++
++export function formatClock(value) {
++  const seconds = Math.max(0, Number.isFinite(value) ? value : 0);
++  const minutes = Math.floor(seconds / 60);
++  const wholeSeconds = Math.floor(seconds % 60);
++  return `${String(minutes).padStart(2, "0")}:${String(wholeSeconds).padStart(2, "0")}`;
++}
++
++export function getScriptSegments(text) {
++  const cleaned = text
++    .split(/[\n。！？!?]+/)
++    .map((item) => item.trim())
++    .filter(Boolean);
++
++  if (cleaned.length) {
++    return cleaned.slice(0, 8);
++  }
++
++  return [];
++}
++
++export function estimateDuration(text) {
++  const segments = getScriptSegments(text);
++  if (!segments.length) {
++    return 0;
++  }
++  return Math.min(45, segments.reduce((sum, segment) => sum + getCaptionBaseDuration(segment), 0));
++}
++
++export function formatSavedTime(date = new Date()) {
++  return date.toLocaleTimeString("zh-CN", {
++    hour12: false,
++    hour: "2-digit",
++    minute: "2-digit",
++    second: "2-digit",
++  });
++}
+
+diff --git a/frontend/src/features/video/vendor/timelineCut.js b/frontend/src/features/video/vendor/timelineCut.js
+--- a/frontend/src/features/video/vendor/timelineCut.js
++++ b/frontend/src/features/video/vendor/timelineCut.js
+@@ -0,0 +1,27 @@
++// Original splitVisualSegmentState from MartinDelophy/ai-video-editor@e1091feccca3be8832b507eb7e17c9e55eb2233a.
++// Adaptation: use only the upstream pure splitter, avoiding unsupported
++// visual-keyframe or GPU effects that cannot be rendered by HyperFrames.
++import { cloneVisualSegment, makeId } from './timeline.js'
++export function splitVisualSegmentState(source, firstDuration, secondDuration) {
++  const playbackRate = source.type === "video"
++    ? Math.max(0.25, Math.min(4, Number(source.playbackRate) || 1))
++    : 1;
++  const sourceStart = Math.max(0, Number(source.sourceStart) || 0);
++  return [
++    cloneVisualSegment(source, {
++      id: makeId("visual"),
++      duration: firstDuration,
++      sourceDuration: source.type === "video" ? firstDuration * playbackRate : source.sourceDuration,
++      sourceStart,
++    }),
++    cloneVisualSegment(source, {
++      id: makeId("visual"),
++      duration: secondDuration,
++      sourceDuration: source.type === "video" ? secondDuration * playbackRate : source.sourceDuration,
++      sourceStart: source.type === "video"
++        ? sourceStart + firstDuration * playbackRate
++        : sourceStart,
++    }),
++  ];
++}
++
+
+diff --git a/frontend/src/features/video/vendor/timelineScale.js b/frontend/src/features/video/vendor/timelineScale.js
+--- a/frontend/src/features/video/vendor/timelineScale.js
++++ b/frontend/src/features/video/vendor/timelineScale.js
+@@ -0,0 +1,251 @@
++import { DEFAULT_TIMELINE_DURATION_SECONDS, MAX_TIMELINE_DURATION_SECONDS } from "./editorConfig.js";
++
++export const TIMELINE_MIN_ZOOM = 0.25;
++export const TIMELINE_MAX_ZOOM = 16;
++export const TIMELINE_DEFAULT_VISIBLE_SECONDS = 10;
++export const TIMELINE_MIN_VISIBLE_SECONDS = 0.5;
++export const TIMELINE_FRAME_RATE = 30;
++
++const ZOOM_IN_CURVE = Math.log(TIMELINE_DEFAULT_VISIBLE_SECONDS / TIMELINE_MIN_VISIBLE_SECONDS) /
++  Math.log(TIMELINE_MAX_ZOOM);
++
++export function clampTimelineZoom(zoom) {
++  return Math.max(TIMELINE_MIN_ZOOM, Math.min(TIMELINE_MAX_ZOOM, zoom));
++}
++
++export function getTimelineVisibleDuration(zoom) {
++  const clampedZoom = clampTimelineZoom(zoom);
++
++  if (clampedZoom <= 1) {
++    const progress = (clampedZoom - TIMELINE_MIN_ZOOM) / (1 - TIMELINE_MIN_ZOOM);
++    const maxLog = Math.log(MAX_TIMELINE_DURATION_SECONDS);
++    const defaultLog = Math.log(TIMELINE_DEFAULT_VISIBLE_SECONDS);
++    return Math.exp(maxLog + (defaultLog - maxLog) * progress);
++  }
++
++  return Math.max(
++    TIMELINE_MIN_VISIBLE_SECONDS,
++    TIMELINE_DEFAULT_VISIBLE_SECONDS / Math.pow(clampedZoom, ZOOM_IN_CURVE),
++  );
++}
++
++export function getTimelineZoomForVisibleDuration(visibleDuration) {
++  const target = Math.max(
++    TIMELINE_MIN_VISIBLE_SECONDS,
++    Math.min(MAX_TIMELINE_DURATION_SECONDS, Number(visibleDuration) || TIMELINE_DEFAULT_VISIBLE_SECONDS),
++  );
++  let low = TIMELINE_MIN_ZOOM;
++  let high = TIMELINE_MAX_ZOOM;
++
++  for (let index = 0; index < 32; index += 1) {
++    const middle = (low + high) / 2;
++    if (getTimelineVisibleDuration(middle) > target) low = middle;
++    else high = middle;
++  }
++
++  return clampTimelineZoom((low + high) / 2);
++}
++
++export function getTimelineVisibleDurationForPixelScale(pixelsPerSecond, scaleBasisWidth) {
++  const scale = Math.max(0, Number(pixelsPerSecond) || 0);
++  const basis = Math.max(0, Number(scaleBasisWidth) || 0);
++  return scale > 0 ? basis / scale : 0;
++}
++
++export function getTimelineAutoFitZoom(contentDuration, fillRatio = 0.82) {
++  const safeDuration = Math.max(0.5, Number(contentDuration) || 0.5);
++  const safeFillRatio = Math.max(0.5, Math.min(0.9, Number(fillRatio) || 0.82));
++  const paddedVisibleDuration = Math.max(5, safeDuration / safeFillRatio);
++  return getTimelineZoomForVisibleDuration(paddedVisibleDuration);
++}
++
++export function getTimelineInitialContentZoom(contentDuration) {
++  const safeDuration = Math.max(0, Number(contentDuration) || 0);
++  if (safeDuration <= 0) return getTimelineZoomForVisibleDuration(TIMELINE_DEFAULT_VISIBLE_SECONDS);
++  if (safeDuration > 60) return getTimelineZoomForVisibleDuration(30);
++  return getTimelineAutoFitZoom(safeDuration);
++}
++
++export function getTimelineTailPadding(contentDuration) {
++  const safeDuration = Math.max(0, Number(contentDuration) || 0);
++  if (safeDuration <= 0) return 0;
++  if (safeDuration < 10) return 2;
++  if (safeDuration <= 60) return 5;
++  return Math.min(30, safeDuration * 0.05);
++}
++
++export function getTimelineProjectDuration(contentDuration) {
++  const safeDuration = Math.max(0, Number(contentDuration) || 0);
++  if (safeDuration <= 0) return DEFAULT_TIMELINE_DURATION_SECONDS;
++  return Math.min(
++    MAX_TIMELINE_DURATION_SECONDS,
++    Math.max(DEFAULT_TIMELINE_DURATION_SECONDS, Math.ceil((safeDuration + getTimelineTailPadding(safeDuration)) * 2) / 2),
++  );
++}
++
++export function getTimelineTrackWidthPercent(timelineDuration, zoom) {
++  if (timelineDuration <= 0) {
++    return 100;
++  }
++
++  const visibleDuration = getTimelineVisibleDuration(zoom);
++  return Math.max(100, (timelineDuration / visibleDuration) * 100);
++}
++
++export function getMobilePinchZoomState({
++  timelineDuration,
++  minimumZoom = TIMELINE_MIN_ZOOM,
++  startZoom,
++  startDistance,
++  distance,
++  startTrackWidth,
++  baseTrackWidth = 0,
++}) {
++  const distanceScale = Math.max(0.01, distance) / Math.max(1, startDistance);
++  const startWidthPercent = getTimelineTrackWidthPercent(timelineDuration, startZoom);
++  const minimumWidthPercent = getTimelineTrackWidthPercent(timelineDuration, minimumZoom);
++  const maximumWidthPercent = getTimelineTrackWidthPercent(timelineDuration, TIMELINE_MAX_ZOOM);
++  const widthUnit = baseTrackWidth > 0
++    ? baseTrackWidth / 100
++    : startTrackWidth / Math.max(startWidthPercent, 0.001);
++  const minimumTrackWidth = widthUnit * minimumWidthPercent;
++  const maximumTrackWidth = widthUnit * maximumWidthPercent;
++  const nextTrackWidth = Math.max(
++    minimumTrackWidth,
++    Math.min(maximumTrackWidth, startTrackWidth * distanceScale),
++  );
++  const nextWidthPercent = nextTrackWidth / Math.max(widthUnit, 0.001);
++  const nextVisibleDuration = timelineDuration > 0
++    ? timelineDuration / Math.max(nextWidthPercent / 100, 1)
++    : getTimelineVisibleDuration(startZoom);
++  const isAtMinimumWidth = Math.abs(nextTrackWidth - minimumTrackWidth) < 0.000001;
++  const isAtMaximumWidth = Math.abs(nextTrackWidth - maximumTrackWidth) < 0.000001;
++  const nextZoom = isAtMinimumWidth
++    ? minimumZoom
++    : isAtMaximumWidth
++      ? TIMELINE_MAX_ZOOM
++      : Math.max(minimumZoom, getTimelineZoomForVisibleDuration(nextVisibleDuration));
++
++  return {
++    nextZoom,
++    nextTrackWidth,
++  };
++}
++
++export function getMobilePinchAnchorScrollLeft({
++  currentScrollLeft,
++  trackLeft,
++  trackWidth,
++  viewportLeft,
++  viewportWidth,
++  anchorTimeRatio,
++}) {
++  const fixedPlayheadX = viewportLeft + viewportWidth / 2;
++  const anchorX = trackLeft + anchorTimeRatio * trackWidth;
++  return currentScrollLeft + anchorX - fixedPlayheadX;
++}
++
++export function getTimelineRulerScale(visibleDuration) {
++  if (visibleDuration <= 0.75) {
++    return { minorStep: 1 / TIMELINE_FRAME_RATE, majorStep: 0.5, labelMode: "frames" };
++  }
++  if (visibleDuration <= 2) {
++    return { minorStep: 0.1, majorStep: 0.5, labelMode: "subseconds" };
++  }
++  if (visibleDuration <= 6) {
++    return { minorStep: 0.25, majorStep: 0.5, labelMode: "subseconds" };
++  }
++  if (visibleDuration <= 16) {
++    return { minorStep: 0.5, majorStep: 1, labelMode: "seconds" };
++  }
++  if (visibleDuration <= 45) {
++    return { minorStep: 1, majorStep: 5, labelMode: "seconds" };
++  }
++  if (visibleDuration <= 120) {
++    return { minorStep: 5, majorStep: 15, labelMode: "seconds" };
++  }
++  if (visibleDuration <= 420) {
++    return { minorStep: 15, majorStep: 60, labelMode: "minutes" };
++  }
++  if (visibleDuration <= 900) {
++    return { minorStep: 60, majorStep: 300, labelMode: "minutes" };
++  }
++  return { minorStep: 300, majorStep: 600, labelMode: "minutes" };
++}
++
++const RULER_MAJOR_STEPS = [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
++
++export function getTimelineRulerTicks(
++  timelineDuration,
++  zoom,
++  visibleStart = 0,
++  visibleEnd = timelineDuration,
++  { minimumMajorStep = 0 } = {},
++) {
++  if (timelineDuration <= 0) {
++    return [];
++  }
++
++  const visibleDuration = getTimelineVisibleDuration(zoom);
++  const scale = getTimelineRulerScale(visibleDuration);
++  const majorStep = RULER_MAJOR_STEPS.find((step) => step >= Math.max(scale.majorStep, minimumMajorStep))
++    ?? RULER_MAJOR_STEPS.at(-1);
++  const scaleWasRaised = majorStep > scale.majorStep;
++  const minorStep = scaleWasRaised ? majorStep / 4 : scale.minorStep;
++  const labelMode = scaleWasRaised && majorStep >= 1 ? "seconds" : scale.labelMode;
++  const rangePadding = Math.max(visibleDuration * 0.35, majorStep);
++  const rangeStart = Math.max(0, visibleStart - rangePadding);
++  const rangeEnd = Math.min(timelineDuration, visibleEnd + rangePadding);
++  const startIndex = Math.max(0, Math.floor(rangeStart / minorStep));
++  const endIndex = Math.max(startIndex, Math.ceil(rangeEnd / minorStep));
++
++  return Array.from({ length: endIndex - startIndex + 1 }, (_, offset) => {
++    const index = startIndex + offset;
++    const time = Math.min(timelineDuration, index * minorStep);
++    const isMajor = Math.abs(time / majorStep - Math.round(time / majorStep)) < 0.001;
++    return {
++      id: `${minorStep}-${index}`,
++      time,
++      left: (time / timelineDuration) * 100,
++      isMajor,
++      label: isMajor ? formatTimelineRulerLabel(time, labelMode) : "",
++    };
++  });
++}
++
++export function getTimelineZoomLabel(zoom) {
++  const visibleDuration = getTimelineVisibleDuration(zoom);
++
++  if (visibleDuration <= 0.75) {
++    return "15f";
++  }
++
++  if (visibleDuration < 2) {
++    return `${visibleDuration.toFixed(1)}s`;
++  }
++
++  if (visibleDuration < 60) {
++    return `${Math.round(visibleDuration)}s`;
++  }
++
++  return `${Math.round(visibleDuration / 60)}m`;
++}
++
++export function formatTimelineRulerLabel(value, mode = "seconds") {
++  const safeSeconds = Math.max(0, Number.isFinite(value) ? value : 0);
++  const minutes = Math.floor(safeSeconds / 60);
++  const seconds = Math.floor(safeSeconds % 60);
++  const frame = Math.round((safeSeconds - Math.floor(safeSeconds)) * TIMELINE_FRAME_RATE);
++  const centiseconds = Math.round((safeSeconds - Math.floor(safeSeconds)) * 100);
++  const clock = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
++
++  if (mode === "frames" && frame > 0) {
++    return `${clock}:${String(frame).padStart(2, "0")}f`;
++  }
++
++  if (mode === "subseconds" && centiseconds > 0) {
++    return `${clock}.${String(centiseconds).padStart(2, "0")}`;
++  }
++
++  return clock;
++}
+
+diff --git a/frontend/src/features/video/video-model.mjs b/frontend/src/features/video/video-model.mjs
+--- a/frontend/src/features/video/video-model.mjs
++++ b/frontend/src/features/video/video-model.mjs
+@@ -0,0 +1,193 @@
++// Feature #4 UI-only plan helpers. Never treat these as backend authorization.
++export const VIDEO_MODES = Object.freeze([
++  ['text', 'Text-to-video'],
++  ['image', 'Product image animation'],
++  ['poster', 'Poster-to-video'],
++  ['media', 'Uploaded clips + photos'],
++  ['music_sync', 'Music-synchronized Reel'],
++])
++export const VIDEO_TEMPLATES = Object.freeze([
++  ['streetwear', 'Streetwear Beat Cut'],
++  ['cinematic', 'Cinematic Fashion'],
++  ['festival', 'Festival Sale'],
++])
++export const VIDEO_ANIMATIONS = Object.freeze(['subtle_zoom', 'pop', 'fade', 'slide', 'glow'])
++export const VIDEO_TRANSITIONS = Object.freeze(['fade', 'slide', 'cut'])
++const LIMITS = { text: null, image: ['image'], poster: ['poster'], media: ['image', 'poster', 'video'], music_sync: ['image', 'poster', 'video'] }
++const valid = (n) => typeof n === 'number' && Number.isFinite(n)
++
++export function compatibleMedia(mode, assets, shopId = null) {
++  return (Array.isArray(assets) ? assets : []).filter(item =>
++    item && item.authorized === true && typeof item.id === 'string' &&
++    /^[a-zA-Z0-9_-]{1,100}$/.test(item.id) &&
++    (shopId === null || item.shop_id === shopId) &&
++    LIMITS[mode]?.includes(item.kind))
++}
++
++export function makeVideoDraft({ shopId, mode = 'image', template = 'streetwear',
++  duration = 15, mediaAssets = [] }) {
++  if (!VIDEO_MODES.some(([key]) => key === mode) || !VIDEO_TEMPLATES.some(([key]) => key === template) ||
++      ![15, 30, 60].includes(duration)) throw Error('Invalid video configuration')
++  const media = compatibleMedia(mode, mediaAssets, shopId)
++  return {
++    version: 'rg_video_v2', shop_id: shopId, mode, template, duration_seconds: duration,
++    output: { width: 1080, height: 1920, fps: 30 },
++    scenes: Array.from({ length: 3 }, (_, i) => ({
++      start: i * duration / 3, duration: duration / 3,
++      headline: ['Your brand story', 'Discover the collection', 'Visit us today'][i],
++      animation_preset: 'subtle_zoom', transition: 'fade',
++      ...(mode !== 'text' && media.length ? { asset_id: media[i % media.length].id } : {}),
++    })),
++    cta: 'Visit our store', music_asset_id: null, voiceover_asset_id: null,
++  }
++}
++
++export function recalculateScenes(scenes) {
++  let elapsed = 0
++  return scenes.map(scene => {
++    const next = { ...scene, start: elapsed }
++    elapsed += Number(scene.duration)
++    return next
++  })
++}
++
++// Retiming is a pure draft edit: preserve approved text, asset IDs, offers and order.
++export function retimeVideoDraft(plan, duration) {
++  if (!plan || !Array.isArray(plan.scenes) || !plan.scenes.length ||
++      ![15, 30, 60].includes(duration) || ![15, 30, 60].includes(plan.duration_seconds) ||
++      plan.scenes.some(scene => !valid(scene.duration) || scene.duration < .5)) {
++    throw Error('Invalid timeline for retiming')
++  }
++  let elapsed = 0
++  const scenes = plan.scenes.map((scene, index) => {
++    const length = index === plan.scenes.length - 1 ? duration - elapsed
++      : Math.round(scene.duration * duration / plan.duration_seconds * 1000) / 1000
++    if (length < .5) throw Error('Scenes would be shorter than half a second')
++    const copy = { ...scene, start: elapsed, duration: length }
++    elapsed = Math.round((elapsed + length) * 1000) / 1000
++    return copy
++  })
++  return { ...plan, duration_seconds: duration, scenes }
++}
++
++export function shiftVideoScene(scenes, from, move) {
++  if (!Array.isArray(scenes) || !Number.isInteger(from) || ![-1, 1].includes(move) ||
++      from < 0 || from >= scenes.length || from + move < 0 || from + move >= scenes.length) return scenes
++  const copy = scenes.map(scene => ({ ...scene }))
++  const [selected] = copy.splice(from, 1)
++  copy.splice(from + move, 0, selected)
++  return recalculateScenes(copy)
++}
++
++export function validateVideoDraft(plan, mediaAssets = [], musicAssets = []) {
++  const errors = []
++  if (!plan || plan.version !== 'rg_video_v2') return ['Unsupported timeline version']
++  if (typeof plan.shop_id !== 'string' || !plan.shop_id) return ['Selected tenant is required']
++  if (!VIDEO_MODES.some(([key]) => key === plan.mode)) errors.push('Choose a video mode')
++  if (!VIDEO_TEMPLATES.some(([key]) => key === plan.template)) errors.push('Choose a template')
++  if (![15, 30, 60].includes(plan.duration_seconds)) errors.push('Duration must be 15, 30 or 60 seconds')
++  if (!Array.isArray(plan.scenes) || !plan.scenes.length || plan.scenes.length > 12) return [...errors, 'Expected 1–12 scenes']
++  const authorizedMedia = compatibleMedia(plan.mode, mediaAssets, plan.shop_id)
++  const allowed = new Set(authorizedMedia.map(media => media.id))
++  let time = 0
++  for (const [index, scene] of plan.scenes.entries()) {
++    if (!valid(scene.start) || !valid(scene.duration) || scene.duration < .5 ||
++        Math.abs(scene.start - time) > .001) errors.push('Scenes must be sequential and at least half a second')
++    if (typeof scene.headline !== 'string' || !scene.headline.trim() || scene.headline.length > 110) {
++      errors.push('Every scene needs an approved headline (max 110 characters)')
++    }
++    if (plan.mode !== 'text' && !allowed.has(scene.asset_id)) errors.push('Scene ' + (index + 1) + ' needs authorized same-shop media')
++    const source = authorizedMedia.find(asset => asset.id === scene.asset_id)
++    if (scene.trim_start != null) {
++      if (source?.kind !== 'video' || !valid(scene.trim_start) ||
++          scene.trim_start < 0 || scene.trim_start > 180) {
++        errors.push('Scene ' + (index + 1) + ' has invalid approved video trim')
++      }
++    }
++    if (scene.mute_source != null && (source?.kind !== 'video' || typeof scene.mute_source !== 'boolean')) {
++      errors.push('Scene ' + (index + 1) + ' has unsupported source audio mute')
++    }
++    if (source?.kind === 'video' && valid(source.duration_seconds) &&
++        source.duration_seconds > 0 &&
++        (scene.trim_start || 0) + scene.duration > source.duration_seconds + .02) {
++      errors.push('Scene ' + (index + 1) + ' exceeds verified video source duration')
++    }
++    if (scene.animation_preset != null && !VIDEO_ANIMATIONS.includes(scene.animation_preset)) {
++      errors.push('Scene ' + (index + 1) + ' has an unapproved motion preset')
++    }
++    if (scene.transition != null && !VIDEO_TRANSITIONS.includes(scene.transition)) {
++      errors.push('Scene ' + (index + 1) + ' has an unapproved transition')
++    }
++    if (scene.poster_overlay_asset_id != null) {
++      const poster = mediaAssets.find(item => item?.authorized === true &&
++        item?.kind === 'poster' && item?.id === scene.poster_overlay_asset_id &&
++        item?.shop_id === plan.shop_id)
++      if (!poster || poster.id === scene.asset_id) {
++        errors.push('Scene ' + (index + 1) + ' needs a distinct authorized promotional poster')
++      }
++    }
++    if (scene.sfx_asset_id != null && !musicAssets.some(track =>
++        track?.id === scene.sfx_asset_id && track?.authorized === true &&
++        track?.kind === 'audio' && track?.shop_id === plan.shop_id)) {
++      errors.push('Scene ' + (index + 1) + ' needs a same-shop licensed audio effect')
++    }
++    if (scene.offer != null && (typeof scene.offer !== 'string' || scene.offer.length > 70)) {
++      errors.push('Offer text must be approved (max 70 characters)')
++    }
++    time += Number(scene.duration)
++  }
++  if (Math.abs(time - plan.duration_seconds) > .001) errors.push('Scenes must fill the selected duration')
++  if (typeof plan.cta !== 'string' || !plan.cta.trim() || plan.cta.length > 110) errors.push('Enter an approved CTA')
++  if (plan.voiceover_asset_id != null && !musicAssets.some(a =>
++      a?.id === plan.voiceover_asset_id && a?.authorized === true &&
++      a?.kind === 'audio' && a?.shop_id === plan.shop_id)) {
++    errors.push('Select an approved same-shop full-Reel narration recording')
++  }
++  if (plan.music_asset_id != null && !musicAssets.some(m =>
++      m?.id === plan.music_asset_id && m?.authorized === true &&
++      m?.kind === 'audio' && m?.shop_id === plan.shop_id)) {
++    errors.push('Select a rights-cleared music track')
++  }
++  if (plan.voiceover_asset_id != null && musicAssets.some(a =>
++      a?.id === plan.voiceover_asset_id && a?.authorized === true &&
++      a?.shop_id === plan.shop_id && a?.kind === 'audio' &&
++      valid(a.duration_seconds) && a.duration_seconds + .06 < plan.duration_seconds)) {
++    errors.push('Approved full-Reel narration does not cover the full video duration')
++  }
++  if (plan.mode === 'music_sync' &&
++      (!plan.music_asset_id || !Array.isArray(plan.beats) || plan.beats.length < 2)) {
++    errors.push('Beat-sync requires an approved soundtrack and server-derived beats')
++  }
++  return [...new Set(errors)]
++}
++
++/** Preview exactly the authorized source-video excerpt used by the existing
++ *  HyperFrames data-media-start/data-duration renderer. No URLs or rights
++ *  approvals may be derived here; the private-media adapter owns URL checks.
++ */
++export function sourceClipPlaybackWindow(scene, source) {
++  if (!scene || !source || source.kind !== 'video' || source.authorized !== true) return null
++  const start = scene.trim_start ?? 0
++  if (!valid(start) || start < 0 || start > 180 ||
++      !valid(scene.duration) || scene.duration < .5) {
++    throw Error('Preview has an invalid verified source trim')
++  }
++  const end = Math.round((start + scene.duration) * 1000) / 1000
++  if (valid(source.duration_seconds) && source.duration_seconds > 0 &&
++      end > source.duration_seconds + .02) {
++    throw Error('Source preview exceeds verified video length')
++  }
++  return Object.freeze({start, end})
++}
++
++/** Map a timeline playhead to an authorized source clip's local seek time.
++ *  This is a muted source preview only, NOT a final composited video frame.
++ *  The caller must separately validate the tenant-private preview URL.
++ */
++export function sourceClipTimeForPlayhead(scene, source, playhead) {
++  const window = sourceClipPlaybackWindow(scene, source)
++  if (!window || !valid(playhead) || !valid(scene.start)) return null
++  const offset = playhead - scene.start
++  if (offset < 0 || offset >= scene.duration) return null
++  return Math.max(window.start, Math.min(window.end - .01, window.start + offset))
++}
+

@@ -1,0 +1,346 @@
+{
+  "archive_kind": "complete_original_GitHub_per_file_diff_hunks_source_only",
+  "pr": 322,
+  "repository": "saifsiddiqui59/RetailGrowthAI",
+  "original_head": "b9525a9ea3d5e5aee351edf89a3c011c2314ed2e",
+  "original_base": "main",
+  "original_base_sha": "140a9f86170132d7c482a183b843788aa09b3b5a",
+  "patches": 188,
+  "total_characters": 1622621,
+  "part_count": 20,
+  "parts": [
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_01_OF_20_20261119.patch",
+      "sha": "89c81579d116607f25707082aba172a8339558e4",
+      "files": [
+        "frontend/e2e/fixtures/timeline-studio-harness.jsx",
+        "frontend/e2e/timeline-studio.spec.mjs",
+        "frontend/src/features/video/TimelineStudioSurface.css",
+        "frontend/src/features/video/TimelineStudioSurface.jsx",
+        "frontend/src/features/video/VideoStudio.css",
+        "frontend/src/features/video/VideoStudio.jsx",
+        "frontend/src/features/video/VideoStudioConnected.jsx",
+        "frontend/src/features/video/audio-mix-display.mjs"
+      ],
+      "characters": 94201
+    },
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_02_OF_20_20261119.patch",
+      "sha": "c905136491f7e7495af01c437224e61589be99dc",
+      "files": [
+        "frontend/src/features/video/beat-preview.mjs",
+        "frontend/src/features/video/creative-direction-adapter.mjs",
+        "frontend/src/features/video/frame-seek.mjs",
+        "frontend/src/features/video/timeline-studio-bridge.mjs",
+        "frontend/src/features/video/vendor/LICENSE",
+        "frontend/src/features/video/vendor/TimelineClips.jsx",
+        "frontend/src/features/video/vendor/TimelineGain.css",
+        "frontend/src/features/video/vendor/TimelineGain.jsx",
+        "frontend/src/features/video/vendor/WaveformStrip.jsx",
+        "frontend/src/features/video/vendor/editorConfig.js",
+        "frontend/src/features/video/vendor/editorHistoryCore.mjs",
+        "frontend/src/features/video/vendor/openreel/FrameTimecodeInput.jsx",
+        "frontend/src/features/video/vendor/openreel/LICENSE",
+        "frontend/src/features/video/vendor/openreel/clip-snap.mjs",
+        "frontend/src/features/video/vendor/openreel/editing-frame-rate.mjs",
+        "frontend/src/features/video/vendor/openreel/frame-timecode.mjs",
+        "frontend/src/features/video/vendor/openreel/timeline-item-actions.mjs",
+        "frontend/src/features/video/vendor/projectTrackState.js",
+        "frontend/src/features/video/vendor/timeline.js",
+        "frontend/src/features/video/vendor/timelineCut.js",
+        "frontend/src/features/video/vendor/timelineScale.js",
+        "frontend/src/features/video/video-model.mjs"
+      ],
+      "characters": 88902
+    },
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_03_OF_20_20261119.patch",
+      "sha": "7164ea4ac83e137d0294d4fa96eef456b581f6b7",
+      "files": [
+        "frontend/src/features/video/video-transport.mjs",
+        "tests/frontend/feature4-audio-mix-display.test.mjs",
+        "tests/frontend/feature4-beat-preview.test.mjs",
+        "tests/frontend/feature4-frame-seek.test.mjs",
+        "tests/frontend/feature4-history-bounds.test.mjs",
+        "tests/frontend/timeline-studio-adoption.test.mjs",
+        "tests/frontend/video-model.test.mjs",
+        "tests/frontend/video-transport.test.mjs",
+        "tests/media/feature4_voicestudio_cpu_render.py",
+        "tests/media/test_asset_preflight.py",
+        "tests/media/test_feature4_audio_catalog.py",
+        "tests/media/test_feature4_audio_master.py",
+        "tests/media/test_feature4_beat_edit.py",
+        "tests/media/test_feature4_beat_grid.py"
+      ],
+      "characters": 94617
+    },
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_04_OF_20_20261119.patch",
+      "sha": "6f2c9d7d6e248b2aca2c3f2ef166037a8b6daeed",
+      "files": [
+        "tests/media/test_feature4_caption_readability.py",
+        "tests/media/test_feature4_captioned_minute_receipt.py",
+        "tests/media/test_feature4_cpu_matrix.py",
+        "tests/media/test_feature4_cross_feature.py",
+        "tests/media/test_feature4_duplicate_export_qa.py",
+        "tests/media/test_feature4_duplicate_project.py",
+        "tests/media/test_feature4_edit_execution.py",
+        "tests/media/test_feature4_edited_export_qa.py",
+        "tests/media/test_feature4_editor_to_render_contract.py",
+        "tests/media/test_feature4_encoded_aac_fade.py",
+        "tests/media/test_feature4_encoded_motion_qa.py",
+        "tests/media/test_feature4_endcard_qa.py",
+        "tests/media/test_feature4_endcard_receipt.py",
+        "tests/media/test_feature4_export_matrix.py"
+      ],
+      "characters": 92222
+    },
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_05_OF_20_20261119.patch",
+      "sha": "648ff30e35433aaa4169ab82b8c8772444f416f5",
+      "files": [
+        "tests/media/test_feature4_garment_integration.py",
+        "tests/media/test_feature4_http_handoff.py",
+        "tests/media/test_feature4_hyperframes_benchmark.py",
+        "tests/media/test_feature4_intent_compiler.py",
+        "tests/media/test_feature4_lock_guard.py",
+        "tests/media/test_feature4_minute_quality_receipt.py",
+        "tests/media/test_feature4_motion_diagnostics.py",
+        "tests/media/test_feature4_motion_handoff.py",
+        "tests/media/test_feature4_narration.py",
+        "tests/media/test_feature4_private_preview.py",
+        "tests/media/test_feature4_professional.py",
+        "tests/media/test_feature4_quality_receipt.py"
+      ],
+      "characters": 87961
+    },
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_06_OF_20_20261119.patch",
+      "sha": "c373c0e02a7efec1fdd1bc57f18f083a6de1ef0d",
+      "files": [
+        "tests/media/test_feature4_release_gate.py",
+        "tests/media/test_feature4_render_adapter.py",
+        "tests/media/test_feature4_review_contact_sheet.py",
+        "tests/media/test_feature4_runtime_preflight.py",
+        "tests/media/test_feature4_scene_visibility.py",
+        "tests/media/test_feature4_scene_visibility_receipt.py",
+        "tests/media/test_feature4_stock_download_atomic.py",
+        "tests/media/test_feature4_stock_minute_runner.py",
+        "tests/media/test_feature4_stock_showcase.py",
+        "tests/media/test_feature4_subtitle_burnin.py",
+        "tests/media/test_feature4_subtitles.py",
+        "tests/media/test_feature4_visibility_window_integrity.py"
+      ],
+      "characters": 63495
+    },
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_07_OF_20_20261119.patch",
+      "sha": "7a8cbff7bac5eeadd907e554d983c8427e381a3b",
+      "files": [
+        "tests/media/test_feature4_voicestudio_handoff.py",
+        "tests/media/test_feature4_worker_handoff.py"
+      ],
+      "characters": 89968
+    },
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_08_OF_20_20261119.patch",
+      "sha": "d08549289115f42302d27a2c0883359e0e62d7f0",
+      "files": [
+        "video-engine/CREATIVE_REEL_CONTRACT.md",
+        "video-engine/FEATURE4_31_TASK_PARALLEL_TRACKER_20261029.md",
+        "video-engine/FEATURE4_ACCELERATED_BATCH_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_APPROVED_COPY_GUARD_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_AUDIO_FADE_QA_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_AUDIO_GAIN_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_AZURE_HANDOFF.md",
+        "video-engine/FEATURE4_CANONICAL_PRIVATE_PATH_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_CONTINUOUS_BLACK_SCAN_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_CPU_3PROFILE_MATRIX_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_CPU_BENCHMARK_HANDOFF_20261029.md"
+      ],
+      "characters": 94985
+    },
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_09_OF_20_20261119.patch",
+      "sha": "47ec304853319f8c933d7b86503691c949ea8dc8",
+      "files": [
+        "video-engine/FEATURE4_EFFECT_PARITY_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_EXPORT_MATRIX_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_F404_REVIEW_DIGEST_RECONCILE_20261111.md",
+        "video-engine/FEATURE4_F405_F411_F415_BATCH_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_F4_02_STAGE_IDENTITY_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_F4_06_AUDIO_MIX_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_F4_09_HISTORY_GUARD_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_F4_12_CAPTION_READABILITY_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_F4_13_AUX_MEDIA_RIGHTS_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_FOOTAGE_TRANSITIONS_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_FRAME_SCRUB_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_GARMENT_INTEGRATION.md",
+        "video-engine/FEATURE4_HANDOFF.md",
+        "video-engine/FEATURE4_MINUTE_RUNNER_PATH_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_MOTION_STABILITY_HANDOFF_20261030.md"
+      ],
+      "characters": 86158
+    },
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_10_OF_20_20261119.patch",
+      "sha": "bb347f5b6d3c25019b4ac63f8a5db89f670f622d",
+      "files": [
+        "video-engine/FEATURE4_OFFLINE_ACCEPTANCE_MATRIX.md",
+        "video-engine/FEATURE4_OUTPUT_SHA_FENCE_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_POINTER_LIFECYCLE_HANDOFF_20261029.md",
+        "video-engine/FEATURE4_PRIVATE_PREVIEW.md",
+        "video-engine/FEATURE4_STAGING_INTEGRITY_HANDOFF_20261029.md",
+        "video-engine/FEATURE4_STAGING_RACE_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_STOCK_DOWNLOAD_HANDOFF_20261030.md",
+        "video-engine/FEATURE4_STOCK_SHOWCASE.md"
+      ],
+      "characters": 48853
+    },
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_11_OF_20_20261119.patch",
+      "sha": "e156c53e7e5e73d623ea64ec484bd7ca5a5c0357",
+      "files": [
+        "video-engine/FEATURE4_TASKS_20261028.md",
+        "video-engine/FEATURE4_TIMELINE_STUDIO_ADOPTION.md"
+      ],
+      "characters": 76952
+    },
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_12_OF_20_20261119.patch",
+      "sha": "9cad468a4ccebbfe537abe82b43128999142bd26",
+      "files": [
+        "video-engine/FEATURE4_VISUAL_ACCEPTANCE.md",
+        "video-engine/FEATURE4_VOICESTUDIO_HANDOFF_20261111.md",
+        "video-engine/asset_preflight.py",
+        "video-engine/audio_catalog.json",
+        "video-engine/audio_catalog.py",
+        "video-engine/beat_grid.py",
+        "video-engine/ci.sh",
+        "video-engine/creative_contract.py",
+        "video-engine/demo_feature4_diwali.py",
+        "video-engine/demo_feature4_edited_reel.py",
+        "video-engine/feature4/ARCHIVED_779_SOURCE_TRACKER_20261117.md"
+      ],
+      "characters": 79238
+    },
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_13_OF_20_20261119.patch",
+      "sha": "8bd8bf69f4869dc80c3c621918ef9b332a02961d",
+      "files": [
+        "video-engine/feature4/INTEGRATION_SPRINT_F405_F411_F415_20261117.md",
+        "video-engine/feature4/ORIGINAL_715_PROVENANCE_20261117.md",
+        "video-engine/feature4/ORIGINAL_723_PROVENANCE_20261117.md",
+        "video-engine/feature4/ORIGINAL_735_PROVENANCE_20261117.md",
+        "video-engine/feature4/ORIGINAL_745_773_PROVENANCE_20261117.md",
+        "video-engine/feature4/ORIGINAL_753_PROVENANCE_20261117.md",
+        "video-engine/feature4/ORIGINAL_779_ABSENT_PATHS_20261117.md",
+        "video-engine/feature4/ORIGINAL_784_PROVENANCE_20261117.md",
+        "video-engine/feature4/ORIGINAL_808_816_PROVENANCE_20261117.md",
+        "video-engine/feature4/ORIGINAL_830_PROVENANCE_20261117.md",
+        "video-engine/feature4/ORIGINAL_852_PROVENANCE_20261117.md",
+        "video-engine/feature4/RUN_CHECKPOINT.md",
+        "video-engine/feature4/RUN_CHECKPOINT_F4_07.md"
+      ],
+      "characters": 82111
+    },
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_14_OF_20_20261119.patch",
+      "sha": "b8ef9115a361f46f17fb593bcc2e807afd09f179",
+      "files": [
+        "video-engine/feature4/RUN_CHECKPOINT_INTEGRATION.md",
+        "video-engine/feature4/archive/pr779_FEATURE4_31_TASK_PARALLEL_TRACKER_20261029.md",
+        "video-engine/feature4/archive/pr779_FEATURE4_HANDOFF.md",
+        "video-engine/feature4/archive/pr779_FEATURE4_STAGING_INTEGRITY_HANDOFF_20261029.md"
+      ],
+      "characters": 73608
+    },
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_15_OF_20_20261119.patch",
+      "sha": "d2ac28568ce6188ccce4c42bfc883df808d0aaca",
+      "files": [
+        "video-engine/feature4/archive/pr779_FEATURE4_TIMELINE_STUDIO_ADOPTION.md",
+        "video-engine/feature4_audio_master.py",
+        "video-engine/feature4_beat_edit.py",
+        "video-engine/feature4_caption_track.py",
+        "video-engine/feature4_cpu_matrix.py",
+        "video-engine/feature4_duplicate_export_qa.py",
+        "video-engine/feature4_edit_execution.py",
+        "video-engine/feature4_edited_export_qa.py",
+        "video-engine/feature4_encoded_motion_qa.py"
+      ],
+      "characters": 90773
+    },
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_16_OF_20_20261119.patch",
+      "sha": "17d1cee614b2c7f59395731bad3f69dda1a8c6c9",
+      "files": [
+        "video-engine/feature4_endcard_qa.py",
+        "video-engine/feature4_export_matrix.py",
+        "video-engine/feature4_garment_integration.py",
+        "video-engine/feature4_http_handoff.py",
+        "video-engine/feature4_intent_compiler.py",
+        "video-engine/feature4_minute_quality_receipt.py",
+        "video-engine/feature4_motion_diagnostics.py",
+        "video-engine/feature4_motion_handoff.py",
+        "video-engine/feature4_private_preview.py"
+      ],
+      "characters": 91296
+    },
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_17_OF_20_20261119.patch",
+      "sha": "0fd873a84dfc17c9e415e66a3dbdc746a4406c6e",
+      "files": [
+        "video-engine/feature4_quality_receipt.py",
+        "video-engine/feature4_release_gate.py",
+        "video-engine/feature4_review_contact_sheet.py",
+        "video-engine/feature4_scene_visibility.py",
+        "video-engine/feature4_stock_minute_acceptance.sh",
+        "video-engine/feature4_stock_showcase.py",
+        "video-engine/feature4_subtitle_burnin.py",
+        "video-engine/feature4_subtitles.py"
+      ],
+      "characters": 66772
+    },
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_18_OF_20_20261119.patch",
+      "sha": "aea7259fb58ea5251d19affd7b5ce717f316765a",
+      "files": [
+        "video-engine/feature4_voicestudio_handoff.py",
+        "video-engine/feature4_worker_handoff.py",
+        "video-engine/hyperframes/README.md",
+        "video-engine/hyperframes/THIRD_PARTY_LICENSE_REVIEW.md",
+        "video-engine/hyperframes/benchmark_render.py",
+        "video-engine/hyperframes/check_feature4_output.py",
+        "video-engine/hyperframes/ci-smoke.sh",
+        "video-engine/hyperframes/lock_guard.py"
+      ],
+      "characters": 88961
+    },
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_19_OF_20_20261119.patch",
+      "sha": "51a629dda0e49217c332d1940c8bfa2188f42a25",
+      "files": [
+        "video-engine/hyperframes/package-lock.json",
+        "video-engine/hyperframes/package.json",
+        "video-engine/hyperframes/qualify_runtime.py",
+        "video-engine/hyperframes/render.mjs"
+      ],
+      "characters": 80744
+    },
+    {
+      "path": "video-engine/feature4/archive/PR322_ORIGINAL_DIFF_PART_20_OF_20_20261119.patch",
+      "sha": "bf412ac8a2c02fb64af3a89bfea770ec0ead59c3",
+      "files": [
+        "video-engine/professional.py",
+        "video-engine/render_adapter.py"
+      ],
+      "characters": 50804
+    }
+  ],
+  "integrated_source_only_pr": 1008,
+  "integrated_source_merge_sha": "fb62e1b4154ecbad9e254dcef75e341babf5f614",
+  "restored_missing_paths": 163,
+  "unintegrated_differences": "Current-main existing-path changes are intentionally NOT restored; inspect archived original diff for each before any activation",
+  "acceptance": "This is not licensed commercial HyperFrames release, real visual QA acceptance, hosted renderer or integrated feature DONE."
+}

@@ -106,8 +106,14 @@ test('mobile business workspace has a usable drawer and subscription navigation'
   await expect(page.getByRole('region', { name: 'Live business metrics' })).toBeVisible()
   await page.getByRole('button', { name: 'Toggle navigation' }).click()
   const navigation = page.getByRole('navigation', { name: 'Main navigation' })
-  await expect(navigation.getByRole('link', { name: 'Subscription' })).toBeInViewport()
-  await navigation.getByRole('link', { name: 'Subscription' }).click()
+  const subscription = navigation.getByRole('link', { name: 'Subscription' })
+  // Mobile navigation has expanded sections: a 390x844 drawer scrolls.
+  // Verify the link can actually be scrolled into view and activated,
+  // instead of assuming every nav section fits on screen at once.
+  await expect(subscription).toBeVisible()
+  await subscription.scrollIntoViewIfNeeded()
+  await expect(subscription).toBeInViewport()
+  await subscription.click()
   await expect(page).toHaveURL(/\/subscription$/)
   await expect(page.getByRole('heading', { name: 'Subscription & plans' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Toggle navigation' })).toBeVisible()

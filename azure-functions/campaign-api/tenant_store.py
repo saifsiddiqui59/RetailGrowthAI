@@ -9,7 +9,7 @@ import json
 import re
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 from uuid import UUID
 
 from security import AuthenticationError
@@ -36,13 +36,37 @@ def canonical_uuid(value):
         raise ValueError("invalid UUID") from exc
 
 
+class _RejectRedirects(HTTPRedirectHandler):
+    """Do not forward a verified user's JWT or Supabase API key after redirects."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_NO_REDIRECT_OPENER = build_opener(_RejectRedirects())
+
+
 class TenantStore:
     def __init__(self, origin: str, publishable_key: str, transport=None):
-        if not origin.startswith("https://") or not publishable_key:
+        if (not isinstance(origin, str) or not isinstance(publishable_key, str)
+                or not publishable_key
+                or any(ord(ch) <= 32 or ord(ch) == 127 for ch in origin)
+                or "\\" in origin):
+            raise ValueError("Supabase HTTPS origin and publishable key required")
+        try:
+            parsed = urlsplit(origin)
+            parsed.port  # reject a malformed explicit port
+            valid = (origin.startswith("https://") and parsed.scheme == "https"
+                     and bool(parsed.hostname) and parsed.username is None
+                     and parsed.password is None and parsed.path in ("", "/")
+                     and not parsed.query and not parsed.fragment
+                     and parsed.geturl() == origin)
+        except ValueError:
+            valid = False
+        if not valid:
             raise ValueError("Supabase HTTPS origin and publishable key required")
         self.origin = origin.rstrip("/")
         self.key = publishable_key
-        self.transport = transport or urlopen
+        self.transport = transport if transport is not None else _NO_REDIRECT_OPENER.open
 
     def _request(self, table, token, *, query=None, method="GET", data=None):
         if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs", "poster_drafts", "poster_jobs", "business_profiles", "shop_content_drafts", "feature3_gpu_jobs"}:
@@ -68,16 +92,19 @@ class TenantStore:
             with self.transport(request, timeout=8) as response:
                 return json.loads(response.read().decode("utf-8"))
         except HTTPError as exc:
-            if exc.code in (400, 402, 409, 429, 500):
-                try:
-                    response_code = json.loads(exc.read(4096)).get("code")
-                except (ValueError, AttributeError, TypeError):
-                    response_code = None
-                if response_code in ("RG001", "RG002"):
-                    raise SubscriptionDenied(response_code) from exc
-            if exc.code in (401, 403):
-                raise AuthenticationError("database denied user token") from exc
-            raise StorageUnavailable("database request rejected") from exc
+            try:
+                if exc.code in (400, 402, 409, 429, 500):
+                    try:
+                        response_code = json.loads(exc.read(4096)).get("code")
+                    except (ValueError, AttributeError, TypeError):
+                        response_code = None
+                    if response_code in ("RG001", "RG002"):
+                        raise SubscriptionDenied(response_code) from exc
+                if exc.code in (401, 403):
+                    raise AuthenticationError("database denied user token") from exc
+                raise StorageUnavailable("database request rejected") from exc
+            finally:
+                exc.close()
         except (URLError, OSError, json.JSONDecodeError) as exc:
             raise StorageUnavailable("database unavailable") from exc
 
