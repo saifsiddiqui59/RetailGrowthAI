@@ -173,20 +173,25 @@
       "pr": 995,
       "title": "build(#249): exact five-route Y1 GET staging with deny-list tests",
       "feature": "issue249",
-      "head_sha": "144c65b5af2ce55df1b9705c6f1fac46a550d9c9",
+      "head_sha": "134b924f60a2101dad93a939aa3f2dceae9dc975",
       "base_branch": "feat/p0249-y1-extra-readonly-get-source-20261117",
       "work_owner": "manual-issue249",
       "priority": "P2",
       "phase": "in-progress",
       "claim": {
         "owner": "manual-integration-chat-y1-20261120",
-        "head_sha": "144c65b5af2ce55df1b9705c6f1fac46a550d9c9",
+        "head_sha": "134b924f60a2101dad93a939aa3f2dceae9dc975",
         "claimed_at": "2026-11-19T18:45:07.371Z",
         "expires_at": "2026-11-19T20:15:07.371Z"
       },
       "checkpoint": {
-        "next_action": "Y1 staged five-GET source/release integration after parent-first main CI. No deployment until security checks, review, manual protected DEV workflow.",
-        "head_sha": "144c65b5af2ce55df1b9705c6f1fac46a550d9c9"
+        "owner": "manual-integration-chat-y1-20261120",
+        "source": "non-force merge commit, main as second parent",
+        "head_sha": "134b924f60a2101dad93a939aa3f2dceae9dc975",
+        "previous_head": "144c65b5af2ce55df1b9705c6f1fac46a550d9c9",
+        "status": "Y1 5-GET staging #995 reconciled after #968 squash, exact-head CI needed",
+        "CI": "pending",
+        "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/995"
     },
