@@ -152,6 +152,46 @@ class QueueTest(unittest.TestCase):
         self.assertEqual(state["summary"]["open_prs"], 0)
         self.assertEqual(state["entries"], [])
 
+    def test_api_rejects_untrusted_destinations_without_opening_connection(self):
+        from unittest.mock import patch
+        forbidden = (
+            "http://api.github.com/repos/" + queue.REPO + "/pulls",
+            "https://evil.invalid/repos/" + queue.REPO + "/pulls",
+            "https://api.github.com.evil.invalid/repos/" + queue.REPO + "/pulls",
+            "https://attacker@api.github.com/repos/" + queue.REPO + "/pulls",
+            "https://api.github.com/repos/other/other/pulls",
+            "https://api.github.com:444/repos/" + queue.REPO + "/pulls",
+            "https://api.github.com/repos/" + queue.REPO + "/pulls#secret",
+        )
+        with patch.object(queue.request, "build_opener") as make_opener:
+            for url in forbidden:
+                with self.subTest(url=url):
+                    with self.assertRaisesRegex(queue.QueueError, "unsafe GitHub API target"):
+                        queue.api("GET", url, "not-a-real-token")
+            make_opener.assert_not_called()
+
+    def test_api_rejects_redirect_without_forwarding_auth_token(self):
+        from unittest.mock import patch
+        source = queue.API + "/pulls"
+        attack = "https://evil.invalid/collect-token"
+        # An actual urllib redirect is stopped by this handler, including
+        # redirects to HTTPS hosts where urllib may copy custom headers.
+        handler = queue.RejectRedirects()
+        self.assertIsNone(handler.redirect_request(
+            None, None, 302, "Found", {"Location": attack}, attack))
+        with patch.object(queue.request, "build_opener") as build:
+            opener = build.return_value
+            opener.open.side_effect = queue.error.HTTPError(
+                source, 302, "Found", {"Location": attack}, None)
+            with self.assertRaisesRegex(queue.QueueError, "redirect denied"):
+                queue.api("GET", source, "fixture-credential")
+            self.assertIsInstance(build.call_args.args[0], queue.RejectRedirects)
+            sent = opener.open.call_args.args[0]
+            self.assertEqual(sent.full_url, source)
+            self.assertEqual(sent.get_header("Authorization"), "Bearer fixture-credential")
+            self.assertEqual(opener.open.call_count, 1)
+
+
 
 if __name__ == "__main__":
     unittest.main()
