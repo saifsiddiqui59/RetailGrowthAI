@@ -52,27 +52,25 @@
     {
       "pr": 1027,
       "title": "ci: fix apt-mirror timeouts without skipping Chromium or FFmpeg",
-      "head_sha": "6375b3ce4c8a59bb401baa8dcd53857c155fce3e",
+      "head_sha": "218deebd810b6ba2dc14f8144aa05de117cfd84a",
       "base_branch": "main",
       "feature": "shared",
       "work_owner": "manual-integration",
       "priority": "P1",
-      "phase": "in-progress",
+      "phase": "ci-review-pending",
       "claim": {
         "owner": "manual-ci-fix-chat-g-20261119",
         "claimed_at": "2026-11-19T13:14:20.652Z",
         "expires_at": "2026-11-19T14:44:20.652Z",
-        "head_sha": "6375b3ce4c8a59bb401baa8dcd53857c155fce3e"
+        "head_sha": "218deebd810b6ba2dc14f8144aa05de117cfd84a"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1027",
       "checkpoint": {
-        "owner": "manual-ci-verification-chat-g-20261119",
-        "at": "2026-11-19T13:12:37.590Z",
-        "status": "Final head completed four mandatory jobs SUCCESS; repo shared workflow independent affected-lead review pending, no merge; no model/hosted/PROD action",
-        "head_sha": "6375b3ce4c8a59bb401baa8dcd53857c155fce3e",
-        "ci": "PR #44486681441 completed success 4/4; push #44486673507 completed success",
-        "mergeable": true,
-        "review_count": 0,
+        "owner": "manual-ci-fix-chat-g-20261119",
+        "at": "2026-11-19T13:16:48.932Z",
+        "status": "Removed unconditional apt-get from Supabase security job, pinned Ubuntu 24.04 preinstalled Postgres client, added SQL-not-skipped regression test and scoped handoff; CI on new head pending; independent shared-workflow review required",
+        "commit": "218deebd810b6ba2dc14f8144aa05de117cfd84a",
+        "ci": "Push run #44531793361 in progress",
         "feature_done": false
       }
     },
