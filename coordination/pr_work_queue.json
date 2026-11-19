@@ -13,7 +13,7 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 17,
+    "open_prs": 19,
     "by_feature": {
       "F5": 1,
       "issue249": 9,
@@ -24,6 +24,52 @@
     }
   },
   "entries": [
+    {
+      "pr": 1024,
+      "title": "docs(#249): preserve all 12 original auth/JWKS source patches from legacy #965",
+      "feature": "issue249",
+      "head_sha": "d56e393bbf3641af1d5299e5073aabcda5483681",
+      "base_branch": "main",
+      "work_owner": "manual-integration-chat-f-20261119",
+      "priority": "P2",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119",
+        "head_sha": "d56e393bbf3641af1d5299e5073aabcda5483681",
+        "claimed_at": "2026-11-19T05:21:52.720Z",
+        "expires_at": "2026-11-19T06:51:52.720Z"
+      },
+      "checkpoint": {
+        "owner": "manual-integration-chat-f-20261119",
+        "at": "2026-11-19T05:21:52.720Z",
+        "status": "archival PR for original #965; exact original patch parity verified; PR/main CI pending",
+        "original_tasks_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1024"
+    },
+    {
+      "pr": 1023,
+      "title": "docs(#249): preserve four exact original #1002 Y1 canonical-doc patches without stale overwrite",
+      "feature": "issue249",
+      "head_sha": "b5c39857d46dac1dd98d6cc942f8f0040b9fff77",
+      "base_branch": "main",
+      "work_owner": "manual-integration-chat-f-20261119",
+      "priority": "P2",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119",
+        "head_sha": "b5c39857d46dac1dd98d6cc942f8f0040b9fff77",
+        "claimed_at": "2026-11-19T05:21:52.720Z",
+        "expires_at": "2026-11-19T06:51:52.720Z"
+      },
+      "checkpoint": {
+        "owner": "manual-integration-chat-f-20261119",
+        "at": "2026-11-19T05:21:52.720Z",
+        "status": "archival PR for original #1002; exact original patch parity verified; PR/main CI pending",
+        "original_tasks_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1023"
+    },
     {
       "pr": 1019,
       "title": "feat(F2): port default-off signed VoiceStudio route from stacked #925 onto current main",
@@ -48,17 +94,17 @@
       "pr": 1018,
       "title": "fix(#249): protect user JWT and service-role PostgREST from HTTP redirects",
       "feature": "issue249",
-      "head_sha": "6b4e0dcc86d85cfa309afc30689b663b69ffd2c5",
+      "head_sha": "179536e181e0396e753ee99f066ce5b1a787a596",
       "base_branch": "main",
       "work_owner": "manual-integration-chat-f-20261119",
       "priority": "P1",
-      "phase": "ci-in-progress",
+      "phase": "ready-for-review",
       "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T05:11:40.474Z",
-        "status": "source hardening JWT/service-role redirects + JWKS 503 differentiation + F2 builder NameError fix; fresh exact-head CI underway; independent global auth review required",
-        "ci": "new exact-head #44463374490 PENDING; old run #44462808283 Python 2 failures fixed",
+        "at": "2026-11-19T05:21:52.720Z",
+        "status": "current-main privileged HTTP no-redirect + JWKS 503 + Feature2 enabled cached-verifier NameError fix; exact PR #44463610067 4/4 PASS; independent security review REQUIRED before merge",
+        "ci": "44463610067 SUCCESS 4/4",
         "original_tasks_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1018"
