@@ -13,11 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 5,
+    "open_prs": 4,
     "by_feature": {
       "issue249": 3,
-      "shared": 1,
-      "F5": 1
+      "shared": 1
     }
   },
   "entries": [
@@ -57,49 +56,24 @@
       "pr": 1034,
       "title": "docs(group2): record F3 private-PNG source integration and remaining review gates",
       "feature": "shared",
-      "head_sha": "1ea95976685f4d4f8e07d35669ea09e3bcae8d47",
+      "head_sha": "01697a7ff3126e627d72bc62e0faa944c1e7d1f5",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
       "phase": "ci-review-pending",
       "claim": {
         "owner": "manual-integration-chat-a-20261120",
-        "head_sha": "1ea95976685f4d4f8e07d35669ea09e3bcae8d47",
-        "claimed_at": "2026-11-19T21:35:05.222Z",
-        "expires_at": "2026-11-19T23:05:05.222Z"
+        "head_sha": "01697a7ff3126e627d72bc62e0faa944c1e7d1f5",
+        "claimed_at": "2026-11-19T21:52:47.651Z",
+        "expires_at": "2026-11-19T23:22:47.651Z"
       },
       "checkpoint": {
         "owner": "manual-integration-chat-a-20261120",
-        "head_sha": "1ea95976685f4d4f8e07d35669ea09e3bcae8d47",
-        "at": "2026-11-19T21:35:05.222Z",
-        "ci": "#44619641362 running",
-        "status": "Group2 append-only canonical docs after #880 source+main 4/4; retain #1019 release gates"
+        "head_sha": "01697a7ff3126e627d72bc62e0faa944c1e7d1f5",
+        "at": "2026-11-19T21:52:47.651Z",
+        "status": "Re-scoped #1034 after #1037 merged; now only new F5 #1036 equality-spoof and VoiceStudio descendant-main evidence, four docs append-only"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1034"
-    },
-    {
-      "pr": 1036,
-      "title": "security(F5): fail closed on equality-spoofed human visual reviews",
-      "feature": "F5",
-      "head_sha": "e25d44cb8ce6d17c836dea3cbe238b4d185ad752",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P1",
-      "phase": "ready-for-review",
-      "claim": {
-        "owner": "manual-integration-chat-a-20261120",
-        "head_sha": "e25d44cb8ce6d17c836dea3cbe238b4d185ad752",
-        "claimed_at": "2026-11-19T21:47:25.680Z",
-        "expires_at": "2026-11-19T23:17:25.680Z"
-      },
-      "checkpoint": {
-        "owner": "manual-integration-chat-a-20261120",
-        "head_sha": "e25d44cb8ce6d17c836dea3cbe238b4d185ad752",
-        "at": "2026-11-19T21:47:25.680Z",
-        "ci": "#44621360998 4/4 PASS",
-        "status": "F5 exact primitive decision/JWT reviewer/digest and checklist hardening; AI-reviewed source, waiting serialized main CI #44621937036"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1036"
     },
     {
       "pr": 1038,
@@ -115,5 +89,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1038"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T21:48:51.517Z"
+  "last_inventory_checked_at": "2026-11-19T21:52:47.651Z"
 }
