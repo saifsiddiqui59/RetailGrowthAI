@@ -111,11 +111,12 @@ class Y1FiveRouteReleaseSourceTests(unittest.TestCase):
         self.assertFalse((self.root / "no-relative-import").exists())
 
     def test_fresh_process_indexes_all_approved_functions_without_secrets(self):
-        """Test BOTH release shapes with real azure.functions, not import stubs.
+        """Test BOTH release shapes in a separate Python interpreter.
 
-        CI installs pinned azure-functions/PyJWT into an ephemeral uv overlay.
-        Forward only site-package roots to the subprocess; use -s to isolate
-        user-site packages and run outside the checkout
+        The uv/pytest job MUST use real pinned azure.functions. The existing
+        deployment check.sh also runs stdlib-only unittest, where a minimal
+        SDK interface stand-in exercises the same no-JWT denial behavior.
+        Both execute outside the checkout with user-site imports disabled
         in a separate interpreter: no original app/worker modules may leak into
         sys.modules or sys.path, and no hosted Auth or Azure calls are made.
         """
@@ -123,8 +124,38 @@ class Y1FiveRouteReleaseSourceTests(unittest.TestCase):
             import importlib.util
             import pathlib
             import sys
+            import types
 
-            import azure.functions as func
+            # The full uv/pytest job installs the real Azure Functions SDK.
+            # scripts/deploy/check.sh also runs this test under stdlib-only
+            # Python; there a minimal SDK interface checks route behavior.
+            try:
+                import azure.functions as func
+                sdk_mode = "real"
+            except ModuleNotFoundError as error:
+                assert error.name in ("azure", "azure.functions"), error
+                sdk_mode = "stub"
+                namespace = types.ModuleType("azure")
+                namespace.__path__ = []
+                func = types.ModuleType("azure.functions")
+                class HttpRequest:
+                    def __init__(self, method, url, headers, body, route_params):
+                        self.method = method
+                        self.url = url
+                        self.headers = headers
+                        self.body = body
+                        self.route_params = route_params
+                class HttpResponse:
+                    def __init__(self, body, *, status_code, mimetype, headers):
+                        self.body = body
+                        self.status_code = status_code
+                        self.mimetype = mimetype
+                        self.headers = headers
+                func.HttpRequest = HttpRequest
+                func.HttpResponse = HttpResponse
+                namespace.functions = func
+                sys.modules["azure"] = namespace
+                sys.modules["azure.functions"] = func
 
             root = pathlib.Path(sys.argv[1])
             expected = set(sys.argv[2].split(","))
@@ -156,7 +187,7 @@ class Y1FiveRouteReleaseSourceTests(unittest.TestCase):
             for lazy in ("http_api", "security", "tenant_store", "render_api",
                          "poster_render_api", "poster_draft_api"):
                 assert lazy not in sys.modules, lazy
-            print("P0249_Y1_FRESH_INDEX_AND_DENIAL=PASS")
+            print("P0249_Y1_FRESH_INDEX_AND_DENIAL=PASS SDK_MODE=" + sdk_mode)
         """)
         for mode, expected in (
             ("rollback-two", {"p0249_health", "campaign_read"}),
@@ -172,8 +203,16 @@ class Y1FiveRouteReleaseSourceTests(unittest.TestCase):
             # even when sys.executable points at a base interpreter. Pass
             # only installed-package roots (never the checkout) to the
             # isolated child, so real Azure SDK imports resolve in CI.
-            import azure.functions as azure_functions
-            installed = [str(Path(azure_functions.__file__).resolve().parents[2])]
+            # stdlib-only check.sh has no Azure SDK; the subprocess then
+            # uses a strict local stand-in. Under uv/pytest, require real SDK.
+            import importlib.util
+            azure_present = importlib.util.find_spec("azure") is not None
+            if "pytest" in sys.modules:
+                self.assertTrue(azure_present, "uv/pytest must load the pinned Azure SDK")
+            installed = []
+            if azure_present:
+                import azure.functions as azure_functions
+                installed.append(str(Path(azure_functions.__file__).resolve().parents[2]))
             installed.extend(str(Path(p).resolve()) for p in sys.path
                              if p and Path(p).is_dir()
                              and ({"site-packages", "dist-packages"} & set(Path(p).parts)))
@@ -186,6 +225,7 @@ class Y1FiveRouteReleaseSourceTests(unittest.TestCase):
             )
             self.assertEqual(proc.returncode, 0, msg=mode + " " + proc.stdout + proc.stderr)
             self.assertIn("P0249_Y1_FRESH_INDEX_AND_DENIAL=PASS", proc.stdout)
+            self.assertIn("SDK_MODE=" + ("real" if azure_present else "stub"), proc.stdout)
 
     def test_no_http_write_or_worker_route_in_either_mode(self):
         for mode in MODES:
