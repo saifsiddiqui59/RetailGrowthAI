@@ -134,22 +134,21 @@
       "pr": 995,
       "title": "build(#249): exact five-route Y1 GET staging with deny-list tests",
       "feature": "issue249",
-      "head_sha": "1746d377410b215c1c0f53fe0de1f67a1624dea2",
+      "head_sha": "b205ce13db013dfbff4e8cb9dafc537dd8bdc486",
       "base_branch": "feat/p0249-y1-extra-readonly-get-source-20261117",
       "work_owner": "manual-issue249",
       "priority": "P2",
       "phase": "in-progress",
       "claim": {
         "owner": "manual-integration-chat-y1-20261120",
-        "head_sha": "1746d377410b215c1c0f53fe0de1f67a1624dea2",
+        "head_sha": "b205ce13db013dfbff4e8cb9dafc537dd8bdc486",
         "claimed_at": "2026-11-19T18:45:07.371Z",
         "expires_at": "2026-11-19T20:15:07.371Z"
       },
       "checkpoint": {
         "owner": "manual-integration-chat-y1-20261120",
-        "head_sha": "1746d377410b215c1c0f53fe0de1f67a1624dea2",
-        "reason": "Post-#968 main Part1 CI #44591535212 exposed original offline test patch tenant_store.urlopen after safe #1018 default transport change; now patches _NO_REDIRECT_OPENER.open as existing #1018 tests do, preserves real JWT/tenant denial",
-        "status": "test fixture fixed; exact-head four-job CI pending",
+        "head_sha": "b205ce13db013dfbff4e8cb9dafc537dd8bdc486",
+        "status": "Reconciled with current main #1030 stronger signed-JWT mock. Only 3 original source staging paths differ; no overwriting #1030. Previous exact head 1746d3 CI #44592715114 4/4, new exact-head CI pending.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/995"
