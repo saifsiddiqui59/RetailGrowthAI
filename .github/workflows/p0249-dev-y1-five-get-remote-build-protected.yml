@@ -1,0 +1,288 @@
+name: "RetailGrowthAI #249 Y1 corrected remote-build DEV release (protected + rollback)"
+# An independently reviewed, explicit operator trial only; never runs on push.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Deploy only five GET endpoints on existing isolated DEV Y1"
+        required: true
+        type: choice
+        options: ["NO", "YES-P0249-DEV-Y1-REMOTE-BUILD-ROLLBACK"]
+      reviewed_main_sha:
+        description: "Exact 40-character independently reviewed main SHA"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rgai-p0249-y1-five-get-release
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'workflow_dispatch' &&
+      inputs.confirm == 'YES-P0249-DEV-Y1-REMOTE-BUILD-ROLLBACK'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 32
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      attempted: ${{ steps.mutation_marker.outputs.attempted }}
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      REVIEWED_MAIN_SHA: ${{ inputs.reviewed_main_sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Verify reviewed exact main commit and source checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$REVIEWED_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$GITHUB_SHA" = "$REVIEWED_MAIN_SHA" || {
+            echo "::error::Refuse unreviewed main SHA"; exit 2;
+          }
+          python3 -m unittest discover -s tests/infra \
+            -p 'test_p0249_y1_five_get*.py' -v
+          python3 -m unittest discover -s tests/infra \
+            -p 'test_p0249_y1_release_workflow_source.py' -v
+      - name: Build exact five GET and two GET rollback ZIPs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ops/p0249-y1-readonly-extra-get/build_five_get_release.py \
+            --mode five --target "$RUNNER_TEMP/y1-five"
+          python3 ops/p0249-y1-readonly-extra-get/build_five_get_release.py \
+            --mode rollback-two --target "$RUNNER_TEMP/y1-two"
+          # Never ship the older original PostgREST module that followed
+          # redirects with bearer user JWTs. Check BOTH exact staged copies
+          # against an offline synthetic HTTPS 30x (no real sockets).
+          # A reviewed #1018-compatible no-redirect fix must first land on main.
+          # This test is before dependency vendoring, Azure login and ZIP writes.
+          python3 ops/p0249-y1-readonly-extra-get/verify_staged_y1_auth_transport.py \
+            --target "$RUNNER_TEMP/y1-five"
+          python3 ops/p0249-y1-readonly-extra-get/verify_staged_y1_auth_transport.py \
+            --target "$RUNNER_TEMP/y1-two"
+          # Preserve clean source-only tree for Azure Oryx remote build.
+          cp -a "$RUNNER_TEMP/y1-five" "$RUNNER_TEMP/y1-five-source"
+          python3 -m pip install --disable-pip-version-check --no-cache-dir \
+            -r "$RUNNER_TEMP/y1-five/requirements.txt" \
+            --target "$RUNNER_TEMP/y1-five/.python_packages/lib/site-packages" --quiet
+          cp -a "$RUNNER_TEMP/y1-five/.python_packages" "$RUNNER_TEMP/y1-two/.python_packages"
+          python3 - <<'PY'
+          import importlib.util,json,os,pathlib,sys
+          base=pathlib.Path(os.environ["RUNNER_TEMP"])
+          modes={"five":{"p0249_health","campaign_read","render_job_read","poster_job_read","poster_draft_read"},
+                 "two":{"p0249_health","campaign_read"}}
+          for label, expected in modes.items():
+              root=base/("y1-"+label)
+              manifests=list(root.glob("*/function.json"))
+              assert len(manifests)==len(expected)
+              assert {p.parent.name for p in manifests}==expected
+              assert not (root/"function_app.py").exists()
+              assert (root/".python_packages/lib/site-packages/azure/functions/__init__.py").is_file()
+              assert (root/".python_packages/lib/site-packages/jwt/__init__.py").is_file()
+              for p in manifests:
+                  m=json.loads(p.read_text())
+                  assert m["scriptFile"]=="__init__.py" and len(m["bindings"])==2
+                  assert m["bindings"][0]["type"]=="httpTrigger"
+                  assert m["bindings"][0]["methods"]==["get"]
+                  assert m["bindings"][1]["type"]=="http"
+              # Import all Y1 entrypoints with no Y1 shadow feature flags set.
+              # Original Supabase/JWT modules must NOT eagerly import or read secrets.
+              os.environ.pop("RGAI_P0249_READONLY_SHADOW",None)
+              os.environ.pop("RGAI_P0249_EXTRA_GET_SHADOW",None)
+              sys.path[:0]=[str(root),str(root/".python_packages/lib/site-packages")]
+              for name in sorted(expected):
+                  spec=importlib.util.spec_from_file_location(label+"_"+name,root/name/"__init__.py")
+                  module=importlib.util.module_from_spec(spec)
+                  spec.loader.exec_module(module)
+              assert "security" not in sys.modules
+              assert "http_api" not in sys.modules
+              assert "tenant_store" not in sys.modules
+              sys.path=sys.path[2:]
+              sys.modules.pop("request_diagnostics",None)
+              sys.modules.pop("p0249_readonly_jobs",None)
+              print("P0249_Y1_"+label.upper()+"_GET_INDEX_OFFLINE=PASS",flush=True)
+          PY
+          (cd "$RUNNER_TEMP/y1-five-source" && zip -qr "$RUNNER_TEMP/y1-five-source.zip" .)
+          (cd "$RUNNER_TEMP/y1-five" && zip -qr "$RUNNER_TEMP/y1-five.zip" .)
+          (cd "$RUNNER_TEMP/y1-two" && zip -qr "$RUNNER_TEMP/y1-two.zip" .)
+          test -s "$RUNNER_TEMP/y1-five-source.zip"
+          test -s "$RUNNER_TEMP/y1-five.zip"
+          test -s "$RUNNER_TEMP/y1-two.zip"
+          echo "P0249_Y1_FIVE_AND_ROLLBACK_PACKAGES_BUILT=PASS"
+      - name: Persist this run's exact two-route rollback ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0249-y1-two-rollback-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/y1-two.zip
+          retention-days: 1
+          if-no-files-found: error
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Guard original Flex, tagged Y1, exactly two indexes, and no shadow settings
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_canary_guard.py verify
+          az functionapp function list -g rg-retailgrowth-dev \
+            -n rgai-dev-y1-p0249-d4e5ddbd --query "[].name" \
+            -o json > "$RUNNER_TEMP/y1-index.json"
+          python3 - "$RUNNER_TEMP/y1-index.json" <<'PY'
+          import json,sys
+          names=[str(x).split("/")[-1] for x in json.load(open(sys.argv[1]))]
+          assert len(names)==2 and set(names)=={"p0249_health","campaign_read"}, (
+              "Refuse overwriting unexpected Y1 function indexes")
+          print("P0249_Y1_DEPLOY_PREFLIGHT=EXACT_TWO")
+          PY
+          # Read setting names only, not secret values. Reject concurrent trial.
+          names="$(az functionapp config appsettings list \
+            -g rg-retailgrowth-dev -n rgai-dev-y1-p0249-d4e5ddbd \
+            --query "[?name=='RGAI_P0249_READONLY_SHADOW' || name=='RGAI_P0249_EXTRA_GET_SHADOW' || name=='RETAIL_SUPABASE_URL' || name=='RETAIL_SUPABASE_PUBLISHABLE_KEY'].name" -o tsv)"
+          test -z "$names" || {
+            echo "::error::Existing Y1 shadow settings found; deny deployment"; exit 2;
+          }
+      - name: Record mutation attempt before any Y1 setting changes
+        id: mutation_marker
+        shell: bash
+        run: echo "attempted=true" >> "$GITHUB_OUTPUT"
+      - name: Backup existing Y1 package URL and select reversible remote-build mode
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_remote_build_mode.py prepare
+      - name: Deploy five GETs with remote Oryx build, prove indexes and two HTTP windows
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Restore exact original external package URI from same-run backup.
+          on_exit() {
+            rc=$?
+            trap - EXIT
+            if [ "$rc" -ne 0 ]; then
+              echo "::warning::Y1 remote build failed; attempting original package rollback"
+              python3 -u ops/p0249_y1_remote_build_mode.py rollback ||
+                echo "::error::Independent restore job required"
+            fi
+            exit "$rc"
+          }
+          trap on_exit EXIT
+          az functionapp deployment source config-zip -g rg-retailgrowth-dev \
+            -n rgai-dev-y1-p0249-d4e5ddbd \
+            --src "$RUNNER_TEMP/y1-five-source.zip" --build-remote true -o none
+          for attempt in $(seq 1 12); do
+            az functionapp function list -g rg-retailgrowth-dev \
+              -n rgai-dev-y1-p0249-d4e5ddbd --query "[].name" \
+              -o json > "$RUNNER_TEMP/y1-index.json"
+            if python3 - "$RUNNER_TEMP/y1-index.json" <<'PY'
+          import json,sys
+          names=[str(x).split("/")[-1] for x in json.load(open(sys.argv[1]))]
+          expected={"p0249_health","campaign_read","render_job_read","poster_job_read","poster_draft_read"}
+          ok=len(names)==5 and set(names)==expected
+          print(f"P0249_Y1_FIVE_GET_INDEXED={len(names)} exact_five={ok}",flush=True)
+          raise SystemExit(0 if ok else 1)
+          PY
+            then break; fi
+            if [ "$attempt" -eq 12 ]; then
+              echo "::error::Expected five GET function indexes absent"; exit 2;
+            fi
+            sleep 15
+          done
+          python3 -u - <<'PY'
+          import sys,time,urllib.error,urllib.request
+          sys.path.insert(0,"ops")
+          import p0249_y1_canary_guard as g
+          class NoRedirects(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+          opener=urllib.request.build_opener(NoRedirects())
+          def guarded_get(path):
+              req=urllib.request.Request(
+                  "https://rgai-dev-y1-p0249-d4e5ddbd.azurewebsites.net"+path,
+                  headers={"Cache-Control":"no-store"},method="GET")
+              start=time.monotonic()
+              try:
+                  with opener.open(req,timeout=18) as response:
+                      status=response.status
+                      marker=bool(response.headers.get("X-Request-ID"))
+              except urllib.error.HTTPError as err:
+                  try:
+                      status=err.code
+                      marker=bool(err.headers.get("X-Request-ID"))
+                  finally:
+                      err.close()
+              except (urllib.error.URLError,TimeoutError,OSError):
+                  status,marker=0,False
+              return status,marker,time.monotonic()-start
+          uid="11111111-1111-4111-8111-111111111111"
+          paths=("/api/campaigns/"+uid,"/api/render-jobs/"+uid,
+                 "/api/poster-jobs/"+uid,"/api/poster-drafts/"+uid)
+          for window in ("immediate","after_240s_idle"):
+              if window=="after_240s_idle":
+                  print("P0249_Y1_START_IDLE_SECONDS=240",flush=True)
+                  time.sleep(240)
+              g.probe()  # 20 real health/unknown GETs in each window.
+              for path in paths:
+                  status,marker,seconds=guarded_get(path)
+                  ok=(status==401 and marker and seconds<18)
+                  print(f"P0249_Y1_GET_DENIAL window={window} type={path.split('/')[2]} "
+                        f"status={status} marked={marker} seconds={seconds} pass={ok}",flush=True)
+                  if not ok: raise SystemExit("Y1 original JWT missing-credential denial failed")
+          print("P0249_Y1_FIVE_READONLY_GET_IDLE_NEGATIVE=PASS",flush=True)
+          PY
+          python3 -u ops/p0249_y1_canary_guard.py verify
+          python3 -u ops/p0249_y1_remote_build_mode.py verify-five
+          trap - EXIT
+          echo "P0249_Y1_REMOTE_BUILD_FIVE_ROUTE_HOSTED_NEGATIVE_AUTH_ACCEPTED_BACKUP_RETAINED"
+      - name: End Azure OIDC session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
+
+  independent-restore:
+    needs: deploy
+    if: >-
+      always() &&
+      needs.deploy.outputs.attempted == 'true' &&
+      needs.deploy.result != 'success'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Independently restore original external Y1 package and verify 20/20
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_remote_build_mode.py rollback
+          python3 -u ops/p0249_y1_canary_guard.py verify
+          echo "P0249_Y1_INDEPENDENT_ORIGINAL_EXTERNAL_ROLLBACK=PASS"
+      - name: End Azure OIDC session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
