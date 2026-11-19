@@ -161,12 +161,14 @@
       "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-g-docs-20261119",
-        "at": "2026-11-19T08:03:01.260Z",
-        "status": "four canonical docs append-only checkpoint on review PR; no main mutation; independent review required",
-        "head": "6ed3aa3b47482ccbedc9361d3727d3b6889d2e44",
-        "ci": "new exact-head #44484297479 in progress",
-        "evidence": "#995 #44482574026 attempt2 4/4; #1013 #44480645631 attempt3 4/4; #1002 external closed, #1023 historical archive, #1026 replacement",
-        "feature_done": false
+        "at": "2026-11-19T08:09:37.177Z",
+        "status": "four shared canonical docs updated append-only; exact-head source CI success, independent review still pending",
+        "ci": "PR run #44484297479 exact SHA 6ed3aa3b4 four jobs all SUCCESS",
+        "source_ci": [
+          "#995 #44482574026 attempt2 4/4",
+          "#1013 #44480645631 attempt3 4/4"
+        ],
+        "task_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1007"
     },
