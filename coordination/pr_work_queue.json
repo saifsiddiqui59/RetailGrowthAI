@@ -13,7 +13,7 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 19,
+    "open_prs": 18,
     "by_feature": {
       "F5": 1,
       "issue249": 9,
@@ -80,11 +80,11 @@
       },
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T05:07:15.802Z",
-        "status": "signed reviewer ID enforced with negative tests",
-        "CI": "44461405531 exact-head 4/4 PASS",
-        "review": "independent affected F4 review required",
-        "originalTasksDone": false
+        "at": "2026-11-19T05:08:38.516Z",
+        "status": "F5 reviewer identity spoofing fix, source-ready, no hosted/visual acceptance",
+        "head_sha": "8aecc7c687c217b5c7a0b67498ef9a4a53400824",
+        "ci": "exact-head #44461405531 4/4",
+        "blocker": "independent affected F4 security review"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1013"
     },
@@ -142,12 +142,11 @@
       },
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T05:07:15.802Z",
-        "status": "resolved real main/doc conflicts with two-parent non-force merge commit, all four docs append-only",
-        "mergeBase": "20473f0d4d5452ee8c641ced1a33a919d7b61544",
-        "newHead": "2a35fe131dac57752b217d95c3d064711424a38e",
-        "CI": "44462876075 pending",
-        "review": "independent shared docs approval required"
+        "at": "2026-11-19T05:08:38.516Z",
+        "status": "clean append-only two-parent reconciliation of latest main docs, existing unique sections preserved",
+        "ci": "#44462876075 queued/running",
+        "blocker": "independent shared docs review",
+        "mergeBase": "20473f0d4d5452ee8c641ced1a33a919d7b61544"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1007"
     },
@@ -382,20 +381,16 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P0",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-f-20261119",
-        "claimed_at": "2026-11-19T04:27:18.533Z",
-        "expires_at": "2026-11-19T06:10:49.776Z",
-        "head_sha": "b9525a9ea3d5e5aee351edf89a3c011c2314ed2e"
-      },
+      "phase": "closed-unmerged",
+      "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T05:07:15.802Z",
-        "status": "F4 source parity 184/188 exact, four historical patches in merged #1020",
-        "merge_sha": "762e0269c02bd3c8ddb3d87d03c95ef94f7229ee",
-        "CI": "original exact-main #44461762677 cancelled; descendant main #44462373840 3/4 pending",
-        "originalTasksDone": false
+        "at": "2026-11-19T05:08:38.516Z",
+        "status": "old F4 draft #322 closed UNMERGED, 184/188 exact main blobs, four historical patch hunks preserved in merged #1020",
+        "archive_pr": 1020,
+        "archive_merge": "762e0269c02bd3c8ddb3d87d03c95ef94f7229ee",
+        "ci": "archive PR #44461045029 4/4, descendant main #44462373840 4/4",
+        "original_tasks_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322"
     },
