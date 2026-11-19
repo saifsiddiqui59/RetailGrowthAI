@@ -379,7 +379,7 @@ def build_feature2_api():
                 # deterministic Feature2 endpoints. Paid AI continues OFF.
                 ai_service = None
     return TrendFeatureAdapter(
-        SupabaseJWTVerifier(origin), tenant,
+        cached_supabase_verifier(origin), tenant,
         profile_reader=authorized_profile_reader(tenant),
         snapshot_store=shared, draft_store=TenantDraftStore(admin, tenant),
         ai_service=ai_service,

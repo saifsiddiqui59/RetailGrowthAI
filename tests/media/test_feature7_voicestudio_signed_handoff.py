@@ -1,0 +1,370 @@
+"""Offline Node bridge tests; no model, network, cloud or GPU."""
+import subprocess
+import unittest
+from pathlib import Path
+
+ROOT=Path(__file__).resolve().parents[2]
+SCRIPT=r"""
+import assert from 'node:assert/strict';
+import {bindVoiceStudioReview} from './video-engine/feature7/voicestudio_signed_handoff.mjs';
+import {verifyTranscriptEvidence} from './video-engine/feature7/transcript_evidence.mjs';
+const video='a'.repeat(64),audio='b'.repeat(64),key=Buffer.alloc(32,7);
+const now=1730000000000;
+const review={schema:'retailgrowth.feature7-voicestudio-asr-review.v1',
+ audio_sha256:audio,language:'hi',text:'नमस्ते दुनिया',
+ words:[{word:'नमस्ते',start:.1,end:.5},{word:'दुनिया',start:.7,end:1.2}],
+ approved:false,renderable:false,word_timings_present:true,
+ model_revision_verified_by_worker:false,requires_feature7_signed_evidence:true};
+const lease={shop_id:'shopA',asset_id:'video1',job_id:'job1',
+ source_sha256:video,audio_sha256:audio,model_id:'licensed-pin',
+ active:true,expires_at_ms:now+60000};
+const input={review,shop_id:'shopA',asset_id:'video1',job_id:'job1',
+ original_video_sha256:video,original_audio_sha256:audio,
+ source_duration_seconds:2,lease,model_id:'licensed-pin',key,now_ms:now};
+const ok=bindVoiceStudioReview(input);
+assert.equal(ok.evidence.source_sha256,video);
+assert.equal(ok.transcript.words[0].word,'नमस्ते');
+assert.equal(ok.captions[0].words[0].text,'नमस्ते');
+assert.equal(ok.approved,false);
+assert.equal(ok.feature4_edit_advice.executable,false);
+verifyTranscriptEvidence({evidence:ok.evidence,key,now_ms:now,
+ expect:{shop_id:'shopA',asset_id:'video1',job_id:'job1',
+ source_sha256:video,transcript_sha256:ok.transcript.transcript_sha256,
+ model_id:'licensed-pin'}});
+const reject=(patch)=>assert.throws(()=>bindVoiceStudioReview({...input,...patch}));
+reject({shop_id:'shopB'});
+reject({original_video_sha256:'c'.repeat(64)});
+reject({original_audio_sha256:'c'.repeat(64)});
+// Hash validation must not coerce attacker-controlled objects or run toString.
+for (const field of ['original_video_sha256','original_audio_sha256']) {
+  let coercions=0;
+  const hostile={toString(){coercions++;throw Error('hash coercion executed');}};
+  reject({[field]:hostile});
+  assert.equal(coercions,0,field);
+  reject({[field]:new String(field==='original_video_sha256'?video:audio)});
+  reject({[field]:42});
+  reject({[field]:null});
+}
+
+reject({model_id:'other'});
+reject({now_ms:now+60001});
+// Never permit negative or overflowing clocks to produce signed lease evidence.
+reject({now_ms:-1,lease:{...lease,expires_at_ms:60000}});
+reject({now_ms:Number.MAX_SAFE_INTEGER-599999,
+ lease:{...lease,expires_at_ms:Number.MAX_SAFE_INTEGER}});
+reject({now_ms:1.5});
+reject({lease:{...lease,active:false}});
+reject({lease:{...lease,job_id:'foreign'}});
+reject({review:{...review,approved:true}});
+reject({review:{...review,schema:'retailgrowth.feature7-voicestudio-asr-reviewSnapshot.v1'}});
+reject({review:{...review,schema:'unexpected-review-v1'}});
+// Signing must independently reject forged review-only Unicode controls,
+// even if a caller bypasses the upstream Python ASR validation.
+for (const bad of ['\\u0000','\\u001f','\\u0085','\\u061c','\\u200e',
+  '\\u202e','\\u2066','\\u2028','\\u2029','\\ufeff','\\ud800']) {
+  const unsafe=JSON.parse('"'+bad+'"');
+  reject({review:{...review,text:'नमस्ते'+unsafe+'दुनिया'}});
+  reject({review:{...review,words:[{word:'नम'+unsafe+'स्ते',start:.1,end:.5}]}});
+}
+assert.equal(bindVoiceStudioReview({...input,review:{...review,
+  text:'नमस्ते दुनिया।',words:[{word:'नमस्ते',start:.1,end:.5},
+    {word:'दुनिया',start:.7,end:1.2}]}}).approved,false);
+// Bound untrusted upstream text independently of the word-count limit.
+reject({review:{...review,text:'x'.repeat(20001)}});
+assert.equal(bindVoiceStudioReview({...input,review:{...review,text:'x'.repeat(20000)}}).approved,false);
+reject({review:{...review,words:[{word:'x',start:1.5,end:1.0}]}});
+reject({review:{...review,words:[{word:'x',start:0,end:3}]}});
+reject({review:{...review,words:[{word:'\u202Ebad',start:0,end:.5}]}});
+assert.throws(()=>verifyTranscriptEvidence({evidence:ok.evidence,key,
+ now_ms:now,expect:{shop_id:'shopB',asset_id:'video1',job_id:'job1',
+ source_sha256:video,transcript_sha256:ok.transcript.transcript_sha256}}));
+// Accessors must never execute before HMAC or source/lease validation.
+for (const field of ['schema','language','audio_sha256','words','text']) {
+  let calls=0;
+  const hostile={...review};
+  Object.defineProperty(hostile,field,{enumerable:true,get(){calls++;throw Error('getter executed');}});
+  reject({review:hostile});
+  assert.equal(calls,0,field);
+}
+for (const field of ['shop_id','source_sha256','active','expires_at_ms']) {
+  let calls=0;
+  const hostile={...lease};
+  Object.defineProperty(hostile,field,{enumerable:true,get(){calls++;throw Error('getter executed');}});
+  reject({lease:hostile});
+  assert.equal(calls,0,field);
+}
+reject({review:Object.assign(Object.create({schema:review.schema}),
+  Object.fromEntries(Object.entries(review).filter(([k])=>k!=='schema')))});
+reject({lease:Object.assign(Object.create({active:true}),
+  Object.fromEntries(Object.entries(lease).filter(([k])=>k!=='active')))});
+// Reject invalid word values before invoking the normalizer. These values
+// must never reach the HMAC signing path, even if an adapter is permissive.
+for (const word of [
+  {word:'',start:.1,end:.5},
+  {word:'x'.repeat(121),start:.1,end:.5},
+  {word:'ok',start:NaN,end:.5},
+  {word:'ok',start:Infinity,end:.5},
+  {word:'ok',start:'0.1',end:.5},
+  {word:'ok',start:.5,end:.5},
+  {word:'ok',start:-.1,end:.5},
+  {word:'ok',start:.1,end:2.1},
+  {word:'ok',start:.1,end:null}
+]) reject({review:{...review,words:[word]}});
+// A long valid VoiceStudio review must pass the existing normalizer's 200-word
+// per-segment limit without truncation, reordering, or changing the HMAC hash.
+{
+  const words=Array.from({length:201},(_,i)=>({
+    word:'शब्द',start:i*.005,end:i*.005+.004
+  }));
+  const signed=bindVoiceStudioReview({...input,review:{...review,words}});
+  assert.equal(signed.transcript.words.length,201);
+  // Every original millisecond boundary and word identity survives the
+  // 200-word segmentation boundary used by the existing F7 normalizer.
+  for (let i=0;i<words.length;i++) {
+    assert.equal(signed.transcript.words[i].word,words[i].word);
+    assert.equal(signed.transcript.words[i].startMs,Math.round(words[i].start*1000));
+    assert.equal(signed.transcript.words[i].endMs,Math.round(words[i].end*1000));
+  }
+
+  assert.equal(signed.whisperx_json.segments.length,2);
+  assert.equal(signed.whisperx_json.segments[0].words.length,200);
+  assert.equal(signed.whisperx_json.segments[1].words.length,1);
+  assert.equal(signed.whisperx_json.segments[1].words[0].word,'शब्द');
+  assert.equal(signed.whisperx_json.segments[1].words[0].start,
+    signed.transcript.words[200].startMs/1000);
+  assert.equal(signed.transcript.words[200].word,'शब्द');
+  const tooMany=Array.from({length:2001},(_,i)=>({
+    word:'शब्द',start:i*.0005,end:i*.0005+.0004
+  }));
+  reject({review:{...review,words:tooMany}});
+}
+// Exercise the maximum accepted 2,000-word review at the exact ten-segment
+// boundary; the 2,001-word rejection above must not cause a 2,000-word
+// truncation or an 11th empty segment. This is synthetic CPU-only timing data.
+{
+  const words=Array.from({length:2000},(_,i)=>({
+    word:'शब्द',start:i*.001,end:i*.001+.0009
+  }));
+  const signed=bindVoiceStudioReview({...input,review:{...review,words}});
+  assert.equal(signed.transcript.words.length,2000);
+  assert.equal(signed.whisperx_json.segments.length,10);
+  assert.ok(signed.whisperx_json.segments.every(s=>s.words.length===200));
+  assert.equal(signed.transcript.words[1999].word,'शब्द');
+  assert.equal(signed.transcript.words[1999].startMs,Math.round(words[1999].start*1000));
+  assert.equal(signed.transcript.words[1999].endMs,Math.round(words[1999].end*1000));
+  assert.equal(signed.evidence.source_sha256,video);
+  assert.equal(signed.renderable,false);
+}
+// Array index accessors must not run even if they are own properties.
+// An index getter could exfiltrate tenant identifiers or mutate lease state.
+{
+  let calls=0;
+  const words=[...review.words];
+  Object.defineProperty(words,'0',{configurable:true,enumerable:true,
+    get(){calls++;throw Error('word slot getter executed');}});
+  reject({review:{...review,words}});
+  assert.equal(calls,0);
+}
+// A prototype-only array slot is sparse and cannot be trusted.
+{
+  const words=[...review.words];
+  delete words[0];
+  const inherited=Object.create(Array.prototype);
+  Object.setPrototypeOf(words,inherited);
+  inherited[0]=review.words[0];
+  reject({review:{...review,words}});
+}
+// A Proxy over the word ARRAY may intercept indexed reads even when every
+// element has a safe own-data descriptor. Signing must never invoke get traps.
+{
+  let reads=0;
+  const words=new Proxy([...review.words],{
+    get(target,property,receiver) {
+      if (property==='0' || property==='1') {
+        reads++;
+        throw Error('untrusted array index get trap');
+      }
+      return Reflect.get(target,property,receiver);
+    }
+  });
+  const signed=bindVoiceStudioReview({...input,review:{...review,words}});
+  assert.equal(reads,0);
+  assert.equal(signed.transcript.words.length,2);
+  assert.equal(signed.evidence.source_sha256,video);
+}
+// Array length reads must use an own descriptor rather than Proxy get traps.
+// A hostile length getter could revoke a lease even with valid word slots.
+{
+  let lengthGets=0;
+  const words=new Proxy([...review.words],{
+    get(target,property,receiver) {
+      if (property==='length') {
+        lengthGets++;
+        throw Error('untrusted word array length get trap');
+      }
+      return Reflect.get(target,property,receiver);
+    }
+  });
+  const signed=bindVoiceStudioReview({...input,review:{...review,words}});
+  assert.equal(lengthGets,0);
+  assert.equal(signed.transcript.words.length,2);
+}
+// A hostile word getter must not run while building signed evidence.
+for (const field of ['word','start','end']) {
+  let calls=0;
+  const hostile={...review.words[0]};
+  Object.defineProperty(hostile,field,{enumerable:true,get(){calls++;throw Error('word getter executed');}});
+  reject({review:{...review,words:[hostile,review.words[1]]}});
+  assert.equal(calls,0,field);
+}
+reject({review:{...review,words:[,review.words[1]]}});
+// Normalization must use validated own-data snapshots, never Proxy get traps.
+// A hostile word may attempt to revoke a lease or rewrite another word on
+// ordinary property access; no such access is permitted during signing.
+{
+  const mutableLease={...lease};
+  const mutableReview={...review};
+  let gets=0;
+  const first=new Proxy({...review.words[0]}, {
+    get(target,property,receiver) {
+      if (['word','start','end'].includes(property)) {
+        gets++;
+        mutableLease.active=false;
+        mutableReview.language='mr';
+      }
+      return Reflect.get(target,property,receiver);
+    }
+  });
+  mutableReview.words=[first,review.words[1]];
+  const signed=bindVoiceStudioReview({...input,lease:mutableLease,review:mutableReview});
+  assert.equal(gets,0);
+  assert.equal(mutableLease.active,true);
+  assert.equal(mutableReview.language,'hi');
+  assert.equal(signed.transcript.words[0].word,'नमस्ते');
+}
+// A descriptor trap can still mutate the authoritative lease while the
+// snapshot is collected; the post-normalization lease recheck must deny it.
+{
+  const mutableLease={...lease};
+  let changed=false;
+  const first=new Proxy({...review.words[0]}, {
+    getOwnPropertyDescriptor(target,field) {
+      if (field==='word' && !changed) {
+        changed=true;
+        mutableLease.active=false;
+      }
+      return Reflect.getOwnPropertyDescriptor(target,field);
+    }
+  });
+  reject({lease:mutableLease,review:{...review,words:[first,review.words[1]]}});
+  assert.equal(changed,true);
+}
+// The original word slots can remain identical while a descriptor trap
+// appends an unreviewed word during normalization. The final array length
+// must still match the initial bounded snapshot before HMAC sealing.
+{
+  const words=[...review.words];
+  let reads=0;
+  words[0]=new Proxy({...review.words[0]}, {
+    getOwnPropertyDescriptor(target,field) {
+      if (field==='word' && ++reads===2) {
+        words.push({word:'अनधिकृत',start:1.3,end:1.5});
+      }
+      return Reflect.getOwnPropertyDescriptor(target,field);
+    }
+  });
+  reject({review:{...review,words}});
+  assert.equal(words.length,3);
+  assert.ok(reads>=2);
+}
+// Truncation after the initial snapshot is equally invalid even if the
+// original word objects and HMAC input were already captured.
+{
+  const words=[...review.words];
+  let reads=0;
+  words[0]=new Proxy({...review.words[0]}, {
+    getOwnPropertyDescriptor(target,field) {
+      if (field==='word' && ++reads===2) words.length=1;
+      return Reflect.getOwnPropertyDescriptor(target,field);
+    }
+  });
+  reject({review:{...review,words}});
+  assert.equal(words.length,1);
+}
+// A Proxy's ordinary get trap must not override own-data review snapshots.
+// All fields used for signing come from descriptors, not arbitrary reads.
+{
+  let gets=0;
+  const proxy=new Proxy({...review},{
+    get(target,field,receiver) {
+      if (['schema','approved','renderable','language','audio_sha256','words','text'].includes(field)) {
+        gets++;
+        throw Error('untrusted review get trap');
+      }
+      return Reflect.get(target,field,receiver);
+    }
+  });
+  const signed=bindVoiceStudioReview({...input,review:proxy});
+  assert.equal(signed.evidence.source_sha256,video);
+  assert.equal(signed.language,'hi');
+  assert.equal(gets,0);
+}
+// A descriptor trap can revoke the lease only during the final post-HMAC
+// review inspection. The release gate must recheck lease after that inspection.
+{
+  const mutableLease={...lease};
+  let schemaChecks=0;
+  const hostileReview=new Proxy({...review},{
+    getOwnPropertyDescriptor(target,field) {
+      if (field==='schema' && ++schemaChecks===4) mutableLease.active=false;
+      return Reflect.getOwnPropertyDescriptor(target,field);
+    }
+  });
+  reject({lease:mutableLease,review:hostileReview});
+  assert.equal(mutableLease.active,false);
+  assert.ok(schemaChecks>=4);
+}
+// A review word can be replaced after signing but before final artifact release.
+// The fifth indexed descriptor read occurs at the final release gate.
+{
+  const words=[...review.words];
+  let reads=0;
+  const hostileWords=new Proxy(words,{
+    getOwnPropertyDescriptor(target,field) {
+      if (field==='0' && ++reads===5) {
+        target[0]={word:'बदला',start:.1,end:.5};
+      }
+      return Reflect.getOwnPropertyDescriptor(target,field);
+    }
+  });
+  reject({review:{...review,words:hostileWords}});
+  assert.ok(reads>=5);
+}
+// A word descriptor can revoke a lease at the final release check, after
+// captions were constructed. The signed artifact must never escape.
+{
+  const mutableLease={...lease};
+  let reads=0;
+  const hostileWords=new Proxy([...review.words],{
+    getOwnPropertyDescriptor(target,field) {
+      if (field==='0' && ++reads===5) mutableLease.active=false;
+      return Reflect.getOwnPropertyDescriptor(target,field);
+    }
+  });
+  reject({lease:mutableLease,review:{...review,words:hostileWords}});
+  assert.equal(mutableLease.active,false);
+  assert.ok(reads>=5);
+}
+// Null-prototype records with explicit own data fields remain compatible.
+assert.equal(bindVoiceStudioReview({...input,review:Object.assign(Object.create(null),review),
+  lease:Object.assign(Object.create(null),lease)}).approved,false);
+console.log('VoiceStudio signed handoff positive and negative cases passed');
+"""
+class VoiceStudioSignedHandoffTests(unittest.TestCase):
+    def test_offline_bridge_and_tenant_denials(self):
+        result=subprocess.run(['node','--input-type=module','--eval',SCRIPT],
+            cwd=ROOT,capture_output=True,text=True,timeout=20)
+        self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+
+if __name__=='__main__':
+    unittest.main()

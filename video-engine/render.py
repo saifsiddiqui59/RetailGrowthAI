@@ -198,8 +198,14 @@ def render(storyboard, images, music, cta, output, width=1080, height=1920,
                 f"[{prev}][v{i}]xfade=transition=fade:duration={TRANSITION}:"
                 f"offset={offset:.6f}[{dst}]"
             )
+        # JPEG inputs may carry full-range YUV. FFmpeg 8 can preserve that
+        # range through xfade and write yuvj420p despite -pix_fmt yuv420p.
+        # Convert pixel values from their signaled input range to limited TV
+        # range (not merely relabel the metadata), then set output range.
+        # The strict probe still requires actual yuv420p H.264/AAC streams.
         chains.append(f"[x{len(storyboard)-1}]fps={fps},trim=duration=30,"
-                      "setpts=PTS-STARTPTS,format=yuv420p[vout]")
+                      "setpts=PTS-STARTPTS,format=yuv420p,"
+                      "scale=in_range=auto:out_range=tv,format=yuv420p[vout]")
         if music:
             ff.extend(["-stream_loop", "-1", "-i", str(music)])
             audio_input = f"{len(storyboard)}:a:0"
@@ -213,7 +219,8 @@ def render(storyboard, images, music, cta, output, width=1080, height=1920,
             "-af", "atrim=duration=30,asetpts=PTS-STARTPTS,afade=t=out:st=29:d=1",
             "-t", "30", "-r", str(fps), "-threads", "2",
             "-c:v", "libx264", "-preset", preset, "-crf", "24",
-            "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "128k",
+            "-pix_fmt", "yuv420p", "-color_range", "tv",
+            "-c:a", "aac", "-b:a", "128k",
             "-ar", "44100", "-ac", "2", "-movflags", "+faststart",
             str(working / "render.mp4"),
         ])

@@ -12,7 +12,7 @@ from ai_agents.content_intelligence import RetailerProfile, create_content_draft
 from ai_agents.schemas import CampaignBrief, ContractError
 from ai_agents.providers import FoundryUnavailable
 from ai_agents.trend_intelligence import recommendations
-from security import AuthenticationError
+from security import AuthenticationError, SigningKeysUnavailable
 from tenant_store import StorageUnavailable, canonical_uuid
 
 
@@ -131,7 +131,7 @@ class TrendFeatureAdapter:
             return 400, {"error": "INVALID_REQUEST"}
         except PermissionError:
             return 403, {"error": "FORBIDDEN"}
-        except StorageUnavailable:
+        except (StorageUnavailable, SigningKeysUnavailable):
             return 503, {"error": "TREND_STORAGE_UNAVAILABLE"}
         except FoundryUnavailable:
             return 503, {"error": "AI_MODEL_UNAVAILABLE"}
@@ -188,7 +188,7 @@ class TrendFeatureAdapter:
             return 400, {"error": "INVALID_REQUEST"}
         except PermissionError:
             return 403, {"error": "FORBIDDEN"}
-        except StorageUnavailable:
+        except (StorageUnavailable, SigningKeysUnavailable):
             return 503, {"error": "PROFILE_UNAVAILABLE"}
         except FoundryUnavailable:
             return 503, {"error": "AI_MODEL_UNAVAILABLE"}
@@ -216,5 +216,5 @@ class TrendFeatureAdapter:
             return 401, {"error": "UNAUTHORIZED"}
         except (ValueError, TypeError, KeyError):
             return 400, {"error": "INVALID_REQUEST"}
-        except StorageUnavailable:
+        except (StorageUnavailable, SigningKeysUnavailable):
             return 503, {"error": "CONTENT_DRAFT_READ_UNAVAILABLE"}
