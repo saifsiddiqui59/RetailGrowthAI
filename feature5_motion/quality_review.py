@@ -1,0 +1,100 @@
+"""Reviewer-facing Feature5 quality gate; visual assessment is never automated.
+
+The existing coordinator must persist this human decision with user JWT,
+tenant approval permissions, immutable media hash and an audit timestamp.
+Passing machine ffprobe alone NEVER results in approval for Feature4.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+from uuid import UUID
+from .contracts import MotionError, canonical_uuid
+
+CATEGORIES = (
+    "human_anatomy", "smooth_motion", "garment_color", "garment_pattern",
+    "sleeve_and_shape", "face_consistency", "temporal_consistency",
+    "background_continuity", "frame_stability", "camera_motion",
+    "product_claim_accuracy",
+)
+
+
+@dataclass(frozen=True)
+class VisualReview:
+    shop_id: str
+    job_id: str
+    source_asset_id: str | None
+    output_asset_id: str
+    reviewer_user_id: str
+    reviewed_sha256: str
+    checks: dict
+    decision: str
+    notes: str
+    ai_disclosure_approved: bool
+
+    def __post_init__(self):
+        # Identity and decision inputs can arrive through adapters. Equality
+        # overloads on str subclasses must never impersonate a real reviewer.
+        for value in (self.shop_id, self.job_id, self.output_asset_id, self.reviewer_user_id):
+            if type(value) is not str:
+                raise MotionError("Exact canonical visual-review identity required")
+            canonical_uuid(value)
+        if self.source_asset_id is not None:
+            if type(self.source_asset_id) is not str:
+                raise MotionError("Exact canonical visual-review source asset required")
+            canonical_uuid(self.source_asset_id)
+        if type(self.reviewed_sha256) is not str or len(self.reviewed_sha256) != 64 or any(
+            ch not in "0123456789abcdef" for ch in self.reviewed_sha256
+        ):
+            raise MotionError("Missing immutable clip hash for visual review")
+        if type(self.decision) is not str or self.decision not in ("APPROVED", "REJECTED"):
+            raise MotionError("Human quality decision required")
+        if (type(self.checks) is not dict
+                or any(type(key) is not str for key in self.checks)
+                or set(self.checks) != set(CATEGORIES)):
+            raise MotionError("Incomplete visual acceptance checklist")
+        if any(type(v) is not bool for v in self.checks.values()):
+            raise MotionError("Each visual check must be manually assessed")
+        if type(self.notes) is not str or len(self.notes.strip()) < 12 or len(self.notes) > 1000:
+            raise MotionError("Reviewer explanation required")
+        if type(self.ai_disclosure_approved) is not bool:
+            raise MotionError("Disclosure review required")
+        # frozen=True does not freeze a nested dict: seal the original human
+        # checklist outcome before any caller can mutate the passed mapping.
+        object.__setattr__(
+            self, "_sealed_checks", tuple(self.checks[name] for name in CATEGORIES)
+        )
+
+    def approved_for_feature4(self, *, authoritative_shop_id: str,
+                              authoritative_reviewer_user_id: str,
+                              actual_media_sha256: str,
+                              reviewer_has_write_role: bool) -> bool:
+        # Both identities must come from the current server-side JWT/RLS
+        # authorization lookup, not from a browser review payload.
+        # Do not compare hostile equality-spoofing objects to canonical IDs,
+        # or use an overloaded __ne__ as proof of an immutable media digest.
+        if (type(authoritative_shop_id) is not str
+                or type(authoritative_reviewer_user_id) is not str):
+            raise MotionError("Reviewer is not authorized for this tenant")
+        canonical_uuid(authoritative_shop_id)
+        canonical_uuid(authoritative_reviewer_user_id)
+        if (authoritative_shop_id != self.shop_id or
+                authoritative_reviewer_user_id != self.reviewer_user_id or
+                reviewer_has_write_role is not True):
+            raise MotionError("Reviewer is not authorized for this tenant")
+        if type(actual_media_sha256) is not str or actual_media_sha256 != self.reviewed_sha256:
+            raise MotionError("Clip changed after the visual review")
+        if (type(self.checks) is not dict
+                or any(type(key) is not str for key in self.checks)
+                or set(self.checks) != set(CATEGORIES)
+                or tuple(self.checks[name] for name in CATEGORIES) != self._sealed_checks):
+            raise MotionError("Human checklist changed after the visual review")
+        if (type(self.decision) is not str or self.decision != "APPROVED"
+                or not all(self.checks.values()) or
+            self.ai_disclosure_approved is not True):
+            raise MotionError("Visual quality or AI disclosure not approved")
+        return True
+
+
+def review_template() -> dict:
+    """Fail-closed checklist; pending reviewer must fill every criterion."""
+    return {name: False for name in CATEGORIES}
