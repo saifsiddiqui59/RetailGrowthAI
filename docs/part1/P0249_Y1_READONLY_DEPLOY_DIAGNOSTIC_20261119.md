@@ -33,3 +33,19 @@ report into shared canonical docs or enabling cloud operations on push.
   original API POST/PATCH/private media parity, or frontend cutover.
 - No Azure/AppSettings/Auth/Supabase SQL writes, GPU, paid model, PROD or
   WineShopPOS changes were made in preparing this source.
+
+## 2026-11-20 — strict index provenance and duplicate-setting safety (source only)
+
+The diagnostics now classifies `EXACT_TWO` or `EXACT_FIVE` only from
+uniform bare known function names or exact `rgai-dev-y1-p0249-d4e5ddbd/<function>`
+names. A different site's prefix, nested path, mixed bare/prefixed output,
+unknown/duplicate names or malformed strings cannot be treated as accepted
+Y1 indexing just because the last path segment matches. The parser never
+prints unrecognized names. Duplicate expected app-setting keys (including
+case aliases) and missing/malformed setting names fail closed; unknown
+configuration keys remain ignored and their values never leave the process.
+No extra Azure queries or writes are added. Offline negative regressions
+cover the above and the existing manual-only protected workflow remains
+unchanged. Green source CI, independent shared diagnostic review and actual
+protected DEV read-only execution are distinct gates; no five-GET live
+deployment or signed two-shop acceptance is claimed.
