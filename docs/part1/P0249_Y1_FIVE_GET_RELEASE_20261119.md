@@ -37,8 +37,12 @@ Original Flex `rgai-dev-functions-d4e5ddbd` is unchanged; issue #249 stays OPEN.
   deployed ZIP bytes. Do not claim bit-identical rollback.
 
 ## CI-only fresh-process safety gate
-- Both release shapes are staged from the exact source allowlist and indexed in
-  separate isolated Python interpreters using the real `azure.functions` module.
+- Both release shapes are staged from the exact source allowlist and exercised
+  in separate Python interpreters. The uv/pytest CI path requires the pinned
+  **real** `azure.functions` SDK; the existing stdlib-only deployment checks
+  execute the same denial paths with a minimal SDK interface stand-in.
+  The protected manual workflow additionally vendors/loads actual pinned
+  Python3.12 Azure SDK dependencies before any Y1 cloud mutation.
 - Every entrypoint must return a handler-marked 401 when unauthenticated,
   except the explicit health endpoint (200). Original JWT/RLS/store modules
   must remain lazily unloaded while shadow flags and Supabase settings are off.
