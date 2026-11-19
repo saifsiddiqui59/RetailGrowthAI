@@ -47,6 +47,27 @@ class Y1DiagnosticSafetyTests(unittest.TestCase):
              self.assertRaises(RuntimeError):
             diagnostic.main()
 
+    def test_y1_exact_index_shapes_never_emit_unexpected_names(self):
+        self.assertEqual(diagnostic.index_shape(["p0249_health", "campaign_read"]), "EXACT_TWO")
+        self.assertEqual(diagnostic.index_shape([
+            "app/p0249_health", "app/campaign_read", "app/render_job_read",
+            "app/poster_job_read", "app/poster_draft_read"
+        ]), "EXACT_FIVE")
+        self.assertEqual(diagnostic.index_shape(["p0249_health", "secret_route"]), "OTHER_UNVERIFIED")
+        self.assertEqual(diagnostic.index_shape(["p0249_health", "p0249_health"]), "OTHER_UNVERIFIED")
+        self.assertEqual(diagnostic.index_shape([None]), "INVALID")
+
+    def test_protected_readonly_diagnostic_is_manual_only(self):
+        work = (ROOT / ".github/workflows/p0249-y1-deploy-diagnostic-readonly-once.yml").read_text()
+        self.assertIn("  workflow_dispatch:", work)
+        self.assertNotIn("  push:", work)
+        self.assertNotIn("  pull_request:", work)
+        self.assertNotIn("head_commit.message", work)
+        self.assertIn("github.event_name == 'workflow_dispatch'", work)
+        self.assertIn("environment: dev", work)
+        self.assertIn("id-token: write", work)
+        self.assertNotIn("az functionapp config appsettings set", work)
+
     def test_diagnostics_do_not_issue_mutating_commands(self):
         p=(ROOT/"ops"/"p0249_y1_deploy_diagnostic_readonly.py").read_text()
         for forbidden in (
