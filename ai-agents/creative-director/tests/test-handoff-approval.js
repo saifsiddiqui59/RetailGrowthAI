@@ -197,6 +197,29 @@ fails(()=>h.approveCreativeDraftFromTrustedReaders(
   },KEY),'unavailable final rights recheck must fail closed');
 assert.equal(secondReadCount,2);
 
+// A trusted reader may observe an approved draft while a source-layer callback
+// mutates the motion prompt before the last recheck returns. The editable
+// prompt does not change the creative/garment SHA, so a final motion-digest
+// equality check is essential: never HMAC an unreviewed later prompt.
+const movingMotion = bundle();
+let motionReadCount = 0;
+const changingSourceAfterReview = {
+  ...readers,
+  readEditorialReview:()=>{
+    motionReadCount++;
+    if (motionReadCount===2) {
+      movingMotion.motion_direction_v1[0].generation_prompt =
+        'Not the script the independent human reviewed';
+    }
+    return {...storedReview};
+  }
+};
+fails(()=>h.approveCreativeDraftFromTrustedReaders(
+  movingMotion,'Bearer verified-jwt','shop-403',
+  changingSourceAfterReview,KEY),
+  'motion text changed between rights check and HMAC must be rejected');
+assert.equal(motionReadCount,2);
+
 // No alias should let the receiving editor mutate the reviewed original.
 const clean=h.editorHandoff(original,receipt,KEY,'shop-403');
 clean.creative_direction_v1.scenes[0].id='modified-in-editor';
