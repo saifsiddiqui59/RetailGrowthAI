@@ -81,6 +81,21 @@ def log_categories(data):
             "categories": {s: s in raw for s in patterns}}
 
 
+
+def index_shape(names):
+    """Return only fixed identifiers; never print unexpected function names."""
+    if not isinstance(names, list) or any(not isinstance(name, str) for name in names):
+        return "INVALID"
+    normalized = [name.split("/")[-1] for name in names]
+    two = {"p0249_health", "campaign_read"}
+    five = two | {"render_job_read", "poster_job_read", "poster_draft_read"}
+    if len(normalized) == 2 and set(normalized) == two:
+        return "EXACT_TWO"
+    if len(normalized) == 5 and set(normalized) == five:
+        return "EXACT_FIVE"
+    return "OTHER_UNVERIFIED"
+
+
 def main():
     verify()  # Exact DEV RG, app tag/region/Linux Y1 SKU and original FC1.
     rows = az_read("functionapp", "config", "appsettings", "list",
@@ -103,10 +118,9 @@ def main():
     if not isinstance(names, list):
         print("P0249_Y1_FUNCTION_INDEX=UNAVAILABLE", flush=True)
     else:
+        # Count and classify but never emit potentially private function names.
         print("P0249_Y1_INDEXED_FUNCTION_COUNT=" + str(len(names)), flush=True)
-        print("P0249_Y1_EXPECTED_FUNCTION_INDEXED=" +
-              str(any(isinstance(n, str) and n.split("/")[-1].lower() ==
-                      "p0249_health" for n in names)), flush=True)
+        print("P0249_Y1_INDEX_SHAPE=" + index_shape(names), flush=True)
 
 
 if __name__ == "__main__":
