@@ -74,7 +74,7 @@
     {
       "pr": 1026,
       "title": "docs(#249): reconcile Y1 release/rollback status with latest main",
-      "head_sha": "97bcf5bb2499efcf144476b450fc797e4dcb431a",
+      "head_sha": "044f80c9e04dea9b196b1a527263dbe747f0d544",
       "base_branch": "main",
       "feature": "issue249",
       "work_owner": "manual-issue249",
@@ -86,7 +86,7 @@
     {
       "pr": 1025,
       "title": "fix(#249): reconcile five-GET Y1 manual release with atomic source validation",
-      "head_sha": "a5a44c96ff3fc285380d070c060fa29888405883",
+      "head_sha": "057f0a81c4e30456ea3351ca83c78f17fb7aaeb4",
       "base_branch": "feat/p0249-y1-five-get-stage-20261119",
       "feature": "issue249",
       "work_owner": "manual-issue249",
@@ -363,5 +363,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/880"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T09:04:15Z"
+  "last_inventory_checked_at": "2026-11-19T14:04:54Z"
 }
