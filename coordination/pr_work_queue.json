@@ -57,20 +57,17 @@
       "feature": "shared",
       "work_owner": "manual-integration",
       "priority": "P1",
-      "phase": "ci-review-pending",
-      "claim": {
-        "owner": "manual-ci-fix-chat-g-20261119",
-        "claimed_at": "2026-11-19T13:14:20.652Z",
-        "expires_at": "2026-11-19T14:44:20.652Z",
-        "head_sha": "218deebd810b6ba2dc14f8144aa05de117cfd84a"
-      },
+      "phase": "ready-for-review",
+      "claim": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1027",
       "checkpoint": {
         "owner": "manual-ci-fix-chat-g-20261119",
-        "at": "2026-11-19T13:16:48.932Z",
-        "status": "Removed unconditional apt-get from Supabase security job, pinned Ubuntu 24.04 preinstalled Postgres client, added SQL-not-skipped regression test and scoped handoff; CI on new head pending; independent shared-workflow review required",
-        "commit": "218deebd810b6ba2dc14f8144aa05de117cfd84a",
-        "ci": "Push run #44531793361 in progress",
+        "at": "2026-11-19T13:20:42.861Z",
+        "status": "Final-head PR and push 4/4 successful; apt-free security psql regression and scoped docs committed; independent shared workflow affected-lead review required before main merge",
+        "head_sha": "218deebd810b6ba2dc14f8144aa05de117cfd84a",
+        "ci": "PR #44531808109 SUCCESS 4/4; push #44531793361 SUCCESS 4/4",
+        "review_count": 0,
+        "comment_id": 7010330836,
         "feature_done": false
       }
     },
