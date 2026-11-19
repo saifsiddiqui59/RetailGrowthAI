@@ -64,6 +64,32 @@ Original Flex `rgai-dev-functions-d4e5ddbd` is unchanged; issue #249 stays OPEN.
   the shared parent stage script. Neither CI nor the source audit approves DEV
   deployment, tenant RLS or independent JWT/ops review.
 
+## Pre-deploy inherited JWT/PostgREST redirect security gate (2026-11-19)
+- The staged Y1 original `tenant_store.py` is imported from the original
+  repository, not rewritten or forked. Until the independently reviewed
+  original PostgREST redirect protection (proposed in [#1018](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1018))
+  is actually integrated into `main`, the old default `urlopen` could
+  follow a 30x response with a signed user JWT. **Do not deploy that ZIP.**
+- The protected manual workflow now calls
+  `verify_staged_y1_auth_transport.py` against both the exact five-route
+  ZIP stage and the two-route rollback stage **before vendoring, Azure login
+  or any configuration/code write**. The offline guard loads the staged
+  source with a synthetic exception module, asserts its default transport
+  contains a redirect-denying handler, rejects malformed/redirection-prone
+  Supabase origins, then exercises HTTP 301/302/303/307/308 with an
+  in-process synthetic HTTPS responder. It fails on any off-origin retry,
+  response-handle leak, or unsafe default.
+- The current source branch intentionally contains the **older** original
+  PostgREST module: the protected manual dispatch therefore remains
+  fail-closed until reviewed upstream #1018 (or an equivalent independently
+  accepted fix) reaches the actually deployed main. CI validates both
+  vulnerable-denied and safe-allowed synthetic fixtures; it does **not**
+  claim the original source was already secured, signed-hosted-tested,
+  merged or deployed.
+- This gate tests only redirect transport behavior. Positive two-shop RLS,
+  real signed/expired JWKS, all media permissions and rollback hosting still
+  require separate independent acceptance.
+
 ## Remaining before Y1 replacement
 1. Independent shared JWT/RLS/render/poster/Azure ops review of #968, #995,
    and this workflow; exact-head 4/4, main merge in parent-child order.
