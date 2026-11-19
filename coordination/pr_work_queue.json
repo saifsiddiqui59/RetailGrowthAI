@@ -85,8 +85,8 @@
       "claim": {
         "owner": "manual-integration-chat-primary-20261120",
         "head_sha": "dfff7942f95fca0d394bdd550ba5b4bd8666f08f",
-        "claimed_at": "2026-11-19T18:37:37.208Z",
-        "expires_at": "2026-11-19T20:07:37.208Z"
+        "claimed_at": "2026-11-19T18:38:36.810Z",
+        "expires_at": "2026-11-19T20:08:36.810Z"
       },
       "checkpoint": {
         "owner": "manual-integration-chat-primary-20261119",
@@ -177,8 +177,8 @@
       "claim": {
         "owner": "manual-integration-chat-primary-20261120",
         "head_sha": "6ed3aa3b47482ccbedc9361d3727d3b6889d2e44",
-        "claimed_at": "2026-11-19T18:34:56.199Z",
-        "expires_at": "2026-11-19T20:04:56.199Z"
+        "claimed_at": "2026-11-19T18:38:36.810Z",
+        "expires_at": "2026-11-19T20:08:36.810Z"
       },
       "checkpoint": {
         "owner": "manual-integration-chat-primary-20261120",
