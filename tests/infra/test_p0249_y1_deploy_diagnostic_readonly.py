@@ -50,12 +50,45 @@ class Y1DiagnosticSafetyTests(unittest.TestCase):
     def test_y1_exact_index_shapes_never_emit_unexpected_names(self):
         self.assertEqual(diagnostic.index_shape(["p0249_health", "campaign_read"]), "EXACT_TWO")
         self.assertEqual(diagnostic.index_shape([
-            "app/p0249_health", "app/campaign_read", "app/render_job_read",
-            "app/poster_job_read", "app/poster_draft_read"
+            diagnostic.SITE + "/p0249_health", diagnostic.SITE + "/campaign_read",
+            diagnostic.SITE + "/render_job_read", diagnostic.SITE + "/poster_job_read",
+            diagnostic.SITE + "/poster_draft_read"
         ]), "EXACT_FIVE")
         self.assertEqual(diagnostic.index_shape(["p0249_health", "secret_route"]), "OTHER_UNVERIFIED")
         self.assertEqual(diagnostic.index_shape(["p0249_health", "p0249_health"]), "OTHER_UNVERIFIED")
         self.assertEqual(diagnostic.index_shape([None]), "INVALID")
+
+    def test_index_never_trusts_a_suffix_from_a_different_site(self):
+        two = ["p0249_health", "campaign_read"]
+        five = two + ["render_job_read", "poster_job_read", "poster_draft_read"]
+        for approved in (two, five):
+            expected = "EXACT_TWO" if len(approved) == 2 else "EXACT_FIVE"
+            self.assertEqual(diagnostic.index_shape(approved), expected)
+            self.assertEqual(diagnostic.index_shape([
+                diagnostic.SITE + "/" + name for name in approved
+            ]), expected)
+            for wrong in (
+                ["untrusted-site/" + name for name in approved],
+                [diagnostic.SITE + "/functions/" + name for name in approved],
+                [diagnostic.SITE + "/" + approved[0], *approved[1:]],
+            ):
+                with self.subTest(approved=expected, wrong=wrong[0]):
+                    self.assertEqual(diagnostic.index_shape(wrong),
+                                     "OTHER_UNVERIFIED")
+        for invalid in ([""], ["p0249_health\\n"], ["p0249_health\\\\bad"],
+                        [" p0249_health"], ["/p0249_health"]):
+            with self.subTest(invalid=invalid):
+                self.assertNotIn(diagnostic.index_shape(invalid),
+                                 ("EXACT_TWO", "EXACT_FIVE"))
+
+    def test_ambiguous_expected_settings_fail_without_exposing_values(self):
+        with self.assertRaisesRegex(RuntimeError, "Duplicate"):
+            diagnostic.setting_flags([
+                {"name": "ENABLE_ORYX_BUILD", "value": "true"},
+                {"name": "enable_oryx_build", "value": "sensitive-data"},
+            ])
+        with self.assertRaisesRegex(RuntimeError, "Malformed"):
+            diagnostic.setting_flags([{"value": "sensitive-data"}])
 
     def test_protected_readonly_diagnostic_is_manual_only(self):
         work = (ROOT / ".github/workflows/p0249-y1-deploy-diagnostic-readonly-once.yml").read_text()
