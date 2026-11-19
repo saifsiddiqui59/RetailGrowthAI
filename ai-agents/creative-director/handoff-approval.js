@@ -137,13 +137,49 @@ function approveCreativeDraftFromTrustedReaders(bundle, authorization, shopId, r
   } catch (error) {
     reject('Current reviewer membership cannot be revalidated');
   }
-  const reviewer = {
-    id: actor, shop_id: shopId, role: member.role,
-    server_verified: true, current_member: true,
-    completed_claims_review: true, completed_media_rights_review: true,
-    completed_storyboard_review: true, completed_script_review: true
-  };
-  return approveCreativeDraft(bundle, reviewer, secretKey);
+  // Re-read both authoritative sources immediately before signing. A reviewer
+  // can lose rights, change the offer, or be removed while the first private
+  // review is being checked. This is a fail-closed source fence, not a
+  // substitute for the coordinator's atomic RLS/CAS approval transaction.
+  let latestReview, latestMember;
+  try {
+    latestReview = readers.readEditorialReview(jwt, actor, shopId, creative.campaign_id);
+    latestMember = readers.currentMembership(jwt, actor, shopId);
+  } catch (error) {
+    reject('Current editorial review and membership cannot be revalidated');
+  }
+  if (!latestReview || latestReview.shop_id !== shopId ||
+      latestReview.campaign_id !== creative.campaign_id ||
+      latestReview.reviewer_id !== actor ||
+      latestReview.plan_sha256 !== originalPlanSha ||
+      latestReview.motion_sha256 !== motionSha ||
+      latestReview.revoked_at != null ||
+      latestReview.source_media_current !== true ||
+      latestReview.claims_current !== true ||
+      latestReview.approved_by_human !== true ||
+      !latestMember || latestMember.active !== true ||
+      latestMember.shop_id !== shopId || latestMember.user_id !== actor ||
+      !['OWNER', 'EDITOR'].includes(latestMember.role)) {
+    reject('Editorial rights, claims or reviewer membership changed before signing');
+  }
+  // The final authoritative review and membership reads are injected server
+  // callbacks: they may race with changes to the source bundle during a
+  // request. Re-bind the exact originally reviewed plan AND complete motion
+  // SHA before issuing any HMAC. expectedPlanSha alone fingerprints garment
+  // locks, not every motion prompt field; re-signing a newly changed motion
+  // payload would silently bless media that the reviewer never approved.
+  if (expectedPlanSha(bundle) !== originalPlanSha ||
+      hash(bundle.motion_direction_v1) !== motionSha ||
+      creative.shop_id !== shopId ||
+      creative.campaign_id !== latestReview.campaign_id) {
+    reject('Reviewed plan or motion source changed before signing');
+  }
+  // Sign only the already-checked immutable digests. The independent F4
+  // consumer must verify them again against its current source/rights rows.
+  // This guard is source-only, not a durable RLS/CAS transaction.
+  const payload = payloadOf(originalPlanSha, motionSha, shopId,
+    creative.campaign_id, actor, new Date().toISOString());
+  return { ...payload, hmac_sha256: signatureOf(payload, secretKey) };
 }
 function editorHandoff(bundle, receipt, secretKey, expectedShop) {
   verifyCreativeApproval(bundle, receipt, secretKey, expectedShop);

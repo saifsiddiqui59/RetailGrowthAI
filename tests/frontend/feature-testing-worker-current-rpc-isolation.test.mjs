@@ -8,9 +8,9 @@ const JOB = '22222222-2222-4222-8222-222222222222'
 const JOB2 = '44444444-4444-4444-8444-444444444444'
 const SPAN = '33333333-3333-4333-8333-333333333333'
 const evidence = (job = JOB) => ({
-  id: SPAN, shop_id: SHOP, job_id: job, feature: 'F2',
+  id: job === JOB ? SPAN : JOB2, shop_id: SHOP, job_id: job, feature: 'F2',
   operation: 'planning.complete', status: 'SUCCEEDED',
-  attempt: 1, elapsed_ms: 450, metadata: { generated_days: 7 },
+  attempt: 1, elapsed_ms: 450, metadata: { generated_days: 7, planner_mode: 'dev_mock' },
   recorded_at: '2026-11-18T00:00:00Z',
 })
 const payload = (job = JOB) => ({
@@ -125,6 +125,11 @@ test('trace reader must refuse untrusted HTTP or credential-bearing Supabase ori
     'http://tenant.supabase.co',
     'https://user:password@tenant.supabase.co',
     'https://tenant.supabase.co/foreign/path',
+    'https://tenant.supabase.co.attacker.test',
+    'https://attacker.test',
+    'https://tenant.supabase.co:8443',
+    'https://tenant.supabase.co@attacker.test',
+    'https://tenant.supabase.co.evil.supabase.co',
   ]) {
     assert.throws(() => createTraceStore({
       supabaseUrl, publishableKey: 'test', tokenProvider: async () => 'signed',

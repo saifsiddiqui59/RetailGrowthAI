@@ -22,6 +22,15 @@ STORAGE = "rgaid4e5ddbdf0d21d96"
 TEMPLATE = "infra/azure/p0249-classic-y1-dev-canary.bicep"
 
 
+class _DenyProbeRedirects(urllib.request.HTTPRedirectHandler):
+    """Health evidence must come from the pinned DEV Y1 host, not a 30x target."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_PROBE_OPENER = urllib.request.build_opener(_DenyProbeRedirects())
+
+
 def command(*args):
     p = subprocess.run(["az", *args, "-o", "json", "--only-show-errors"],
                        check=False, text=True, capture_output=True, timeout=180)
@@ -152,12 +161,17 @@ def get(endpoint, timeout):
             "https://" + SITE + ".azurewebsites.net" + endpoint,
             headers={"Cache-Control": "no-store"},
         )
-        with urllib.request.urlopen(req, timeout=timeout) as response:
+        with _PROBE_OPENER.open(req, timeout=timeout) as response:
             status = response.status
             marked = bool(response.headers.get("X-Request-ID"))
     except urllib.error.HTTPError as exc:
-        status = exc.code
-        marked = bool(exc.headers.get("X-Request-ID"))
+        try:
+            # A 30x is an HTTPError when redirects are denied; it must
+            # NEVER be followed or counted as a hosted Y1 result.
+            status = exc.code
+            marked = bool(exc.headers.get("X-Request-ID"))
+        finally:
+            exc.close()
     except (urllib.error.URLError, TimeoutError, OSError):
         status, marked = 0, False
     return status, marked, round(time.monotonic() - start, 3)
