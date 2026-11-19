@@ -13,16 +13,52 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 16,
+    "open_prs": 18,
     "by_feature": {
-      "shared": 4,
-      "F2": 2,
+      "shared": 5,
       "issue249": 9,
+      "F2": 2,
       "F5": 1,
       "F3": 1
     }
   },
   "entries": [
+    {
+      "pr": 1027,
+      "title": "ci: fix apt-mirror timeouts without skipping Chromium or FFmpeg",
+      "head_sha": "4469fc1d3c6cea710bcf77b903be191257262bc4",
+      "base_branch": "main",
+      "feature": "shared",
+      "work_owner": "manual-integration",
+      "priority": "P1",
+      "phase": "needs-triage",
+      "claim": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1027"
+    },
+    {
+      "pr": 1026,
+      "title": "docs(#249): reconcile Y1 release/rollback status with latest main",
+      "head_sha": "97bcf5bb2499efcf144476b450fc797e4dcb431a",
+      "base_branch": "main",
+      "feature": "issue249",
+      "work_owner": "manual-issue249",
+      "priority": "P1",
+      "phase": "needs-triage",
+      "claim": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1026"
+    },
+    {
+      "pr": 1025,
+      "title": "fix(#249): reconcile five-GET Y1 manual release with atomic source validation",
+      "head_sha": "a5a44c96ff3fc285380d070c060fa29888405883",
+      "base_branch": "feat/p0249-y1-five-get-stage-20261119",
+      "feature": "issue249",
+      "work_owner": "manual-issue249",
+      "priority": "P1",
+      "phase": "needs-triage",
+      "claim": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1025"
+    },
     {
       "pr": 1022,
       "title": "docs(F3): record #879/#944 source consolidation and #880 4/4 evidence",
@@ -126,41 +162,6 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1007"
-    },
-    {
-      "pr": 1002,
-      "title": "docs(#249): record Y1 five-GET release source and missing live acceptance",
-      "feature": "issue249",
-      "head_sha": "c70a76100417af0811050f67e07cb9815244ca8b",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P1",
-      "phase": "closed-unmerged",
-      "claim": null,
-      "checkpoint": {
-        "owner": "manual-integration-chat-f-20261119-resume",
-        "at": "2026-11-19T07:46:19.024Z",
-        "status": "PR #1002 closed UNMERGED by concurrent chat after same four #249 original docs sections were archived #1023 and clean latest-main replacement #1026 opened; no shared docs merged by this PR",
-        "source_archive_pr": 1023,
-        "replacement_pr": 1026,
-        "merge": false,
-        "feature_done": false,
-        "review_required": true
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1002"
-    },
-    {
-      "pr": 1001,
-      "title": "ops(#249): protected manual five-route Y1 DEV ZIP release + rollback",
-      "feature": "issue249",
-      "head_sha": "fe618a9edc5b9109c7fa74fce281ce8d6972c28b",
-      "base_branch": "feat/p0249-y1-five-get-stage-20261119",
-      "work_owner": "manual-issue249",
-      "priority": "P1",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1001"
     },
     {
       "pr": 995,
@@ -347,5 +348,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/880"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T05:57:12Z"
+  "last_inventory_checked_at": "2026-11-19T08:04:53.710Z"
 }
