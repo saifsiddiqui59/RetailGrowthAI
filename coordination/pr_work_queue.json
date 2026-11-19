@@ -218,23 +218,23 @@
       "pr": 939,
       "title": "ops(#249): bounded DEV Y1 public-only JWT shadow trial with rollback",
       "feature": "issue249",
-      "head_sha": "32ee13c077bb3cad943fd46d7e11491d8a5756c0",
+      "head_sha": "14ca12280d159a3661a536deba5062d98b327ec9",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P0",
       "phase": "in-progress",
       "claim": {
         "owner": "manual-issue249-signed-trial-20261120",
-        "head_sha": "32ee13c077bb3cad943fd46d7e11491d8a5756c0",
+        "head_sha": "14ca12280d159a3661a536deba5062d98b327ec9",
         "claimed_at": "2026-11-19T18:49:49.856Z",
         "expires_at": "2026-11-19T20:19:49.856Z"
       },
       "checkpoint": {
-        "next_action": "#939 exact-head 4/4 check and affected workflow security review; Y1 two/five index safety code and scoped docs committed, no hosted execution.",
-        "head_sha": "32ee13c077bb3cad943fd46d7e11491d8a5756c0",
-        "commits": 3,
-        "tests": "6 added negative cases, remote 4-job CI pending",
-        "ci": "pending"
+        "head_sha": "14ca12280d159a3661a536deba5062d98b327ec9",
+        "commits": 8,
+        "tests": "new Y1 2/5 exact index, extra shadow OFF, response cleanup regressions; Python job passed",
+        "ci": "#44593231155: Python passed, other 3 in progress",
+        "next_action": "Verify exact-head 4/4, affected workflow/security review; five-route ZIP not yet hosted, no DEV Auth/data writes"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/939"
     },
