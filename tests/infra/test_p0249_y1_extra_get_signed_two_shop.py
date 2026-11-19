@@ -132,7 +132,15 @@ class SignedThreeReadStatusRLS(unittest.TestCase):
         self.addCleanup(cached_supabase_verifier.cache_clear)
         p1 = patch("security.PyJWKClient", return_value=SimpleNamespace(
             get_signing_key_from_jwt=lambda _jwt: SimpleNamespace(key=KEY.public_key())))
-        p2 = patch("tenant_store.urlopen", side_effect=self.backend)
+        # #1018 made the no-redirect opener the default user-JWT transport.
+        # Patch that exact offline seam, not stale module urlopen: otherwise
+        # signed two-shop fixtures accidentally make network calls and mask
+        # valid 200/404 authorization behavior as 503.
+        from tenant_store import _NO_REDIRECT_OPENER, _RejectRedirects
+        self.assertTrue(any(isinstance(handler, _RejectRedirects)
+                            for handler in _NO_REDIRECT_OPENER.handlers))
+        p2 = patch("tenant_store._NO_REDIRECT_OPENER.open",
+                   side_effect=self.backend)
         for p in (p1, p2):
             p.start()
             self.addCleanup(p.stop)
