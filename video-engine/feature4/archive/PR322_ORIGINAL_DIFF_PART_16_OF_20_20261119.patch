@@ -1,0 +1,1754 @@
+diff --git a/video-engine/feature4_endcard_qa.py b/video-engine/feature4_endcard_qa.py
+--- a/video-engine/feature4_endcard_qa.py
++++ b/video-engine/feature4_endcard_qa.py
+@@ -0,0 +1,155 @@
++#!/usr/bin/env python3
++"""Feature4 real encoded 60s *stock* outro edit regression, never ad approval.
++
++Detect whether the actual decoded ~57.5s frame genuinely differs from the
++preceding clothing-rack shot. This is a visual change heuristic only: it does
++not recognize lettering, guarantee legibility, clear model rights or authorize
++any tenant. Run on the PRIVATE original render before audio mastering.
++"""
++from __future__ import annotations
++
++import argparse
++import hashlib
++import json
++import math
++from pathlib import Path
++import subprocess
++
++from feature4_private_preview import inspect_mp4, PreviewExportError
++
++
++class EndcardProofError(ValueError):
++    pass
++
++
++def _sha(path):
++    digest = hashlib.sha256()
++    with Path(path).open("rb") as handle:
++        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
++            digest.update(chunk)
++    return digest.hexdigest()
++
++
++def _pixels(path, at):
++    try:
++        process = subprocess.run(
++            ["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error",
++             "-protocol_whitelist", "file", "-ss", f"{at:.3f}", "-i",
++             str(path), "-map", "0:v:0", "-frames:v", "1", "-vf",
++             "scale=120:212,format=gray", "-f", "rawvideo", "-"],
++            check=True, capture_output=True, timeout=40)
++    except (OSError, subprocess.SubprocessError) as exc:
++        raise EndcardProofError("Encoded endcard frame cannot be decoded") from exc
++    if len(process.stdout) != 120 * 212:
++        raise EndcardProofError("Encoded endcard frame has invalid pixel length")
++    return process.stdout
++
++
++def _difference(left, right):
++    return round(sum(abs(a-b) for a, b in zip(left, right)) / len(left), 3)
++
++
++def verify_stock_endcard(source: Path, provenance: Path):
++    """Bounded three decoded-frame check for the exact private 60s stock QA.
++
++    Refuses a continued garment-rack shot at 57.5s; does not pretend to
++    identify text or measure every video frame. Last 5s must be a separate
++    reviewed technical-only scene, never a retailer promotion.
++    """
++    source, provenance = Path(source), Path(provenance)
++    if (source.is_symlink() or not source.is_file()
++            or source.suffix.lower() != ".mp4"
++            or provenance.is_symlink() or not provenance.is_file()
++            or provenance.suffix.lower() != ".json"
++            or provenance.stat().st_size > 250_000):
++        raise EndcardProofError("Unsafe private original or provenance input")
++    try:
++        record = json.loads(provenance.read_text(encoding="utf-8"))
++        media = inspect_mp4(source, max_size=80*1024*1024)
++    except (ValueError, OSError, UnicodeDecodeError, PreviewExportError) as exc:
++        raise EndcardProofError("Invalid encoded source or private QA provenance") from exc
++    if not isinstance(record, dict):
++        raise EndcardProofError("Provenance must be a trusted object")
++    scenes = record.get("scene_windows")
++    cues = record.get("editorial_subtitle_cues")
++    if (record.get("status") != "OFFLINE_CROSS_FEATURE_STOCK_TEST_ONLY"
++            or record.get("duration_seconds") != 60
++            or record.get("commercial_release_eligible") is not False
++            or record.get("human_approved") is not False
++            or record.get("actual_spoken_voiceover") is not False
++            or not isinstance(scenes, list) or len(scenes) != 12
++            or not isinstance(cues, list) or len(cues) != 12
++            or record.get("editorial_subtitle_kind") != "EDITORIAL_TEST_TITLES_NOT_SPOKEN_AUDIO"
++            or not isinstance(scenes[-1], dict)
++            or not isinstance(scenes[-2], dict)
++            or type(scenes[-1].get("start")) not in (int, float)
++            or type(scenes[-1].get("duration")) not in (int, float)
++            or type(scenes[-2].get("start")) not in (int, float)
++            or type(scenes[-2].get("duration")) not in (int, float)
++            or not isinstance(cues[-1], dict)
++            or type(cues[-1].get("start")) not in (int, float)
++            or not math.isfinite(cues[-1]["start"])
++            or not math.isfinite(scenes[-1]["start"])
++            or not math.isfinite(scenes[-1]["duration"])
++            or not 54.5 <= scenes[-1]["start"] <= 55.5
++            or scenes[-1]["duration"] < 4.5
++            or abs(scenes[-1]["start"] + scenes[-1]["duration"] - 60) > .003
++            or abs(scenes[-2]["start"] + scenes[-2]["duration"]-scenes[-1]["start"]) > .003
++            or cues[-1].get("text") != "STOCK GARMENT CONCEPT - NOT A RETAILER AD"
++            or abs(cues[-1].get("start", -100)-scenes[-1]["start"]) > .003):
++        raise EndcardProofError("The 60s stock outro must be a distinct 55-60s disclaimer")
++    if (abs(media["seconds"] - 60) > .45
++            or (media["width"], media["height"]) not in ((540, 960), (1080, 1920))):
++        raise EndcardProofError("Unexpected encoded source profile")
++    source_sha = _sha(source)
++    before = _pixels(source, 53.0)
++    middle = _pixels(source, 57.5)
++    tail = _pixels(source, 59.3)
++    if _sha(source) != source_sha:
++        raise EndcardProofError("Source video mutated during endcard pixel verification")
++    visual_change = _difference(before, middle)
++    endcard_stability = _difference(middle, tail)
++    # Full-screen card must no longer look like the previously repeated rack.
++    # This is a regression threshold for the stock fixture, not aesthetic QA.
++    if visual_change < 25:
++        raise EndcardProofError("Encoded 55s endcard resembles held garment-rack shot")
++    if endcard_stability > 22:
++        raise EndcardProofError("Encoded 55s endcard unexpectedly changes after reveal")
++    return {
++        "schema": "feature4_stock_endcard_pixel_v1",
++        "status": "ENCODED_OUTRO_VISUALLY_CHANGED_NOT_TEXT_APPROVAL",
++        "source_sha256": source_sha, "duration_seconds": 60,
++        "outro_start_seconds": scenes[-1]["start"],
++        "pre_outro_sample_seconds": 53.0,
++        "outro_sample_seconds": 57.5,
++        "outro_tail_sample_seconds": 59.3,
++        "scene_delta_mean_luma": visual_change,
++        "outro_stability_delta_mean_luma": endcard_stability,
++        "commercial_release_eligible": False, "human_visual_approval": False,
++        "retailer_garment_verified": False, "text_legibility_verified": False,
++        "spoken_caption_sync_verified": False,
++    }
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--source", required=True)
++    parser.add_argument("--provenance", required=True)
++    parser.add_argument("--report", required=True)
++    args = parser.parse_args()
++    destination = Path(args.report)
++    if (destination.exists() or destination.is_symlink()
++            or destination.suffix.lower() != ".json"
++            or destination.parent.is_symlink() or not destination.parent.is_dir()):
++        raise EndcardProofError("Private endcard report must be a fresh JSON file")
++    report = verify_stock_endcard(Path(args.source), Path(args.provenance))
++    with destination.open("x", encoding="utf-8") as handle:
++        json.dump(report, handle, indent=2)
++        handle.write("\n")
++    print(json.dumps({"status": report["status"],
++                      "scene_delta": report["scene_delta_mean_luma"],
++                      "owner_approved": False}))
++
++
++if __name__ == "__main__":
++    main()
+
+diff --git a/video-engine/feature4_export_matrix.py b/video-engine/feature4_export_matrix.py
+--- a/video-engine/feature4_export_matrix.py
++++ b/video-engine/feature4_export_matrix.py
+@@ -0,0 +1,147 @@
++#!/usr/bin/env python3
++"""Feature4 F4-03: bind 15/30/60 ACTUAL local MP4 evidence on a single code head.
++
++No renderer/model/hosting runs here. This checks codec/shape/duration and exact
++file bytes; a self-declared source SHA is NOT an Actions attestation, rights
++grant, human visual acceptance, or proof that footage is customer-approved.
++"""
++from __future__ import annotations
++
++import argparse
++import hashlib
++import json
++import os
++import stat
++from pathlib import Path
++import re
++import subprocess
++
++from render_adapter import CreativeRenderError, verify_mp4
++
++SHA = re.compile(r"^[0-9a-f]{40}$")
++DIGEST = re.compile(r"^[0-9a-f]{64}$")
++SECONDS = (15, 30, 60)
++MAX_BYTES = 80 * 1024 * 1024
++
++
++class MatrixEvidenceError(ValueError):
++    pass
++
++
++def _stable_sha(path):
++    """Before/after stat and content check of bounded regular, non-symlink file."""
++    try:
++        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
++        with os.fdopen(fd, "rb") as stream:
++            before = os.fstat(stream.fileno())
++            if not stat.S_ISREG(before.st_mode):
++                raise MatrixEvidenceError("Missing or unsafe encoded MP4")
++            if not 1024 < before.st_size <= MAX_BYTES:
++                raise MatrixEvidenceError("Output is empty or beyond private reviewer cap")
++            digest = hashlib.sha256()
++            for part in iter(lambda: stream.read(1024 * 1024), b""):
++                digest.update(part)
++            after = os.fstat(stream.fileno())
++            if (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns) != (
++                    after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns):
++                raise MatrixEvidenceError("Encoded source mutated during hashing")
++            current = os.lstat(path)
++            if (not stat.S_ISREG(current.st_mode) or
++                    (current.st_dev, current.st_ino, current.st_size) !=
++                    (after.st_dev, after.st_ino, after.st_size)):
++                raise MatrixEvidenceError("Encoded source path replaced during hashing")
++            return before.st_size, digest.hexdigest()
++    except OSError as exc:
++        raise MatrixEvidenceError("Missing or unsafe encoded MP4") from exc
++
++
++def verify_export_matrix(manifest, source_root, *, expected_head):
++    if type(expected_head) is not str or not SHA.fullmatch(expected_head):
++        raise MatrixEvidenceError("Expected exact checkout commit SHA")
++    if type(manifest) is not dict or set(manifest) != {"schema", "source_commit", "renders"}:
++        raise MatrixEvidenceError("Unexpected export matrix manifest")
++    if (manifest["schema"] != "feature4_export_matrix_inputs_v1" or
++            manifest["source_commit"] != expected_head):
++        raise MatrixEvidenceError("Reels must claim this same exact checkout SHA")
++    rows = manifest["renders"]
++    if type(rows) is not list or len(rows) != 3:
++        raise MatrixEvidenceError("Exactly three actual 15/30/60 exports required")
++    root = Path(source_root)
++    if not root.is_dir() or root.is_symlink():
++        raise MatrixEvidenceError("Expected one existing private source directory")
++    verified = []
++    found = set()
++    seen_paths = set()
++    for row in rows:
++        if type(row) is not dict or set(row) != {"seconds", "path", "sha256"}:
++            raise MatrixEvidenceError("Unexpected export-row fields")
++        seconds, name, claimed_digest = row["seconds"], row["path"], row["sha256"]
++        if type(seconds) is not int or seconds not in SECONDS or seconds in found:
++            raise MatrixEvidenceError("Missing or duplicated export duration")
++        if (type(name) is not str or not name or len(name) > 120 or
++                name in (".", "..") or "/" in name or "\\" in name or
++                not name.endswith(".mp4") or name in seen_paths):
++            raise MatrixEvidenceError("Only distinct local MP4 basenames supported")
++        if type(claimed_digest) is not str or not DIGEST.fullmatch(claimed_digest):
++            raise MatrixEvidenceError("Missing immutable original media SHA")
++        path = root / name
++        size, actual = _stable_sha(path)
++        if actual != claimed_digest:
++            raise MatrixEvidenceError("Manifest original-byte SHA mismatch")
++        try:
++            probe = verify_mp4(path, duration=seconds, width=1080, height=1920, fps=24)
++        except CreativeRenderError as exc:
++            raise MatrixEvidenceError("Actual encoded 1080x1920 H264/AAC/24fps proof failed") from exc
++        if (type(probe) is not dict or type(probe.get("bytes")) is not int or
++                probe["bytes"] != size or _stable_sha(path) != (size, actual)):
++            raise MatrixEvidenceError("Encoded MP4 changed during verification")
++        found.add(seconds)
++        seen_paths.add(name)
++        verified.append({"seconds": seconds, "file_name": name,
++                         "bytes": size, "sha256": actual,
++                         "code_sha_claim": expected_head,
++                         "encoded_codec_check": "H264_AAC_YUV420P_1080X1920_24FPS"})
++    if found != set(SECONDS):
++        raise MatrixEvidenceError("15/30/60 profile coverage is incomplete")
++    return {
++        "schema": "feature4_15_30_60_local_export_matrix_v1",
++        "status": "ALL_THREE_LOCAL_ENCODED_PROFILES_TECHNICALLY_CHECKED",
++        "source_commit_claim": expected_head,
++        "code_commit_attested_by_ci": False,
++        "renders": sorted(verified, key=lambda r: r["seconds"]),
++        "scope": "PRIVATE_OFFLINE_SOURCE_VERIFICATION_ONLY",
++        "commercial_release_eligible": False,
++        "retailer_media_rights_verified": False,
++        "human_visual_approval": False,
++        "speech_alignment_verified": False,
++        "hosted_dev_e2e_verified": False,
++    }
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--manifest", required=True)
++    parser.add_argument("--source-root", required=True)
++    parser.add_argument("--report", required=True)
++    args = parser.parse_args()
++    manifest_path = Path(args.manifest)
++    report = Path(args.report)
++    if (manifest_path.is_symlink() or not manifest_path.is_file() or
++            manifest_path.stat().st_size > 32_768):
++        raise MatrixEvidenceError("Only bounded private manifest files accepted")
++    if (report.exists() or report.is_symlink() or report.suffix != ".json" or
++            not report.parent.is_dir() or report.parent.is_symlink()):
++        raise MatrixEvidenceError("Report must be a new private JSON file")
++    expected_head = subprocess.check_output(
++        ["git", "rev-parse", "--verify", "HEAD"], text=True,
++        timeout=5, cwd=Path(__file__).resolve().parents[1]).strip()
++    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
++    evidence = verify_export_matrix(manifest, args.source_root, expected_head=expected_head)
++    with report.open("x", encoding="utf-8") as handle:
++        json.dump(evidence, handle, indent=2)
++        handle.write("\n")
++    print(evidence["status"] + " — NOT customer/hosted quality approval")
++
++
++if __name__ == "__main__":
++    main()
+
+diff --git a/video-engine/feature4_garment_integration.py b/video-engine/feature4_garment_integration.py
+--- a/video-engine/feature4_garment_integration.py
++++ b/video-engine/feature4_garment_integration.py
+@@ -0,0 +1,251 @@
++#!/usr/bin/env python3
++"""CPU-only Feature4 garment+stock-motion 30s test (NOT a retailer garment match)."""
++from __future__ import annotations
++import argparse
++import hashlib
++import json
++from pathlib import Path
++import sys
++import tempfile
++import urllib.parse
++import urllib.request
++from asset_preflight import inspect_staged_image
++from professional import compile_composition, VideoPlanError
++from feature4_stock_showcase import (CLIPS, DEMO_SHOP, LICENSE_URL, StockShowcaseError,
++    check_input, normalize_for_renderer, retrieve_stock)
++from feature4_beat_edit import original_rhythmic_music, snap_scene_cuts, BeatEditError
++
++GARMENTS = (
++    ("garment01", "8306370", "Ron Lach",
++     "https://www.pexels.com/photo/clothes-hanged-on-clothes-hanger-inside-a-boutique-8306370/"),
++    ("garment02", "8387134", "Ron Lach",
++     "https://www.pexels.com/photo/hanging-clothes-in-a-clothes-rack-inside-a-boutique-8387134/"),
++)
++# Two more official Pexels editorial photos for the FULL-MINUTE QA only.
++# 30-second verified source/appearance remains byte-for-byte unchanged.
++MINUTE_GARMENTS = (
++    ("garment03", "4947543", "Maria Orlova",
++     "https://www.pexels.com/photo/collection-of-female-clothes-on-rack-in-boutique-4947543/"),
++    ("garment04", "4857762", "Rachel Claire",
++     "https://www.pexels.com/photo/stylish-clothes-hanging-on-rack-in-fashion-boutique-4857762/"),
++)
++MAX_IMAGE_BYTES = 22_000_000
++OUTRO = "STOCK GARMENT CONCEPT - NOT A RETAILER AD"
++
++
++class ImageRedirect(urllib.request.HTTPRedirectHandler):
++    def redirect_request(self, req, fp, code, msg, headers, newurl):
++        u = urllib.parse.urlsplit(newurl)
++        if u.scheme != "https" or u.hostname != "images.pexels.com":
++            raise StockShowcaseError("Garment redirect outside approved host")
++        return super().redirect_request(req, fp, code, msg, headers, newurl)
++
++
++def retrieve_garment(dest: Path, source_id: str):
++    if source_id not in {rec[1] for rec in GARMENTS + MINUTE_GARMENTS}:
++        raise StockShowcaseError("Garment ID not allowlisted")
++    if dest.exists() or dest.is_symlink():
++        raise StockShowcaseError("Refusing garment overwrite")
++    dest.parent.mkdir(parents=True, exist_ok=True)
++    url = ("https://images.pexels.com/photos/" + source_id +
++           "/pexels-photo-" + source_id + ".jpeg?auto=compress&cs=tinysrgb&w=1200")
++    part = dest.with_suffix(".download")
++    try:
++        opener = urllib.request.build_opener(ImageRedirect)
++        with opener.open(urllib.request.Request(url, headers={
++                "User-Agent": "RetailGrowthAI-Feature4-LicensedMediaQA/1.0",
++                "Accept": "image/jpeg"}), timeout=55) as stream, part.open("wb") as out:
++            if (urllib.parse.urlsplit(stream.url).hostname != "images.pexels.com" or
++                    stream.headers.get("Content-Type", "").split(";")[0].strip().lower() != "image/jpeg"):
++                raise StockShowcaseError("Unexpected garment origin or mime type")
++            size, magic = 0, b""
++            while True:
++                chunk = stream.read(1024 * 1024)
++                if not chunk:
++                    break
++                if not magic:
++                    magic = chunk[:3]
++                size += len(chunk)
++                if size > MAX_IMAGE_BYTES:
++                    raise StockShowcaseError("Oversize garment JPEG")
++                out.write(chunk)
++        if size < 15000 or magic != b"\xff\xd8\xff":
++            raise StockShowcaseError("Garment not a JPEG")
++        part.replace(dest)
++        return {"source_url": url, "bytes": size}
++    except (OSError, urllib.error.URLError, StockShowcaseError):
++        part.unlink(missing_ok=True)
++        raise
++
++
++def checked_garment(path: Path):
++    if (not path.is_file() or path.is_symlink() or path.suffix.lower() not in (".jpg", ".jpeg")
++            or not 15000 <= path.stat().st_size <= MAX_IMAGE_BYTES):
++        raise StockShowcaseError("Unsafe or missing garment photo")
++    try:
++        inspect_staged_image(path)
++    except (ValueError, OSError) as exc:
++        raise StockShowcaseError("Invalid garment image preflight") from exc
++
++
++def make_garment_project(source_dir: Path, project_dir: Path, *, seconds: int = 30):
++    if type(seconds) is not int or seconds not in (30, 60):
++        raise StockShowcaseError("Only 30s or 60s stock editorial test duration allowed")
++    source_dir = Path(source_dir).resolve(strict=True)
++    if project_dir.exists() and any(project_dir.iterdir()):
++        raise StockShowcaseError("Refusing garment composition overwrite")
++    with tempfile.TemporaryDirectory(prefix="rgai-garment-private-") as temporary:
++        stage = Path(temporary)
++        manifest = {"shop_id": DEMO_SHOP, "assets": {}}
++        evidence = []
++        for aid, sid, creator, page, urls in CLIPS:
++            original, norm = source_dir / (sid + ".mp4"), stage / (sid + ".mp4")
++            measured = check_input(original)
++            staged = normalize_for_renderer(original, norm)
++            manifest["assets"][aid] = {"kind": "video", "path": norm.name,
++                "rights": {"commercial_use": True, "license": "royalty_free",
++                           "source": page, "evidence": "Pexels stock motion; no model endorsement"}}
++            evidence.append({"source_feature": "feature5_stock_proxy", "asset_id": aid,
++                "source_id": sid, "creator": creator, "page": page,
++                "sha256_original": hashlib.sha256(original.read_bytes()).hexdigest(),
++                "sha256_staged": hashlib.sha256(norm.read_bytes()).hexdigest(),
++                "original_probe": measured, "stage_probe": staged, "ai_generated": False})
++        active_garments = GARMENTS + MINUTE_GARMENTS if seconds == 60 else GARMENTS
++        for aid, sid, creator, page in active_garments:
++            original, dest = source_dir / (sid + ".jpg"), stage / (sid + ".jpg")
++            checked_garment(original)
++            dest.write_bytes(original.read_bytes())
++            manifest["assets"][aid] = {"kind": "image", "path": dest.name,
++                "rights": {"commercial_use": True, "license": "royalty_free",
++                           "source": page, "evidence": "Independent stock garment photo; not worn by model"}}
++            evidence.append({"source_feature": "feature3_garment_proxy", "asset_id": aid,
++                "source_id": sid, "creator": creator, "page": page,
++                "sha256_original": hashlib.sha256(original.read_bytes()).hexdigest(),
++                "retailer_garment": False, "ai_generated": False})
++        music = stage / ("original-" + str(seconds) + "s.wav")
++        detected_beats = original_rhythmic_music(music, seconds=seconds)
++        manifest["assets"]["test_music"] = {"kind": "audio", "path": music.name,
++            "rights": {"commercial_use": True, "license": "owned",
++                       "source": "Feature4 original deterministic wave synthesizer",
++                       "evidence": "No third-party song or simulated licensed trending track"}}
++        sequence = [
++            (0, 5, "look01", "A NEW SEASON"),
++            (5, 5, "garment01", "THE GARMENT EDIT"),
++            (10, 5, "look02", "STYLE IN MOTION"),
++            (15, 5, "garment02", "TEXTURE AND DETAIL"),
++            (20, 5, "look03", "THE FASHION STORY"),
++            (25, 3, "garment01", "CURATED STYLE"),
++            (28, 2, None, OUTRO),
++        ]
++        if seconds == 60:
++            # Twelve scenes are the renderer contract maximum. All 60 seconds
++            # are real, staged stock reference assets; repeat footage is disclosed,
++            # never represented as new Feature5-generated model motion.
++            sequence = [
++                (0, 5, "look01", "A NEW SEASON"),
++                (5, 5, "garment01", "DETAILS WORTH NOTICING"),
++                (10, 5, "look02", "THE EDIT IN MOTION"),
++                (15, 5, "garment03", "FORM AND TEXTURE"),
++                (20, 5, "look03", "LOOKS FOR EVERY DAY"),
++                (25, 5, "garment01", "CURATED REFERENCE"),
++                (30, 5, "look02", "MOVEMENT AND STYLE"),
++                (35, 5, "garment04", "CLOTHING DETAILS"),
++                (40, 5, "look01", "THE CITY EDIT"),
++                (45, 5, "garment01", "FIND YOUR STYLE"),
++                # Isolate a five-second disclaimer/endcard rather than hold
++                # the same static clothes-rack frame for eight seconds.
++                (50, 5, "garment03", "EDITORIAL FASHION STUDY"),
++                (55, 5, None, OUTRO),
++            ]
++        # Auto-find actual PCM onsets; no invented fixed-grid positions.
++        sequence = snap_scene_cuts(sequence, detected_beats, duration_seconds=seconds)
++        scenes = []
++        for idx, (start, dur, aid, headline) in enumerate(sequence):
++            scene = {"start": start, "duration": dur, "headline": headline,
++                     "transition": "cut" if idx == 0 else "fade",
++                     "animation_preset": "subtle_zoom" if aid and aid.startswith("garment") else "fade"}
++            if aid:
++                scene["asset_id"] = aid
++                if aid.startswith("look"):
++                    scene["mute_source"] = True
++            scenes.append(scene)
++        plan = {"version": "rg_video_v2", "shop_id": DEMO_SHOP, "mode": "music_sync",
++            "template": "cinematic", "duration_seconds": seconds,
++            "output": {"width": 1080, "height": 1920, "fps": 24},
++            "brand": {"name": "GARMENT / EDIT", "primary_color": "#C8AB82"},
++            "beats": detected_beats, "scenes": scenes, "cta": OUTRO,
++            "music_asset_id": "test_music"}
++        compiled = compile_composition(plan, manifest, stage, project_dir)
++        html = (compiled / "index.html").read_text(encoding="utf-8")
++        expected_video = 3 if seconds == 30 else 5
++        expected_photos = 3 if seconds == 30 else 6
++        expected_final_id = 'id="scene6"' if seconds == 30 else 'id="scene11"'
++        if (html.count('class="footage clip"') != expected_video or
++                html.count('class="product-photo"') != expected_photos or
++                expected_final_id not in html or 'id="cta"' in html or
++                'src="https:' in html):
++            raise StockShowcaseError("Compiled garment edit failed scene/rights assertions")
++        return compiled, {
++            "status": "OFFLINE_CROSS_FEATURE_STOCK_TEST_ONLY",
++            "duration_seconds": seconds,
++            "scene_count": len(scenes),
++            "reused_stock_video_clips": seconds == 60,
++            "source_media": evidence, "license_url": LICENSE_URL,
++            "feature2": "Original synthesized rhythmic music and editorial test copy; no viral song/voice",
++            "music_beat_source": "Measured offline PCM onset detector, not invented beat grid",
++            "measured_beat_timestamps": detected_beats,
++            "synced_scene_starts": [scene["start"] for scene in scenes],
++            "scene_windows": [
++                {"start": round(float(scene["start"]),3),
++                 "duration": round(float(scene["duration"]),3)}
++                for scene in scenes
++            ],
++            # Offline *editorial titles*, not aligned spoken words. Derived
++            # from the actual beat-snapped rendered scene starts, not a fixed grid.
++            "editorial_subtitle_kind": "EDITORIAL_TEST_TITLES_NOT_SPOKEN_AUDIO",
++            "editorial_subtitle_cues": [
++                {"start": round(float(scene["start"]), 3),
++                 "duration": min(5.5, round(float(scene["duration"]), 3)),
++                 "text": scene["headline"]} for scene in scenes
++            ],
++            "feature3": "Pexels garment PHOTO proxy; not tenant garment or virtual try-on",
++            "feature5": "Pexels HUMAN motion proxy; not model-generated motion",
++            "feature7": "Basic timed editing; advanced effects not accepted",
++            "model_garment_match_verified": False,
++            "retailer_product_identity_verified": False,
++            "model_endorsement_claimed": False,
++            "human_approved": False, "actual_spoken_voiceover": False,
++            "showcase_eligible": False, "commercial_release_eligible": False,
++        }
++
++
++def main():
++    ap = argparse.ArgumentParser(description=__doc__)
++    ap.add_argument("--project", required=True)
++    ap.add_argument("--seconds", type=int, choices=(30, 60), default=30)
++    ap.add_argument("--provenance", required=True)
++    mx = ap.add_mutually_exclusive_group(required=True)
++    mx.add_argument("--download", action="store_true")
++    mx.add_argument("--source-dir")
++    args = ap.parse_args()
++    with tempfile.TemporaryDirectory(prefix="rgai-stock-input-") as tmp:
++        root = Path(tmp) if args.download else Path(args.source_dir)
++        if args.download:
++            for _, sid, _, _, urls in CLIPS:
++                retrieve_stock(root / (sid + ".mp4"), urls)
++            for _, sid, _, _ in (GARMENTS + MINUTE_GARMENTS if args.seconds == 60 else GARMENTS):
++                retrieve_garment(root / (sid + ".jpg"), sid)
++        proj, report = make_garment_project(root, Path(args.project), seconds=args.seconds)
++        proof = Path(args.provenance)
++        proof.parent.mkdir(parents=True, exist_ok=True)
++        proof.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
++        print(json.dumps({"project": str(proj), "status": report["status"],
++            "sources": len(report["source_media"]), "provenance": str(proof)}))
++
++
++if __name__ == "__main__":
++    try:
++        main()
++    except (StockShowcaseError, VideoPlanError, BeatEditError, OSError, ValueError) as exc:
++        print("FEATURE4 STOCK GARMENT BLOCKED: " + str(exc), file=sys.stderr)
++        raise SystemExit(2)
+
+diff --git a/video-engine/feature4_http_handoff.py b/video-engine/feature4_http_handoff.py
+--- a/video-engine/feature4_http_handoff.py
++++ b/video-engine/feature4_http_handoff.py
+@@ -0,0 +1,141 @@
++"""Feature #4 additive authenticated HTTP API contract, NOT a registered Azure route.
++
++Coordinator-owned Azure Functions HTTPAPI may compose this after its existing
++JWT verifier has produced token + user_id. The injected stores MUST be the
++existing Supabase RLS user store and transactional service admin, not request
++data. Does not touch the legacy /campaigns/:id/renders FFmpeg API.
++"""
++import hashlib
++import json
++import re
++from uuid import UUID
++
++ALLOWED_STATES = {"QUEUED", "RUNNING", "SUCCEEDED", "FAILED"}
++APPROVAL = re.compile(r"^[A-Za-z0-9_-]{1,100}$")
++TENANT_MEDIA = re.compile(
++    r"^(?P<shop>[0-9a-f-]{36})/renders/(?P<job>[0-9a-f-]{36})/"
++    r"(?P<lease>[0-9a-f-]{36})\.mp4$"
++)
++
++
++def _id(value):
++    if type(value) is not str:
++        raise ValueError("Invalid resource ID")
++    parsed = str(UUID(value))
++    if parsed != value or UUID(value).version is None:
++        raise ValueError("Noncanonical resource ID")
++    return value
++
++
++def _receipt(raw, shop, expected_job=None):
++    if type(raw) is not dict or raw.get("shop_id") != shop:
++        raise ValueError("Feature4 job tenant mismatch")
++    jid = _id(raw.get("id"))
++    if expected_job is not None and jid != expected_job:
++        raise ValueError("Feature4 job ID mismatch")
++    state = raw.get("status")
++    if state not in ALLOWED_STATES:
++        raise ValueError("Unexpected Feature4 job status")
++    return {"shop_id": shop, "job_id": jid, "status": state}
++
++
++class Feature4HTTP:
++    """All handlers receive JWT-verified user_id; owner supplies route bindings.
++
++    Required injected user_store callbacks:
++      campaign(jwt, user_id, campaign_id) -> RLS-limited record
++      member(jwt, user_id, shop_id, write=bool) -> bool
++      feature4_job(jwt, user_id, job_id) -> RLS-limited job
++      asset(jwt, shop_id, asset_id) -> RLS-limited asset
++      sign_download(jwt, shop_id, object_path) -> private signed HTTPS URL
++    Required transactional admin:
++      create_feature4_intent(item) -> immutable job row with id/shop/status;
++    its ONE atomic transaction MUST reauthorize approved Feature #2 copy,
++    media provenance/rights, recorded tenant ownership, revision, plan/quota,
++    idempotency and output media ledger; it MUST NOT infer approval from the
++    browser's 'authorized' flags, or create double reservations.
++    """
++    def __init__(self, users, admin):
++        self.users, self.admin = users, admin
++
++    def create(self, token, user_id, campaign_id, body):
++        cid = _id(campaign_id)
++        if type(body) is not dict or set(body) != {
++            "shop_id", "campaign_id", "approval_id", "draft"
++        }:
++            return 400, {"error": "INVALID_REQUEST"}
++        try:
++            sid = _id(body["shop_id"])
++            if _id(body["campaign_id"]) != cid:
++                return 400, {"error": "INVALID_REQUEST"}
++        except (TypeError, ValueError, AttributeError):
++            return 400, {"error": "INVALID_REQUEST"}
++        approval = body["approval_id"]
++        draft = body["draft"]
++        if (type(approval) is not str or not APPROVAL.fullmatch(approval)
++                or type(draft) is not dict or draft.get("version") != "rg_video_v2"
++                or draft.get("shop_id") != sid
++                or draft.get("duration_seconds") not in (15, 30, 60)
++                or type(draft.get("scenes")) is not list
++                or not 1 <= len(draft["scenes"]) <= 12
++                or len(json.dumps(draft, separators=(",", ":"))) > 64_000):
++            return 400, {"error": "INVALID_REQUEST"}
++        # RLS check before any service-role mutation, with an exact shop match.
++        campaign = self.users.campaign(token, user_id, cid)
++        if campaign is None or campaign.get("shop_id") != sid:
++            return 404, {"error": "NOT_FOUND"}
++        if not self.users.member(token, user_id, sid, write=True):
++            return 403, {"error": "FORBIDDEN"}
++        # Derive rather than accept a caller-provided idempotency key. A
++        # response timeout does NOT authorize a browser POST replay.
++        digest = hashlib.sha256(json.dumps(
++            [sid, user_id, cid, approval, draft], sort_keys=True,
++            separators=(",", ":"), ensure_ascii=True,
++        ).encode()).hexdigest()
++        # DB implementation MUST authenticate approved script/media revisions
++        # and perform insert/claim/outbox/credit reservation transactionally.
++        result = self.admin.create_feature4_intent({
++            "shop_id": sid, "campaign_id": cid, "requested_by": user_id,
++            "approval_id": approval, "draft": draft, "idempotency_key": digest,
++            "preset": "feature4_reel_v1",
++        })
++        receipt = _receipt(result, sid)
++        return (202 if receipt["status"] in ("QUEUED", "RUNNING") else 200), receipt
++
++    def get(self, token, user_id, job_id):
++        jid = _id(job_id)
++        job = self.users.feature4_job(token, user_id, jid)
++        if job is None:
++            return 404, {"error": "NOT_FOUND"}
++        sid = _id(job["shop_id"])
++        if not self.users.member(token, user_id, sid, write=False):
++            return 404, {"error": "NOT_FOUND"}
++        receipt = _receipt(job, sid, jid)
++        if receipt["status"] == "FAILED":
++            receipt["error_code"] = str(job.get("error_code") or "RENDER_FAILED")[:70]
++        return 200, receipt
++
++    def download(self, token, user_id, job_id):
++        jid = _id(job_id)
++        job = self.users.feature4_job(token, user_id, jid)
++        if job is None:
++            return 404, {"error": "NOT_FOUND"}
++        sid = _id(job["shop_id"])
++        if not self.users.member(token, user_id, sid, write=False):
++            return 404, {"error": "NOT_FOUND"}
++        _receipt(job, sid, jid)
++        if job["status"] != "SUCCEEDED" or not job.get("output_asset_id"):
++            return 409, {"error": "OUTPUT_NOT_READY"}
++        asset = self.users.asset(token, sid, job["output_asset_id"])
++        if (type(asset) is not dict or asset.get("shop_id") != sid or
++                asset.get("mime_type") != "video/mp4" or
++                asset.get("storage_bucket") != "retailgrowth-media"):
++            return 404, {"error": "OUTPUT_NOT_FOUND"}
++        match = TENANT_MEDIA.fullmatch(asset.get("object_path") or "")
++        if (match is None or match["shop"] != sid or match["job"] != jid):
++            return 404, {"error": "OUTPUT_NOT_FOUND"}
++        _id(match["lease"])
++        url = self.users.sign_download(token, sid, asset["object_path"])
++        # URL is produced ONLY by the same backend storage signing code, not
++        # fetched from browser input or an external AI provider.
++        return 200, {"shop_id": sid, "job_id": jid, "url": url}
+
+diff --git a/video-engine/feature4_intent_compiler.py b/video-engine/feature4_intent_compiler.py
+--- a/video-engine/feature4_intent_compiler.py
++++ b/video-engine/feature4_intent_compiler.py
+@@ -0,0 +1,241 @@
++"""F4-02: pure, server-side rg_video_v2 -> creative_reel_v1 translator.
++
++Only call AFTER the authenticated RLS store has frozen an immutable approval
++snapshot. The shop/media/script in this function are server-provided, not
++client-approved flags. NO database writes, AI inference, URL fetching or billing.
++The coordinator must transactionally save the returned request and media rows
++with the v2 render_job id and existing quota/outbox record.
++"""
++from __future__ import annotations
++
++import copy
++import math
++
++from creative_contract import CreativeContractError, safe_ref, uuid
++from feature4_worker_handoff import _bundle, Feature4HandoffError
++
++SCENE_FIELDS = frozenset({
++    "start", "duration", "headline", "asset_id", "animation_preset",
++    "transition", "poster_overlay_asset_id", "offer", "trim_start",
++    "mute_source", "sfx_asset_id",
++})
++DRAFT_FIELDS = frozenset({
++    "version", "shop_id", "mode", "template", "duration_seconds",
++    "output", "scenes", "cta", "music_asset_id",
++})
++OPTIONAL_DRAFT_FIELDS = frozenset({"voiceover_asset_id"})
++PRESENTATION_FIELDS = frozenset({"width", "height", "fps"})
++SNAPSHOT_FIELDS = frozenset({
++    "shop_id", "campaign_id", "video_job_id", "approval_id",
++    "script", "brand", "assets", "idempotency_key", "edit_plan", "beat_grid",
++})
++SERVER_ASSET_FIELDS = frozenset({
++    "shop_id", "kind", "source_feature", "approved", "storage_bucket",
++    "object_path", "mime_type", "license_name", "rights_evidence", "rights_source",
++})
++KINDS = {"image", "poster", "video", "audio", "logo"}
++SOURCES = {
++    "feature3": {"image", "poster"},
++    "feature5": {"video"},
++    "retailer": {"image", "poster", "video", "audio", "logo"},
++    "stock": {"image", "video", "audio"},
++}
++
++
++def _finite(value, label):
++    if type(value) not in (int, float) or not math.isfinite(value):
++        raise CreativeContractError(label + " must be finite")
++    return value
++
++
++def _source(asset_id, approved):
++    safe_ref(asset_id, "asset ID")
++    try:
++        row = approved[asset_id]
++    except (TypeError, KeyError) as exc:
++        raise CreativeContractError("Selected asset is not server-approved") from exc
++    if type(row) is not dict or set(row) != SERVER_ASSET_FIELDS:
++        raise CreativeContractError("Malformed trusted media asset record")
++    source, kind = row.get("source_feature"), row.get("kind")
++    if source not in SOURCES or kind not in KINDS or kind not in SOURCES[source]:
++        raise CreativeContractError("Unrecognized media origin or type")
++    return row
++
++
++def compile_approved_storyboard(draft, snapshot):
++    """Return a {request, manifest} pair prepared from a reviewed DB snapshot.
++
++    The coordinator's trusted transaction MUST ensure the snapshot has
++    verified rights, membership, an approved immutable script, verified
++    actual Feature3/5 media and a once-only billing reservation.
++    """
++    if type(draft) is not dict or (set(draft) - (DRAFT_FIELDS | OPTIONAL_DRAFT_FIELDS)
++                                  or DRAFT_FIELDS - set(draft)):
++        raise CreativeContractError("Unexpected or missing browser draft fields")
++    if type(snapshot) is not dict or not set(snapshot).issubset(SNAPSHOT_FIELDS) or not {
++        "shop_id", "campaign_id", "video_job_id", "approval_id",
++        "script", "brand", "assets", "idempotency_key",
++    }.issubset(snapshot):
++        raise CreativeContractError("Missing trusted approval snapshot")
++    # The approved copy must be a structured exact-match list. A bare string
++    # would turn Python's "headline in approved_text" into a substring check,
++    # allowing unreviewed promotional claims through the trusted compiler.
++    script = snapshot["script"]
++    if type(script) is not dict:
++        raise CreativeContractError("Malformed trusted Feature2 script")
++    approved_text = script.get("approved_text")
++    if (type(approved_text) is not list or not approved_text or
++            any(type(item) is not str or not item for item in approved_text)):
++        raise CreativeContractError("Malformed trusted approved text")
++    shop_id = uuid(snapshot["shop_id"], "shop ID")
++    campaign_id = uuid(snapshot["campaign_id"], "campaign ID")
++    job_id = uuid(snapshot["video_job_id"], "render job")
++    if draft.get("version") != "rg_video_v2" or draft["shop_id"] != shop_id:
++        raise CreativeContractError("Foreign tenant or draft revision")
++    if snapshot["approval_id"] != snapshot["script"].get("approval_id"):
++        raise CreativeContractError("Unreviewed Feature2 script revision")
++    if type(snapshot["script"]) is not dict or snapshot["script"].get("approved") is not True:
++        raise CreativeContractError("Feature2 approval is not active")
++    if type(snapshot["brand"]) is not dict or type(snapshot["assets"]) is not dict:
++        raise CreativeContractError("Trusted brand/media rows required")
++    if type(draft["scenes"]) is not list or not 1 <= len(draft["scenes"]) <= 12:
++        raise CreativeContractError("Invalid video scene count")
++    if draft["mode"] not in ("text", "image", "poster", "media", "music_sync"):
++        raise CreativeContractError("Unsupported video mode")
++    if draft["template"] not in ("streetwear", "cinematic", "festival"):
++        raise CreativeContractError("Unsupported reviewed template")
++    duration = draft["duration_seconds"]
++    if type(duration) is not int or duration not in (15, 30, 60):
++        raise CreativeContractError("Unsupported export duration")
++    out = draft["output"]
++    if type(out) is not dict or set(out) != PRESENTATION_FIELDS or (
++        type(out["width"]), type(out["height"]), type(out["fps"])
++    ) != (int, int, int):
++        raise CreativeContractError("Unexpected output format")
++    if (out["width"], out["height"]) not in ((540, 960), (1080, 1920)) or out["fps"] not in (24, 30):
++        raise CreativeContractError("Unsupported export resolution or FPS")
++    if draft["cta"] != snapshot["script"].get("cta"):
++        raise CreativeContractError("CTA differs from approved Feature2 copy")
++    selected_ids = set()
++    music_id = draft.get("music_asset_id")
++    if music_id is not None:
++        soundtrack = _source(music_id, snapshot["assets"])
++        if soundtrack["kind"] != "audio":
++            raise CreativeContractError("Approved soundtrack must be audio")
++        selected_ids.add(music_id)
++    voice_id = draft.get("voiceover_asset_id")
++    if voice_id is not None:
++        voice = _source(voice_id, snapshot["assets"])
++        if voice["kind"] != "audio":
++            raise CreativeContractError("Approved narration must be audio")
++        selected_ids.add(voice_id)
++    scenes = []
++    t = 0
++    for index, raw in enumerate(draft["scenes"]):
++        if type(raw) is not dict or set(raw) - SCENE_FIELDS or not {
++            "start", "duration", "headline",
++        }.issubset(raw):
++            raise CreativeContractError("Scene has unknown fields")
++        start = _finite(raw["start"], "Scene start")
++        length = _finite(raw["duration"], "Scene duration")
++        if abs(start - t) > .001 or length < .5 or length > duration:
++            raise CreativeContractError("Scenes must be contiguous and bounded")
++        if type(raw["headline"]) is not str or raw["headline"] not in snapshot["script"]["approved_text"]:
++            raise CreativeContractError("Unreviewed promotional headline")
++        scene = {"order": index, "start_time": start, "duration": length,
++                 "headline": raw["headline"],
++                 "animation_preset": raw.get("animation_preset", "subtle_zoom"),
++                 "transition": raw.get("transition", "fade")}
++        if raw.get("offer") is not None:
++            if type(raw["offer"]) is not str or raw["offer"] not in snapshot["script"]["approved_text"]:
++                raise CreativeContractError("Unreviewed promotional offer")
++            scene["text_overlay"] = raw["offer"]
++        source_id = raw.get("asset_id")
++        if source_id is not None:
++            row = _source(source_id, snapshot["assets"])
++            if row["shop_id"] != shop_id or row["approved"] is not True:
++                raise CreativeContractError("Asset is not approved for current shop")
++            kind = row["kind"]
++            if (draft["mode"] == "text" or
++                (draft["mode"] == "image" and kind != "image") or
++                (draft["mode"] == "poster" and kind != "poster") or
++                (draft["mode"] in ("media", "music_sync") and kind not in ("image", "poster", "video"))):
++                raise CreativeContractError("Asset incompatible with selected media mode")
++            scene.update(asset_id=source_id, asset_type=kind,
++                         source_feature=row["source_feature"])
++            if row["source_feature"] == "feature5":
++                # Only actual persisted approved video row counts as motion.
++                # No browser-side 'motion_status' may promote a still to a human clip.
++                scene["motion_status"] = "ready"
++            selected_ids.add(source_id)
++        elif draft["mode"] != "text":
++            raise CreativeContractError("Non-text scene requires reviewed source media")
++        poster = raw.get("poster_overlay_asset_id")
++        if poster is not None:
++            row = _source(poster, snapshot["assets"])
++            if row["kind"] != "poster" or row["source_feature"] != "feature3" or poster == source_id:
++                raise CreativeContractError("Overlay must be a distinct Feature3 reviewed poster")
++            scene["poster_overlay_asset_id"] = poster
++            selected_ids.add(poster)
++        sfx = raw.get("sfx_asset_id")
++        if sfx is not None:
++            row = _source(sfx, snapshot["assets"])
++            if row["kind"] != "audio":
++                raise CreativeContractError("Scene SFX must be reviewed audio")
++            scene["sfx_asset_id"] = sfx
++            scene["sfx_source"] = row["source_feature"]
++            selected_ids.add(sfx)
++        for k in ("trim_start", "mute_source"):
++            if k in raw:
++                if k == "trim_start":
++                    if source_id is None or scene.get("asset_type") != "video" or _finite(raw[k], k) < 0:
++                        raise CreativeContractError("Trimming requires a valid video source")
++                elif type(raw[k]) is not bool:
++                    raise CreativeContractError("Mute flag must be boolean")
++                scene[k] = raw[k]
++        scenes.append(scene)
++        t = round(t + length, 6)
++    if abs(t-duration) > .001:
++        raise CreativeContractError("Storyboard does not fill its approved duration")
++    brand = copy.deepcopy(snapshot["brand"])
++    if brand.get("logo_asset_id") is not None:
++        selected_ids.add(brand["logo_asset_id"])
++    authoritative_rows = {
++        asset_id: copy.deepcopy(snapshot["assets"][asset_id]) for asset_id in selected_ids
++    }
++    request = {
++        "version": "creative_reel_v1", "shop_id": shop_id,
++        "campaign_id": campaign_id, "video_job_id": job_id,
++        "idempotency_key": snapshot["idempotency_key"],
++        "script": copy.deepcopy(snapshot["script"]), "brand": brand,
++        "scenes": scenes, "template": draft["template"],
++        "duration_seconds": duration,
++        "mode": draft["mode"],
++        "output": {"format": "mp4", **out},
++    }
++    if music_id:
++        request["music_asset_id"] = music_id
++        request["music_source"] = snapshot["assets"][music_id]["source_feature"]
++    if voice_id:
++        request["voiceover_asset_id"] = voice_id
++        request["voiceover_source"] = snapshot["assets"][voice_id]["source_feature"]
++    if draft["mode"] == "music_sync":
++        if snapshot.get("beat_grid") is None:
++            raise CreativeContractError("Server-derived approved beat grid required")
++        request["beat_grid"] = copy.deepcopy(snapshot["beat_grid"])
++    if snapshot.get("edit_plan") is not None:
++        request["edit_plan"] = copy.deepcopy(snapshot["edit_plan"])
++    # Reuse EXACTLY the same tenant-private bundle gate as the Azure worker,
++    # rather than inventing a second media rights/path schema. It generates
++    # local filenames and preserves the approved DB object keys separately.
++    claim = {"id": job_id, "shop_id": shop_id, "campaign_id": campaign_id,
++             "idempotency_key": snapshot["idempotency_key"]}
++    bundle = {"request": request, "assets": authoritative_rows}
++    try:
++        _, manifest, _, audit = _bundle(claim, bundle)
++    except Feature4HandoffError as exc:
++        raise CreativeContractError("Unapproved private-media source: " + str(exc)) from exc
++    if set(audit["media_asset_ids"]) != selected_ids:
++        raise CreativeContractError("Unreferenced or unapproved media introduced")
++    return {"request": request, "manifest": manifest,
++            "bundle": bundle, "lineage": audit}
+
+diff --git a/video-engine/feature4_minute_quality_receipt.py b/video-engine/feature4_minute_quality_receipt.py
+--- a/video-engine/feature4_minute_quality_receipt.py
++++ b/video-engine/feature4_minute_quality_receipt.py
+@@ -0,0 +1,376 @@
++#!/usr/bin/env python3
++"""60s real-stock technical QA receipt, tracing immutable local render artifacts.
++
++NOT tenant security, AI-generated motion, marketing approval, model/garment
++identity or third-party music consent. Only consume stock QA in private local
++runner output. Production source media MUST stay off public GitHub artifacts.
++"""
++from __future__ import annotations
++import argparse
++import hashlib
++import json
++import math
++from pathlib import Path
++from urllib.parse import urlsplit
++from feature4_private_preview import inspect_mp4, PreviewExportError
++from feature4_subtitles import compose_approved_subtitles, SubtitleExportError
++
++
++class MinuteProofError(ValueError):
++    pass
++
++
++def _sha(path, *, size_limit=80_000_000):
++    path=Path(path)
++    if path.is_symlink() or not path.is_file() or not 10 <= path.stat().st_size <= size_limit:
++        raise MinuteProofError("Unsafe, absent or oversized local 60s QA file")
++    h=hashlib.sha256()
++    with path.open("rb") as f:
++        while chunk:=f.read(1024*1024):
++            h.update(chunk)
++    return h.hexdigest()
++
++
++def _record(path):
++    path=Path(path)
++    if path.suffix.lower()!=".json":
++        raise MinuteProofError("QA source must be a JSON file")
++    _sha(path,size_limit=2_000_000)
++    try:
++        data=json.loads(path.read_text(encoding="utf-8"))
++    except (UnicodeDecodeError,OSError,ValueError) as exc:
++        raise MinuteProofError("QA file was not parseable JSON") from exc
++    if not isinstance(data,dict):
++        raise MinuteProofError("QA evidence must be a JSON object")
++    return data
++
++
++
++
++def _require_distinct_render_stages(*paths):
++    """Reject reused/aliased render stages, including hardlinks.
++
++    Hash-linked receipts must describe separate source, mastered, preview and
++    captioned outputs; the same inode cannot satisfy multiple pipeline steps.
++    """
++    stages=[Path(p) for p in paths]
++    for i,left in enumerate(stages):
++        for right in stages[i+1:]:
++            try:
++                aliased=(left.resolve()==right.resolve()
++                         or (left.exists() and right.exists()
++                             and left.samefile(right)))
++            except OSError as exc:
++                raise MinuteProofError("Cannot verify distinct render stages") from exc
++            if aliased:
++                raise MinuteProofError("QA render stages must be distinct files")
++
++
++def _require_changed_render_bytes(original_sha, master_sha, preview_sha):
++    """A no-op copy is not evidence of audio mastering or preview encoding."""
++    if len({original_sha,master_sha,preview_sha})!=3:
++        raise MinuteProofError("QA render stages must contain distinct encoded bytes")
++
++
++def validate_visibility_evidence(*, original, provenance, visibility_proof):
++    """Require evidence for every real rendered scene without false visual claims."""
++    p=_record(provenance)
++    v=_record(visibility_proof)
++    windows=p.get("scene_windows")
++    measured=v.get("checked_scenes")
++    if (v.get("schema")!="feature4_scene_visibility_v3"
++            or v.get("status")!="SAMPLED_SCENES_NOT_BLANK_NOT_CONTENT_APPROVAL"
++            or v.get("source_sha256")!=_sha(original)
++            or v.get("seconds")!=60
++            or v.get("checked_scene_count")!=12
++            or v.get("sample_fractions")!=[.15,.30,.50,.70,.85]
++            or v.get("continuous_full_reel_black_scan") is not True
++            or v.get("continuous_black_hold_threshold_seconds")!=.65
++            or type(v.get("continuous_long_black_holds_count")) is not int
++            or v["continuous_long_black_holds_count"]!=0
++            or v.get("sub_threshold_blank_frames_certified_absent") is not False
++            or v.get("short_blank_frames_excluded_by_sampling") is not False
++            or v.get("sustained_near_black_count")!=0
++            or v.get("commercial_release_eligible") is not False
++            or v.get("garment_identity_verified") is not False
++            or v.get("unexpected_overlay_absence_verified") is not False
++            or not isinstance(windows,list) or len(windows)!=12
++            or not isinstance(measured,list) or len(measured)!=12):
++        raise MinuteProofError("60s visual scene evidence incomplete or overclaimed")
++    # A matched pair of provenance/visibility JSON cannot jointly omit or
++    # overlap part of the minute. Require finite positive contiguous windows.
++    cursor=0.0
++    for window in windows:
++        if (type(window) is not dict or set(window)!={"start","duration"}
++                or type(window["start"]) not in (int,float)
++                or type(window["duration"]) not in (int,float)
++                or not math.isfinite(window["start"])
++                or not math.isfinite(window["duration"])
++                or window["duration"]<=0
++                or abs(window["start"]-cursor)>.003):
++            raise MinuteProofError("60s visibility scene windows are not contiguous")
++        cursor=window["start"]+window["duration"]
++    if abs(cursor-60)>.003:
++        raise MinuteProofError("60s visibility scenes do not cover the full minute")
++    for want,got in zip(windows,measured):
++        if (type(want) is not dict or type(got) is not dict
++                or set(want)!={"start","duration"}
++                or got.get("scene_start")!=want["start"]
++                or got.get("duration")!=want["duration"]
++                or got.get("sustained_near_black") is not False
++                or not isinstance(got.get("samples"),list)
++                or len(got["samples"])!=5):
++            raise MinuteProofError("Scene visibility proof does not match approved timing")
++        for fraction,sample in zip((.15,.30,.50,.70,.85),got["samples"]):
++            t=sample.get("time_seconds") if isinstance(sample,dict) else None
++            luma=sample.get("mean_luma") if isinstance(sample,dict) else None
++            frac=sample.get("near_black_fraction") if isinstance(sample,dict) else None
++            if (type(t) not in (int,float) or type(luma) not in (int,float)
++                    or type(frac) not in (int,float)
++                    or not all(math.isfinite(x) for x in (t,luma,frac))
++                    or abs(t-round(want["start"]+fraction*want["duration"],3))>.0011
++                    or t<=want["start"] or t>=want["start"]+want["duration"]
++                    or luma<0 or luma>255 or frac<0 or frac>1
++                    or (frac>=.985 and luma<=14)):
++                raise MinuteProofError("Invalid decoded scene visibility sample")
++    return {"status":"SAMPLED_12_SCENES_VISIBLE_NOT_ARTISTIC_SIGNOFF",
++            "source_sha256":v["source_sha256"],"checked_scene_count":12,
++            "commercial_release_eligible":False,
++            "unexpected_overlay_absence_verified":False}
++
++
++def validate_captioned_review(*, preview, provenance, captioned, caption_srt,
++                              caption_vtt, caption_proof):
++    """Check a real reviewed 60s captioned derivative against its private input.
++
++    A proof JSON is NOT an independent publisher authorization. All bytes,
++    exact reviewed cue text/times, media profile, and false approval flags
++    must agree. No transcript/voice synthesis or customer rights inferred.
++    """
++    inputs=(Path(captioned),Path(caption_srt),Path(caption_vtt))
++    if (len({x.resolve() for x in inputs})!=3
++            or Path(preview).resolve() in {x.resolve() for x in inputs}
++            or any(x.suffix.lower()!=expected for x,expected in
++                   zip(inputs,(".mp4",".srt",".vtt")))):
++        raise MinuteProofError("Captioned derivative and sidecar paths must be distinct")
++    p=_record(provenance)
++    proof=_record(caption_proof)
++    cues=p.get("editorial_subtitle_cues")
++    if (p.get("editorial_subtitle_kind")!="EDITORIAL_TEST_TITLES_NOT_SPOKEN_AUDIO"
++            or p.get("actual_spoken_voiceover") is not False
++            or not isinstance(cues,list) or len(cues)!=12
++            or len(p.get("synced_scene_starts",[]))!=12):
++        raise MinuteProofError("Caption proof is not an approved 12-scene editorial QA timeline")
++    try:
++        approved_srt,approved_vtt=compose_approved_subtitles(cues,duration_seconds=60)
++        source=inspect_mp4(Path(preview),max_size=8*1024*1024)
++        encoded=inspect_mp4(inputs[0],max_size=80*1024*1024)
++    except (SubtitleExportError,PreviewExportError) as exc:
++        raise MinuteProofError("Captioned media or reviewed timings invalid") from exc
++    if (any(c["start"]!=t for c,t in zip(cues,p["synced_scene_starts"]))
++            or Path(caption_srt).is_symlink() or Path(caption_vtt).is_symlink()
++            or _sha(inputs[1],size_limit=20_000)!=hashlib.sha256(approved_srt.encode("utf-8")).hexdigest()
++            or _sha(inputs[2],size_limit=20_000)!=hashlib.sha256(approved_vtt.encode("utf-8")).hexdigest()):
++        raise MinuteProofError("Actual private captions differ from beat-snapped approved scene cues")
++    video_sha=_sha(inputs[0])
++    if video_sha==_sha(preview):
++        raise MinuteProofError("Captioned output must differ from its uncaptioned preview")
++    srt_sha=_sha(inputs[1],size_limit=20_000)
++    if (source["width"],source["height"])!=(540,960) or (
++        encoded["width"],encoded["height"])!=(540,960) or (
++        abs(encoded["seconds"]-60)>.45):
++        raise MinuteProofError("Captioned Reel changed verified mobile encode profile")
++    if (proof.get("status")!="PRIVATE_ENCODED_SUBTITLES_NOT_PUBLISHED"
++            or proof.get("source_sha256")!=_sha(preview)
++            or proof.get("reviewed_srt_sha256")!=srt_sha
++            or proof.get("captioned_mp4_sha256")!=video_sha
++            or proof.get("cue_count")!=12
++            or proof.get("duration_seconds")!=60
++            or (proof.get("width"),proof.get("height"))!=(540,960)
++            or proof.get("video_codec")!="h264" or proof.get("audio_codec")!="aac"
++            or proof.get("actual_encoded_subtitle_filter_executed") is not True
++            or any(proof.get(k) is not False for k in (
++                "spoken_word_alignment_verified","human_visual_approval",
++                "commercial_release_eligible","signed_download_ready",
++                "tenant_rights_checked_here"))):
++        raise MinuteProofError("Captioned review chain is unverified or claimed false approval")
++    return {"status":"CAPTIONED_60S_TECHNICAL_PROOF_ONLY",
++            "captioned_mp4_sha256":video_sha,
++            "editorial_srt_sha256":srt_sha,
++            "editorial_vtt_sha256":_sha(inputs[2],size_limit=20_000),
++            "cue_count":12,"spoken_word_alignment_verified":False,
++            "commercial_release_eligible":False,
++            "tenant_rights_checked_here":False}
++
++
++
++def validate_endcard_evidence(*, original, provenance, endcard_proof):
++    """Bind the actual encoded 55-60s *stock* endcard pixels to this render.
++
++    A report is a technical change heuristic, not proof of readable typography
++    or independently authenticated human/retailer acceptance.
++    """
++    p=_record(provenance)
++    report=_record(endcard_proof)
++    windows=p.get("scene_windows")
++    if (not isinstance(windows,list) or len(windows)!=12
++            or not isinstance(windows[-1],dict)
++            or type(windows[-1].get("start")) not in (int,float)
++            or report.get("schema")!="feature4_stock_endcard_pixel_v1"
++            or report.get("status")!="ENCODED_OUTRO_VISUALLY_CHANGED_NOT_TEXT_APPROVAL"
++            or report.get("source_sha256")!=_sha(original)
++            or report.get("duration_seconds")!=60
++            or report.get("outro_start_seconds")!=windows[-1]["start"]
++            or report.get("pre_outro_sample_seconds")!=53.0
++            or report.get("outro_sample_seconds")!=57.5
++            or report.get("outro_tail_sample_seconds")!=59.3
++            or any(report.get(flag) is not False for flag in (
++                "commercial_release_eligible","human_visual_approval",
++                "retailer_garment_verified","text_legibility_verified",
++                "spoken_caption_sync_verified"))):
++        raise MinuteProofError("Encoded 55s endcard evidence incomplete or approval overclaimed")
++    change=report.get("scene_delta_mean_luma")
++    stable=report.get("outro_stability_delta_mean_luma")
++    if (type(change) not in (int,float) or type(stable) not in (int,float)
++            or not math.isfinite(change) or not math.isfinite(stable)
++            or not 25 <= change <= 255 or not 0 <= stable <= 22):
++        raise MinuteProofError("Endcard pixel change or persistence not established")
++    return {"status":"ENCODED_STOCK_OUTRO_CHANGED_NOT_AD_APPROVAL",
++            "source_sha256":report["source_sha256"],
++            "scene_delta_mean_luma":change,
++            "outro_stability_delta_mean_luma":stable,
++            "commercial_release_eligible":False,
++            "text_legibility_verified":False}
++
++
++def validate_minute_evidence(*, original, master, preview, provenance,
++                             motion, master_proof, preview_proof,
++                             contact_image, contact_proof,
++                             captioned=None, caption_srt=None, caption_vtt=None,
++                             caption_proof=None, visibility_proof=None,
++                             endcard_proof=None):
++    caption_args=(captioned,caption_srt,caption_vtt,caption_proof)
++    # A positive 60s acceptance receipt MUST be complete. Optional old CLI
++    # flags once allowed an otherwise-positive receipt with evidence NOT_RUN.
++    # Require the actual captioned MP4/SRT/VTT/burn-in and visibility proof.
++    if not all(x is not None for x in (*caption_args, visibility_proof, endcard_proof)):
++        raise MinuteProofError("Missing mandatory 60s captioned, scene or endcard proof")
++    _require_distinct_render_stages(original,master,preview,captioned)
++    files=[Path(original),Path(master),Path(preview)]
++    h0,h1,h2=(_sha(x) for x in files)
++    _require_changed_render_bytes(h0,h1,h2)
++    p,m,a,v,s=(_record(x) for x in
++               (provenance,motion,master_proof,preview_proof,contact_proof))
++    try:
++        info=[inspect_mp4(f,max_size=(8*1024*1024 if i==2 else 80*1024*1024))
++              for i,f in enumerate(files)]
++    except PreviewExportError as exc:
++        raise MinuteProofError("Actual MP4 failed media/codec preflight") from exc
++    if (any(abs(x["seconds"]-60)>.45 for x in info)
++            or any((x["width"],x["height"])!=(1080,1920) for x in info[:2])
++            or (info[2]["width"],info[2]["height"])!=(540,960)):
++        raise MinuteProofError("QA media is not a native 60s full-HD/master/preview chain")
++    if (a.get("source_sha256")!=h0 or a.get("master_sha256")!=h1
++            or v.get("source_sha256")!=h1 or v.get("preview_sha256")!=h2
++            or m.get("source_sha256")!=h0 or s.get("source_sha256")!=h0
++            or a.get("status")!="PRIVATE_AUDIO_MASTERED_NOT_PUBLISHED"
++            or v.get("status")!="PRIVATE_PREVIEW_ENCODED_NOT_PUBLISHED"
++            or m.get("status")!="MOVING_PIXELS_VERIFIED_NOT_CONTENT_APPROVAL"
++            or s.get("status")!="ENCODED_REVIEW_CONTACT_SHEET_NOT_APPROVAL"):
++        raise MinuteProofError("QA original-master-preview-motion-contact chain differs")
++    if (s.get("contact_sheet_sha256")!=_sha(contact_image,size_limit=8*1024*1024)
++            or s.get("frame_count")!=12
++            or s.get("owner_visual_approval") is not False
++            or s.get("commercial_release_eligible") is not False
++            or m.get("commercial_release_eligible") is not False
++            or a.get("signed_download_ready") is not False
++            or v.get("signed_download_ready") is not False):
++        raise MinuteProofError("Visual evidence or private-export approval flags incorrect")
++    checked=m.get("checked_moving_scenes")
++    if (not isinstance(checked,list) or len(checked)!=5
++            or any(type(x) is not dict or
++                   type(x.get("luma_difference")) not in (int,float) or
++                   not math.isfinite(x["luma_difference"]) or
++                   x["luma_difference"]<m.get("threshold_luma_difference",5)
++                   for x in checked)):
++        raise MinuteProofError("Required moving human stock scenes were not verified")
++    assets=p.get("source_media")
++    if (p.get("status")!="OFFLINE_CROSS_FEATURE_STOCK_TEST_ONLY"
++            or p.get("duration_seconds")!=60 or p.get("scene_count")!=12
++            or p.get("commercial_release_eligible") is not False
++            or p.get("model_garment_match_verified") is not False
++            or p.get("actual_spoken_voiceover") is not False
++            or p.get("reused_stock_video_clips") is not True
++            or not isinstance(assets,list) or len(assets)!=7
++            or len({x.get("source_id") for x in assets})!=7
++            or sum(x.get("source_feature")=="feature3_garment_proxy" for x in assets)!=4
++            or sum(x.get("source_feature")=="feature5_stock_proxy" for x in assets)!=3):
++        raise MinuteProofError("Source set, 12-scene rights status or product-identity flags invalid")
++    for asset in assets:
++        if (not isinstance(asset,dict)
++                or urlsplit(asset.get("page","")).hostname!="www.pexels.com"
++                or not isinstance(asset.get("creator"),str) or not asset["creator"]
++                or not isinstance(asset.get("sha256_original"),str)
++                or len(asset["sha256_original"])!=64
++                or asset.get("ai_generated") is not False):
++            raise MinuteProofError("Attribution, SHA-256, or provenance missing")
++    scene_evidence=validate_visibility_evidence(
++        original=original,provenance=provenance,visibility_proof=visibility_proof)
++    endcard_evidence=validate_endcard_evidence(
++        original=original,provenance=provenance,endcard_proof=endcard_proof)
++    caption_evidence=validate_captioned_review(
++        preview=preview,provenance=provenance,captioned=captioned,
++        caption_srt=caption_srt,caption_vtt=caption_vtt,caption_proof=caption_proof)
++    return {
++        "schema":"feature4_stock_minute_qa_receipt_v1",
++        "status":"NATIVE_60S_TECHNICAL_EVIDENCE_ONLY",
++        "duration_seconds":60,"resolution":"1080x1920","fps":24,
++        "input_source_count":7,"review_scene_count":12,
++        "hashes":{"original":h0,"audio_master":h1,"small_preview":h2,
++                  "contact_sheet":s["contact_sheet_sha256"]},
++        "feature2":{"status":"ORIGINAL_MUSIC_PROXY_ONLY","speech_verified":False},
++        "feature3":{"status":"STOCK_GARMENTS_ONLY","actual_product_identity_verified":False},
++        "feature4":{"status":"NATIVE_60S_RENDER_AND_POSTPROCESS_TECHNICALLY_CHECKED",
++                    "motion_proof":checked},
++        "feature5":{"status":"REPEATED_STOCK_MOTION_ONLY","ai_inference_verified":False},
++        "feature7":{"status":"LIMITED_TIMELINE_ONLY","advanced_effects_accepted":False},
++        "captioned_editorial_review":caption_evidence,
++        "scene_visibility_qa":scene_evidence,
++        "stock_endcard_pixel_qa":endcard_evidence,
++        "repetition_warning":bool(s.get("repetition_warning")),
++        "commercial_release_eligible":False,
++        "human_approved":False,
++        "signed_download_ready":False,
++        "azure_dev_e2e_verified":False,
++    }
++
++
++def main():
++    ap=argparse.ArgumentParser(description=__doc__)
++    for name in ("original","master","preview","provenance","motion",
++                 "master-proof","preview-proof","contact-image","contact-proof","output"):
++        ap.add_argument("--"+name,required=True)
++    for name in ("captioned","caption-srt","caption-vtt","caption-proof"):
++        ap.add_argument("--"+name,required=True)
++    ap.add_argument("--visibility-proof",required=True)
++    ap.add_argument("--endcard-proof",required=True)
++    args=ap.parse_args()
++    kw={name.replace("-","_"):Path(getattr(args,name.replace("-","_")))
++        for name in ("original","master","preview","provenance","motion",
++                     "master-proof","preview-proof","contact-image","contact-proof")}
++    for name in ("captioned","caption-srt","caption-vtt","caption-proof"):
++        value=getattr(args,name.replace("-","_"))
++        kw[name.replace("-","_")]=Path(value) if value is not None else None
++    kw["visibility_proof"]=Path(args.visibility_proof) if args.visibility_proof else None
++    kw["endcard_proof"]=Path(args.endcard_proof)
++    report=validate_minute_evidence(**kw)
++    dest=Path(args.output)
++    if dest.is_symlink() or dest.exists() or not dest.parent.is_dir():
++        raise MinuteProofError("QA report must be new and local")
++    dest.write_text(json.dumps(report,indent=2)+"\n",encoding="utf-8")
++    print(json.dumps({"status":report["status"],"source_count":report["input_source_count"],
++                      "commercial_release_eligible":False}))
++
++
++if __name__=="__main__":
++    main()
+
+diff --git a/video-engine/feature4_motion_diagnostics.py b/video-engine/feature4_motion_diagnostics.py
+--- a/video-engine/feature4_motion_diagnostics.py
++++ b/video-engine/feature4_motion_diagnostics.py
+@@ -0,0 +1,70 @@
++"""Bounded, offline motion diagnostics for privately staged video footage.
++
++This rejects clearly frozen 'video' sources but NEVER certifies a real human,
++garment identity, licensing, authenticity, visual art direction or customer QA.
++No network, cloud model, GPU, customer content logging or billable inference.
++"""
++from __future__ import annotations
++
++import json
++import math
++import subprocess
++from pathlib import Path
++
++WIDTH, HEIGHT = 64, 112
++FRAME_BYTES = WIDTH * HEIGHT
++SAMPLES = 6
++
++
++class MotionProbeError(ValueError):
++    pass
++
++
++def _run(args, timeout=18):
++    try:
++        return subprocess.run(args, capture_output=True, check=True, timeout=timeout).stdout
++    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
++        raise MotionProbeError("Unable to probe locally staged video") from exc
++
++
++def inspect_staged_motion(filename):
++    path = Path(filename)
++    if not path.is_file() or path.is_symlink() or path.suffix.lower() not in (".mp4", ".mov", ".m4v"):
++        raise MotionProbeError("Only an existing local staged video file may be inspected")
++    try:
++        stream = json.loads(_run([
++            "ffprobe", "-v", "error", "-protocol_whitelist", "file",
++            "-show_entries", "format=duration", "-of", "json", str(path)], 14))
++        duration = float(stream["format"]["duration"])
++    except (KeyError, TypeError, ValueError, OverflowError) as exc:
++        raise MotionProbeError("Invalid verified media duration") from exc
++    if not math.isfinite(duration) or not 2.0 <= duration <= 180:
++        raise MotionProbeError("Video duration outside bounded visual inspection range")
++    frames = []
++    for i in range(SAMPLES):
++        t = (i + .5) * duration / SAMPLES
++        raw = _run(["ffmpeg","-nostdin","-v","error",
++                    "-ss", f"{t:.3f}", "-protocol_whitelist","file",
++                    "-i", str(path), "-vf", f"scale={WIDTH}:{HEIGHT}:flags=fast_bilinear,format=gray",
++                    "-frames:v","1","-f","rawvideo","-pix_fmt","gray","-"], 15)
++        if len(raw) != FRAME_BYTES:
++            raise MotionProbeError("Source video frame is missing or cannot be safely decoded")
++        frames.append(raw)
++    deltas = [sum(abs(a-b) for a,b in zip(frames[i],frames[i+1]))/FRAME_BYTES
++              for i in range(len(frames)-1)]
++    mean = sum(deltas)/len(deltas)
++    # A true actor is not implied by a positive score (camera panning cartoons
++    # also move). Zero/near-zero means a frozen video cannot pass QA as motion.
++    visible = sum(x >= 1.2 for x in deltas) >= 2 and mean >= 1.2
++    return {
++        "source_type": "local_private_media",
++        "samples": SAMPLES,
++        "duration_seconds": round(duration, 3),
++        "mean_frame_delta": round(mean, 3),
++        "max_frame_delta": round(max(deltas), 3),
++        "visible_temporal_change": visible,
++        "frame_freeze_check": "PASS" if visible else "FAILED_FROZEN_OR_LOW_MOTION",
++        "photoreal_human_verified": False,
++        "garment_identity_verified": False,
++        "commercial_quality_approved": False,
++    }
+
+diff --git a/video-engine/feature4_motion_handoff.py b/video-engine/feature4_motion_handoff.py
+--- a/video-engine/feature4_motion_handoff.py
++++ b/video-engine/feature4_motion_handoff.py
+@@ -0,0 +1,130 @@
++"""Feature4's source-only handoff from approved Feature2 direction to Feature5.
++
++Does NOT run AI or directly enqueue a paid provider. The coordinator must fetch
++trusted F2/F3/5 rows, reserve quota/claim once, and transactionally persist the
++returned command through its existing outbox. Requires exact approved source
++references; never reauthors creative text, camera direction or motion prompts.
++"""
++from __future__ import annotations
++
++import copy
++import hashlib
++import json
++import re
++from uuid import UUID
++
++class Feature4MotionHandoffError(ValueError):
++    pass
++
++_SHA = re.compile(r"^[0-9a-f]{64}$")
++_SAFE = re.compile(r"^[A-Za-z0-9_-]{1,100}$")
++_ALLOWED = frozenset(("prompt", "negative_prompt", "source_asset_id", "duration_seconds",
++                      "shot_id", "choreography", "camera", "lighting", "fidelity_requirements"))
++_RETAIL_VIDEO_PROFILE = "feature5-v1"
++_SUPPORTED_MODEL = "hunyuanvideo-1.5-480p"
++
++def _id(value, label):
++    try:
++        if str(UUID(value)) != value: raise ValueError()
++    except (ValueError, TypeError, AttributeError) as exc:
++        raise Feature4MotionHandoffError("Invalid " + label) from exc
++    return value
++
++def _safe_copy(value):
++    try:
++        encoded = json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
++    except (ValueError, TypeError) as exc:
++        raise Feature4MotionHandoffError("Invalid Feature2 motion details") from exc
++    if len(encoded) > 9000:
++        raise Feature4MotionHandoffError("Motion brief exceeds bounded approved contract")
++    return copy.deepcopy(value), hashlib.sha256(encoded.encode()).hexdigest()
++
++def prepare_feature5_requests(direction, snapshot):
++    """Prepared commands for coordinator-owned outbox, not an API or billable send.
++
++    All calls must use server-fetched versions of both arguments. We only
++    support the actually source-tested F5 5s/480p profile, not pretend Wan is
++    already deployed or silently truncate detailed prompts.
++    """
++    if type(direction) is not dict or type(snapshot) is not dict:
++        raise Feature4MotionHandoffError("Trusted Feature2 direction and snapshot required")
++    for key in ("shop_id", "campaign_id", "approval_id"):
++        _id(snapshot.get(key), key)
++        if direction.get(key) != snapshot[key]:
++            raise Feature4MotionHandoffError("Stale or foreign creative direction")
++    if (direction.get("version") != "creative_direction_v1" or
++        direction.get("source_feature") != "feature2" or
++        direction.get("approved") is not True or
++        snapshot.get("approved") is not True or
++        not _SHA.fullmatch(direction.get("review_hash", "")) or
++        direction["review_hash"] != snapshot.get("review_hash")):
++        raise Feature4MotionHandoffError("Unreviewed Feature2 creative direction")
++    assets = snapshot.get("assets")
++    scenes = direction.get("scenes")
++    if type(assets) is not dict or type(scenes) is not list or not 1 <= len(scenes) <= 12:
++        raise Feature4MotionHandoffError("Trusted private media and shots are required")
++    commands = []
++    seen = set()
++    for scene in scenes:
++        if type(scene) is not dict:
++            raise Feature4MotionHandoffError("Malformed Feature2 scene")
++        detail = scene.get("motion_direction_v1")
++        if detail is None:
++            continue
++        if type(detail) is not dict or set(detail) != _ALLOWED:
++            raise Feature4MotionHandoffError("Unsupported motion brief; request Feature2 review")
++        shot_id = detail["shot_id"]
++        if not isinstance(shot_id, str) or not _SAFE.fullmatch(shot_id) or shot_id in seen:
++            raise Feature4MotionHandoffError("Duplicate or invalid F2 shot")
++        seen.add(shot_id)
++        prompt = detail["prompt"]
++        if (type(prompt) is not str or not 1 <= len(prompt.strip()) <= 1500 or
++                "\x00" in prompt or type(detail["negative_prompt"]) is not str or
++                len(detail["negative_prompt"]) > 800):
++            raise Feature4MotionHandoffError("Prompt exceeds the current Feature5 adapter; never truncate")
++        if detail["duration_seconds"] != 5 or type(detail["duration_seconds"]) is not int:
++            raise Feature4MotionHandoffError("Feature5 currently supports only 5-second motion clips")
++        aid = _id(detail["source_asset_id"], "source asset")
++        media = assets.get(aid)
++        if (type(media) is not dict or media.get("shop_id") != snapshot["shop_id"] or
++                media.get("approved") is not True or media.get("private") is not True or
++                media.get("commercial_rights") is not True or
++                media.get("kind") not in ("image", "poster") or
++                (media.get("kind") == "poster" and media.get("clean_layers") is not True)):
++            raise Feature4MotionHandoffError("Feature3 reference lacks tenant-private commercial grant")
++        original, prompt_hash = _safe_copy(detail)
++        # Prevent untrusted/ephemeral source URLs and services/command payloads.
++        for value in detail.values():
++            if isinstance(value, str) and ("http://" in value or "https://" in value or
++                                           "file://" in value or "data:" in value):
++                raise Feature4MotionHandoffError("Provider prompt must not include source URLs")
++        key = hashlib.sha256(json.dumps(
++            ["feature4-to-feature5-v1", snapshot["shop_id"], snapshot["campaign_id"],
++             snapshot["approval_id"], shot_id, aid, prompt_hash],
++            separators=(",", ":")).encode()).hexdigest()
++        commands.append({
++            "shot_id": shot_id, "shop_id": snapshot["shop_id"],
++            "campaign_id": snapshot["campaign_id"],
++            "approval_id": snapshot["approval_id"],
++            "review_hash": snapshot["review_hash"],
++            "source_asset_id": aid, "mode": "poster" if media["kind"] == "poster" else "image",
++            "model_id": _SUPPORTED_MODEL, "prompt_version": _RETAIL_VIDEO_PROFILE,
++            "resolution": "480p", "duration_seconds": 5,
++            "prompt": prompt, "negative_prompt": detail["negative_prompt"],
++            "motion_direction_v1": original, "motion_sha256": prompt_hash,
++            "idempotency_key": key,
++        })
++    return tuple(commands)
++
++def dispatch_via_coordinator(commands, transactionally_enqueue_once):
++    """One transactionally idempotent handoff; no auto-retries on ambiguity.
++
++    The injected callback MUST be the coordinator's tenant-RLS outbox writer,
++    not a direct HTTP provider call or any browser-controlled function.
++    """
++    if type(commands) is not tuple or not callable(transactionally_enqueue_once):
++        raise Feature4MotionHandoffError("Coordinator-controlled outbox callback required")
++    if any(type(c) is not dict or not _SHA.fullmatch(c.get("idempotency_key", "")) for c in commands):
++        raise Feature4MotionHandoffError("Invalid immutable motion command")
++    # One atomic call, no internal retry: existing ledger owns dedup and costs.
++    return transactionally_enqueue_once(copy.deepcopy(commands))
+
+diff --git a/video-engine/feature4_private_preview.py b/video-engine/feature4_private_preview.py
+--- a/video-engine/feature4_private_preview.py
++++ b/video-engine/feature4_private_preview.py
+@@ -0,0 +1,198 @@
++#!/usr/bin/env python3
++"""Private, bounded 540p MP4 reviewer proxy for an already-authorized H264/AAC reel.
++
++This is NOT a public endpoint, rights grant, JWT checker or signed URL creator.
++Call only inside trusted/authorized tenant render flow, preserve original MP4.
++Never derive caller paths from HTTP/browser input.
++"""
++from __future__ import annotations
++
++import argparse
++import hashlib
++import json
++import os
++from pathlib import Path
++import stat
++import subprocess
++import sys
++import tempfile
++
++MAX_SOURCE_BYTES = 80 * 1024 * 1024
++MAX_PREVIEW_BYTES = 8 * 1024 * 1024
++SUPPORTED_DURATIONS = (15, 30, 60)
++
++
++class PreviewExportError(ValueError):
++    pass
++
++
++def inspect_mp4(path: Path, *, max_size: int):
++    path = Path(path)
++    if (path.is_symlink() or not path.is_file()
++            or not 1_000 < path.stat().st_size <= max_size
++            or path.suffix.lower() != ".mp4"):
++        raise PreviewExportError("Missing, unsafe or oversized local MP4")
++    try:
++        result = subprocess.run(
++            ["ffprobe", "-v", "error", "-protocol_whitelist", "file",
++             "-show_format", "-show_streams", "-of", "json", str(path)],
++            capture_output=True, text=True, check=True, timeout=25,
++        )
++        record = json.loads(result.stdout)
++        streams = record["streams"]
++        video = [v for v in streams if v.get("codec_type") == "video"]
++        audio = [a for a in streams if a.get("codec_type") == "audio"]
++        if (len(video) != 1 or len(audio) != 1 or len(streams) != 2
++                or video[0].get("codec_name") != "h264"
++                or audio[0].get("codec_name") != "aac"):
++            raise PreviewExportError("Preview source must have one H264 video and AAC audio")
++        width = int(video[0]["width"])
++        height = int(video[0]["height"])
++        seconds = float(record["format"]["duration"])
++        if (width < 540 or height < 960 or width > 2160 or height > 3840
++                or width * 16 != height * 9
++                or not 1.0 <= seconds <= 60.6):
++            raise PreviewExportError("Preview source aspect/resolution/duration invalid")
++        return {"width": width, "height": height,
++                "seconds": round(seconds, 3), "bytes": path.stat().st_size}
++    except (OSError, KeyError, ValueError, subprocess.SubprocessError) as exc:
++        if isinstance(exc, PreviewExportError):
++            raise
++        raise PreviewExportError("Could not verify local MP4") from exc
++
++
++def _source_fingerprint(path: Path):
++    """Require one bounded MP4 inode/metadata/SHA before and after FFmpeg."""
++    path = Path(path)
++    if (path.suffix.lower() != ".mp4" or path.is_symlink()
++            or path.parent.is_symlink()):
++        raise PreviewExportError("Missing or unsafe local MP4 source")
++
++    def identity(info):
++        return (info.st_dev, info.st_ino, info.st_size,
++                info.st_mtime_ns, info.st_ctime_ns)
++
++    try:
++        fd = os.open(str(path), os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
++        with os.fdopen(fd, "rb") as data:
++            before = os.fstat(data.fileno())
++            if (not stat.S_ISREG(before.st_mode)
++                    or not 1_000 < before.st_size <= MAX_SOURCE_BYTES):
++                raise PreviewExportError("Missing or oversized regular MP4 source")
++            digest = hashlib.sha256()
++            for block in iter(lambda: data.read(1024 * 1024), b""):
++                digest.update(block)
++            after = os.fstat(data.fileno())
++        current = os.stat(path, follow_symlinks=False)
++    except OSError as exc:
++        raise PreviewExportError("Cannot safely read local MP4 source") from exc
++    if (not stat.S_ISREG(current.st_mode)
++            or identity(before) != identity(after)
++            or identity(after) != identity(current)):
++        raise PreviewExportError("Authorized source file changed during preview rendering")
++    return digest.hexdigest(), identity(current)
++
++
++def export_private_preview(source: Path, target: Path, *, expected_seconds: int):
++    """Encode a small full-duration private reviewer copy, atomically.
++
++    Source is already authorized and claimed by trusted worker. This module
++    checks media integrity but does not perform authorization or persist data.
++    Never overwrite either source or an existing preview; never publish here.
++    """
++    if type(expected_seconds) is not int or expected_seconds not in SUPPORTED_DURATIONS:
++        raise PreviewExportError("Only 15/30/60-second reviewed output supported")
++    source, target = Path(source), Path(target)
++    if target.suffix.lower() != ".mp4" or target.is_symlink() or target.exists():
++        raise PreviewExportError("Preview target must be a fresh local MP4")
++    if not target.parent.is_dir() or target.parent.is_symlink():
++        raise PreviewExportError("Preview output directory must already be private and local")
++    if source.resolve() == target.resolve():
++        raise PreviewExportError("Preview source cannot be overwritten")
++    # Capture source identity *before* codec probe and verify that ffprobe did
++    # not witness a path that was atomically swapped to a different inode.
++    original_fingerprint = _source_fingerprint(source)
++    original = inspect_mp4(source, max_size=MAX_SOURCE_BYTES)
++    if _source_fingerprint(source) != original_fingerprint:
++        raise PreviewExportError("Authorized source file changed during codec probe")
++    source_sha = original_fingerprint[0]
++    if abs(original["seconds"] - expected_seconds) > 0.45:
++        raise PreviewExportError("Source is not expected approved render duration")
++    # tempfile in the same private directory guarantees atomic rename. Never
++    # grant this temp file a public ACL or invent a downloadable media URL.
++    partial = None
++    try:
++        with tempfile.NamedTemporaryFile(prefix=".preview-", suffix=".mp4",
++                                         dir=str(target.parent), delete=False) as out:
++            partial = Path(out.name)
++        cmd = [
++            "ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error",
++            "-protocol_whitelist", "file", "-i", str(source),
++            "-map", "0:v:0", "-map", "0:a:0",
++            "-vf", "fps=24,scale=540:960:flags=lanczos,setsar=1",
++            "-c:v", "libx264", "-preset", "veryfast", "-crf", "29",
++            "-maxrate", "700k", "-bufsize", "1400k", "-pix_fmt", "yuv420p",
++            "-g", "48", "-keyint_min", "48", "-sc_threshold", "0",
++            "-c:a", "aac", "-b:a", "64k", "-ar", "32000", "-ac", "2",
++            "-movflags", "+faststart", "-map_metadata", "-1",
++            "-map_chapters", "-1", "-threads", "2", "-y", str(partial),
++        ]
++        subprocess.run(cmd, check=True, capture_output=True,
++                       timeout=240)
++        preview = inspect_mp4(partial, max_size=MAX_PREVIEW_BYTES)
++        if ((preview["width"], preview["height"]) != (540, 960)
++                or abs(preview["seconds"] - expected_seconds) > 0.45
++                or preview["bytes"] >= original["bytes"]):
++            raise PreviewExportError("Preview failed bounded size/codec/duration checks")
++        if _source_fingerprint(source) != original_fingerprint:
++            raise PreviewExportError("Authorized source file changed during preview rendering")
++        # Re-check concurrent target creation. Prevent normal accidental overwrite.
++        if target.exists() or target.is_symlink():
++            raise PreviewExportError("Preview destination appeared while rendering")
++        # Atomic no-clobber: os.link fails if another worker created target
++        # during encoding. Path.replace would silently overwrite that file.
++        os.link(partial, target)
++        partial.unlink()
++        partial = None
++        return {
++            "status": "PRIVATE_PREVIEW_ENCODED_NOT_PUBLISHED",
++            "source_sha256": source_sha,
++            "preview_sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
++            "source_bytes": original["bytes"],
++            "preview_bytes": preview["bytes"],
++            "duration_seconds": expected_seconds,
++            "width": 540, "height": 960, "fps": 24,
++            "video_codec": "h264", "audio_codec": "aac",
++            "signed_download_ready": False,
++            "retailer_media_authorization_checked_here": False,
++            "commercial_release_eligible": False,
++        }
++    except (OSError, subprocess.SubprocessError) as exc:
++        raise PreviewExportError("Unable to encode bounded private MP4 preview") from exc
++    finally:
++        if partial is not None:
++            partial.unlink(missing_ok=True)
++
++
++def main():
++    ap = argparse.ArgumentParser(description=__doc__)
++    ap.add_argument("--source", required=True)
++    ap.add_argument("--output", required=True)
++    ap.add_argument("--duration", required=True, type=int, choices=SUPPORTED_DURATIONS)
++    ap.add_argument("--report", required=True)
++    args = ap.parse_args()
++    try:
++        report = export_private_preview(Path(args.source), Path(args.output),
++                                        expected_seconds=args.duration)
++        dest = Path(args.report)
++        if dest.exists() or dest.is_symlink() or not dest.parent.is_dir():
++            raise PreviewExportError("Report path must be new in a pre-existing directory")
++        dest.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
++        print(json.dumps({"status": report["status"], "bytes": report["preview_bytes"]}))
++    except PreviewExportError as exc:
++        print("PRIVATE REVIEW PREVIEW REJECTED: " + str(exc), file=sys.stderr)
++        raise SystemExit(2)
++
++
++if __name__ == "__main__":
++    main()
+
