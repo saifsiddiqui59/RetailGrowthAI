@@ -1,0 +1,127 @@
+"""F3-08 trusted private PNG reader composition (source-only, GPU-OFF).
+
+The caller must supply a real current-rights authority. This module never
+substitutes an approval fixture or a historical asset flag for that authority.
+It does not register an Azure route or authorize deployment.
+"""
+from __future__ import annotations
+
+from feature3_private_png_reader import Feature3RevocablePNGReader, PrivateGeneratedDownloadDenied
+from security import SupabaseJWTVerifier
+from tenant_store import TenantStore, canonical_uuid
+from feature3_private_png_tenant import VerifiedGeneratedAssetTenant
+
+
+def build_private_png_reader_factory(*, origin, publishable_key,
+                                     current_output_rights,
+                                     verifier=None, tenant=None,
+                                     transport=None):
+    """Bind server-controlled JWT/RLS and rights dependencies, never request data.
+
+    Production callers must supply a reviewed live rights provider; no
+    default True or service-role access exists. Test doubles are only for
+    isolated deterministic tests, not hosted acceptance.
+    """
+    if not callable(current_output_rights):
+        raise ValueError("Reviewed live output-rights callback required")
+    if verifier is not None and not callable(verifier):
+        raise ValueError("JWT verifier must be callable")
+    if tenant is not None and not all(
+        callable(getattr(tenant, method, None))
+        for method in ("member", "feature3_gpu_job", "feature3_generated_asset")
+    ):
+        raise ValueError("RLS tenant store required")
+
+    # A mismatched injected tenant could read a different project while the
+    # verifier validates tokens for the configured project. Never compose
+    # cross-project credentials, even in tests or an accidental deployment.
+    if tenant is not None and (
+        type(origin) is not str or type(publishable_key) is not str or
+        type(getattr(tenant, "origin", None)) is not str or
+        type(getattr(tenant, "key", None)) is not str or
+        tenant.origin != origin or tenant.key != publishable_key
+    ):
+        raise ValueError("Tenant store must match configured JWT project and public key")
+
+    # Even injected test dependencies must use an exact public project origin
+    # and publishable key; the reader enforces both at construction.
+    verified_jwt = verifier if verifier is not None else SupabaseJWTVerifier(origin)
+    user_store = tenant if tenant is not None else TenantStore(origin, publishable_key)
+
+    def project_matches():
+        # A remote or injected store may fail while reading its configuration.
+        # Treat that as revoked binding, never as a reason to enter JWT/RLS IO.
+        try:
+            store_origin = user_store.origin
+            store_key = user_store.key
+        except Exception:
+            return False
+        if (type(store_origin) is not str or type(store_key) is not str or
+                store_origin != origin or store_key != publishable_key):
+            return False
+        # A hostile or malfunctioning adapter may mutate origin while its key
+        # property is being read. Re-read both values to reject that rotation
+        # before handing out a reader or releasing private bytes.
+        try:
+            second_origin = user_store.origin
+            second_key = user_store.key
+            final_origin = user_store.origin
+            final_key = user_store.key
+            # A key getter can rotate the origin on its final access. Check
+            # origin after the last key read before private bytes escape.
+            post_key_origin = user_store.origin
+            return (type(second_origin) is str and type(second_key) is str and
+                    type(final_origin) is str and type(final_key) is str and
+                    type(post_key_origin) is str and
+                    second_origin == origin and second_key == publishable_key and
+                    final_origin == origin and final_key == publishable_key and
+                    post_key_origin == origin)
+        except Exception:
+            return False
+
+    def factory(shop_id, job_id):
+        # An injected store can be reconfigured after composition. Refuse
+        # before any JWT, tenant or Storage access, including cached readers.
+        if not project_matches():
+            raise ValueError("Tenant store project changed after composition")
+        # Fail before constructing the private reader on malformed route scope.
+        if type(shop_id) is not str or type(job_id) is not str:
+            raise ValueError("Route scope must be exact UUID strings")
+        scoped_shop = canonical_uuid(shop_id)
+        scoped_job = canonical_uuid(job_id)
+        # Reject alternate UUID spellings rather than constructing a reader
+        # whose pinned canonical scope cannot match the original route input.
+        # This also avoids inconsistent authorization/audit identities across
+        # callers that compare the raw URL against canonical database UUIDs.
+        if shop_id != scoped_shop or job_id != scoped_job:
+            raise ValueError("Route scope must use canonical UUID strings")
+        # Bind each reader to its factory scope, even if a later caller
+        # accidentally reuses the instance for another retailer or job.
+        inner = Feature3RevocablePNGReader(
+            tenant_store=VerifiedGeneratedAssetTenant(user_store),
+            verify_user_jwt=verified_jwt,
+            current_output_rights=current_output_rights,
+            transport=transport,
+        )
+        # Construction can invoke injected adapter code. If its project
+        # binding rotates mid-construction, never hand out a cached reader.
+        if not project_matches():
+            raise ValueError("Tenant store project changed during reader construction")
+
+        class ScopedPrivatePNGReader:
+            def read(self, *, user_token, shop_id, job_id):
+                if (type(shop_id) is not str or type(job_id) is not str or
+                        shop_id != scoped_shop or job_id != scoped_job):
+                    raise PrivateGeneratedDownloadDenied("Private output unavailable")
+                if not project_matches():
+                    raise PrivateGeneratedDownloadDenied("Private output unavailable")
+                result = inner.read(user_token=user_token, shop_id=shop_id, job_id=job_id)
+                # Project credentials may rotate during JWT/RLS/Storage IO.
+                # Never release bytes after the trusted project binding changes.
+                if not project_matches():
+                    raise PrivateGeneratedDownloadDenied("Private output unavailable")
+                return result
+
+        return ScopedPrivatePNGReader()
+
+    return factory

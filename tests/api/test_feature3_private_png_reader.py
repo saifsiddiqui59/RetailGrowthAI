@@ -93,6 +93,37 @@ class RevocableReaderTests(unittest.TestCase):
         self.on_read=None
         self.reader=self.build()
 
+    def test_hostile_backend_mapping_keys_denied_before_rights_or_bytes(self):
+        """Synthetic malicious SQL adapter keys cannot spoof trusted fields."""
+        class SpoofKey:
+            def __hash__(self):
+                return hash("id")
+            def __eq__(self, other):
+                return other == "id"
+
+        for stage in ("job", "asset"):
+            with self.subTest(stage=stage):
+                self.tenant.calls.clear()
+                self.calls.clear()
+                self.rights_called = 0
+                original = getattr(self.tenant, "feature3_gpu_job" if stage == "job"
+                                   else "feature3_generated_asset")
+
+                def hostile(*args, **kwargs):
+                    row = original(*args, **kwargs)
+                    row[SpoofKey()] = "synthetic-hostile-value"
+                    return row
+
+                from unittest.mock import patch
+                method = ("feature3_gpu_job" if stage == "job"
+                          else "feature3_generated_asset")
+                with patch.object(self.tenant, method, side_effect=hostile):
+                    with self.assertRaises(PrivateGeneratedDownloadDenied):
+                        self.reader.read(user_token="fake-signed-retailer-token",
+                                         shop_id=self.shop, job_id=self.job)
+                self.assertEqual(self.rights_called, 0)
+                self.assertNotIn("get", self.calls)
+
     def verify(self,token):
         self.calls.append("verify")
         if token!="fake-signed-retailer-token":
@@ -132,6 +163,53 @@ class RevocableReaderTests(unittest.TestCase):
     def read(self):
         return self.reader.read(user_token="fake-signed-retailer-token",
                                 shop_id=self.shop,job_id=self.job)
+
+    def test_private_png_rejects_partial_content_before_body_read(self):
+        reads = []
+        def partial_transport(req, timeout):
+            response = Response(req.full_url, self.png)
+            response.headers["Content-Range"] = "bytes 0-99/100"
+            response.on_read = lambda: reads.append(True)
+            return response
+        self.reader = Feature3RevocablePNGReader(
+            tenant_store=self.tenant, verify_user_jwt=self.verify,
+            current_output_rights=self.rights, transport=partial_transport)
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            self.read()
+        self.assertEqual(reads, [])
+        self.assertEqual(self.rights_called, 1)
+
+    def test_private_png_rejects_missing_content_type_before_body_read(self):
+        # Synthetic Storage responses without a declared media type are not
+        # acceptable private image receipts, even when pixels/SHA are valid.
+        reads = []
+        def missing_mime(req, timeout):
+            response = Response(req.full_url, self.png)
+            del response.headers["Content-Type"]
+            response.on_read = lambda: reads.append(True)
+            return response
+        self.reader = Feature3RevocablePNGReader(
+            tenant_store=self.tenant, verify_user_jwt=self.verify,
+            current_output_rights=self.rights, transport=missing_mime)
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            self.read()
+        self.assertEqual(reads, [])
+        self.assertEqual(self.rights_called, 1)
+
+    def test_private_png_rejects_mime_parameters_before_body_read(self):
+        reads = []
+        def transformed_transport(req, timeout):
+            response = Response(req.full_url, self.png,
+                                mime="image/png; charset=utf-8")
+            response.on_read = lambda: reads.append(True)
+            return response
+        self.reader = Feature3RevocablePNGReader(
+            tenant_store=self.tenant, verify_user_jwt=self.verify,
+            current_output_rights=self.rights, transport=transformed_transport)
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            self.read()
+        self.assertEqual(reads, [])
+        self.assertEqual(self.rights_called, 1)
 
     def test_private_bytes_verified_twice_no_signed_link(self):
         result=self.read()
@@ -316,6 +394,32 @@ class RevocableReaderTests(unittest.TestCase):
         self.assertEqual(self.calls,["verify","get"])
         self.assertEqual(self.rights_called,1)
 
+    def test_private_png_rejects_trailing_payload_even_with_matching_sha(self):
+        # Pillow accepts data after IEND; an immutable checksum alone does
+        # not establish that the object contains exactly one PNG file.
+        for suffix in (b"EXTRA_PRIVATE_PAYLOAD", b"\\x00" * 64):
+            self.setUp()
+            tampered = self.png + suffix
+            digest = sha256(tampered).hexdigest()
+            self.tenant.path = (
+                f"{self.shop}/feature3/gpu/{self.job}/{digest}.png"
+            )
+            self.binary = tampered
+            with self.subTest(suffix=suffix), self.assertRaisesRegex(
+                    PrivateGeneratedDownloadDenied, "trailing PNG"):
+                self.read()
+            self.assertEqual(self.rights_called, 1)
+            self.assertEqual(self.calls, ["verify", "get"])
+
+    def test_private_png_rejects_missing_iend_even_with_matching_sha(self):
+        self.png = self.png[:-12]
+        digest = sha256(self.png).hexdigest()
+        self.tenant.path = f"{self.shop}/feature3/gpu/{self.job}/{digest}.png"
+        self.binary = self.png
+        with self.assertRaises(PrivateGeneratedDownloadDenied):
+            self.read()
+        self.assertEqual(self.rights_called, 1)
+
     def test_changed_png_wrong_hash_or_invalid_bytes_deny(self):
         changed=BytesIO()
         Image.new("RGB",(320,400),"#123456").save(changed,"PNG")
@@ -488,11 +592,62 @@ class RevocableReaderTests(unittest.TestCase):
             self.assertEqual(self.calls, ["verify", "get"])
             self.assertEqual(self.rights_called, 1)
 
-        # Ordinary printable MIME parameters and identity encoding remain
-        # supported, with the same two live rights checks.
+        # A parameterized MIME is not the exact immutable PNG media type.
+        # Deny before body IO even if the parameter is printable.
         self.setUp()
         self.mime = "image/png; charset=utf-8"
+        body_reads = []
+        self.on_read = lambda: body_reads.append(True)
+        with self.assertRaisesRegex(PrivateGeneratedDownloadDenied,
+                                    "Invalid private image MIME"):
+            self.read()
+        self.assertEqual(body_reads, [])
+        self.assertEqual(self.rights_called, 1)
+
+        # Explicit identity encoding is safe and still checks current rights
+        # on both sides of the authenticated private read.
+        self.setUp()
         self.content_encoding = " identity "
+        self.assertEqual(self.read()["image_sha256"], self.sha)
+        self.assertEqual(self.rights_called, 2)
+
+    def test_private_png_transfer_framing_denied_before_body_read(self):
+        # A proxy must not combine chunked framing with Content-Length or
+        # introduce unsupported encodings into an authenticated object read.
+        cases = (
+            {"Transfer-Encoding": "gzip"},
+            {"Transfer-Encoding": "chunked", "Content-Length": "123"},
+            {"Transfer-Encoding": ["chunked"]},
+            {"Transfer-Encoding": "chunked, gzip"},
+            {"Transfer-Encoding": "chunked\\r\\nX-Injected: yes"},
+            {"Content-Range": "bytes 0-99/100"},
+        )
+        for extra in cases:
+            self.setUp()
+            original = self.reader.transport
+            reads = []
+            def malformed(req, timeout):
+                response = original(req, timeout)
+                response.headers.update(extra)
+                response.on_read = lambda: reads.append(True)
+                return response
+            self.reader.transport = malformed
+            with self.subTest(extra=repr(extra)), self.assertRaises(
+                    PrivateGeneratedDownloadDenied):
+                self.read()
+            self.assertEqual(reads, [])
+            self.assertEqual(self.rights_called, 1)
+
+        # An explicitly chunked, length-free transport remains valid after
+        # immutable SHA and two independent current-rights checks.
+        self.setUp()
+        original = self.reader.transport
+        def chunked(req, timeout):
+            response = original(req, timeout)
+            response.headers.pop("Content-Length", None)
+            response.headers["Transfer-Encoding"] = "chunked"
+            return response
+        self.reader.transport = chunked
         self.assertEqual(self.read()["image_sha256"], self.sha)
         self.assertEqual(self.rights_called, 2)
 
@@ -549,7 +704,7 @@ class RevocableReaderTests(unittest.TestCase):
         self.assertNotIn("SENSITIVE_HTTP",str(caught.exception))
         self.assertEqual(self.rights_called,1)
 
-    def test_current_rights_outage_before_or_after_private_read_denied(self):
+    def test_current_rights_outage_before_or_after_private_read_preserved(self):
         for fail_on in (1,2):
             self.setUp()
             # setUp resets fixtures but does not shadow instance methods.
@@ -563,10 +718,14 @@ class RevocableReaderTests(unittest.TestCase):
                 return original(shop,job,asset)
             self.rights = unavailable
             self.reader = self.build()
+            # A transport timeout is explicitly distinguished from a
+            # deliberate 404 rights denial; the HTTP boundary turns it into
+            # a bodyless 503 without emitting this internal diagnostic.
             with self.subTest(fail_on=fail_on), self.assertRaises(
-                    PrivateGeneratedDownloadDenied) as caught:
+                    TimeoutError) as caught:
                 self.read()
-            self.assertNotIn("SENSITIVE_RIGHTS",str(caught.exception))
+            self.assertIn("SENSITIVE_RIGHTS_SERVICE_FAILURE",
+                          str(caught.exception))
             self.assertEqual(calls[0],fail_on)
             self.assertEqual(self.calls,["verify"] if fail_on==1
                              else ["verify","get"])

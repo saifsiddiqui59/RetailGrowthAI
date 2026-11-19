@@ -1,0 +1,403 @@
+"""F3-08 private PNG Azure response adapter; not a registered public route.
+
+The injected reader factory must be constructed server-side with verified
+JWT/RLS membership and fresh independent rights checks. No fallback reader.
+"""
+from __future__ import annotations
+
+import re
+from itertools import islice
+from uuid import UUID
+
+from feature3_private_png_http import private_png_http
+
+_HEADER_NAME = re.compile(r"^[!#$%&'*+.^_`|~0-9A-Za-z-]+$")
+
+
+def _canonical_uuid4(value):
+    # Bound untrusted path input before parsing; canonical UUID4 is 36 chars.
+    if type(value) is not str or len(value) != 36:
+        return False
+    try:
+        parsed = UUID(value)
+        return parsed.version == 4 and str(parsed) == value
+    except (ValueError, AttributeError):
+        return False
+
+
+def _denied(status, response_type):
+    return response_type(
+        body=b"", status_code=status, mimetype=None,
+        headers={
+            "Cache-Control": "no-store, private",
+            "Pragma": "no-cache",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'",
+            "Vary": "Authorization",
+            "Content-Length": "0",
+        },
+    )
+
+
+def handle_private_png_request(request, *, reader_factory, response_type):
+    """Adapt a GET-only Azure request without trusting request-selected rights.
+
+    Reject ambiguous request metadata *before* invoking the private reader.
+    No token, path, shop or rights assertion is accepted from query/body.
+    """
+    if not callable(response_type):
+        raise ValueError("Trusted Azure response constructor required")
+    if request is None:
+        return _denied(400, response_type)
+    try:
+        method = request.method
+        params = request.route_params
+        headers = request.headers
+        query = request.params
+        get_body = request.get_body
+    except Exception:
+        return _denied(400, response_type)
+    if type(method) is not str or method != "GET":
+        return _denied(405, response_type)
+    if (type(params) is not dict or set(params) != {"shop_id", "job_id"} or
+            not callable(getattr(headers, "get", None))):
+        return _denied(400, response_type)
+    # Reject ambiguous or equality-spoofed path scope before any reader IO.
+    if not all(_canonical_uuid4(params[key]) for key in ("shop_id", "job_id")):
+        return _denied(400, response_type)
+    # Freeze the validated route scope. A mutable framework mapping must not
+    # substitute another tenant/job between validation and the reader call.
+    shop_id, job_id = params["shop_id"], params["job_id"]
+    # A query or request body must never override trusted route identifiers.
+    if query is not None and (type(query) is not dict or bool(query)):
+        return _denied(400, response_type)
+    if not callable(reader_factory):
+        return _denied(503, response_type)
+    # A proxy/framework may preserve differently cased duplicate headers.
+    # Never allow an ambiguous bearer token to reach the private reader.
+    try:
+        names = list(islice(headers.keys(), 65))
+        # Bound untrusted metadata before iterating over header values or
+        # invoking any authentication/rights/storage backend.
+        if len(names) > 64:
+            return _denied(400, response_type)
+        # Bound individual names before lowercasing or token matching. An
+        # oversized framework-provided key must not consume unbounded CPU
+        # or reach the authentication/Storage boundary.
+        if any(type(name) is not str or len(name) > 256 for name in names):
+            return _denied(400, response_type)
+        if (any(type(name) is not str for name in names) or
+                len({name.lower() for name in names}) != len(names) or
+                sum(name.lower() == "authorization" for name in names) != 1):
+            return _denied(400, response_type)
+        # Snapshot each untrusted header value exactly once. Framework/proxy
+        # mappings can be stateful; repeated get() calls must not swap the
+        # validated credential or framing value before the private reader.
+        values = {name: headers.get(name) for name in names}
+        # Refuse ambiguous request framing even when the body is empty.
+        framing = [name.lower() for name in names if name.lower() in
+                   ("content-length", "transfer-encoding")]
+        if len(framing) != len(set(framing)) or "transfer-encoding" in framing:
+            return _denied(400, response_type)
+        if "content-length" in framing:
+            length_name = next(name for name in names if name.lower() == "content-length")
+            if type(values[length_name]) is not str or values[length_name] != "0":
+                return _denied(400, response_type)
+        # This endpoint serves one complete immutable private PNG. Reject
+        # range/conditional/compressed requests rather than allowing an
+        # intermediary to reinterpret partial bytes or cached validators.
+        forbidden = {"range", "if-range", "if-none-match", "if-modified-since",
+                     "if-match", "if-unmodified-since", "content-encoding",
+                     "expect", "upgrade", "proxy-authorization", "proxy-authenticate",
+                     "te", "trailer", "connection", "keep-alive",
+                     "cookie", "cookie2", "set-cookie",
+                     "proxy-connection", "x-http-method-override",
+                     "x-method-override", "x-original-method"}
+        if any(name.lower() in forbidden for name in names):
+            return _denied(400, response_type)
+        # Refuse caller-supplied identity/rights hints. Reverse proxies and
+        # downstream adapters must never treat an X-* assertion as an
+        # alternative JWT, shop membership or output-release authority.
+        # Only the route UUIDs and the verified bearer token are inputs.
+        untrusted_authority = {
+            "x-shop-id", "x-job-id", "x-media-asset-id",
+            "x-user-id", "x-actor-id", "x-role", "x-tenant-id",
+            "x-original-authorization", "x-forwarded-authorization",
+            "x-auth-token", "x-auth-user", "x-auth-role",
+            "x-api-key", "x-supabase-auth", "x-user-jwt",
+            "x-forwarded-access-token", "x-forwarded-id-token",
+            "x-original-access-token", "x-original-id-token",
+            "x-feature3-shop-id", "x-feature3-job-id",
+            "x-feature3-media-asset-id", "x-feature3-rights",
+            "x-feature3-approved", "x-feature3-publish-approved",
+        }
+        # Reject proxy identity assertions before any JWT/RLS/Storage IO.
+        # They are not an alternate source of user or tenant authority.
+        untrusted_authority.update({
+            "x-forwarded-user", "x-forwarded-email", "x-forwarded-groups",
+            "x-remote-user", "x-authenticated-user", "x-authenticated-email",
+            "x-ms-client-principal", "x-ms-client-principal-id",
+            "x-ms-client-principal-name", "x-ms-client-principal-idp",
+            "x-goog-authenticated-user-email", "x-goog-authenticated-user-id",
+            "cf-access-authenticated-user-email", "x-amzn-oidc-identity",
+            "x-amzn-oidc-data", "x-amzn-oidc-accesstoken",
+            # Proxy rewrite/identity metadata is not a signed user claim.
+            "forwarded", "x-forwarded-host", "x-forwarded-uri",
+            "x-forwarded-prefix", "x-original-url", "x-rewrite-url",
+            "x-original-uri", "x-envoy-original-path",
+            "x-ms-original-url", "x-ms-original-host",
+        })
+        if any(name.lower() in untrusted_authority or
+               name.lower().startswith("x-feature3-") for name in names):
+            return _denied(400, response_type)
+        # Reject whole families of proxy-injected identities, including
+        # future provider-specific suffixes not covered by the fixed list.
+        # None can substitute for a verified end-user JWT and RLS lookup.
+        identity_prefixes = (
+            "x-auth-request-", "x-ms-token-", "x-client-cert",
+            "x-forwarded-client-cert", "x-ssl-client-", "x-user-",
+            "x-forwarded-user-", "x-forwarded-identity-",
+            "x-authenticated-", "x-remote-user-", "x-identity-",
+            "x-supabase-", "x-jwt-", "x-access-token-",
+            "x-feature3-",
+            # Provider-managed identity headers are not user JWT evidence.
+            # Reject future suffixes as well as the known fixed names above.
+            "x-ms-client-principal-", "x-amzn-oidc-",
+            "x-goog-authenticated-", "cf-access-",
+        )
+        if any(name.lower().startswith(identity_prefixes) for name in names):
+            return _denied(400, response_type)
+        # A private binary endpoint never negotiates compressed or transformed
+        # representations. Explicit identity is the only acceptable encoding;
+        # reject wildcard, gzip and multi-valued negotiation before body IO.
+        encoding_names = [name for name in names if name.lower() == "accept-encoding"]
+        if encoding_names:
+            encoding = values[encoding_names[0]]
+            if type(encoding) is not str or encoding.lower() != "identity":
+                return _denied(400, response_type)
+        # The endpoint is a binary-only representation. Reject clients that
+        # explicitly request an incompatible media type; never negotiate an
+        # HTML, JSON or transformed response around private image bytes.
+        accept_names = [name for name in names if name.lower() == "accept"]
+        if accept_names:
+            accept = values[accept_names[0]]
+            if type(accept) is not str or accept not in (
+                    "image/png", "image/*", "*/*"):
+                return _denied(406, response_type)
+        actual_name = next(name for name in names if name.lower() == "authorization")
+        # Read the enumerated header key, not a differently cased alias: some
+        # request adapters are case-sensitive, and an absent alias must not
+        # silently turn a valid Authorization header into an empty credential.
+        authorization = values[actual_name]
+        if type(authorization) is not str:
+            return _denied(400, response_type)
+        if not authorization:
+            return _denied(401, response_type)
+        # CR/LF in Authorization is malformed HTTP framing (400), not merely
+        # an invalid bearer credential (401). Preserve fail-closed header
+        # injection rejection before body reads or rights/Storage IO.
+        if "\r" in authorization or "\n" in authorization:
+            return _denied(400, response_type)
+        # Reject malformed bearer framing before materializing the GET body.
+        # The canonical reader still verifies JWT, tenant and current rights.
+        if (len(authorization) > 8200 or
+                not authorization.startswith("Bearer ") or
+                not 12 <= len(authorization[7:]) <= 8192 or
+                any(ord(ch) < 33 or ord(ch) > 126
+                    for ch in authorization[7:]) or
+                authorization[7:].startswith(("sb_secret_", "sb_publishable_")) or
+                any(ch in authorization[7:] for ch in (",", ";", '"', "\\"))):
+            return _denied(401, response_type)
+        # Reject malformed control characters and non-string header values
+        # before invoking the private reader, including unrelated headers.
+        # This is synthetic request-adapter hardening, not hosted JWT proof.
+        total_header_bytes = 0
+        for name in names:
+            value = values[name]
+            # Bound untrusted values before scanning their characters.
+            # A huge framework-provided header must not force an unbounded
+            # validation pass before authentication is denied.
+            if (type(value) is not str or
+                    len(value) > 16384 - total_header_bytes - len(name)):
+                return _denied(400, response_type)
+            if (_HEADER_NAME.fullmatch(name) is None or
+                    any(ord(char) < 32 or ord(char) > 126 for char in value)):
+                return _denied(400, response_type)
+            total_header_bytes += len(name) + len(value)
+    except Exception:
+        return _denied(400, response_type)
+    # Validate bounded metadata before asking the request adapter to materialize
+    # the body. Malformed headers must not trigger a potentially expensive or
+    # unbounded body read, even for GET requests.
+    # Refuse GET bodies so proxies cannot disagree about credential or scope.
+    if not callable(get_body):
+        return _denied(400, response_type)
+    try:
+        body = get_body()
+    except Exception:
+        return _denied(400, response_type)
+    if type(body) is not bytes or body:
+        return _denied(400, response_type)
+    # A backend provider/reader can fail after request validation. Never
+    # propagate its exception or diagnostic details into a public response.
+    # In particular, a partial binary result must not be returned on failure.
+    try:
+        reply = private_png_http(
+            authorization=authorization,
+            shop_id=shop_id,
+            job_id=job_id,
+            reader_factory=reader_factory,
+        )
+    except Exception:
+        return _denied(503, response_type)
+    # Freeze the backend envelope once. A stateful adapter must not change
+    # its body or attestation between validation and public byte release.
+    try:
+        backend_status = reply.status
+        backend_body = reply.body
+        backend_headers = reply.headers
+    except Exception:
+        return _denied(503, response_type)
+    # A broken backend must never dictate arbitrary headers or leak partial
+    # PNG bytes on an error response.
+    try:
+        if (type(backend_status) is not int or
+                backend_status not in (200, 400, 401, 403, 404, 409, 410, 503) or
+                type(backend_body) is not bytes or
+                type(backend_headers) is not dict):
+            return _denied(503, response_type)
+        if backend_status != 200:
+            if backend_body:
+                return _denied(503, response_type)
+            return _denied(backend_status, response_type)
+        # The canonical binary adapter uses the strictly private
+        # "no-store, private, max-age=0" response contract. The route may
+        # also receive the legacy equally restrictive "no-store, private"
+        # variant; never treat public/cacheable policy as success. Use an
+        # exact str check to reject equality-overloaded backend values.
+        # Reject inconsistent inner binary receipts before releasing bytes.
+        # Never trust a backend Content-Length that disagrees with the body.
+        # Bound response allocation before handing bytes to the Azure host.
+        # Enforce the canonical private reader's 25 MiB limit at the Azure
+        # response boundary too, even if an injected backend is compromised.
+        # Never release a larger payload solely because its length agrees.
+        if len(backend_body) > 25 * 1024 * 1024:
+            return _denied(503, response_type)
+        # A successful private binary receipt must be unambiguous even when
+        # supplied by a faulty internal adapter. Never accept a transformed,
+        # ranged, cookie-bearing or case-duplicated backend representation.
+        backend_names = list(islice(backend_headers, 17))
+        # Do not accept partial legacy envelopes: a successful private
+        # response must carry the complete canonical security and integrity
+        # contract. Missing cache/CSP/scope fields are an internal outage,
+        # never permission to release bytes.
+        expected_names = {
+            "Content-Type", "Cache-Control", "Content-Length",
+            "X-Feature3-Shop-Id", "X-Feature3-Job-Id",
+            "X-Feature3-Media-Asset-Id", "X-Feature3-Image-Sha256",
+            "Content-Disposition", "Pragma", "X-Content-Type-Options",
+            "Content-Security-Policy", "Vary",
+        }
+        if (len(backend_names) > 16 or
+                any(type(name) is not str or len(name) > 256 or
+                    _HEADER_NAME.fullmatch(name) is None for name in backend_names) or
+                len({name.lower() for name in backend_names}) != len(backend_names) or
+                set(backend_names) != expected_names or
+                # Treat the backend receipt as a fixed contract, not an
+                # arbitrary HTTP response. Unexpected headers (including
+                # redirects and content-disposition) cannot be trusted.
+                any(name not in {
+                    "Content-Type", "Cache-Control", "Content-Length",
+                    "X-Feature3-Shop-Id", "X-Feature3-Job-Id",
+                    "X-Feature3-Media-Asset-Id", "X-Feature3-Image-Sha256",
+                    "Content-Disposition", "Pragma", "X-Content-Type-Options",
+                    "Content-Security-Policy", "Vary",
+                } for name in backend_names)):
+            return _denied(503, response_type)
+        # Treat injected backend metadata as untrusted even when header names
+        # are allowlisted. Bound all values before digest/receipt validation;
+        # reject custom equality objects and oversized diagnostic strings.
+        total_backend_header_bytes = 0
+        for name in backend_names:
+            value = backend_headers[name]
+            if type(value) is not str or len(value) > 4096:
+                return _denied(503, response_type)
+            total_backend_header_bytes += len(name) + len(value)
+            if total_backend_header_bytes > 8192 or any(
+                    ord(char) < 32 or ord(char) > 126 for char in value):
+                return _denied(503, response_type)
+        # The canonical verified binary handler supplies scope and checksum
+        # receipts. Validate these before stripping internal identifiers from
+        # the public Azure response; never trust mismatched backend scope.
+        from hashlib import sha256
+        for key, expected in (
+            ("X-Feature3-Shop-Id", shop_id),
+            ("X-Feature3-Job-Id", job_id),
+            ("X-Feature3-Image-Sha256", sha256(backend_body).hexdigest()),
+            ("Pragma", "no-cache"),
+            ("X-Content-Type-Options", "nosniff"),
+            ("Content-Security-Policy", "default-src 'none'"),
+            ("Vary", "Authorization"),
+            ("Content-Disposition", f'attachment; filename="feature3-{job_id}.png"'),
+        ):
+            if key in backend_headers and (
+                    type(backend_headers[key]) is not str or
+                    backend_headers[key] != expected):
+                return _denied(503, response_type)
+        # The canonical binary handler always returns a complete tenant/job,
+        # immutable asset and digest attestation. A missing attestation is not
+        # a legacy success: fail closed if an injected adapter strips it.
+        attested = {"X-Feature3-Shop-Id", "X-Feature3-Job-Id",
+                    "X-Feature3-Image-Sha256", "X-Feature3-Media-Asset-Id"}
+        present = attested.intersection(backend_headers)
+        if present != attested:
+            return _denied(503, response_type)
+        # A successful private response must preserve all anti-cache,
+        # anti-sniff, CSP, authorization-vary and safe filename protections.
+        # Missing security metadata cannot be treated as legacy success.
+        required_protection = {
+            "Pragma": "no-cache",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'",
+            "Vary": "Authorization",
+            "Content-Disposition": f'attachment; filename="feature3-{job_id}.png"',
+        }
+        if any(
+            type(backend_headers.get(key)) is not str or
+            backend_headers[key] != expected
+            for key, expected in required_protection.items()
+        ):
+            return _denied(503, response_type)
+        if "X-Feature3-Media-Asset-Id" in backend_headers and not _canonical_uuid4(
+                backend_headers["X-Feature3-Media-Asset-Id"]):
+            return _denied(503, response_type)
+        declared_length = backend_headers.get("Content-Length")
+        if (type(declared_length) is not str or
+                declared_length != str(len(backend_body))):
+            return _denied(503, response_type)
+        policy = backend_headers.get("Cache-Control")
+        if (len(backend_body) < 45 or
+                not backend_body.startswith(bytes.fromhex("89504e470d0a1a0a")) or
+                not backend_body.endswith(bytes.fromhex("0000000049454e44ae426082")) or
+                type(backend_headers.get("Content-Type")) is not str or
+                backend_headers.get("Content-Type") != "image/png" or
+                type(policy) is not str or
+                policy not in ("no-store, private", "no-store, private, max-age=0")):
+            return _denied(503, response_type)
+        # Only reviewed binary response headers may leave this boundary.
+        safe_headers = {
+            "Content-Type": "image/png",
+            "Cache-Control": "no-store, private",
+            "Pragma": "no-cache",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Security-Policy": "default-src 'none'",
+            "Vary": "Authorization",
+            "Content-Length": str(len(backend_body)),
+            # Emit only the server-derived safe attachment name, never a
+            # client filename or an arbitrary backend disposition value.
+            "Content-Disposition": f'attachment; filename="feature3-{job_id}.png"',
+        }
+        return response_type(body=backend_body, status_code=200,
+                             headers=safe_headers, mimetype="image/png")
+    except Exception:
+        return _denied(503, response_type)
