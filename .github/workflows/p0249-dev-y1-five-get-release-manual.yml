@@ -65,6 +65,15 @@ jobs:
             --mode five --target "$RUNNER_TEMP/y1-five"
           python3 ops/p0249-y1-readonly-extra-get/build_five_get_release.py \
             --mode rollback-two --target "$RUNNER_TEMP/y1-two"
+          # Never ship the older original PostgREST module that followed
+          # redirects with bearer user JWTs. Check BOTH exact staged copies
+          # against an offline synthetic HTTPS 30x (no real sockets).
+          # A reviewed #1018-compatible no-redirect fix must first land on main.
+          # This test is before dependency vendoring, Azure login and ZIP writes.
+          python3 ops/p0249-y1-readonly-extra-get/verify_staged_y1_auth_transport.py \
+            --target "$RUNNER_TEMP/y1-five"
+          python3 ops/p0249-y1-readonly-extra-get/verify_staged_y1_auth_transport.py \
+            --target "$RUNNER_TEMP/y1-two"
           python3 -m pip install --disable-pip-version-check --no-cache-dir \
             -r "$RUNNER_TEMP/y1-five/requirements.txt" \
             --target "$RUNNER_TEMP/y1-five/.python_packages/lib/site-packages" --quiet
