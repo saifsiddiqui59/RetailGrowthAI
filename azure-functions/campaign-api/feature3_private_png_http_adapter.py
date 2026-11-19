@@ -7,6 +7,11 @@ server-owned scoped reader factory. No browser-supplied rights are accepted.
 from __future__ import annotations
 
 from uuid import UUID
+from io import BytesIO
+
+from PIL import Image, UnidentifiedImageError
+
+from feature3_private_binary_http import _valid_png_chunks
 
 from feature3_private_png_reader import PrivateGeneratedDownloadDenied
 from tenant_store import StorageUnavailable
@@ -63,7 +68,25 @@ def private_png_http_response(*, reader_factory, shop_id, job_id, bearer_token):
             raise PrivateGeneratedDownloadDenied("Unavailable")
         reader = reader_factory(shop_id, job_id)
         body = reader.read(user_token=token, shop_id=shop_id, job_id=job_id)
-        if type(body) is not bytes or not 100 <= len(body) <= _MAX_PNG_BYTES or not body.startswith(bytes((137, 80, 78, 71, 13, 10, 26, 10))):
+        # A compromised or obsolete reader can return a self-consistent but
+        # invalid payload. A PNG signature alone cannot authenticate pixels or
+        # prevent a trailing-data covert channel. Independently validate CRC,
+        # chunk framing, complete pixels and bounded dimensions before 200.
+        if (type(body) is not bytes or not 100 <= len(body) <= _MAX_PNG_BYTES or
+                not _valid_png_chunks(body)):
+            raise PrivateGeneratedDownloadDenied("Unavailable")
+        try:
+            with Image.open(BytesIO(body)) as image:
+                if (image.format != "PNG" or getattr(image, "n_frames", 1) != 1 or
+                        not 256 <= image.width <= 8192 or
+                        not 256 <= image.height <= 8192 or
+                        image.width * image.height > 16_777_216):
+                    raise PrivateGeneratedDownloadDenied("Unavailable")
+                image.verify()
+            with Image.open(BytesIO(body)) as image:
+                image.load()
+        except (OSError, SyntaxError, EOFError, RuntimeError,
+                UnidentifiedImageError, Image.DecompressionBombError):
             raise PrivateGeneratedDownloadDenied("Unavailable")
         return 200, dict(_PNG_HEADERS), body
     except (PrivateGeneratedDownloadDenied, ValueError, TypeError, AttributeError):
