@@ -13,12 +13,11 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 6,
+    "open_prs": 5,
     "by_feature": {
       "issue249": 3,
       "F2": 1,
-      "F5": 1,
-      "F3": 1
+      "F5": 1
     }
   },
   "entries": [
@@ -118,30 +117,7 @@
         "next_action": "Independent protected-DEV workflow/JWT review, then main-only integration; no live release or Auth users"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/939"
-    },
-    {
-      "pr": 880,
-      "title": "Feature3 F3-08: fail-closed current output rights authority boundary and negative tests",
-      "feature": "F3",
-      "head_sha": "72f08ccf156c5b9225f79cf6987bef541488df69",
-      "base_branch": "main",
-      "work_owner": "schedule-f3",
-      "priority": "P0",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-a-20261120",
-        "head_sha": "72f08ccf156c5b9225f79cf6987bef541488df69",
-        "claimed_at": "2026-11-19T21:23:21.712Z",
-        "expires_at": "2026-11-19T22:53:21.712Z"
-      },
-      "checkpoint": {
-        "owner": "manual-integration-chat-a-20261120",
-        "head_sha": "72f08ccf156c5b9225f79cf6987bef541488df69",
-        "at": "2026-11-19T21:23:21.712Z",
-        "status": "Group2 critical F3 rights/PNG source review; no unreviewed runtime enablement; confirm CI and source parity"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/880"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T21:23:52.145Z"
+  "last_inventory_checked_at": "2026-11-19T21:26:30.725Z"
 }
