@@ -20,6 +20,13 @@ PROJECT_URL = "https://jeearzffnjbvghwjjjrf.supabase.co"
 NAMES = ("RETAIL_SUPABASE_URL", "RETAIL_SUPABASE_PUBLISHABLE_KEY",
          "RGAI_P0249_READONLY_SHADOW")
 EXPECTED_FUNCTIONS = {"p0249_health", "campaign_read"}
+EXTRA_FUNCTIONS = {"render_job_read", "poster_job_read", "poster_draft_read"}
+EXTRA_SHADOW_FLAG = "RGAI_P0249_EXTRA_GET_SHADOW"
+EXTRA_PATHS = (
+    "/api/render-jobs/11111111-1111-4111-8111-111111111111",
+    "/api/poster-jobs/11111111-1111-4111-8111-111111111111",
+    "/api/poster-drafts/11111111-1111-4111-8111-111111111111",
+)
 CAMPAIGN_PATH = "/api/campaigns/11111111-1111-4111-8111-111111111111"
 MARKER_SCHEMA = "retailgrowthai/p0249-public-shadow-absent/v1"
 
@@ -58,7 +65,9 @@ def current():
         name = row["name"]
         if name in cfg:
             raise RuntimeError("Duplicate appsetting name")
-        if name in NAMES:
+        if name in NAMES or name == EXTRA_SHADOW_FLAG:
+            # Observe (never change) the separate 5-GET authorization gate.
+            # Even an explicit "false" value is not an absent setting.
             cfg[name] = row.get("value")
     return cfg
 
@@ -69,8 +78,10 @@ def indexed():
         raise RuntimeError("Malformed Azure function index")
     names = [str(x.get("name", "")).rsplit("/", 1)[-1].lower()
              for x in rows if isinstance(x, dict)]
-    if len(names) != 2 or set(names) != EXPECTED_FUNCTIONS:
+    approved = (EXPECTED_FUNCTIONS, EXPECTED_FUNCTIONS | EXTRA_FUNCTIONS)
+    if len(names) != len(set(names)) or set(names) not in approved:
         raise RuntimeError("Unexpected Y1 function inventory")
+    return frozenset(names)
 
 
 def marker():
@@ -97,7 +108,7 @@ def preflight(path):
         raise RuntimeError("Y1 trial settings already exist; refuse override")
     with open(path, "x", encoding="utf-8") as fh:
         json.dump(marker(), fh)
-    print("P0249_SHADOW_PREFLIGHT=EXACT_Y1_TWO_ROUTES_AND_ABSENT_SETTINGS", flush=True)
+    print("P0249_SHADOW_PREFLIGHT=EXACT_Y1_TWO_OR_FIVE_GET_AND_ABSENT_SETTINGS", flush=True)
 
 
 def set_public_only(path):
@@ -133,7 +144,8 @@ def rollback(path):
                 "RETAIL_SUPABASE_PUBLISHABLE_KEY": key(),
                 "RGAI_P0249_READONLY_SHADOW": "true",
             }
-            if any(val != expected[name] for name, val in cfg.items()):
+            if any(name not in expected or val != expected[name]
+                   for name, val in cfg.items()):
                 print("P0249_SHADOW_ROLLBACK_ABORT=UNKNOWN_CONCURRENT_SETTING", flush=True)
                 return False
             mutate("functionapp", "config", "appsettings", "delete",
@@ -178,7 +190,7 @@ def get(path, token=""):
 
 
 def test_negative():
-    indexed()
+    functions = indexed()
     results = []
     for n in range(16):
         path = CAMPAIGN_PATH if n % 2 == 0 else "/api/p0249/health"
@@ -191,6 +203,19 @@ def test_negative():
             "index": n + 1, "route": "campaign" if expected == 401 else "health",
             "http": status, "marker": marked, "seconds": seconds, "accepted": passed
         }, sort_keys=True), flush=True)
+    if functions == frozenset(EXPECTED_FUNCTIONS | EXTRA_FUNCTIONS):
+        # A five-route ZIP must not silently activate the three new original
+        # status GETs. The separate extra flag stays entirely ABSENT and we
+        # exercise both missing Bearer (401) and present-but-gated (503).
+        for route in EXTRA_PATHS:
+            for token, expected in (("", 401), ("synthetic-untrusted-token", 503)):
+                status, marked, seconds = get(route, token)
+                passed = status == expected and marked and seconds < 18
+                results.append(passed)
+                print("P0249_SHADOW_EXTRA_GET_GATE=" + json.dumps({
+                    "route": route.split("/")[2], "http": status,
+                    "marker": marked, "seconds": seconds, "accepted": passed,
+                }, sort_keys=True), flush=True)
     print(f"P0249_SHADOW_NEGATIVE_ACCEPTED={sum(results)}/{len(results)}", flush=True)
     if not all(results):
         raise RuntimeError("Public-only Y1 negative auth/readiness failed")
