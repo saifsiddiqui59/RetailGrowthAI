@@ -13,13 +13,13 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 13,
+    "open_prs": 12,
     "by_feature": {
+      "issue249": 7,
       "F2": 2,
-      "F3": 1,
       "F5": 1,
-      "issue249": 8,
-      "shared": 1
+      "shared": 1,
+      "F3": 1
     }
   },
   "entries": [
@@ -255,20 +255,7 @@
         "next_action": "Head 72f08ccf Part1 #44460852580 and #44460858767 4/4 PASS; original #879/#944 source preserved and closed unmerged; independent F3/Functions security/rights review still absent"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/880"
-    },
-    {
-      "pr": 1031,
-      "title": "test(#249): restore signed two-shop Y1 CI after redirect-safe transport",
-      "feature": "issue249",
-      "head_sha": "4e009b9f6d6679a8926b2cccd680ff8eb45516bf",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P2",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1031"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T18:59:20.373Z"
+  "last_inventory_checked_at": "2026-11-19T19:00:23.558Z"
 }
