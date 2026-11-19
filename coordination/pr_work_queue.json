@@ -44,9 +44,17 @@
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P2",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-issue249-y1-diagnostic-20261120",
+        "head_sha": "f08349170ff0b5ee7821d03e342691bcd9dadd38",
+        "claimed_at": "2026-11-19T19:02:44.052Z",
+        "expires_at": "2026-11-19T20:32:44.052Z"
+      },
+      "checkpoint": {
+        "head_sha": "f08349170ff0b5ee7821d03e342691bcd9dadd38",
+        "next_action": "Review exact 2/5 Y1 read-only diagnostic and harden safe source/CI; no Azure dispatch or edits"
+      },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1028"
     },
     {
