@@ -162,13 +162,24 @@ function approveCreativeDraftFromTrustedReaders(bundle, authorization, shopId, r
       !['OWNER', 'EDITOR'].includes(latestMember.role)) {
     reject('Editorial rights, claims or reviewer membership changed before signing');
   }
-  const reviewer = {
-    id: actor, shop_id: shopId, role: latestMember.role,
-    server_verified: true, current_member: true,
-    completed_claims_review: true, completed_media_rights_review: true,
-    completed_storyboard_review: true, completed_script_review: true
-  };
-  return approveCreativeDraft(bundle, reviewer, secretKey);
+  // The final authoritative review and membership reads are injected server
+  // callbacks: they may race with changes to the source bundle during a
+  // request. Re-bind the exact originally reviewed plan AND complete motion
+  // SHA before issuing any HMAC. expectedPlanSha alone fingerprints garment
+  // locks, not every motion prompt field; re-signing a newly changed motion
+  // payload would silently bless media that the reviewer never approved.
+  if (expectedPlanSha(bundle) !== originalPlanSha ||
+      hash(bundle.motion_direction_v1) !== motionSha ||
+      creative.shop_id !== shopId ||
+      creative.campaign_id !== latestReview.campaign_id) {
+    reject('Reviewed plan or motion source changed before signing');
+  }
+  // Sign only the already-checked immutable digests. The independent F4
+  // consumer must verify them again against its current source/rights rows.
+  // This guard is source-only, not a durable RLS/CAS transaction.
+  const payload = payloadOf(originalPlanSha, motionSha, shopId,
+    creative.campaign_id, actor, new Date().toISOString());
+  return { ...payload, hmac_sha256: signatureOf(payload, secretKey) };
 }
 function editorHandoff(bundle, receipt, secretKey, expectedShop) {
   verifyCreativeApproval(bundle, receipt, secretKey, expectedShop);
