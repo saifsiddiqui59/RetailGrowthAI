@@ -125,6 +125,11 @@ test('trace reader must refuse untrusted HTTP or credential-bearing Supabase ori
     'http://tenant.supabase.co',
     'https://user:password@tenant.supabase.co',
     'https://tenant.supabase.co/foreign/path',
+    'https://tenant.supabase.co.attacker.test',
+    'https://attacker.test',
+    'https://tenant.supabase.co:8443',
+    'https://tenant.supabase.co@attacker.test',
+    'https://tenant.supabase.co.evil.supabase.co',
   ]) {
     assert.throws(() => createTraceStore({
       supabaseUrl, publishableKey: 'test', tokenProvider: async () => 'signed',
