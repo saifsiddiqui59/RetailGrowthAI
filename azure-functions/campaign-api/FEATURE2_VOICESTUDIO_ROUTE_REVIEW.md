@@ -1,6 +1,6 @@
 # Feature2 VoiceStudio root Azure Function route — independent review REQUIRED
 
-**Source only; NOT deployed or enabled.** This stacked change adds one protected root Functions route,
+**Source only; NOT deployed or enabled.** Clean current-main source review draft #1019 (recovered from obsolete stacked #925, whose #920 parent is now merged) adds one protected root Functions route,
 `POST /api/shops/{shop_id}/voicestudio-jobs`, using the existing `VoiceStudioSignedAPI`
 and the existing Supabase JWT verifier + `TenantStore.member(write=True)` on each
 request. Body accepts only trusted resource references
@@ -36,3 +36,5 @@ the exact Azure function definitions in isolation, proves default OFF,
 incomplete/forged flags DENIED, no model initialization or provider egress,
 and boundary status/error hygiene. Hosted two-shop tests require real
 DEV auth/migrations/approved commercial model; source tests are not those.
+
+**Integration note (2026-11-19):** This draft preserves the original #925 handler/test code while applying it to the latest `main` root file without importing 21 older commits from its diverged parent lineage. The real JWT/RLS/SQL/VoiceStudio license and tenant boundaries still require independent security review. The original #925 must remain OPEN until source acceptance; current PR/main CI does not itself authorize hosted deployment or automatic route activation.
