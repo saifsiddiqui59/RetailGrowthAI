@@ -144,6 +144,55 @@ class Y1CanaryGuardTests(unittest.TestCase):
         self.assertNotIn("DO_NOT_PRINT",buffer.getvalue())
         self.assertIn("P0249_Y1_ARM_VERIFIED",buffer.getvalue())
 
+    def test_probe_uses_a_pinned_no_redirect_urllib_opener(self):
+        from urllib.request import OpenerDirector
+        self.assertIsInstance(guard._PROBE_OPENER, OpenerDirector)
+        self.assertTrue(any(isinstance(h, guard._DenyProbeRedirects)
+                            for h in guard._PROBE_OPENER.handlers))
+
+    def test_30x_never_follows_or_becomes_hosted_y1_acceptance(self):
+        import io
+        from email.message import Message
+        from urllib.request import HTTPSHandler, ProxyHandler, build_opener
+        from urllib.response import addinfourl
+
+        for code in (301, 302, 303, 307, 308):
+            requests, responses = [], []
+
+            class RedirectingHTTPS(HTTPSHandler):
+                def https_open(self, req):
+                    requests.append(req.full_url)
+                    headers = Message()
+                    headers["Location"] = "https://untrusted-p0249.invalid/collect"
+                    # Even a fake marker from an unrelated redirect must
+                    # not let the first response count as Y1 HTTP200/404.
+                    headers["X-Request-ID"] = "synthetic-redirect-not-handler"
+                    response = addinfourl(io.BytesIO(b""), headers,
+                                          req.full_url, code)
+                    response.msg = "Synthetic Redirect"
+                    responses.append(response)
+                    return response
+
+            opener = build_opener(ProxyHandler({}),
+                                  guard._DenyProbeRedirects(), RedirectingHTTPS())
+            with self.subTest(status=code), patch.object(guard, "_PROBE_OPENER", opener):
+                status, marked, seconds = guard.get("/api/p0249/health", 1)
+            self.assertEqual(status, code)
+            self.assertTrue(marked)  # not sufficient to meet 200 requirement
+            self.assertLess(seconds, 1)
+            self.assertEqual(requests, [
+                "https://" + guard.SITE + ".azurewebsites.net/api/p0249/health"
+            ])
+            self.assertEqual(len(responses), 1)
+            self.assertTrue(responses[0].closed)
+
+    def test_redirected_health_cannot_meet_initial_hosted_readiness(self):
+        with patch.object(guard, "get", return_value=(302, True, 0.2)) as fetch, \\
+             patch.object(guard.time, "sleep"), \\
+             self.assertRaisesRegex(RuntimeError, "initial readiness"):
+            guard.probe()
+        self.assertEqual(fetch.call_count, 3)
+
     def test_probe_requires_20_of_20_hosted_responses(self):
         results = [(200,True,0.4)] + [
             (200,True,0.5) if i % 2==0 else (404,False,0.6)
