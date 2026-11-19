@@ -1,0 +1,166 @@
+{
+  "archive_kind": "source_patch_hunks_preserved_not_active_runtime",
+  "pr": 848,
+  "repository": "saifsiddiqui59/RetailGrowthAI",
+  "head_sha": "a3e52192308f47a399bcea94fe5e87627e577b6e",
+  "base_branch": "feat/feature2-unified-offline-source-20261028",
+  "base_sha_at_archive": "d80d6b50705323290c4b214bf2f006eacef1ef33",
+  "patch_count": 85,
+  "part_count": 10,
+  "archived_from": "GitHub per-file pull-request patch API; all 85 filenames and hunks present; each patch block labeled with diff --git filename and +++/--- headers",
+  "parent_pr": 551,
+  "parent_pr_source_archive": "ai-agents/archive/F2_PR551_ORIGINAL_GITHUB_PATCH_PART_01_OF_05_20261119.md through _05_OF_05_20261119.md",
+  "source_ci": {
+    "run_id": 44381016829,
+    "head": "a3e52192308f47a399bcea94fe5e87627e577b6e",
+    "four_jobs": "PASS"
+  },
+  "review": "Source-only archive; no runtime activation, code merging, JWT/RLS rights approval or F2 integrated DONE",
+  "parts": [
+    {
+      "path": "ai-agents/archive/F2_PR848_DIFF_PART_01_OF_10_20261119.patch",
+      "files": [
+        "ai-agents/FEATURE2_CPU_CACHE_BENCHMARK_INTEGRITY_20261030.md",
+        "ai-agents/FEATURE2_DICTIONARY_CAS_HARDENING_20261030.md",
+        "ai-agents/FEATURE2_EDITORIAL_UNICODE_SPOOF_HANDOFF_20261029.md",
+        "ai-agents/FEATURE2_EIGHT_PR_SOURCE_BATCH_HANDOFF_20261030.md",
+        "ai-agents/FEATURE2_F2_10_LOCAL_SCOPE_HANDOFF_20261030.md",
+        "ai-agents/FEATURE2_F2_27_POSTWRITE_RETAKE_HANDOFF_20261030.md",
+        "ai-agents/FEATURE2_MP3_DUAL_ASSET_RECEIPT_20261030.md",
+        "ai-agents/FEATURE2_MP3_DUAL_PRIVATE_RECEIPT_HANDOFF_20261029.md",
+        "ai-agents/FEATURE2_MP3_STACKED_INTEGRATION_HANDOFF_20261030.md",
+        "ai-agents/FEATURE2_PRIVATE_AUDIO_RIFF_BOUNDARY_20261030.md",
+        "ai-agents/FEATURE2_PRIVATE_AUDIT_CAS_RECHECK_HANDOFF_20261030.md",
+        "ai-agents/FEATURE2_PRIVATE_JOB_STATUS_BACKEND_HANDOFF_20261030.md",
+        "ai-agents/FEATURE2_REGIONAL_VOICE_ROUTING_HANDOFF_20261030.md",
+        "ai-agents/FEATURE2_REVIEWED_PROMPT_CAS_BATCH_20261030.md",
+        "ai-agents/FEATURE2_SPEECH_REVIEW_UNICODE_BATCH_20261030.md",
+        "ai-agents/FEATURE2_UNICODE_CLAIM_HARDENING_20261030.md",
+        "ai-agents/FEATURE2_UNICODE_COPY_CLAIM_HANDOFF_20261030.md",
+        "ai-agents/creative-director/offline-acceptance.js",
+        "ai-agents/creative-director/tests/test-diwali-offline-e2e.js",
+        "ai-agents/feature2_dependency_handoff_v1.json",
+        "ai-agents/sql/feature2_private_audit_REVIEW_ONLY.sql",
+        "ai-agents/sql/feature2_private_cpu_budget_REVIEW_ONLY.sql",
+        "ai-agents/sql/feature2_private_prompt_review_REVIEW_ONLY.sql",
+        "ai-agents/sql/feature2_private_voice_REVIEW_ONLY.sql",
+        "ai-agents/src/ai_agents/feature2_azure_speech.py"
+      ],
+      "characters": 92623
+    },
+    {
+      "path": "ai-agents/archive/F2_PR848_DIFF_PART_02_OF_10_20261119.patch",
+      "files": [
+        "ai-agents/src/ai_agents/feature2_creative_quality.py",
+        "ai-agents/src/ai_agents/feature2_director_runtime_gate.py",
+        "ai-agents/src/ai_agents/feature2_kokoro_local.py",
+        "ai-agents/src/ai_agents/feature2_local_voice_workflow.py",
+        "ai-agents/src/ai_agents/feature2_pronunciation_dictionary.py",
+        "ai-agents/src/ai_agents/feature2_sentence_retake.py",
+        "ai-agents/src/ai_agents/feature2_voice_quality.py",
+        "ai-agents/src/ai_agents/feature2_voiceover_upload.py"
+      ],
+      "characters": 90019
+    },
+    {
+      "path": "ai-agents/archive/F2_PR848_DIFF_PART_03_OF_10_20261119.patch",
+      "files": [
+        "ai-agents/src/ai_agents/prompt_improver.py",
+        "ai-agents/src/ai_agents/trend_intelligence.py",
+        "ai-agents/tests/test_feature2_32_director_to_editor_trace.py",
+        "ai-agents/tests/test_feature2_azure_speech.py",
+        "ai-agents/tests/test_feature2_creative_director_oss.py",
+        "ai-agents/tests/test_feature2_creative_quality.py",
+        "ai-agents/tests/test_feature2_director_runtime_gate.py",
+        "ai-agents/tests/test_feature2_editorial_basis.py",
+        "ai-agents/tests/test_feature2_feature7_signed_audio.py",
+        "ai-agents/tests/test_feature2_kokoro_local.py",
+        "ai-agents/tests/test_feature2_local_voice_workflow.py"
+      ],
+      "characters": 94230
+    },
+    {
+      "path": "ai-agents/archive/F2_PR848_DIFF_PART_04_OF_10_20261119.patch",
+      "files": [
+        "ai-agents/tests/test_feature2_sentence_retake.py",
+        "ai-agents/tests/test_feature2_speech_catalog.py",
+        "ai-agents/tests/test_feature2_unicode_discount_scope.py",
+        "ai-agents/tests/test_feature2_voice_quality.py",
+        "ai-agents/tests/test_feature2_voiceover_upload.py"
+      ],
+      "characters": 56461
+    },
+    {
+      "path": "ai-agents/archive/F2_PR848_DIFF_PART_05_OF_10_20261119.patch",
+      "files": [
+        "azure-functions/campaign-api/feature2_adapter.py",
+        "azure-functions/campaign-api/feature2_store.py"
+      ],
+      "characters": 95789
+    },
+    {
+      "path": "ai-agents/archive/F2_PR848_DIFF_PART_06_OF_10_20261119.patch",
+      "files": [
+        "azure-functions/campaign-api/function_app.py",
+        "docs/feature2/FEATURE2_38_TASK_LEDGER_20261029.md",
+        "docs/feature2/FEATURE2_PRIVATE_REVIEW_AUDIT_CODE_FIRST_20261109.md"
+      ],
+      "characters": 96285
+    },
+    {
+      "path": "ai-agents/archive/F2_PR848_DIFF_PART_07_OF_10_20261119.patch",
+      "files": [
+        "docs/feature2/FEATURE2_SOURCE_STATUS.json",
+        "docs/feature2/PRIVATE_ORIGINAL_WAV_PLAYBACK_HANDOFF_20261029.md",
+        "docs/feature2/PRIVATE_TRACE_PANEL_HANDOFF_20261029.md"
+      ],
+      "characters": 70687
+    },
+    {
+      "path": "ai-agents/archive/F2_PR848_DIFF_PART_08_OF_10_20261119.patch",
+      "files": [
+        "docs/feature2/RUN_CHECKPOINT.md",
+        "frontend/FEATURE2_PRIVATE_AUDIO_QUALITY_UI_SAFETY_20261030.md",
+        "frontend/FEATURE2_TRACE_SESSION_EPOCH_HANDOFF_20261030.md",
+        "frontend/scripts/feature2-voiceover-compile.mjs",
+        "frontend/src/features/voiceover/Feature2TracePanel.jsx",
+        "frontend/src/features/voiceover/LocalVoicePanel.jsx"
+      ],
+      "characters": 95019
+    },
+    {
+      "path": "ai-agents/archive/F2_PR848_DIFF_PART_09_OF_10_20261119.patch",
+      "files": [
+        "frontend/src/features/voiceover/feature2-private-http.mjs",
+        "frontend/src/features/voiceover/local-voice-scope.mjs",
+        "frontend/src/features/voiceover/voiceover-model.mjs",
+        "frontend/src/features/voiceover/voiceover-quality-review.mjs",
+        "frontend/src/features/voiceover/voiceover-trace-model.mjs",
+        "tests/ai/test_feature2_source_status.py",
+        "tests/ai/test_prompt_improver.py",
+        "tests/ai/test_trend_intelligence.py",
+        "tests/api/test_feature2_copy_retake_adapters.py",
+        "tests/api/test_feature2_private_audit_store_gateway.py",
+        "tests/api/test_feature2_private_batch_adapters.py",
+        "tests/api/test_feature2_private_cpu_budget_gateway.py",
+        "tests/api/test_feature2_private_reviewed_draft_store_gateway.py"
+      ],
+      "characters": 97273
+    },
+    {
+      "path": "ai-agents/archive/F2_PR848_DIFF_PART_10_OF_10_20261119.patch",
+      "files": [
+        "tests/api/test_feature2_private_upload_cpu_batch.py",
+        "tests/api/test_feature2_private_voice_http_routes.py",
+        "tests/api/test_feature2_private_voice_status_adapter.py",
+        "tests/api/test_feature2_private_voice_store_gateway.py",
+        "tests/frontend/feature2-local-voice-scope.test.mjs",
+        "tests/frontend/feature2-local-voiceover.test.mjs",
+        "tests/frontend/feature2-private-http.test.mjs",
+        "tests/frontend/feature2-private-trace.test.mjs",
+        "tests/frontend/feature2-voice-quality-review.test.mjs"
+      ],
+      "characters": 62626
+    }
+  ]
+}

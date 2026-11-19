@@ -1,0 +1,1800 @@
+diff --git a/frontend/src/features/video/video-transport.mjs b/frontend/src/features/video/video-transport.mjs
+--- a/frontend/src/features/video/video-transport.mjs
++++ b/frontend/src/features/video/video-transport.mjs
+@@ -0,0 +1,191 @@
++// Feature #4 authenticated browser-to-backend transport. Additive, DEFAULT OFF.
++// The coordinator supplies versioned v2 route builders only after registering
++// authorized Azure HTTP routes and service-only claim/ledger methods.
++// Never call the existing v1 /campaigns/:id/renders endpoint with a v2 draft.
++const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
++const FINISHED = new Set(['SUCCEEDED', 'FAILED'])
++const STATES = new Set(['QUEUED', 'RUNNING', ...FINISHED])
++const PATH = /^\/(?:[a-zA-Z0-9_-]+\/)*[a-zA-Z0-9_-]+$/
++
++export function canonicalVideoId(value) {
++  if (typeof value !== 'string' || !UUID.test(value) || value.toLowerCase() !== value) {
++    throw Error('Expected a canonical resource ID')
++  }
++  return value
++}
++
++export function trustedVideoPath(path) {
++  if (typeof path !== 'string' || !PATH.test(path) || path.includes('..') ||
++      path.startsWith('//') || path.startsWith('/api/')) {
++    throw Error('Invalid versioned video API path')
++  }
++  return '/api' + path
++}
++
++export function privateVideoUrl(value, supabaseOrigin, shopId, jobId) {
++  const shop = canonicalVideoId(shopId)
++  const job = canonicalVideoId(jobId)
++  if (typeof value !== 'string' || !value || !supabaseOrigin) {
++    throw Error('Private video download was not returned')
++  }
++  let url, trusted
++  try {
++    url = new URL(value)
++    trusted = new URL(supabaseOrigin)
++  } catch { throw Error('Invalid private video URL') }
++  if (url.origin !== trusted.origin || url.protocol !== 'https:' || url.username ||
++      url.password || url.hash || !url.searchParams.get('token') ||
++      trusted.protocol !== 'https:' || trusted.username || trusted.password) {
++    throw Error('Unsigned or untrusted video URL')
++  }
++  // The v2 private worker stores tenant/job/lease.mp4 in the existing bucket.
++  // Ignore neither the shop nor job ID: a valid token for some other tenant
++  // is not a valid result for the active editor.
++  const prefix = '/storage/v1/object/sign/retailgrowth-media/'
++  if (!url.pathname.startsWith(prefix)) throw Error('Not a signed private media object')
++  let objectKey
++  try { objectKey = decodeURIComponent(url.pathname.slice(prefix.length)) }
++  catch { throw Error('Malformed signed media path') }
++  if (!new RegExp('^' + shop + '/renders/' + job + '/[0-9a-f-]{36}\\.mp4$').test(objectKey) ||
++      objectKey.includes('//') || objectKey.includes('..')) {
++    throw Error('Signed video does not belong to the selected render job')
++  }
++  return url.toString()
++}
++
++export function privateMediaPreviewUrl(value, supabaseOrigin, shopId) {
++  const shop = canonicalVideoId(shopId)
++  if (typeof value !== 'string' || typeof supabaseOrigin !== 'string') {
++    throw Error('Private source preview is unavailable')
++  }
++  let url, trusted
++  try {
++    url = new URL(value)
++    trusted = new URL(supabaseOrigin)
++  } catch { throw Error('Private source preview URL invalid') }
++  if (url.protocol !== 'https:' || trusted.protocol !== 'https:' ||
++      url.origin !== trusted.origin || url.username || url.password ||
++      url.hash || !url.searchParams.get('token')) {
++    throw Error('Source preview must have a tenant-private signed URL')
++  }
++  const prefix = '/storage/v1/object/sign/retailgrowth-media/'
++  if (!url.pathname.startsWith(prefix)) throw Error('Source preview is not private Storage media')
++  let path
++  try { path = decodeURIComponent(url.pathname.slice(prefix.length)) }
++  catch { throw Error('Malformed private preview path') }
++  const parts = path.split('/')
++  if (parts[0] !== shop || parts.length < 3 ||
++      parts.some(part => !part || part === '.' || part === '..') ||
++      path.includes('\\') || path.includes('%') ||
++      !/^[a-zA-Z0-9._/-]+$/.test(path)) {
++    throw Error('Source preview belongs to another shop or unsafe path')
++  }
++  return url.toString()
++}
++
++export function parseVideoJob(data, shopId, expectedId = null) {
++  const shop = canonicalVideoId(shopId)
++  if (data === null || typeof data !== 'object' || Array.isArray(data) ||
++      data.shop_id !== shop || !STATES.has(data.status)) {
++    throw Error('Video job response failed tenant/status verification')
++  }
++  const id = canonicalVideoId(data.job_id)
++  if (expectedId && id !== canonicalVideoId(expectedId)) {
++    throw Error('Video job response did not match the requested job')
++  }
++  return { job_id: id, shop_id: shop, status: data.status,
++    error_code: typeof data.error_code === 'string' ? data.error_code.slice(0, 70) : null }
++}
++
++export function createVideoTransport({ enabled = false, baseUrl, tokenProvider, fetchImpl = fetch,
++  routes, supabaseOrigin, timeoutMs = 12000 }) {
++  if (enabled !== true) return null
++  if (typeof tokenProvider !== 'function' || typeof fetchImpl !== 'function' ||
++      !routes || typeof routes.create !== 'function' ||
++      typeof routes.status !== 'function' || typeof routes.download !== 'function') {
++    throw Error('Versioned, coordinator-approved video routes and auth are required')
++  }
++  if (!Number.isInteger(timeoutMs) || timeoutMs < 500 || timeoutMs > 30000) {
++    throw Error('Invalid video GET timeout')
++  }
++  let origin
++  try {
++    const u = new URL(baseUrl)
++    if (u.protocol !== 'https:' || u.username || u.password || u.pathname !== '/' ||
++        u.search || u.hash) throw Error()
++    origin = u.origin
++  } catch { throw Error('Video backend must be a bare HTTPS origin') }
++
++  async function request(method, path, payload, signal) {
++    const token = await tokenProvider()
++    if (typeof token !== 'string' || token.length < 10 || /[\s\r\n]/.test(token)) {
++      throw Error('Sign in to your business before using Video Studio')
++    }
++    const endpoint = origin + trustedVideoPath(path)
++    // Mutating POST is intentionally NEVER timed out and NEVER retried here:
++    // Azure may have committed it without returning the acknowledgement.
++    // GET can be retried manually by polling; no automatic cross-tenant fallback.
++    const controller = method === 'GET' ? new AbortController() : null
++    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null
++    function abortParent() { controller?.abort() }
++    if (signal?.aborted) throw Error('Video request cancelled')
++    if (signal && controller) signal.addEventListener('abort', abortParent, { once: true })
++    try {
++      const response = await fetchImpl(endpoint, {
++        method, redirect: 'error', cache: 'no-store',
++        headers: { Authorization: 'Bearer ' + token,
++          ...(payload === undefined ? {} : { 'Content-Type': 'application/json' }) },
++        ...(payload === undefined ? {} : { body: JSON.stringify(payload) }),
++        ...(controller ? { signal: controller.signal } : {}),
++      })
++      if (!response || typeof response.ok !== 'boolean') throw Error('Invalid video service response')
++      const data = await response.json().catch(() => null)
++      if (!response.ok) {
++        const err = new Error(response.status === 401 ? 'Your session expired. Sign in again.' :
++          response.status === 403 || response.status === 404 ? 'This video is not available to your business.' :
++          response.status === 402 || response.status === 429 ? 'Video plan or usage quota does not allow this job.' :
++          response.status === 503 ? 'Video service unavailable. Check job status before resubmitting.' :
++          'Video request failed. Check job status before resubmitting.')
++        err.status = response.status
++        throw err
++      }
++      return { data, status: response.status }
++    } finally {
++      if (timer !== null) clearTimeout(timer)
++      if (signal && controller) signal.removeEventListener('abort', abortParent)
++    }
++  }
++
++  return Object.freeze({
++    async create({ shopId, campaignId, draft, approvalId }) {
++      const shop = canonicalVideoId(shopId)
++      const campaign = canonicalVideoId(campaignId)
++      if (!draft || typeof draft !== 'object' || draft.shop_id !== shop ||
++          draft.version !== 'rg_video_v2' || typeof approvalId !== 'string' ||
++          !/^[a-zA-Z0-9_-]{1,100}$/.test(approvalId)) {
++        throw Error('Authenticated, reviewed video draft is required')
++      }
++      // This is an intent to create. The backend MUST reconstruct the
++      // approved creative_reel_v1 request from saved DB media/script/revision.
++      const out = await request('POST', routes.create(campaign),
++        { shop_id: shop, campaign_id: campaign, approval_id: approvalId, draft })
++      if (out.status !== 202 && out.status !== 200) {
++        throw Error('Render job was not acknowledged')
++      }
++      return parseVideoJob(out.data, shop)
++    },
++    async status({ jobId, shopId, signal }) {
++      const job = canonicalVideoId(jobId)
++      const out = await request('GET', routes.status(job), undefined, signal)
++      return parseVideoJob(out.data, shopId, job)
++    },
++    async download({ jobId, shopId, signal }) {
++      const job = canonicalVideoId(jobId)
++      const out = await request('GET', routes.download(job), undefined, signal)
++      if (out.data?.job_id !== job || out.data?.shop_id !== canonicalVideoId(shopId)) {
++        throw Error('Download receipt did not match active business and job')
++      }
++      return privateVideoUrl(out.data?.url, supabaseOrigin, shopId, job)
++    },
++  })
++}
+
+diff --git a/tests/frontend/feature4-audio-mix-display.test.mjs b/tests/frontend/feature4-audio-mix-display.test.mjs
+--- a/tests/frontend/feature4-audio-mix-display.test.mjs
++++ b/tests/frontend/feature4-audio-mix-display.test.mjs
+@@ -0,0 +1,72 @@
++import test from 'node:test'
++import assert from 'node:assert/strict'
++import { fixedAudioMixDisplay } from '../../frontend/src/features/video/audio-mix-display.mjs'
++
++const SHOP = '11111111-1111-4111-8111-111111111111'
++const OTHER = '22222222-2222-4222-8222-222222222222'
++const music = [{id:'song',shop_id:SHOP,kind:'audio',authorized:true},
++  {id:'voice',shop_id:SHOP,kind:'audio',authorized:true}]
++const media = [{id:'photo',shop_id:SHOP,kind:'image',authorized:true},
++  {id:'clip',shop_id:SHOP,kind:'video',authorized:true},
++  {id:'foreign',shop_id:OTHER,kind:'video',authorized:true}]
++const draft = (scene = {asset_id:'photo'}) => ({
++  shop_id:SHOP,music_asset_id:'song',voiceover_asset_id:null,
++  scenes:[scene],duration_seconds:30,
++})
++
++test('silent/still-only mix is fixed at renderer 55%, never editable', () => {
++  const result = fixedAudioMixDisplay(draft(),media,music)
++  assert.equal(result.music,true)
++  assert.equal(result.musicGain,0.55)
++  assert.equal(result.musicGainVerifiedByBrowser,false)
++  assert.equal(result.musicGainUnknownUntilServerProbe,false)
++  assert.equal(result.sceneSfxGain,0.25)
++  assert.equal(result.sceneSfxMaximumSeconds,2)
++})
++
++test('narration forces renderer 12% bed, independent of video source sound', () => {
++  for(const scene of [{asset_id:'photo'},{asset_id:'clip'}]){
++    const result = fixedAudioMixDisplay({...draft(scene),voiceover_asset_id:'voice'},media,music)
++    assert.equal(result.narration,true)
++    assert.equal(result.narrationGain,1)
++    assert.equal(result.musicGain,0.12)
++  }
++})
++
++test('unmuted video makes browser music gain unknown until trusted ffprobe', () => {
++  const result = fixedAudioMixDisplay(draft({asset_id:'clip'}),media,music)
++  assert.equal(result.musicGain,null)
++  assert.equal(result.musicGainUnknownUntilServerProbe,true)
++  assert.equal(result.musicGainVerifiedByBrowser,false)
++})
++
++test('muted approved video is known, but foreign/revoked visuals deny gain claims', () => {
++  assert.equal(fixedAudioMixDisplay(draft({asset_id:'clip',mute_source:true}),media,music).musicGain,0.55)
++  for(const result of [
++    fixedAudioMixDisplay(draft({asset_id:'foreign'}),media,music),
++    fixedAudioMixDisplay(draft({asset_id:'clip'}),media.map(a=>a.id==='clip'?{...a,authorized:false}:a),music),
++    fixedAudioMixDisplay(draft({asset_id:'missing'}),media,music),
++  ]){
++    assert.equal(result.musicGain,null)
++    assert.equal(result.musicGainBlockedByMedia,true)
++    assert.equal(result.musicGainUnknownUntilServerProbe,false)
++  }
++})
++
++test('foreign or revoked audio never yields an apparent licensed gain', () => {
++  for(const row of [{...music[0],shop_id:OTHER},{...music[0],authorized:false}]){
++    const result = fixedAudioMixDisplay(draft(),media,[row,music[1]])
++    assert.equal(result.music,false)
++    assert.equal(result.musicGain,null)
++    assert.equal(result.musicGainUnknownUntilServerProbe,false)
++  }
++  assert.equal(fixedAudioMixDisplay({...draft(),voiceover_asset_id:'voice'},media,
++    [{...music[0]},{...music[1],shop_id:OTHER}]).narration,false)
++})
++
++test('absence of a soundtrack is distinct from unknown soundtrack gain', () => {
++  const result = fixedAudioMixDisplay({...draft({asset_id:'clip'}),music_asset_id:null},media,music)
++  assert.equal(result.music,false)
++  assert.equal(result.musicGain,null)
++  assert.equal(result.musicGainUnknownUntilServerProbe,false)
++})
+
+diff --git a/tests/frontend/feature4-beat-preview.test.mjs b/tests/frontend/feature4-beat-preview.test.mjs
+--- a/tests/frontend/feature4-beat-preview.test.mjs
++++ b/tests/frontend/feature4-beat-preview.test.mjs
+@@ -0,0 +1,27 @@
++// Display-only beat markers are bounded, millisecond-precise and tenant-scoped.
++import assert from 'node:assert/strict'
++import test from 'node:test'
++import {proposedBeatMarkers} from '../../frontend/src/features/video/beat-preview.mjs'
++const SHOP='11111111-1111-4111-8111-111111111111'
++const plan={shop_id:SHOP,mode:'music_sync',duration_seconds:30,
++            music_asset_id:'music01',beats:[1,2.125,5.01,10.01,15.01]}
++const music=[{id:'music01',shop_id:SHOP,kind:'audio',authorized:true}]
++test('valid same-shop measured beat proposals retain source millisecond precision',()=>{
++  assert.deepEqual(proposedBeatMarkers(plan,music),plan.beats)
++})
++test('forged, foreign, unlicensed or out of range beat proposals are hidden',()=>{
++  for(const wrong of [
++    [], [{...music[0],shop_id:'foreign'}],
++    [{...music[0],authorized:false}], [{...music[0],kind:'image'}],
++  ]) assert.deepEqual(proposedBeatMarkers(plan,wrong),[])
++  for(const beats of [[5,5],[5,4],[5,31],[NaN,5],[1.0001,5],[]])
++    assert.deepEqual(proposedBeatMarkers({...plan,beats},music),[])
++  assert.deepEqual(proposedBeatMarkers({...plan,mode:'media'},music),[])
++})
++test('a 60-second track never renders more than 120 preview markers',()=>{
++  const beats=Array.from({length:240},(_,i)=>i*.25)
++  const markers=proposedBeatMarkers({...plan,duration_seconds:60,beats},music)
++  assert.equal(markers.length,120)
++  assert.equal(markers[0],0)
++  assert.equal(markers[1],.5)
++})
+
+diff --git a/tests/frontend/feature4-frame-seek.test.mjs b/tests/frontend/feature4-frame-seek.test.mjs
+--- a/tests/frontend/feature4-frame-seek.test.mjs
++++ b/tests/frontend/feature4-frame-seek.test.mjs
+@@ -0,0 +1,35 @@
++import test from 'node:test'
++import assert from 'node:assert/strict'
++import { boundedFrameSeek, boundedSceneMidpointSeek } from '../../frontend/src/features/video/frame-seek.mjs'
++
++test('F4-08 seek clamps to approved duration and whole frames', () => {
++  assert.equal(boundedFrameSeek(-10, 30, 24), 0)
++  assert.equal(boundedFrameSeek(99, 30, 24), 30)
++  assert.equal(boundedFrameSeek(1 / 24, 30, 24), 1 / 24)
++  assert.equal(boundedFrameSeek(0.08, 30, 30), 2 / 30)
++  assert.equal(boundedFrameSeek(10.05, 10.05, 24), 10.041666666666666)
++})
++test('F4-08 rejects nonfinite and malformed seeks instead of poisoning playhead', () => {
++  for (const value of [NaN, Infinity, -Infinity, undefined, null, '12', {}]) {
++    assert.equal(boundedFrameSeek(value, 30, 24), null)
++  }
++  for (const duration of [0, -1, NaN, Infinity, '30']) {
++    assert.equal(boundedFrameSeek(1, duration, 24), null)
++  }
++  assert.equal(boundedFrameSeek(1, 30, 0), null)
++  assert.equal(boundedFrameSeek(1, 30, 60), null)
++})
++
++test('F4-08 scene and caption clicks resolve to finite bounded frames', () => {
++  assert.equal(boundedSceneMidpointSeek(0, 5, 30, 24), 2.5)
++  assert.equal(boundedSceneMidpointSeek(4, 3, 30, 30), 5.5)
++  assert.equal(boundedSceneMidpointSeek(29, 1, 30, 24), 29.5)
++  assert.equal(boundedFrameSeek(1.08, 30, 24), 26 / 24)
++})
++test('F4-08 rejects malformed or crossing scene spans', () => {
++  for (const [start, length, duration] of [
++    [NaN, 3, 30], [0, Infinity, 30], [-1, 2, 30],
++    [0, 0, 30], [30, 1, 30], [29, 2, 30],
++    [0, 3, Infinity], [0, 3, 0], ['1', 2, 30],
++  ]) assert.equal(boundedSceneMidpointSeek(start, length, duration, 24), null)
++})
+
+diff --git a/tests/frontend/feature4-history-bounds.test.mjs b/tests/frontend/feature4-history-bounds.test.mjs
+--- a/tests/frontend/feature4-history-bounds.test.mjs
++++ b/tests/frontend/feature4-history-bounds.test.mjs
+@@ -0,0 +1,54 @@
++import test from 'node:test'
++import assert from 'node:assert/strict'
++import {
++  createEditorHistory, pushEditorHistory, undoEditorHistory, redoEditorHistory,
++} from '../../frontend/src/features/video/vendor/editorHistoryCore.mjs'
++
++test('F4-09: adapted timeline undo retains only the last 50 snapshots', () => {
++  let history = createEditorHistory({ frame: 0 })
++  for (let frame = 1; frame <= 150; frame++)
++    history = pushEditorHistory(history, { frame })
++  assert.equal(history.past.length, 50)
++  assert.equal(history.past[0].frame, 100)
++  assert.equal(history.current.frame, 150)
++  for (let i = 0; i < 50; i++) {
++    const result = undoEditorHistory(history)
++    assert.equal(result.changed, true)
++    history = result.history
++  }
++  assert.equal(history.current.frame, 100)
++  assert.equal(undoEditorHistory(history).changed, false)
++  for (let i = 0; i < 50; i++) history = redoEditorHistory(history).history
++  assert.equal(history.current.frame, 150)
++  assert.equal(redoEditorHistory(history).changed, false)
++})
++
++test('F4-09: invalid/unbounded custom history limits fail to bounded defaults', () => {
++  for (const limit of [NaN, Infinity, -Infinity, 'not-a-number']) {
++    let history = createEditorHistory({ frame: 0 })
++    for (let frame = 1; frame <= 80; frame++)
++      history = pushEditorHistory(history, { frame }, limit)
++    assert.equal(history.past.length, 50, String(limit))
++  }
++  let limited = createEditorHistory({ frame: 0 })
++  for (let frame = 1; frame <= 10; frame++)
++    limited = pushEditorHistory(limited, { frame }, 0)
++  assert.equal(limited.past.length, 1)
++  limited = createEditorHistory({ frame: 0 })
++  for (let frame = 1; frame <= 10; frame++)
++    limited = pushEditorHistory(limited, { frame }, 2.9)
++  assert.equal(limited.past.length, 2)
++})
++
++test('F4-09: upstream history branching clears redo even for a same-reference edit', () => {
++  const first = { frame: 0 }
++  const second = { frame: 1 }
++  const history = pushEditorHistory(createEditorHistory(first), second)
++  const undone = undoEditorHistory(history).history
++  assert.equal(redoEditorHistory(undone).value, second)
++  const branch = pushEditorHistory(undone, first)
++  assert.equal(branch.current, first)
++  assert.equal(branch.future.length, 0)
++  assert.equal(redoEditorHistory(branch).changed, false)
++  assert.equal(history.current, second)
++})
+
+diff --git a/tests/frontend/timeline-studio-adoption.test.mjs b/tests/frontend/timeline-studio-adoption.test.mjs
+--- a/tests/frontend/timeline-studio-adoption.test.mjs
++++ b/tests/frontend/timeline-studio-adoption.test.mjs
+@@ -0,0 +1,422 @@
++import test from 'node:test'
++import assert from 'node:assert/strict'
++import { studioRanges, studioSplit, studioDuplicate, studioReorder, studioTrimPair, studioSourceTrim, studioValidatedDraft } from '../../frontend/src/features/video/timeline-studio-bridge.mjs'
++import { inspectCreativeDirection, checkedPreviewCaptionCues } from '../../frontend/src/features/video/creative-direction-adapter.mjs'
++import { createEditorHistory, pushEditorHistory, undoEditorHistory, redoEditorHistory } from '../../frontend/src/features/video/vendor/editorHistoryCore.mjs'
++import { packTimedSegmentsIntoLanes, materializeCaptionTimings, getVisualSegmentTimeline } from '../../frontend/src/features/video/vendor/timeline.js'
++import { getTimelineRulerTicks, getTimelineAutoFitZoom } from '../../frontend/src/features/video/vendor/timelineScale.js'
++import { makeVideoDraft, compatibleMedia, validateVideoDraft, sourceClipPlaybackWindow } from '../../frontend/src/features/video/video-model.mjs'
++
++const SHOP='11111111-1111-4111-8111-111111111111'
++const OTHER='22222222-2222-4222-8222-222222222222'
++const assets=[
++ {id:'photo1',kind:'image',shop_id:SHOP,authorized:true,name:'Reviewed kurti'},
++ {id:'motion1',kind:'video',shop_id:SHOP,authorized:true,name:'Mocked Feature5 motion'},
++ {id:'poster1',kind:'poster',shop_id:SHOP,authorized:true,name:'Reviewed poster'},
++ {id:'forbidden',kind:'video',shop_id:OTHER,authorized:true},
++ {id:'revoked',kind:'video',shop_id:SHOP,authorized:false},
++]
++const music=[{id:'licensed_music',kind:'audio',authorized:true,shop_id:SHOP}]
++function draft(){
++ const d=makeVideoDraft({shopId:SHOP,mode:'media',duration:30,mediaAssets:assets})
++ d.scenes[0].asset_id='photo1'
++ d.scenes[1].asset_id='motion1'
++ d.scenes[2].asset_id='poster1'
++ d.scenes[1].headline='Approved model movement'
++ d.scenes[1].offer='20% OFF'
++ d.music_asset_id='licensed_music'
++ return d
++}
++
++test('real upstream timeline geometry, caption lanes and zoom work on approved ad',()=>{
++ const d=draft()
++ assert.deepEqual(studioRanges(d).map(s=>[s.start,s.end]),[[0,10],[10,20],[20,30]])
++ assert.equal(getVisualSegmentTimeline(d.scenes).at(-1).end,30)
++ const zoom=getTimelineAutoFitZoom(30)
++ const ticks=getTimelineRulerTicks(30,zoom,0,30)
++ assert.ok(ticks.some(t=>t.isMajor))
++ const captions=materializeCaptionTimings(d.scenes.map(s=>({text:s.headline,start:s.start,end:s.start+s.duration})),30)
++ assert.deepEqual(captions.map(s=>s.start),[0,10,20])
++ assert.equal(packTimedSegmentsIntoLanes(captions.map((s,i)=>({...s,id:'caption'+i,duration:s.end-s.start}))).length,1)
++})
++
++test('Timeline Studio real upstream splitter preserves exact retailer offer and sound source',()=>{
++ const d=draft()
++ const out=studioSplit(d,1,4,assets)
++ assert.equal(out.scenes.length,4)
++ assert.deepEqual(out.scenes.map(s=>s.start),[0,10,14,20])
++ assert.deepEqual(out.scenes.map(s=>s.duration),[10,4,6,10])
++ assert.equal(out.scenes[1].offer,'20% OFF')
++ assert.equal(out.scenes[2].offer,'20% OFF')
++ assert.equal(out.scenes[1].asset_id,'motion1')
++ assert.equal(out.scenes[2].asset_id,'motion1')
++ assert.equal(out.scenes[2].trim_start,4)
++ assert.equal(out.scenes[2].headline,'Approved model movement')
++ assert.deepEqual(validateVideoDraft(out,assets,music),[])
++ assert.deepEqual(d.scenes.map(s=>s.duration),[10,10,10],'original draft stays immutable')
++})
++
++test('split after a source trim keeps playback offsets, not fake footage generation',()=>{
++ const trimmed=studioSourceTrim(draft(),1,3.25,assets)
++ const split=studioSplit(trimmed,1,3,assets)
++ assert.equal(split.scenes[1].trim_start,3.25)
++ assert.equal(split.scenes[2].trim_start,6.25)
++ assert.deepEqual(validateVideoDraft(split,assets,music),[])
++})
++test('reorder/retime independent tracks and maintain exact 30s backend contract',()=>{
++ let d=draft()
++ d=studioReorder(d,0,2)
++ assert.deepEqual(d.scenes.map(s=>s.asset_id),['motion1','poster1','photo1'])
++ d=studioTrimPair(d,0,2.5)
++ assert.deepEqual(d.scenes.map(s=>s.duration),[12.5,7.5,10])
++ assert.deepEqual(d.scenes.map(s=>s.start),[0,12.5,20])
++ assert.deepEqual(validateVideoDraft(d,assets,music),[])
++ assert.throws(()=>studioTrimPair(d,0,100),/at least/)
++ assert.throws(()=>studioReorder(d,0,3),/Invalid/)
++})
++test('denies foreign, revoked, nonexistent media and invalid split without silent fallback',()=>{
++ const d=draft()
++ assert.throws(()=>studioSplit(d,1,.1,assets),/Split/)
++ assert.throws(()=>studioSplit(d,1,10,assets),/Split/)
++ const foreign={...d,scenes:d.scenes.map((s,i)=>i===1?{...s,asset_id:'forbidden'}:s)}
++ assert.throws(()=>studioSplit(foreign,1,3,assets),/unapproved/)
++ const revoked={...d,scenes:d.scenes.map((s,i)=>i===1?{...s,asset_id:'revoked'}:s)}
++ assert.throws(()=>studioSplit(revoked,1,3,assets),/unapproved/)
++ assert.throws(()=>studioSourceTrim(d,0,2,assets),/Source trim/)
++ assert.throws(()=>studioSourceTrim(d,1,-3,assets),/Source trim/)
++ assert.throws(()=>studioValidatedDraft({...d,cta:''},assets,music),/CTA/)
++})
++test('upstream undo/redo clears redo after new action and resets project state',()=>{
++ const a=draft(), b=studioReorder(a,0,1)
++ const first=createEditorHistory(a)
++ const second=pushEditorHistory(first,b)
++ assert.equal(second.current.scenes[0].asset_id,'motion1')
++ const undo=undoEditorHistory(second)
++ assert.equal(undo.changed,true)
++ assert.equal(undo.value.scenes[0].asset_id,'photo1')
++ const redo=redoEditorHistory(undo.history)
++ assert.equal(redo.value.scenes[0].asset_id,'motion1')
++ assert.equal(pushEditorHistory(undo.history,a).future.length,0)
++ assert.equal(undoEditorHistory(first).changed,false)
++})
++function direction(){
++ const d=draft()
++ return {version:'creative_direction_v1',source_feature:'feature2',approved:true,
++ shop_id:SHOP,campaign_id:'campaign1',approval_id:'approval1',review_hash:'a'.repeat(64),
++ template:'cinematic',duration_seconds:30,cta:d.cta,music_asset_id:d.music_asset_id,
++ scenes:d.scenes.map(s=>({duration:s.duration,asset_id:s.asset_id,headline:s.headline,
++ animation_preset:s.animation_preset,transition:s.transition,...(s.offer?{offer:s.offer}:{})})),
++ motion_direction_v1: {prompts:['Photoreal adult wearing identical approved kurti']}
++ }
++}
++test('creative_direction_v1 is read-only renderer-safe bridge; preserves approved copy',()=>{
++ const original=direction(), unchanged=structuredClone(original)
++ const {draft:plan,readOnly,reviewHash}=inspectCreativeDirection(original,{shopId:SHOP,mediaAssets:assets,musicAssets:music})
++ assert.equal(readOnly,true)
++ assert.equal(reviewHash,'a'.repeat(64))
++ assert.equal(plan.version,'rg_video_v2')
++ assert.equal(plan.scenes[1].headline,'Approved model movement')
++ assert.equal(plan.scenes[1].offer,'20% OFF')
++ assert.equal(plan.cta,'Visit our store')
++ assert.deepEqual(original,unchanged)
++ assert.deepEqual(validateVideoDraft(plan,assets,music),[])
++})
++test('rejects mismatched/revoked creative approval and unsupported transitions',()=>{
++ const good=direction()
++ for(const modify of [
++ d=>d.shop_id=OTHER,d=>d.approved=false,d=>d.version='creative_direction_v2',
++ d=>d.scenes[1].asset_id='forbidden',d=>d.scenes[1].asset_id='revoked',
++ d=>d.scenes[1].transition='wipe',d=>d.scenes[1].animation_preset='ai_weird',
++ d=>d.scenes[1].headline='fake promotional line'.repeat(20),
++ d=>d.duration_seconds=60,d=>d.music_asset_id='stolen',
++ d=>d.review_hash='',d=>d.cta='',
++ ]){const v=structuredClone(good);modify(v);assert.throws(()=>inspectCreativeDirection(v,{shopId:SHOP,mediaAssets:assets,musicAssets:music}))}
++})
++
++test('security: cross-tenant poster overlay and soundtrack are rejected independently',()=>{
++ const d=draft()
++ const forged=structuredClone(d)
++ forged.scenes[0].poster_overlay_asset_id='foreign_overlay'
++ const all=[...assets,{id:'foreign_overlay',kind:'poster',shop_id:OTHER,authorized:true}]
++ assert.throws(()=>studioValidatedDraft(forged,all,music),/Foreign, unlicensed or revoked/)
++ const revoked={...d, music_asset_id:'licensed_music'}
++ assert.throws(()=>studioValidatedDraft(revoked,assets,[{...music[0],authorized:false}]),/Foreign, unlicensed or revoked/)
++})
++test('video source bounds reject trim beyond verified duration, including after split',()=>{
++ const d=draft()
++ const measured=assets.map(a=>a.id==='motion1'?{...a,duration_seconds:11}:a)
++ assert.throws(()=>studioSourceTrim(d,1,2,measured),/verified source length/)
++ const ok=studioSourceTrim(d,1,1,measured)
++ assert.deepEqual(validateVideoDraft(ok,assets,music),[])
++ assert.throws(()=>studioValidatedDraft({...d,scenes:d.scenes.map((s,i)=>
++  i===1?{...s,trim_start:3}:s)},measured,music),/verified source length/)
++ const trimmed=studioSplit(ok,1,4,measured)
++ assert.equal(trimmed.scenes[2].trim_start,5)
++ assert.deepEqual(validateVideoDraft(trimmed,assets,music),[])
++})
++test('video right-hand boundary trim never rewinds or silently replays source footage',()=>{
++ const d=draft()
++ const modified={...d,scenes:d.scenes.map((s,i)=>i===1?{...s,trim_start:4}:s)}
++ const moved=studioTrimPair(modified,0,2)
++ assert.equal(moved.scenes[1].trim_start,6)
++ assert.equal(moved.scenes[1].duration,8)
++ assert.deepEqual(validateVideoDraft(moved,assets,music),[])
++ assert.throws(()=>studioTrimPair(modified,0,-5),/before its source begins/)
++})
++
++test('moving the first image/video boundary never replays untrimmed motion clips',()=>{
++  const d=draft()
++  const changed=studioTrimPair(d,0,2,assets)
++  assert.equal(changed.scenes[1].duration,8)
++  assert.equal(changed.scenes[1].trim_start,2)
++  assert.throws(()=>studioTrimPair(d,0,-2,assets),/before its source begins/)
++  const measured=assets.map(a=>a.id==='motion1'?{...a,duration_seconds:9}:a)
++  assert.throws(()=>studioValidatedDraft(changed,measured,music),/verified source length/)
++})
++
++test('scene sound effect is licensed and tenant-scoped, and remains a 2s SFX not voiceover',()=>{
++ const d=draft()
++ const withSfx={...d,scenes:d.scenes.map((s,i)=>i===1?{...s,sfx_asset_id:'licensed_music'}:s)}
++ assert.deepEqual(validateVideoDraft(withSfx,assets,music),[])
++ assert.equal(studioValidatedDraft(withSfx,assets,music).scenes[1].sfx_asset_id,'licensed_music')
++ const other=[{...music[0],shop_id:OTHER}]
++ assert.match(validateVideoDraft(withSfx,assets,other).join(';'),/same-shop licensed audio effect/)
++ assert.throws(()=>studioValidatedDraft(withSfx,assets,other),/Foreign, unlicensed or revoked/)
++})
++
++test('full-Reel narration is a separate approved, tenant-owned source and not scene SFX',()=>{
++ const d=draft()
++ const voiced={...d,voiceover_asset_id:'licensed_music'}
++ assert.deepEqual(validateVideoDraft(voiced,assets,music),[])
++ assert.equal(studioValidatedDraft(voiced,assets,music).voiceover_asset_id,'licensed_music')
++ const other=[{...music[0],shop_id:OTHER}]
++ assert.match(validateVideoDraft(voiced,assets,other).join(';'),/same-shop full-Reel/)
++ assert.throws(()=>studioValidatedDraft(voiced,assets,other),/Foreign, unlicensed or revoked/)
++})
++
++test('authoritative shop matching is required for product, poster, music and output validation',()=>{
++ const d=draft()
++ const media=[...assets,{id:'foreign',kind:'image',authorized:true,shop_id:OTHER}]
++ assert.equal(compatibleMedia('media',media,SHOP).some(a=>a.id==='foreign'),false)
++ const initial=makeVideoDraft({shopId:SHOP,mode:'media',duration:30,mediaAssets:[media.at(-1),...assets]})
++ assert.notEqual(initial.scenes[0].asset_id,'foreign')
++ const foreignAsset={...d,scenes:d.scenes.map((s,i)=>i===0?{...s,asset_id:'foreign'}:s)}
++ assert.match(validateVideoDraft(foreignAsset,media,music).join(';'),/same-shop media/)
++ const foreignPoster={...d,scenes:d.scenes.map((s,i)=>i===1?{...s,poster_overlay_asset_id:'foreign_poster'}:s)}
++ const posters=[...media,{id:'foreign_poster',kind:'poster',authorized:true,shop_id:OTHER}]
++ assert.match(validateVideoDraft(foreignPoster,posters,music).join(';'),/promotional poster/)
++ const foreignMusic={...d,music_asset_id:'licensed_music'}
++ assert.match(validateVideoDraft(foreignMusic,assets,[{...music[0],shop_id:OTHER}]).join(';'),/rights-cleared music/)
++})
++test('front-end refuses unsupported video edits and source-duration overruns before submission',()=>{
++ const d=draft(), measured=assets.map(a=>a.id==='motion1'?{...a,duration_seconds:10}:a)
++ const forged={...d,scenes:d.scenes.map((s,i)=>i===1?{...s,trim_start:2}:s)}
++ assert.match(validateVideoDraft(forged,measured,music).join(';'),/verified video source duration/)
++ const imageTrim={...d,scenes:d.scenes.map((s,i)=>i===0?{...s,trim_start:3}:s)}
++ assert.match(validateVideoDraft(imageTrim,measured,music).join(';'),/invalid approved video trim/)
++ const wrongMute={...d,scenes:d.scenes.map((s,i)=>i===0?{...s,mute_source:true}:s)}
++ assert.match(validateVideoDraft(wrongMute,measured,music).join(';'),/source audio mute/)
++ const shortVoice={...d,voiceover_asset_id:'licensed_music'}
++ assert.match(validateVideoDraft(shortVoice,assets,[{...music[0],duration_seconds:8}]).join(';'),/does not cover/)
++})
++
++test('signed source video preview plays only the exact renderer trim window',()=>{
++ const scene={duration:6,trim_start:2.5}
++ const source={kind:'video',authorized:true,duration_seconds:9}
++ assert.deepEqual(sourceClipPlaybackWindow(scene,source),{start:2.5,end:8.5})
++ assert.equal(sourceClipPlaybackWindow(scene,{kind:'image',authorized:true}),null)
++ assert.throws(()=>sourceClipPlaybackWindow({...scene,trim_start:3.5},source),/exceeds verified/)
++ assert.throws(()=>sourceClipPlaybackWindow({...scene,trim_start:-1},source),/invalid verified/)
++ assert.throws(()=>sourceClipPlaybackWindow({...scene,trim_start:NaN},source),/invalid verified/)
++})
++
++test('approved F2 clip trims, source mute and poster layers survive read-only handoff unchanged',()=>{
++ const d=direction(), original=structuredClone(d)
++ d.scenes[1].trim_start=2
++ d.scenes[1].mute_source=true
++ d.scenes[1].poster_overlay_asset_id='poster1'
++ const approved=structuredClone(d)
++ const result=inspectCreativeDirection(d,{shopId:SHOP,mediaAssets:assets,musicAssets:music})
++ assert.equal(result.readOnly,true)
++ assert.equal(result.draft.scenes[1].trim_start,2)
++ assert.equal(result.draft.scenes[1].mute_source,true)
++ assert.equal(result.draft.scenes[1].poster_overlay_asset_id,'poster1')
++ assert.deepEqual(d,approved)
++ assert.equal(original.scenes[1].trim_start,undefined)
++ for(const mutate of [
++   v=>v.scenes[1].trim_start=-1,
++   v=>v.scenes[1].trim_start=Infinity,
++   v=>v.scenes[0].trim_start=2,
++   v=>v.scenes[1].mute_source='true',
++   v=>v.scenes[1].poster_overlay_asset_id='motion1',
++   v=>v.scenes[1].poster_overlay_asset_id='foreign',
++ ]) {
++   const forged=structuredClone(d)
++   mutate(forged)
++   assert.throws(()=>inspectCreativeDirection(forged,{shopId:SHOP,mediaAssets:assets,musicAssets:music}),
++     /Feature #2 scene/)
++ }
++})
++
++test('splitting a scene never duplicates or truncates its approved timed SFX',()=>{
++ const d=draft()
++ const audio={...d,scenes:d.scenes.map((s,i)=>i===1?{...s,sfx_asset_id:'licensed_music'}:s)}
++ const split=studioSplit(audio,1,3,assets)
++ assert.equal(split.scenes[1].sfx_asset_id,'licensed_music')
++ assert.equal(split.scenes[2].sfx_asset_id,undefined)
++ assert.equal(split.scenes[1].duration,3)
++ assert.deepEqual(validateVideoDraft(split,assets,music),[])
++ assert.throws(()=>studioSplit(audio,1,1,assets),/cut through the approved 2-second/)
++ assert.deepEqual(audio.scenes[1].duration,10)
++})
++
++test('Feature2 approved timed subtitles display as immutable transcript instead of scene headings',()=>{
++ const d=direction()
++ d.voiceover_asset_id='licensed_music'
++ d.script={source_feature:'feature2',approved:true,approval_id:'approval1',
++  transcript:[{start:.5,duration:2,text:'Approved voice cue'},
++  {start:20,duration:2,text:'Visit our store'}]}
++ const unchanged=structuredClone(d)
++ const result=inspectCreativeDirection(d,{shopId:SHOP,mediaAssets:assets,musicAssets:music})
++ assert.equal(result.captionCues.length,2)
++ assert.equal(result.captionCues[1].start,20)
++ assert.deepEqual(d,unchanged)
++ assert.equal(result.draft.scenes.length,3)
++ for(const change of [
++  q=>q.script.transcript[1].start=1,
++  q=>q.script.transcript[0].text='<script>',
++  q=>q.script.approved=false,
++  q=>q.script.approval_id='another',
++  q=>q.voiceover_asset_id=null,
++ ]) {
++  const candidate=structuredClone(d)
++  change(candidate)
++  assert.throws(()=>inspectCreativeDirection(candidate,{shopId:SHOP,mediaAssets:assets,musicAssets:music}))
++ }
++ assert.throws(()=>checkedPreviewCaptionCues([{start:0,duration:35,text:'bad'}],30))
++})
++
++test('approved F2 subtitle millisecond timecodes match backend without silent rounding',()=>{
++  const cues=[{start:0.5,duration:1.25,text:'Silk & craft'},
++    {start:1.75,duration:0.5,text:'Visit our store'}]
++  assert.deepEqual(checkedPreviewCaptionCues(cues,30),cues)
++  for (const invalid of [
++    [{start:0.5004,duration:1.25,text:'Submillisecond start'}],
++    [{start:0.5,duration:1.2504,text:'Submillisecond duration'}],
++    [cues[0],{start:1.749,duration:0.5,text:'One millisecond overlap'}],
++    [{start:29.801,duration:0.2,text:'Beyond 30s Reel'}],
++  ]) {
++    assert.throws(()=>checkedPreviewCaptionCues(invalid,30),/unsafe or overlapping/)
++  }
++})
++
++test('timeline boundary changes never silently shorten or extend approved 2s scene SFX',()=>{
++  const original=draft()
++  const withEffect={...original,scenes:original.scenes.map((scene,index)=>
++    index===1?{...scene,sfx_asset_id:'licensed_music'}:scene)}
++  assert.throws(()=>studioTrimPair(withEffect,0,8.5,assets),/sound-effect duration/)
++  assert.throws(()=>studioTrimPair(withEffect,1,-8.5,assets),/sound-effect duration/)
++  const safe=studioTrimPair(withEffect,0,2,assets)
++  assert.equal(safe.scenes[1].duration,8)
++  assert.equal(safe.scenes[1].sfx_asset_id,'licensed_music')
++  assert.deepEqual(validateVideoDraft(safe,assets,music),[])
++  assert.equal(withEffect.scenes[1].duration,10)
++})
++
++test('extending left-hand video boundary cannot exceed verified private source duration',()=>{
++  const original=draft()
++  const measured=assets.map(a=>a.id==='motion1'?{...a,duration_seconds:10}:a)
++  assert.throws(()=>studioTrimPair(original,1,1,measured),/verified source video duration/)
++  assert.equal(original.scenes[1].duration,10)
++  // Decreasing the selected video scene remains permitted and is source-safe.
++  const safe=studioTrimPair(original,1,-1,measured)
++  assert.equal(safe.scenes[1].duration,9)
++  assert.deepEqual(validateVideoDraft(safe,measured,music),[])
++})
++
++test('real MIT OpenReel frame controls parse and step at 24/30fps with strict invalid input',async()=>{
++  const {formatFrameTimecode,parseFrameTimecode}=await import('../../frontend/src/features/video/vendor/openreel/frame-timecode.mjs')
++  const {stepEditingFrame,normalizeEditingFrameRate}=await import('../../frontend/src/features/video/vendor/openreel/editing-frame-rate.mjs')
++  assert.equal(formatFrameTimecode(1.5,24),'00:00:01:12')
++  assert.equal(formatFrameTimecode(1.5,30),'00:00:01:15')
++  assert.equal(parseFrameTimecode('00:00:02:12',24),2.5)
++  assert.equal(parseFrameTimecode('01:02:12',24),62.5)
++  assert.equal(parseFrameTimecode('0.04',24),1/24)
++  assert.equal(stepEditingFrame(0,1,30),1/30)
++  assert.equal(stepEditingFrame(1/30,-1,30),0)
++  assert.equal(normalizeEditingFrameRate(0),30)
++  for(const invalid of ['','oops','-1','00:00:60:00','00:00:00:30','Infinity'])
++    assert.equal(parseFrameTimecode(invalid,30),null)
++})
++
++test('OpenReel real track item selection identifies only authorized scenes and splittable interiors',async()=>{
++  const {getTimelineItemRanges,getTimelineTrackSelection,getSplittableTimelineItemIds}
++    = await import('../../frontend/src/features/video/vendor/openreel/timeline-item-actions.mjs')
++  const plan=draft()
++  const project={timeline:{tracks:[{id:'video',clips:plan.scenes.map((scene,i)=>({
++    id:'scene-'+i,startTime:scene.start,duration:scene.duration}))}]}}
++  const items=getTimelineItemRanges(project)
++  assert.deepEqual(items.map(x=>x.startTime),[0,10,20])
++  assert.deepEqual(getTimelineTrackSelection(project,'video').map(x=>x.id),['scene-0','scene-1','scene-2'])
++  assert.deepEqual(getSplittableTimelineItemIds(project,['scene-1'],14),['scene-1'])
++  assert.deepEqual(getSplittableTimelineItemIds(project,['scene-1'],10),[])
++  assert.deepEqual(getSplittableTimelineItemIds(project,['scene-1'],20),[])
++  assert.deepEqual(getSplittableTimelineItemIds(project,['forged-scene'],14),[])
++})
++
++test('OpenReel actual ClipManager snap finds cut/grid boundaries without modifying source',async()=>{
++ const {OpenReelClipSnapper}
++   =await import('../../frontend/src/features/video/vendor/openreel/clip-snap.mjs')
++ const timeline={tracks:[{id:'video',clips:[
++   {id:'scene-0',startTime:0,duration:3.5},
++   {id:'scene-1',startTime:3.5,duration:6.5}
++ ]}]}
++ const original=structuredClone(timeline)
++ const snapper=new OpenReelClipSnapper({snapThreshold:8,gridSize:1})
++ const hit=snapper.snapToGrid(3.46,timeline,'video',100)
++ assert.equal(hit.didSnap,true)
++ assert.equal(hit.snappedTime,3.5)
++ assert.equal(hit.snapTarget,'clip-end')
++ assert.equal(snapper.snapToGrid(1.02,timeline,'video',100).snappedTime,1)
++ assert.equal(snapper.snapToGrid(2.29,timeline,'video',100).didSnap,false)
++ assert.deepEqual(timeline,original)
++ const off=new OpenReelClipSnapper({snapToGridEnabled:false})
++ assert.equal(off.snapToGrid(3.46,timeline,'video',100).snappedTime,3.46)
++})
++
++
++test('duplicate visual clip replays authorized in-point in-place with exact 30s duration',()=>{
++ const original=draft()
++ const doubled=studioDuplicate(original,1,assets)
++ assert.equal(original.scenes.length,3)
++ assert.equal(doubled.scenes.length,4)
++ assert.deepEqual(doubled.scenes.map(s=>s.duration),[10,5,5,10])
++ assert.equal(doubled.scenes[1].asset_id,'motion1')
++ assert.equal(doubled.scenes[2].asset_id,'motion1')
++ assert.equal(doubled.scenes[1].trim_start||0,0)
++ assert.equal(doubled.scenes[2].trim_start,0) // Replay, not fake extra footage.
++ assert.equal(doubled.scenes[1].offer,'20% OFF')
++ assert.equal(doubled.scenes[2].offer,'20% OFF')
++ assert.equal(doubled.scenes.reduce((n,s)=>n+s.duration,0),30)
++ assert.deepEqual(validateVideoDraft(doubled,assets,music),[])
++ assert.deepEqual(studioRanges(doubled).map(s=>s.end),[10,15,20,30])
++ const retimed={...original,scenes:original.scenes.map((s,i)=>i===1?{...s,trim_start:2}:s)}
++ const repeat=studioDuplicate(retimed,1,assets)
++ assert.equal(repeat.scenes[2].trim_start,2)
++})
++
++test('duplicate cannot import foreign source, repeat SFX or change total Reel duration',()=>{
++ const base=draft()
++ assert.throws(()=>studioDuplicate(base,99,assets),/Duplication/)
++ const foreign={...base,scenes:base.scenes.map((s,i)=>i===1?{...s,asset_id:'forbidden'}:s)}
++ assert.throws(()=>studioDuplicate(foreign,1,assets),/foreign or unapproved/)
++ const approvedSfx={...base,scenes:base.scenes.map((s,i)=>i===1?{...s,sfx_asset_id:'licensed_music'}:s)}
++ const duplicated=studioDuplicate(approvedSfx,1,assets)
++ assert.equal(duplicated.scenes[1].sfx_asset_id,'licensed_music')
++ assert.equal(duplicated.scenes[2].sfx_asset_id,undefined)
++ assert.deepEqual(validateVideoDraft(duplicated,assets,music),[])
++ const shortFx={...base,scenes:base.scenes.map((s,i)=>i===1?{...s,duration:3,sfx_asset_id:'licensed_music'}:s)}
++ assert.throws(()=>studioDuplicate(shortFx,1,assets),/truncate an approved/)
++ const limited={...base,scenes:Array.from({length:12},(_,i)=>({...base.scenes[0],duration:2.5}))}
++ assert.throws(()=>studioDuplicate(limited,1,assets),/fewer than 12/)
++})
+
+diff --git a/tests/frontend/video-model.test.mjs b/tests/frontend/video-model.test.mjs
+--- a/tests/frontend/video-model.test.mjs
++++ b/tests/frontend/video-model.test.mjs
+@@ -0,0 +1,116 @@
++import test from 'node:test'
++import assert from 'node:assert/strict'
++import {
++  compatibleMedia, makeVideoDraft, shiftVideoScene, retimeVideoDraft, recalculateScenes, validateVideoDraft, sourceClipTimeForPlayhead,
++} from '../../frontend/src/features/video/video-model.mjs'
++
++const shopId = '11111111-1111-4111-8111-111111111111'
++const media = [
++  { id: 'good_photo', kind: 'image', authorized: true, shop_id: shopId },
++  { id: 'good_video', kind: 'video', authorized: true, shop_id: shopId },
++  { id: 'poster1', kind: 'poster', authorized: true, shop_id: shopId },
++  { id: 'denied_photo', kind: 'image', authorized: false, shop_id: shopId },
++]
++const tracks = [{ id: 'licensed1', title: 'Owned track', authorized: true, kind: 'audio', shop_id: shopId }]
++
++test('P0 modes produce bounded v2 plans without granting media authority', () => {
++  for (const mode of ['text', 'image', 'poster', 'media']) {
++    const plan = makeVideoDraft({ shopId, mode, mediaAssets: media })
++    assert.equal(plan.duration_seconds, 15)
++    assert.equal(plan.scenes.reduce((sum, s) => sum + s.duration, 0), 15)
++    assert.deepEqual(validateVideoDraft(plan, media, tracks), [])
++  }
++})
++
++test('server authorization flags exclude revoked media', () => {
++  assert.deepEqual(compatibleMedia('image', media).map(a => a.id), ['good_photo'])
++  const plan = makeVideoDraft({ shopId, mode: 'image', mediaAssets: media })
++  plan.scenes[1].asset_id = 'denied_photo'
++  assert.match(validateVideoDraft(plan, media).join(' '), /authorized same-shop media/)
++})
++
++test('scene reordering recalculates non-overlapping time starts', () => {
++  const plan = makeVideoDraft({ shopId, mode: 'text', duration: 30 })
++  const reordered = shiftVideoScene(plan.scenes, 0, 1)
++  assert.equal(reordered[0].headline, plan.scenes[1].headline)
++  assert.equal(reordered[1].headline, plan.scenes[0].headline)
++  assert.deepEqual(reordered.map(x => x.start), [0, 10, 20])
++  assert.deepEqual(shiftVideoScene(reordered, 0, -1), reordered)
++  assert.deepEqual(recalculateScenes(reordered), reordered)
++})
++
++test('cannot silently infer approved prices, beat data or music rights', () => {
++  const plan = makeVideoDraft({ shopId, mode: 'music_sync', mediaAssets: media })
++  assert.match(validateVideoDraft(plan, media, tracks).join(' '), /Beat-sync requires/)
++  plan.music_asset_id = 'licensed1'
++  plan.beats = [0, 5, 10]
++  assert.deepEqual(validateVideoDraft(plan, media, tracks), [])
++  plan.music_asset_id = 'untrusted'
++  assert.match(validateVideoDraft(plan, media, tracks).join(' '), /rights-cleared/)
++  plan.scenes[0].offer = 'x'.repeat(71)
++  assert.match(validateVideoDraft(plan, media, tracks).join(' '), /Offer text/)
++})
++
++test('invalid lengths and unlicensed art reject submit', () => {
++  const plan = makeVideoDraft({ shopId, mode: 'poster', mediaAssets: media })
++  plan.scenes[0].duration = 7
++  assert.match(validateVideoDraft(plan, media, tracks).join(' '), /sequential|fill/)
++  plan.scenes[0].duration = 5
++  plan.scenes[0].headline = ''
++  assert.match(validateVideoDraft(plan, media, tracks).join(' '), /headline/)
++})
++
++test('duration changes preserve the drafted professional story and authorized media', () => {
++  const draft = makeVideoDraft({ shopId, mode: 'media', duration: 30, mediaAssets: media })
++  draft.scenes[1].headline = 'Our actual approved kurti'
++  draft.scenes[1].offer = '20% OFF'
++  const longer = retimeVideoDraft(draft, 60)
++  assert.deepEqual(longer.scenes.map(s => s.start), [0, 20, 40])
++  assert.deepEqual(longer.scenes.map(s => s.duration), [20, 20, 20])
++  assert.equal(longer.scenes[1].headline, 'Our actual approved kurti')
++  assert.equal(longer.scenes[1].offer, '20% OFF')
++  assert.equal(longer.scenes[1].asset_id, draft.scenes[1].asset_id)
++  assert.deepEqual(validateVideoDraft(longer, media, tracks), [])
++  const shorter = retimeVideoDraft(longer, 15)
++  assert.deepEqual(shorter.scenes.map(s => s.start), [0, 5, 10])
++  assert.deepEqual(validateVideoDraft(shorter, media, tracks), [])
++  assert.equal(draft.duration_seconds, 30)
++})
++
++test('retiming never silently drops a short scene', () => {
++  const draft = makeVideoDraft({ shopId, mode: 'text', duration: 60 })
++  draft.scenes = Array.from({ length: 12 }, (_, i) => ({
++    start: i === 0 ? 0 : i < 11 ? i - 1 : 10,
++    duration: i < 11 ? .5 : 54.5,
++    headline: 'Approved',
++  }))
++  assert.throws(() => retimeVideoDraft(draft, 15), /shorter than half a second/)
++})
++
++test('scene motion and separate poster overlays are allowlisted, never custom expressions', () => {
++  const draft = makeVideoDraft({ shopId, mode: 'media', mediaAssets: media })
++  draft.scenes[1].animation_preset = 'pop'
++  draft.scenes[1].transition = 'slide'
++  draft.scenes[1].poster_overlay_asset_id = 'poster1'
++  assert.deepEqual(validateVideoDraft(draft, media, tracks), [])
++  draft.scenes[1].transition = 'url(javascript:alert(1))'
++  assert.match(validateVideoDraft(draft, media, tracks).join(' '), /unapproved transition/)
++  draft.scenes[1].transition = 'cut'
++  draft.scenes[1].poster_overlay_asset_id = 'denied_photo'
++  assert.match(validateVideoDraft(draft, media, tracks).join(' '), /authorized promotional poster/)
++  draft.scenes[1].poster_overlay_asset_id = draft.scenes[1].asset_id
++  assert.match(validateVideoDraft(draft, media, tracks).join(' '), /distinct authorized/)
++})
++
++test('F4-08 timeline frame jog seeks only inside the same authorized original video excerpt', () => {
++  const scene = { start: 10, duration: 5, trim_start: 3.25 }
++  const source = { kind: 'video', authorized: true, duration_seconds: 20, shop_id: shopId }
++  assert.equal(sourceClipTimeForPlayhead(scene, source, 11.5), 4.75)
++  assert.equal(sourceClipTimeForPlayhead(scene, source, 10), 3.25)
++  assert.equal(sourceClipTimeForPlayhead(scene, source, 15), null)
++  assert.equal(sourceClipTimeForPlayhead(scene, source, 9.9), null)
++  assert.equal(sourceClipTimeForPlayhead(scene, source, NaN), null)
++  assert.equal(sourceClipTimeForPlayhead(scene, {...source, authorized: false}, 11), null)
++  assert.equal(sourceClipTimeForPlayhead(scene, {...source, kind: 'image'}, 11), null)
++  assert.throws(() => sourceClipTimeForPlayhead(scene, {...source, duration_seconds: 4}, 11), /verified video length/)
++})
+
+diff --git a/tests/frontend/video-transport.test.mjs b/tests/frontend/video-transport.test.mjs
+--- a/tests/frontend/video-transport.test.mjs
++++ b/tests/frontend/video-transport.test.mjs
+@@ -0,0 +1,169 @@
++import test from 'node:test'
++import assert from 'node:assert/strict'
++import {
++  canonicalVideoId, trustedVideoPath, privateVideoUrl, privateMediaPreviewUrl,
++  parseVideoJob, createVideoTransport,
++} from '../../frontend/src/features/video/video-transport.mjs'
++
++const SHOP = '11111111-1111-4111-8111-111111111111'
++const OTHER = '44444444-4444-4444-8444-444444444444'
++const CAMPAIGN = '22222222-2222-4222-8222-222222222222'
++const JOB = '33333333-3333-4333-8333-333333333333'
++const LEASE = '55555555-5555-4555-8555-555555555555'
++const SU = 'https://example.supabase.co'
++const ORIGIN = 'https://retailgrowth-dev-functions.azurewebsites.net'
++const routes = {
++  create: campaign => '/campaigns/' + campaign + '/creative-renders',
++  status: job => '/creative-render-jobs/' + job,
++  download: job => '/creative-render-jobs/' + job + '/download',
++}
++const signed = SU + '/storage/v1/object/sign/retailgrowth-media/' +
++  SHOP + '/renders/' + JOB + '/' + LEASE + '.mp4?token=private-example'
++const draft = { version: 'rg_video_v2', shop_id: SHOP, duration_seconds: 30, scenes: [] }
++const accepted = { shop_id: SHOP, job_id: JOB, status: 'QUEUED' }
++function response(data, status = 200) {
++  return { ok: status >= 200 && status < 300, status, json: async () => data }
++}
++function fixture(fn, options = {}) {
++  return createVideoTransport({ enabled: true, baseUrl: ORIGIN,
++    tokenProvider: () => 'example-tenant-jwt',
++    fetchImpl: fn, routes, supabaseOrigin: SU, ...options })
++}
++
++test('integration client default off and strict config', () => {
++  assert.equal(createVideoTransport({}), null)
++  assert.throws(() => createVideoTransport({ enabled: true }), /routes and auth/)
++  assert.throws(() => fixture(async () => response(accepted), { baseUrl: 'http://untrusted.invalid' }), /HTTPS/)
++  assert.throws(() => fixture(async () => response(accepted), { baseUrl: ORIGIN + '/api' }), /HTTPS/)
++  assert.throws(() => fixture(async () => response(accepted), { timeoutMs: 60000 }), /timeout/)
++})
++
++test('POST sends one authenticated job intent with no service role, no retries', async () => {
++  const seen = []
++  const api = fixture(async (url, opts) => {
++    seen.push({ url, opts })
++    return response(accepted, 202)
++  })
++  const job = await api.create({ shopId: SHOP, campaignId: CAMPAIGN,
++    draft, approvalId: 'approved-feature2-copy' })
++  assert.deepEqual(job, { ...accepted, error_code: null })
++  assert.equal(seen.length, 1)
++  assert.equal(seen[0].url, ORIGIN + '/api/campaigns/' + CAMPAIGN + '/creative-renders')
++  assert.equal(seen[0].opts.headers.Authorization, 'Bearer example-tenant-jwt')
++  assert.equal(seen[0].opts.cache, 'no-store')
++  assert.equal(seen[0].opts.method, 'POST')
++  assert.equal(seen[0].opts.signal, undefined)
++  assert.deepEqual(JSON.parse(seen[0].opts.body),
++    { shop_id: SHOP, campaign_id: CAMPAIGN, approval_id: 'approved-feature2-copy', draft })
++})
++
++test('POST never retries a lost acknowledgement or transient 503', async () => {
++  let calls = 0
++  const api = fixture(async () => { calls++; throw new TypeError('network dropped after commit') })
++  await assert.rejects(() => api.create({ shopId: SHOP, campaignId: CAMPAIGN,
++    draft, approvalId: 'version1' }), /network dropped/)
++  assert.equal(calls, 1)
++  const unavailable = fixture(async () => { calls++; return response({ error: 'SERVICE_UNAVAILABLE' }, 503) })
++  await assert.rejects(() => unavailable.create({ shopId: SHOP, campaignId: CAMPAIGN,
++    draft, approvalId: 'version1' }), /Check job status before resubmitting/)
++  assert.equal(calls, 2)
++})
++
++test('reject unauthorized, misbound or fabricated job receipt', async () => {
++  for (const bad of [
++    { ...accepted, shop_id: OTHER }, { ...accepted, job_id: 'not-a-uuid' },
++    { ...accepted, status: 'FINISHED' }, { ...accepted, status: 'SUCCEEDED', shop_id: undefined },
++  ]) {
++    const api = fixture(async () => response(bad, 202))
++    await assert.rejects(() => api.create({
++      shopId: SHOP, campaignId: CAMPAIGN, draft, approvalId: 'approved'
++    }), /tenant\/status verification|canonical resource ID/)
++  }
++  await assert.rejects(() => fixture(async () => response(accepted)).create({
++    shopId: OTHER, campaignId: CAMPAIGN, draft, approvalId: 'approved',
++  }), /reviewed video draft/)
++})
++
++test('GET status binds both job and shop; requests freshly scoped JWT', async () => {
++  let count = 0
++  const api = fixture(async (url, opts) => {
++    count++
++    assert.equal(opts.method, 'GET')
++    assert.ok(opts.signal)
++    assert.equal(url, ORIGIN + '/api/creative-render-jobs/' + JOB)
++    return response({ ...accepted, status: 'RUNNING' })
++  })
++  const item = await api.status({ jobId: JOB, shopId: SHOP })
++  assert.equal(item.status, 'RUNNING')
++  assert.equal(count, 1)
++  const wrong = fixture(async () => response({ ...accepted, job_id: OTHER }))
++  await assert.rejects(() => wrong.status({ jobId: JOB, shopId: SHOP }), /requested job/)
++})
++
++test('download requires matching shop+job and signed private tenant path', async () => {
++  const api = fixture(async () => response({ ...accepted, url: signed }))
++  assert.equal(await api.download({ shopId: SHOP, jobId: JOB }), signed)
++  const invalid = fixture(async () => response({ ...accepted, shop_id: OTHER, url: signed }))
++  await assert.rejects(() => invalid.download({ shopId: SHOP, jobId: JOB }), /receipt/)
++  const wrongUrl = fixture(async () => response({
++    ...accepted, url: signed.replace(SHOP, OTHER)
++  }))
++  await assert.rejects(() => wrongUrl.download({ shopId: SHOP, jobId: JOB }), /does not belong/)
++})
++
++test('malicious signed links cannot cross tenant, job, origin or protocol', () => {
++  assert.equal(privateVideoUrl(signed, SU, SHOP, JOB), signed)
++  for (const value of [
++    signed.replace(SHOP, OTHER),
++    signed.replace(JOB, OTHER),
++    signed.replace('example.supabase.co', 'attacker.invalid'),
++    signed.replace('https:', 'http:'),
++    signed.replace('token=', 'not-token='),
++    signed.replace('/sign/', '/public/'),
++    signed + '#token-secret',
++    signed.replace('/renders/', '/renders/%2e%2e/'),
++  ]) {
++    assert.throws(() => privateVideoUrl(value, SU, SHOP, JOB), /Signed|Unsigned|private|belong|Malformed/)
++  }
++})
++
++test('unreviewed route/path and session IDs fail closed', async () => {
++  assert.equal(canonicalVideoId(SHOP), SHOP)
++  for (const id of ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'.toUpperCase(), 'not-a-uuid', '']) {
++    assert.throws(() => canonicalVideoId(id), /canonical/)
++  }
++  for (const path of ['//evil.invalid/render', '/api/video', '/../../admin', '/creative-renders?token=a']) {
++    assert.throws(() => trustedVideoPath(path), /Invalid/)
++  }
++  const api = fixture(async () => response(accepted), { routes: {
++    ...routes, create: () => '//attacker.invalid/v2',
++  } })
++  await assert.rejects(() => api.create({
++    shopId: SHOP, campaignId: CAMPAIGN, draft, approvalId: 'approved',
++  }), /Invalid versioned video API path/)
++})
++
++test('parse video job never accepts cross-shop result even if server says succeeded', () => {
++  assert.deepEqual(parseVideoJob({ ...accepted, status: 'SUCCEEDED' }, SHOP),
++    { ...accepted, status: 'SUCCEEDED', error_code: null })
++  assert.throws(() => parseVideoJob({ ...accepted, shop_id: OTHER }, SHOP), /tenant/)
++  assert.throws(() => parseVideoJob({ ...accepted, job_id: OTHER }, SHOP, JOB), /requested job/)
++})
++
++test('Feature4 source previews require a matching signed tenant-private Storage asset', () => {
++  const url = SU + '/storage/v1/object/sign/retailgrowth-media/' +
++    SHOP + '/products/original-kurti.png?token=short-lived'
++  assert.equal(privateMediaPreviewUrl(url, SU, SHOP), url)
++  for (const bad of [
++    url.replace(SHOP, OTHER),
++    url.replace('https://', 'http://'),
++    url.replace('/sign/', '/public/'),
++    url.replace('example.supabase.co', 'untrusted.invalid'),
++    url.replace('token=', 'not-token='),
++    url.replace('/products/', '/products/%2e%2e/'),
++    url + '#leaked',
++    'data:image/svg+xml;base64,PHN2Zz4=',
++  ]) {
++    assert.throws(() => privateMediaPreviewUrl(bad, SU, SHOP), /preview|signed|private|Storage|shop|unsafe|URL/)
++  }
++})
+
+diff --git a/tests/media/feature4_voicestudio_cpu_render.py b/tests/media/feature4_voicestudio_cpu_render.py
+--- a/tests/media/feature4_voicestudio_cpu_render.py
++++ b/tests/media/feature4_voicestudio_cpu_render.py
+@@ -0,0 +1,210 @@
++#!/usr/bin/env python3
++"""CPU-only F4 narration acceptance: approved synthetic WAV -> HyperFrames -> AAC MP4.
++
++This uses the existing compiler and renderer; it does not synthesize speech or
++claim that synthetic fixture approval represents hosted tenant authorization.
++"""
++import json
++import math
++import struct
++import subprocess
++import sys
++import tempfile
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[2]
++sys.path[:0] = [str(ROOT / "video-engine"), str(ROOT / "tests" / "media")]
++from creative_contract import compile_creative_reel
++from test_feature4_narration import NarrationMediaTests
++
++def main():
++    fixture = NarrationMediaTests().fixture()
++    try:
++        # The shared narration fixture defaults to the 540x960 preview preset.
++        # Exercise the approved final-export preset before asserting Full HD.
++        fixture.request["output"].update({"width": 1080, "height": 1920, "fps": 24})
++        fixture.request["script"]["transcript"] = [
++            {"start": 0.5, "duration": 2.5, "text": "Approved synthetic caption"},
++            {"start": 14.0, "duration": 2.0, "text": "Original fixture narration"},
++        ]
++        with tempfile.TemporaryDirectory(prefix="f4-voice-cpu-") as temp:
++            project = compile_creative_reel(
++                fixture.request, fixture.manifest, fixture.assets,
++                Path(temp) / "project")
++            page = (Path(project) / "index.html").read_text(encoding="utf-8")
++            assert page.count('id="approved-voiceover"') == 1, "Narration track missing or duplicated"
++            assert page.count('class="clip spoken-caption"') == 2, "Approved caption cues missing"
++            assert 'data-track-index="5" data-volume="0.12"' in page, "Music not ducked"
++            output = Path(temp) / "reel.mp4"
++            subprocess.run(
++                ["node", str(ROOT / "video-engine" / "hyperframes" / "render.mjs"),
++                 str(project), str(output)],
++                check=True, timeout=420)
++            info = json.loads(subprocess.check_output(
++                ["ffprobe", "-v", "error", "-show_streams", "-show_format",
++                 "-of", "json", str(output)], text=True, timeout=30))
++            streams = info["streams"]
++            video = [s for s in streams if s.get("codec_type") == "video"]
++            audio = [s for s in streams if s.get("codec_type") == "audio"]
++            assert len(video) == len(audio) == 1, "Expected one video and one audio track"
++            assert video[0]["codec_name"] == "h264" and audio[0]["codec_name"] == "aac"
++            assert (int(video[0]["width"]), int(video[0]["height"])) == (1080, 1920), "Reel is not vertical Full HD"
++            assert video[0].get("pix_fmt") == "yuv420p", "Reel pixel format is not broadly playable"
++            assert video[0].get("r_frame_rate") == "24/1", "Reel frame rate drifted from approved 24 fps"
++            # Count decoded video frames, not just the advertised frame rate.
++            counted = json.loads(subprocess.check_output(
++                ["ffprobe", "-v", "error", "-select_streams", "v:0",
++                 "-count_frames", "-show_entries", "stream=nb_read_frames",
++                 "-of", "json", str(output)], text=True, timeout=60))
++            actual_frames = int(counted["streams"][0]["nb_read_frames"])
++            assert actual_frames == 30 * 24, (
++                f"Encoded Reel has {actual_frames} frames, expected 720")
++            # Probe decoded timestamps rather than trusting only nb_read_frames:
++            # a malformed concat can advertise 720 frames yet leave a large
++            # frozen/timestamp gap near the end of the narration.
++            frames = json.loads(subprocess.check_output(
++                ["ffprobe", "-v", "error", "-select_streams", "v:0",
++                 "-show_frames", "-show_entries",
++                 "frame=best_effort_timestamp_time", "-of", "json",
++                 str(output)], text=True, timeout=90))["frames"]
++            timestamps = [float(f["best_effort_timestamp_time"]) for f in frames
++                          if "best_effort_timestamp_time" in f]
++            assert len(timestamps) == 720, "Decoded video timestamp count mismatches Reel"
++            assert abs(timestamps[0]) < 0.05, "Reel starts with a video timestamp gap"
++            assert abs(timestamps[-1] - 719 / 24) < 0.05, "Reel video ends prematurely"
++            assert all(0.03 < b - a < 0.06 for a, b in zip(timestamps, timestamps[1:])), (
++                "Video frame timestamps are nonmonotonic or contain gaps")
++            assert int(audio[0]["channels"]) in (1, 2), "Unsupported AAC channel layout"
++            assert int(audio[0]["sample_rate"]) >= 8000, "Invalid AAC sample rate"
++            assert abs(float(audio[0].get("duration", info["format"]["duration"])) - 30) < 0.3, "AAC track duration mismatches Reel"
++            assert abs(float(info["format"]["duration"]) - 30) < 0.3
++            assert output.stat().st_size > 10000
++            # Decode actual AAC, not merely inspect an audio-stream header.
++            # Synthetic 350 Hz narration + 196 Hz music must produce nonzero
++            # PCM. This does not assert transcript/speech alignment.
++            pcm = subprocess.check_output(
++                ["ffmpeg", "-nostdin", "-v", "error", "-i", str(output),
++                 "-map", "0:a:0", "-t", "1", "-ac", "1", "-ar", "8000",
++                 "-f", "s16le", "-acodec", "pcm_s16le", "-"],
++                timeout=45)
++            assert len(pcm) >= 8000 * 2, "Encoded narration is truncated"
++            samples = struct.unpack("<" + "h" * (len(pcm) // 2), pcm)
++            rms = math.sqrt(sum(x * x for x in samples) / len(samples))
++            assert rms > 100, "Encoded narration/music unexpectedly silent"
++            # Reject full-scale PCM clipping in the actual decoded AAC mix.
++            # A successful mux or nonzero RMS alone can conceal a broken gain
++            # stage that saturates the licensed soundtrack and narration.
++            assert max(abs(x) for x in samples) < 32767, (
++                "Decoded VoiceStudio AAC mix clips at full-scale PCM")
++            # A mono downmix can hide opposite-polarity peaks in one AAC
++            # channel. Probe the native channel count, not an upmixed mono
++            # stream, at the beginning, caption cues, late voice and tail.
++            # A one-second opening-only check misses later mixer saturation.
++            native_channels = int(audio[0]["channels"])
++            for second, duration in ((0, 1), (5, 1), (14, 1),
++                                     (20, 1), (29, 0.8)):
++                channel_pcm = subprocess.check_output(
++                    ["ffmpeg", "-nostdin", "-v", "error", "-ss", str(second),
++                     "-i", str(output), "-map", "0:a:0", "-t", str(duration),
++                     "-ac", str(native_channels), "-ar", "8000",
++                     "-f", "s16le", "-acodec", "pcm_s16le", "-"],
++                    timeout=45)
++                expected_samples = int(8000 * duration) * native_channels
++                assert len(channel_pcm) >= expected_samples * 2, (
++                    f"Decoded native-channel AAC truncated at {second}s")
++                channel_samples = struct.unpack(
++                    "<" + "h" * (len(channel_pcm) // 2), channel_pcm)
++                for channel in range(native_channels):
++                    assert max(abs(x) for x in
++                               channel_samples[channel::native_channels]) < 32767, (
++                        f"Decoded AAC channel {channel} clips at {second}s")
++            # Verify the original narration tone is actually present in decoded
++            # AAC, rather than passing because the music bed alone is audible.
++            # The synthetic fixture uses 350 Hz narration and 196 Hz music.
++            # Integer-Hz, one-second windows make this a deterministic DFT bin.
++            def tone_magnitude(samples, frequency):
++                n = len(samples)
++                return abs(sum(
++                    sample * complex(
++                        math.cos(-2 * math.pi * frequency * i / 8000),
++                        math.sin(-2 * math.pi * frequency * i / 8000))
++                    for i, sample in enumerate(samples)
++                )) / n
++
++            narration_level = tone_magnitude(samples, 350)
++            bed_level = tone_magnitude(samples, 196)
++            assert narration_level > 100, "Approved 350 Hz narration missing from AAC"
++            assert bed_level > 5, "Licensed 196 Hz music bed missing from AAC"
++            assert narration_level > bed_level, "Music bed is not ducked below narration"
++            # Probe the approved spoken-caption windows as well as the opening.
++            # The music-only track can satisfy a generic RMS check, so require
++            # the original 350 Hz WAV to remain present in each AAC window.
++            for second in (5, 14):
++                cue_pcm = subprocess.check_output(
++                    ["ffmpeg", "-nostdin", "-v", "error", "-ss", str(second),
++                     "-i", str(output), "-map", "0:a:0", "-t", "1",
++                     "-ac", "1", "-ar", "8000", "-f", "s16le",
++                     "-acodec", "pcm_s16le", "-"], timeout=45)
++                assert len(cue_pcm) >= 8000 * 2, (
++                    f"Approved narration AAC truncated at {second}s")
++                cue_samples = struct.unpack(
++                    "<" + "h" * (len(cue_pcm) // 2), cue_pcm)
++                assert max(abs(x) for x in cue_samples) < 32767, (
++                    f"Decoded AAC clips during approved narration at {second}s")
++                assert tone_magnitude(cue_samples, 350) > 100, (
++                    f"Approved narration missing at {second}s")
++                assert tone_magnitude(cue_samples, 350) > tone_magnitude(cue_samples, 196), (
++                    f"Music masks approved narration at {second}s")
++            # Confirm audio survives into the second half of the Reel; a first-
++            # second-only PCM probe would miss truncated narration or a mixer
++            # that silently drops the approved voiceover after the opening.
++            late_pcm = subprocess.check_output(
++                ["ffmpeg", "-nostdin", "-v", "error", "-ss", "20",
++                 "-i", str(output), "-map", "0:a:0", "-t", "1",
++                 "-ac", "1", "-ar", "8000", "-f", "s16le",
++                 "-acodec", "pcm_s16le", "-"], timeout=45)
++            assert len(late_pcm) >= 8000 * 2, "Late narration audio is truncated"
++            late_samples = struct.unpack("<" + "h" * (len(late_pcm) // 2), late_pcm)
++            late_rms = math.sqrt(sum(x * x for x in late_samples) / len(late_samples))
++            assert late_rms > 100, "Encoded narration/music silent at 20 seconds"
++            assert max(abs(x) for x in late_samples) < 32767, (
++                "Decoded AAC clips during late approved narration")
++            late_narration = tone_magnitude(late_samples, 350)
++            late_bed = tone_magnitude(late_samples, 196)
++            assert late_narration > 100, "Approved narration disappeared before 20 seconds"
++            assert late_bed > 5, "Music bed disappeared before 20 seconds"
++            assert late_narration > late_bed, "Late music masks approved narration"
++            # End-of-reel verification catches an AAC muxer that truncates the
++            # approved track after the mid-reel probe, despite valid duration
++            # metadata. Use the same synthetic frequency separation at 29s.
++            tail_pcm = subprocess.check_output(
++                ["ffmpeg", "-nostdin", "-v", "error", "-ss", "29",
++                 "-i", str(output), "-map", "0:a:0", "-t", "0.8",
++                 "-ac", "1", "-ar", "8000", "-f", "s16le",
++                 "-acodec", "pcm_s16le", "-"], timeout=45)
++            assert len(tail_pcm) >= 6000 * 2, "Final AAC narration is truncated"
++            tail_samples = struct.unpack("<" + "h" * (len(tail_pcm) // 2), tail_pcm)
++            assert max(abs(x) for x in tail_samples) < 32767, (
++                "Decoded AAC clips near final Reel frame")
++            assert tone_magnitude(tail_samples, 350) > 100, "Approved narration missing at Reel end"
++            assert tone_magnitude(tail_samples, 196) > 5, "Music bed missing at Reel end"
++            assert tone_magnitude(tail_samples, 350) > tone_magnitude(tail_samples, 196), "End music masks narration"
++            # Decode the actual encoded portrait frames at the beginning and
++            # near the end. Container metadata alone cannot prove that the
++            # video track is decodable for the full approved narration span.
++            for second in (1, 15, 29):
++                frame = subprocess.check_output(
++                    ["ffmpeg", "-nostdin", "-v", "error", "-ss", str(second),
++                     "-i", str(output), "-map", "0:v:0", "-frames:v", "1",
++                     "-vf", "scale=32:56,format=gray", "-f", "rawvideo", "-"],
++                    timeout=45)
++                assert len(frame) == 32 * 56, (
++                    f"Missing or undecodable portrait video frame at {second}s")
++                assert max(frame) - min(frame) >= 5, (
++                    f"Near-uniform encoded video frame at {second}s")
++            print("PASS: original approved synthetic PCM narration + music/captions encoded by existing HyperFrames CPU renderer")
++    finally:
++        fixture.root_tmp.cleanup()
++
++if __name__ == "__main__":
++    main()
+
+diff --git a/tests/media/test_asset_preflight.py b/tests/media/test_asset_preflight.py
+--- a/tests/media/test_asset_preflight.py
++++ b/tests/media/test_asset_preflight.py
+@@ -73,6 +73,16 @@ def test_unparseable_audio_duration_denied(self):
+             with self.assertRaisesRegex(AssetPreflightError, "Invalid audio"):
+                 inspect_staged_audio(audio)
+ 
++    def test_missing_audio_duration_denied_before_render(self):
++        audio = self.root / "unknown.wav"
++        audio.write_bytes(b"placeholder")
++        with patch("asset_preflight._probe", return_value={"streams": [
++            {"codec_type": "audio", "codec_name": "pcm_s16le",
++             "sample_rate": "44100", "channels": 2}
++        ], "format": {}}):
++            with self.assertRaisesRegex(AssetPreflightError, "length limit"):
++                inspect_staged_audio(audio)
++
+     def test_probe_timeout_fail_closed(self):
+         image = self.root / "image.png"
+         image.write_bytes(b"\x89PNG\r\n\x1a\n")
+
+diff --git a/tests/media/test_feature4_audio_catalog.py b/tests/media/test_feature4_audio_catalog.py
+--- a/tests/media/test_feature4_audio_catalog.py
++++ b/tests/media/test_feature4_audio_catalog.py
+@@ -0,0 +1,65 @@
++"""Fail-closed audio catalog regression tests; no commercial tracks distributed."""
++import copy
++import datetime as dt
++import sys
++import unittest
++from pathlib import Path
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "video-engine"))
++from audio_catalog import authorized_track, AudioCatalogError  # noqa E402
++
++NOW = dt.datetime(2026, 10, 26, tzinfo=dt.timezone.utc)
++BASE = {
++    "id": "original_test_tone", "asset_id": "asset_approved_1",
++    "title": "Operator-owned test track", "source": "https://example.invalid/original-audio",
++    "creator": "RetailGrowthAI fixture author", "license_url": "https://example.invalid/license",
++    "license_evidence_id": "internal-review-document-00001",
++    "reviewed_by": "Internal legal curator", "reviewed_at": "2026-10-20T00:00:00Z",
++    "status": "approved", "allowed_platforms": ["instagram", "youtube"],
++    "allowed_territories": ["IN"], "permitted_uses": ["embedded_ad"],
++    "attribution_required": False, "expires_at": None,
++}
++
++
++class AudioCatalogTests(unittest.TestCase):
++    def test_explicit_approved_track_context(self):
++        self.assertEqual(authorized_track(BASE, "instagram", "IN", "embedded_ad", NOW),
++                         "asset_approved_1")
++
++    def test_unreviewed_and_revoked_fail_closed(self):
++        for status in ("pending", "revoked", "restricted"):
++            record = dict(BASE, status=status)
++            with self.assertRaises(AudioCatalogError):
++                authorized_track(record, "youtube", "IN", "embedded_ad", NOW)
++
++    def test_platform_territory_organic_and_standalone_denied(self):
++        for platform, territory, usage in (
++            ("facebook", "IN", "embedded_ad"),
++            ("youtube", "US", "embedded_ad"),
++            ("youtube", "IN", "embedded_organic"),
++            ("youtube", "IN", "standalone_export"),
++        ):
++            with self.assertRaises(AudioCatalogError):
++                authorized_track(BASE, platform, territory, usage, NOW)
++
++    def test_expiry_future_review_and_missing_evidence_denied(self):
++        for overrides in (
++            {"expires_at": "2026-10-25T00:00:00Z"},
++            {"reviewed_at": "2026-10-27T00:00:00Z"},
++            {"license_evidence_id": ""},
++            {"source": "http://untrusted.invalid/file"},
++            {"allowed_platforms": []},
++        ):
++            record = copy.deepcopy(BASE)
++            record.update(overrides)
++            with self.assertRaises(AudioCatalogError):
++                authorized_track(record, "instagram", "IN", "embedded_ad", NOW)
++
++    def test_timestamp_requires_timezone(self):
++        record = dict(BASE, reviewed_at="2026-10-20T00:00:00")
++        with self.assertRaises(AudioCatalogError):
++            authorized_track(record, "instagram", "IN", "embedded_ad", NOW)
++
++
++if __name__ == "__main__":
++    unittest.main()
+
+diff --git a/tests/media/test_feature4_audio_master.py b/tests/media/test_feature4_audio_master.py
+--- a/tests/media/test_feature4_audio_master.py
++++ b/tests/media/test_feature4_audio_master.py
+@@ -0,0 +1,226 @@
++"""Actual H264 stream-copy + loudness mastering tests (synthetic audio only)."""
++import subprocess
++import sys
++import tempfile
++import unittest
++from unittest.mock import patch
++from pathlib import Path
++ROOT=Path(__file__).resolve().parents[2]
++sys.path.insert(0,str(ROOT/"video-engine"))
++from feature4_audio_master import master_private_audio, AudioMasterError
++import feature4_audio_master as audio_master
++
++class Feature4MasterTests(unittest.TestCase):
++    def setUp(self):
++        ctx=tempfile.TemporaryDirectory()
++        self.addCleanup(ctx.cleanup)
++        self.root=Path(ctx.name)
++        self.source=self.root/"source.mp4"
++        self.output=self.root/"master.mp4"
++
++    def make_source(self, *, mute_audio=False):
++        args=["ffmpeg","-nostdin","-loglevel","error","-y",
++              "-f","lavfi","-i","testsrc2=size=270x480:rate=12:duration=15",
++              "-f","lavfi","-i","sine=frequency=455:sample_rate=32000:duration=15",
++              "-map","0:v:0", "-map","1:a:0",
++              "-c:v","libx264","-preset","ultrafast","-crf","30",
++              "-pix_fmt","yuv420p","-threads","2",
++              "-c:a","aac","-b:a","64k",
++              "-af","volume=0.035", "-shortest",str(self.source)]
++        subprocess.run(args,check=True,capture_output=True,timeout=90)
++        # Private mastering requires resolution 540x960 or higher.
++        upscale=self.root/"upscale.mp4"
++        subprocess.run(["ffmpeg","-nostdin","-loglevel","error","-y","-i",str(self.source),
++            "-vf","scale=540:960","-c:v","libx264","-preset","ultrafast",
++            "-c:a","copy", "-threads","2",str(upscale)],check=True,capture_output=True,timeout=90)
++        upscale.replace(self.source)
++
++    def test_master_real_audio_without_touching_video_packets(self):
++        self.make_source()
++        before=self.source.read_bytes()
++        result=master_private_audio(self.source,self.output,expected_seconds=15)
++        self.assertEqual(before,self.source.read_bytes())
++        self.assertTrue(self.output.exists())
++        self.assertEqual(result["status"],"PRIVATE_AUDIO_MASTERED_NOT_PUBLISHED")
++        self.assertGreater(result["mastered_audio_mean_db"]-result["source_audio_mean_db"],3)
++        self.assertTrue(result["video_packet_sha256"])
++        self.assertFalse(result["signed_download_ready"])
++        self.assertFalse(result["commercial_release_eligible"])
++        with self.assertRaisesRegex(AudioMasterError,"new"):
++            master_private_audio(self.source,self.output,expected_seconds=15)
++
++    def test_authorized_source_revision_during_mastering_is_rejected(self):
++        self.make_source()
++        original_run = audio_master._run
++        modified = False
++        def mutate_once(args, **kwargs):
++            nonlocal modified
++            result = original_run(args, **kwargs)
++            if not modified and "-movflags" in args and "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000" in args:
++                with self.source.open("ab") as stream:
++                    stream.write(b"lease-revoked-mid-encode")
++                modified = True
++            return result
++        with patch.object(audio_master, "_run", side_effect=mutate_once):
++            with self.assertRaisesRegex(AudioMasterError, "changed"):
++                master_private_audio(self.source,self.output,expected_seconds=15)
++        self.assertTrue(modified)
++        self.assertFalse(self.output.exists())
++        self.assertEqual(list(self.root.glob(".audio-master-*.mp4")), [])
++
++    def test_same_byte_inode_swap_after_audio_probe_is_rejected(self):
++        self.make_source()
++        original_inspect = audio_master.inspect_mp4
++        swapped = False
++
++        def swapped_probe(path, *, max_size):
++            nonlocal swapped
++            result = original_inspect(path, max_size=max_size)
++            if not swapped and Path(path) == self.source:
++                replacement = self.root / "same-bytes-new-inode.mp4"
++                replacement.write_bytes(self.source.read_bytes())
++                replacement.replace(self.source)
++                swapped = True
++            return result
++
++        with patch.object(audio_master, "inspect_mp4", side_effect=swapped_probe):
++            with self.assertRaisesRegex(AudioMasterError, "changed"):
++                master_private_audio(self.source, self.output, expected_seconds=15)
++        self.assertTrue(swapped)
++        self.assertFalse(self.output.exists())
++        self.assertEqual(list(self.root.glob(".audio-master-*.mp4")), [])
++
++    def test_same_byte_inode_swap_during_audio_encode_is_rejected(self):
++        self.make_source()
++        original_run = audio_master._run
++        swapped = False
++
++        def swapped_encode(args, **kwargs):
++            nonlocal swapped
++            result = original_run(args, **kwargs)
++            if not swapped and "-movflags" in args and "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000" in args:
++                replacement = self.root / "same-bytes-new-inode.mp4"
++                replacement.write_bytes(self.source.read_bytes())
++                replacement.replace(self.source)
++                swapped = True
++            return result
++
++        with patch.object(audio_master, "_run", side_effect=swapped_encode):
++            with self.assertRaisesRegex(AudioMasterError, "changed"):
++                master_private_audio(self.source, self.output, expected_seconds=15)
++        self.assertTrue(swapped)
++        self.assertFalse(self.output.exists())
++        self.assertEqual(list(self.root.glob(".audio-master-*.mp4")), [])
++
++    def test_wrong_duration_invalid_and_symlink_inputs_fail(self):
++        self.make_source()
++        with self.assertRaisesRegex(AudioMasterError,"duration"):
++            master_private_audio(self.source,self.output,expected_seconds=30)
++        unsafe=self.root/"symlink.mp4"
++        unsafe.symlink_to(self.source)
++        with self.assertRaisesRegex(AudioMasterError,"verified"):
++            master_private_audio(unsafe,self.output,expected_seconds=15)
++        self.source.write_bytes(b"bad video"*1000)
++        with self.assertRaises(AudioMasterError):
++            master_private_audio(self.source,self.output,expected_seconds=15)
++        self.assertFalse(self.output.exists())
++
++
++    def test_receipt_preflight_rejects_existing_or_symlink_before_mastering(self):
++        report=self.root/"receipt.json"
++        report.write_text("other-job-receipt",encoding="utf-8")
++        with patch.object(sys,"argv",["master","--source",str(self.source),
++                                     "--output",str(self.output),
++                                     "--duration","15","--report",str(report)]), \
++             patch.object(audio_master,"master_private_audio") as master:
++            with self.assertRaises(SystemExit) as err:
++                audio_master.main()
++            self.assertEqual(err.exception.code,2)
++            master.assert_not_called()
++        self.assertEqual(report.read_text(encoding="utf-8"),"other-job-receipt")
++        report.unlink()
++        link=self.root/"linked-receipts"
++        link.symlink_to(self.root,target_is_directory=True)
++        with self.assertRaises(AudioMasterError):
++            audio_master._check_private_receipt_path(link/"receipt.json")
++
++    def test_report_race_preserves_other_job_and_removes_unreceipted_master(self):
++        report=self.root/"receipt.json"
++        def raced_master(src,output,*,expected_seconds):
++            Path(output).write_bytes(b"new-private-master")
++            report.write_text("another-job-receipt",encoding="utf-8")
++            return {"status":"PRIVATE_AUDIO_MASTERED_NOT_PUBLISHED",
++                    "source_audio_mean_db":-28.0,"mastered_audio_mean_db":-16.0}
++        with patch.object(sys,"argv",["master","--source",str(self.source),
++                                     "--output",str(self.output),
++                                     "--duration","15","--report",str(report)]), \
++             patch.object(audio_master,"master_private_audio",side_effect=raced_master):
++            with self.assertRaises(SystemExit) as err:
++                audio_master.main()
++            self.assertEqual(err.exception.code,2)
++        self.assertEqual(report.read_text(encoding="utf-8"),"another-job-receipt")
++        self.assertFalse(self.output.exists())
++
++    def test_exclusive_audio_receipt_writes_json_once(self):
++        report=self.root/"receipt.json"
++        payload={"status":"PRIVATE_AUDIO_MASTERED_NOT_PUBLISHED",
++                 "commercial_release_eligible":False}
++        audio_master._write_private_receipt(report,payload)
++        self.assertEqual(__import__("json").loads(report.read_text()),payload)
++        if __import__("os").name == "posix":
++            self.assertEqual(report.stat().st_mode & 0o777, 0o600)
++        with self.assertRaisesRegex(AudioMasterError,"new JSON"):
++            audio_master._write_private_receipt(report,payload)
++        self.assertEqual(__import__("json").loads(report.read_text()),payload)
++
++
++    def test_proof_fsync_failure_removes_only_owned_partial(self):
++        report=self.root/"failed-fsync.json"
++        with patch.object(audio_master.os,"fsync",side_effect=OSError("durability failure")):
++            with self.assertRaisesRegex(AudioMasterError, "safely create"):
++                audio_master._write_private_receipt(report,{"status":"NOT_PUBLISHED"})
++        self.assertFalse(report.exists())
++
++    def test_private_receipt_replacement_is_never_unlinked(self):
++        report=self.root/"race-receipt.json"
++        foreign=self.root/"foreign.json"
++        def replace_and_fail(*_args, **_kwargs):
++            foreign.write_text("another tenant receipt",encoding="utf-8")
++            foreign.replace(report)
++            raise OSError("write failed after path swap")
++        with patch.object(audio_master.json,"dump",side_effect=replace_and_fail):
++            with self.assertRaisesRegex(AudioMasterError,"safely create"):
++                audio_master._write_private_receipt(report,{"status":"TEST_ONLY"})
++        self.assertEqual(report.read_text(encoding="utf-8"),"another tenant receipt")
++
++    def test_unreceipted_master_replacement_is_not_deleted(self):
++        report=self.root/"failed-proof.json"
++        def create_own_master(src,output,*,expected_seconds):
++            Path(output).write_bytes(b"ours-before-replacement"*4)
++            return {"status":"PRIVATE_AUDIO_MASTERED_NOT_PUBLISHED",
++                    "source_audio_mean_db":-28.0,"mastered_audio_mean_db":-16.0}
++        def replace_before_error(*args):
++            foreign=self.root/"foreign-output.mp4"
++            foreign.write_bytes(b"another tenant master"*4)
++            foreign.replace(self.output)
++            raise AudioMasterError("durable proof failed")
++        argv=["master","--source",str(self.source),"--output",str(self.output),
++              "--duration","15","--report",str(report)]
++        with patch.object(sys,"argv",argv), \
++             patch.object(audio_master,"master_private_audio",side_effect=create_own_master), \
++             patch.object(audio_master,"_write_private_receipt",side_effect=replace_before_error):
++            with self.assertRaises(SystemExit) as outcome:
++                audio_master.main()
++            self.assertEqual(outcome.exception.code,2)
++        self.assertEqual(self.output.read_bytes(),b"another tenant master"*4)
++
++    def test_private_receipt_rejects_symlinked_ancestor(self):
++        approved=self.root/"real-parent"/"child"
++        approved.mkdir(parents=True)
++        redirect=self.root/"linked-ancestor"
++        redirect.symlink_to(approved.parent,target_is_directory=True)
++        with self.assertRaises(AudioMasterError):
++            audio_master._check_private_receipt_path(redirect/"child"/"proof.json")
++
++if __name__=="__main__":
++    unittest.main()
+
+diff --git a/tests/media/test_feature4_beat_edit.py b/tests/media/test_feature4_beat_edit.py
+--- a/tests/media/test_feature4_beat_edit.py
++++ b/tests/media/test_feature4_beat_edit.py
+@@ -0,0 +1,61 @@
++"""Original measured waveform beat-grid and strict editor cut snapping."""
++import sys
++import tempfile
++import unittest
++import wave
++from pathlib import Path
++
++ROOT=Path(__file__).resolve().parents[2]
++sys.path.insert(0,str(ROOT/"video-engine"))
++from beat_grid import beat_grid
++from feature4_beat_edit import original_rhythmic_music, snap_scene_cuts, BeatEditError
++
++class Feature4BeatEditTests(unittest.TestCase):
++    def setUp(self):
++        self.ctx=tempfile.TemporaryDirectory()
++        self.addCleanup(self.ctx.cleanup)
++        self.wav=Path(self.ctx.name)/"original.wav"
++
++    def test_detect_actual_percussion_and_retime_to_measured_onsets(self):
++        beats=original_rhythmic_music(self.wav,seconds=15)
++        self.assertEqual(beats,beat_grid(self.wav,duration_seconds=15))
++        self.assertGreater(len(beats),10)
++        self.assertTrue(all(any(abs(b-t)<.08 for b in beats) for t in (5,10,12)))
++        original=[(0,5,"look01","First"),(5,5,"garment01","Details"),
++                  (10,2,"look02","Motion"),(12,3,None,"Closing")]
++        snapped=snap_scene_cuts(original,beats,duration_seconds=15)
++        self.assertEqual([item[2] for item in snapped],[x[2] for x in original])
++        self.assertTrue(all(abs(snapped[i][0]-original[i][0])<.08
++                            for i in range(1,len(original))))
++        self.assertTrue(all(min(abs(x[0]-b) for b in beats)<=.17
++                            for x in snapped[1:]))
++        self.assertAlmostEqual(sum(x[1] for x in snapped),15,places=3)
++        with wave.open(str(self.wav)) as reader:
++            self.assertEqual(reader.getnframes(),15*22050)
++
++    def test_missing_beat_fails_closed_without_fabricated_timing(self):
++        original=[(0,5,"a","X"),(5,5,"b","Y"),(10,5,None,"Z")]
++        with self.assertRaisesRegex(BeatEditError,"No detected"):
++            snap_scene_cuts(original,[1.0,2.0,3.0],duration_seconds=15)
++
++    def test_invalid_grid_and_unapproved_scene_timing_rejected(self):
++        scene=[(0,5,"a","X"),(5,10,None,"Z")]
++        for grid in ([5.1,5.1],[float("nan"),5.0],[15.0,5.0],
++                     [6.0,4.0],[]):
++            with self.assertRaises(BeatEditError):
++                snap_scene_cuts(scene,grid,duration_seconds=15)
++        with self.assertRaises(BeatEditError):
++            snap_scene_cuts([(0,5,"a","X"),(6,9,None,"Z")],
++                            [5.0,6.0],duration_seconds=15)
++        with self.assertRaises(BeatEditError):
++            original_rhythmic_music(self.wav,seconds=12)
++
++    def test_music_output_never_overwrites_existing(self):
++        original_rhythmic_music(self.wav,seconds=15)
++        before=self.wav.read_bytes()
++        with self.assertRaisesRegex(BeatEditError,"new/private"):
++            original_rhythmic_music(self.wav,seconds=15)
++        self.assertEqual(before,self.wav.read_bytes())
++
++if __name__=="__main__":
++    unittest.main()
+
+diff --git a/tests/media/test_feature4_beat_grid.py b/tests/media/test_feature4_beat_grid.py
+--- a/tests/media/test_feature4_beat_grid.py
++++ b/tests/media/test_feature4_beat_grid.py
+@@ -0,0 +1,66 @@
++"""Deterministic synthetic beat-grid tests; neither downloaded nor commercial audio."""
++import math
++import struct
++import sys
++import tempfile
++import unittest
++import wave
++from pathlib import Path
++
++sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "video-engine"))
++from beat_grid import beat_grid, BeatAnalysisError  # noqa: E402
++
++
++class BeatGridTests(unittest.TestCase):
++    def setUp(self):
++        self.tmp = tempfile.TemporaryDirectory()
++        self.addCleanup(self.tmp.cleanup)
++        self.path = Path(self.tmp.name) / "test.wav"
++
++    def write_audio(self, *, clicks=(), duration=4, rate=8000, channels=1):
++        with wave.open(str(self.path), "wb") as w:
++            w.setnchannels(channels)
++            w.setsampwidth(2)
++            w.setframerate(rate)
++            for i in range(int(rate * duration)):
++                t = i / rate
++                # Distinct transient percussion, not continuous music or random noise.
++                active = any(0 <= t - target < .045 for target in clicks)
++                level = int(22000 * math.sin(2 * math.pi * 440 * t)) if active else 0
++                w.writeframesraw(struct.pack("<h", level) * channels)
++
++    def test_synthetic_percussion_onsets_at_half_second_intervals(self):
++        clicks = (.5, 1.0, 1.5, 2.0, 2.5, 3.0)
++        self.write_audio(clicks=clicks)
++        beats = beat_grid(self.path, duration_seconds=4)
++        self.assertGreaterEqual(len(beats), 5)
++        self.assertTrue(all(any(abs(t-b) < .09 for b in beats) for t in clicks[:5]),
++                        f"Expected synthetic rhythmic onset alignment; got {beats}")
++        self.assertEqual(sorted(set(beats)), beats)
++
++    def test_stereo_and_silence_supported_without_fabricated_beats(self):
++        self.write_audio(clicks=(.5, 1., 1.5), channels=2)
++        self.assertGreaterEqual(len(beat_grid(self.path, duration_seconds=4)), 2)
++        self.write_audio(channels=1)
++        self.assertEqual(beat_grid(self.path, duration_seconds=4), [])
++
++    def test_invalid_wav_and_length_denied(self):
++        self.path.write_bytes(b"not a wav")
++        with self.assertRaises(BeatAnalysisError):
++            beat_grid(self.path, duration_seconds=4)
++        self.write_audio(clicks=(.5,))
++        for length in (-1, 0, 250, float("inf"), True):
++            with self.assertRaises(BeatAnalysisError):
++                beat_grid(self.path, duration_seconds=length)
++        with self.assertRaises(BeatAnalysisError):
++            beat_grid(self.path, duration_seconds=4, max_beats=301)
++        with self.assertRaises(BeatAnalysisError):
++            beat_grid(self.path, duration_seconds=4, min_spacing=0)
++
++    def test_beat_count_capped(self):
++        self.write_audio(clicks=tuple(i / 3 for i in range(1, 11)))
++        self.assertLessEqual(len(beat_grid(self.path, duration_seconds=4, max_beats=3)), 3)
++
++
++if __name__ == "__main__":
++    unittest.main()
+
