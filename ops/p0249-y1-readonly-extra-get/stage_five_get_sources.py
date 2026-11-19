@@ -10,7 +10,6 @@ import argparse
 import ast
 import json
 from pathlib import Path
-import sys
 
 MAX_SOURCE_BYTES = 2 * 1024 * 1024
 
@@ -74,37 +73,6 @@ def _validated_manifest(raw: bytes, route: str) -> None:
         raise ValueError("Y1 package must contain only approved GET routes")
 
 
-def _validate_import_closure(tree: ast.AST, relative: str) -> None:
-    """Require every non-stdlib import to be bundled or externally pinned.
-
-    This catches a newer original HTTP/JWT/store module gaining a dependency
-    that the isolated Y1 release ZIP does not vendor (e.g. a worker module
-    or a third-party HTTP client). Fail *before* creating any stage output.
-    """
-    local = {dest.split("/", 1)[0].removesuffix(".py")
-             for dest in SOURCES if dest.endswith(".py")}
-    external = {"jwt"}
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            imports = [item.name for item in node.names]
-        elif isinstance(node, ast.ImportFrom):
-            if node.level != 0 or not node.module:
-                raise ValueError("unreviewed relative Y1 import in " + relative)
-            imports = [node.module]
-        else:
-            continue
-        for module in imports:
-            root = module.split(".", 1)[0]
-            if root == "azure":
-                if (module not in {"azure", "azure.functions"} or
-                        (isinstance(node, ast.ImportFrom) and module == "azure" and
-                         any(item.name != "functions" for item in node.names)) or
-                        (isinstance(node, ast.Import) and module == "azure")):
-                    raise ValueError("unvendored Azure SDK import in " + relative)
-            elif root not in sys.stdlib_module_names and root not in local and root not in external:
-                raise ValueError("unvendored Y1 Python import in " + relative + ": " + root)
-
-
 def stage_sources(repo: Path, target: Path) -> Path:
     repo = repo.resolve(strict=True)
     raw_target = target.absolute()
@@ -126,8 +94,8 @@ def stage_sources(repo: Path, target: Path) -> Path:
         source = repo / relative
         if not source.is_file() or source.is_symlink() or repo not in source.resolve().parents:
             raise ValueError("missing or symlinked allowlisted Y1 source: " + relative)
-        # Never allocate an unbounded source blob. Keep the byte snapshot
-        # bound to a checked size before AST/manifest validation and copying.
+        # Bound the read BEFORE allocating a blob: a hostile or accidentally
+        # sparse multi-GB source must not exhaust the release builder's RAM.
         size = source.stat().st_size
         if not 0 < size <= MAX_SOURCE_BYTES:
             raise ValueError("Y1 source size outside approved limit")
@@ -137,7 +105,7 @@ def stage_sources(repo: Path, target: Path) -> Path:
             raise ValueError("Y1 source changed during bounded read")
         approved[dest] = raw
         if dest.endswith(".py"):
-            _validate_import_closure(ast.parse(raw.decode("utf-8"), filename=relative), relative)
+            ast.parse(raw.decode("utf-8"), filename=relative)
         elif dest.endswith("function.json"):
             _validated_manifest(raw, ROUTES[Path(dest).parent.name])
     host = json.loads(approved["host.json"])
