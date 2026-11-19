@@ -85,8 +85,15 @@ function trustedWorkerSpan(row, shopId, jobId) {
 
 export function createTraceStore({ supabaseUrl, publishableKey, tokenProvider, fetchImpl = fetch }) {
   if (!supabaseUrl || !publishableKey) return null
+  // Do not forward a tenant JWT to an arbitrary HTTPS host. Only the
+  // canonical project root can receive private worker traces. A web/app
+  // configuration change is not permission to send auth tokens elsewhere.
+  if (typeof supabaseUrl !== 'string') throw new Error('Trace storage must use a trusted HTTPS origin')
   const url = new URL(supabaseUrl)
-  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash ||
+  if (url.protocol !== 'https:' ||
+      !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.supabase\\.co$/.test(url.hostname) ||
+      (url.port !== '' && url.port !== '443') ||
+      url.username || url.password || url.search || url.hash ||
       !['', '/'].includes(url.pathname)) throw new Error('Trace storage must use a trusted HTTPS origin')
   if (typeof tokenProvider !== 'function') throw new Error('Trace storage requires a signed-in user')
   async function request(table, { method = 'GET', query = {}, body } = {}) {
