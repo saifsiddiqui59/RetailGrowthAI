@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 8,
+    "open_prs": 6,
     "by_feature": {
-      "issue249": 4,
-      "F2": 2,
+      "issue249": 3,
+      "F2": 1,
       "F5": 1,
       "F3": 1
     }
@@ -58,22 +58,22 @@
       "pr": 1019,
       "title": "feat(F2): port default-off signed VoiceStudio route from stacked #925 onto current main",
       "feature": "F2",
-      "head_sha": "90c944db0a197a66456669d48c7469ec8712f75c",
+      "head_sha": "78015cf6ed26dfbb2829425fbab628267df61541",
       "base_branch": "main",
       "work_owner": "manual-integration-chat-f-20261119",
       "priority": "P1",
-      "phase": "in-progress",
+      "phase": "ci-review-pending",
       "claim": {
         "owner": "manual-integration-chat-primary-group2-20261120",
-        "head_sha": "90c944db0a197a66456669d48c7469ec8712f75c",
+        "head_sha": "78015cf6ed26dfbb2829425fbab628267df61541",
         "claimed_at": "2026-11-19T21:21:11.970Z",
         "expires_at": "2026-11-19T22:51:11.970Z"
       },
       "checkpoint": {
         "owner": "manual-integration-chat-primary-group2-20261120",
-        "head_sha": "90c944db0a197a66456669d48c7469ec8712f75c",
-        "at": "2026-11-19T21:21:11.970Z",
-        "next_action": "Fix stale undefined SupabaseJWTVerifier root route reference; replace with cached_supabase_verifier and regression tests; no activation"
+        "head_sha": "78015cf6ed26dfbb2829425fbab628267df61541",
+        "at": "2026-11-19T21:23:52.145Z",
+        "next_action": "Replaced undefined SupabaseJWTVerifier with cached_supabase_verifier; runtime-mocked activation test; CI #44618141028 in progress; keep draft, default OFF until independently reviewed route and SQL/licensing"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1019"
     },
@@ -99,49 +99,6 @@
         "next_action": "Review signed immutable reviewer contract; exact-head F5 CI green, awaiting previous main serialized CI"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1013"
-    },
-    {
-      "pr": 972,
-      "title": "fix(feature2 F2-31): revalidate signed editorial rights immediately before handoff",
-      "feature": "F2",
-      "head_sha": "ede5b5d86a21d073b2d3c6645a2bda7ace9ab719",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "ci-review-pending",
-      "claim": {
-        "owner": "manual-integration-chat-primary-group2-20261120",
-        "head_sha": "ede5b5d86a21d073b2d3c6645a2bda7ace9ab719",
-        "claimed_at": "2026-11-19T21:12:14.600Z",
-        "expires_at": "2026-11-19T22:42:14.600Z"
-      },
-      "checkpoint": {
-        "owner": "manual-integration-chat-primary-group2-20261120",
-        "head_sha": "ede5b5d86a21d073b2d3c6645a2bda7ace9ab719",
-        "at": "2026-11-19T21:17:21.529Z",
-        "next_action": "Reconciled original 5 files onto latest main via two-parent source commit; CI #44616722548 in progress"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/972"
-    },
-    {
-      "pr": 965,
-      "title": "fix(#249): repair Feature2 verifier and protect original JWT/service-role transports",
-      "feature": "issue249",
-      "head_sha": "63f5cbe4bbc3840b3ced6aeb60938976137782bc",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P2",
-      "phase": "blocked",
-      "claim": null,
-      "checkpoint": {
-        "owner": "manual-integration-chat-g-security-20261119",
-        "at": "2026-11-19T08:14:51.282Z",
-        "status": "original global JWT/no-redirect source still unmerged; current-main-focused #1018 now exact-head green 4/4 incl restored JWKS outage regression",
-        "dependent_pr": 1018,
-        "blockers": "independent auth/security review, then approved #1018 main merge and exact postmerge 4/4 before retiring obsolete #965",
-        "original_feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/965"
     },
     {
       "pr": 939,
@@ -186,5 +143,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/880"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T21:17:21.529Z"
+  "last_inventory_checked_at": "2026-11-19T21:23:52.145Z"
 }
