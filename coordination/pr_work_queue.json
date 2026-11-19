@@ -55,21 +55,22 @@
       "pr": 1043,
       "title": "fix(#249): reversible Linux Y1 remote-build five-GET DEV release",
       "feature": "issue249",
-      "head_sha": "a7cbc08bb459c7cd13fcd71768d4a2cdb41d1ba2",
+      "head_sha": "7552eb3e44ab2355556318e42333a969b0917c89",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P0",
       "phase": "in-progress",
       "claim": {
         "owner": "manual-issue249-remote-build-release-chat-20261120",
-        "head_sha": "a7cbc08bb459c7cd13fcd71768d4a2cdb41d1ba2",
+        "head_sha": "7552eb3e44ab2355556318e42333a969b0917c89",
         "claimed_at": "2026-11-19T22:17:00.140Z",
         "expires_at": "2026-11-19T23:47:00.140Z"
       },
       "checkpoint": {
         "owner": "manual-issue249-remote-build-release-chat-20261120",
-        "head_sha": "a7cbc08bb459c7cd13fcd71768d4a2cdb41d1ba2",
-        "status": "Corrected bounded remote-build+SAS-redacted original package rollback source and one-shot protected dispatch in #1043; exact-head CI #44627478705 running; Python PASS, remaining pending. No Azure mutation.",
+        "head_sha": "7552eb3e44ab2355556318e42333a969b0917c89",
+        "CI": "PR Part1 #44628089847 Python+Supabase successful, Chromium and FFmpeg running",
+        "status": "Ready after final CI: new safe remote-build workflow, pinned original URL rollback, one-shot dispatch",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1043"
