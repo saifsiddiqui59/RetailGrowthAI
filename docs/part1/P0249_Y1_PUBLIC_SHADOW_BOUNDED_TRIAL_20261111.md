@@ -56,3 +56,27 @@ This adds **hosted signed idle-validation criteria**, not successful live eviden
 - Disposable Auth emails for slots 0 and 1 now derive from SHA-256 of the **specific GitHub Actions run ID + attempt + slot**, yielding `rgai-p0249-jwt-` plus exactly 16 lowercase hex digits; this is a recoverable **test fixture label, not a credential**. Both the original temporary trial and a separate protected `independent-restore` job compute the same two labels. Neither signed JWT, privileged key nor password is persisted or logged.
 - Once Azure's three public Y1 settings have been rolled back (or rollback has failed), the independent protected restore job still runs `p0249_y1_signed_auth_shadow_once.py cleanup-only` with its own short-lived runner-only Admin credential. For **exactly those two deterministic labels**, original safe cleanup searches the bounded GoTrue inventory and independently verifies the UUID+email before deleting; missing identities are harmless no-ops, failed/ambiguous checks raise an error. Unit tests prove idempotent slot reconstruction, no unrelated marker, and independent cleanup of both slots even when one fails.
 - **Caution:** A human-cancelled GitHub workflow or loss of the GitHub Actions control plane can prevent even an `always()` recovery job from running. Such cancellations require explicit operator follow-up of the exact original run ID and attempt using a trusted protected environment. A failed independent cleanup must **never** be interpreted as success or permission to deploy/cut over. This is source-only; no live Auth users were created, no protected workflow dispatched and no Y1 runtime settings changed here.
+
+## 2026-11-20 — exact Y1 two-GET / five-GET signed-trial guard (SOURCE ONLY)
+
+Once the separately reviewed five-GET ZIP is deployed, the existing protected signed
+Auth-only canary can now accept **either** exactly the current two named Y1 functions
+(`p0249_health`, `campaign_read`) **or** that exact two plus
+`render_job_read`, `poster_job_read`, `poster_draft_read`. It rejects partial,
+duplicate, renamed, unknown, POST, timer, and queue function-index inventories.
+This does **not** deploy or enable those routes.
+
+For a five-function index, the same 16 existing anonymous campaign/health checks
+are supplemented by six handler-marked tests for the three additional GET routes:
+missing Bearer must return 401, and a nonempty synthetic Bearer must return 503
+while `RGAI_P0249_EXTRA_GET_SHADOW` is **absent**. The public-only Auth trial
+continues to set/delete only the original three temporary settings. Its preflight
+now sees and refuses any pre-existing extra-shadow setting, even `false`;
+rollback refuses to modify a concurrently added/changed extra setting.
+Independent protected Auth cleanup and existing 240-second signed-idle test remain.
+These are preflight/negative gates, **not real hosted signed two-shop RLS
+acceptance** or replacement for original POST/PATCH/private media APIs.
+
+Code/tests committed on the existing #939 branch; exact-head four-job CI and
+affected shared workflow/JWT review remain necessary. No Azure, Auth, database,
+customer, GPU, PROD, WineShopPOS, or frontend cutover was executed here.
