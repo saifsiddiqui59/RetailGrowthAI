@@ -52,18 +52,18 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1029"
     },
     {
-      "pr": 1040,
-      "title": "ops(#249): retire second one-shot read-only diagnostic trigger",
+      "pr": 1041,
+      "title": "fix(#249): refuse Y1 five-GET ZIP when external package URL still pins old code",
       "feature": "issue249",
-      "head_sha": "a46dd771df8a14bb7da709057019b938c09d202c",
+      "head_sha": "e1b8c8263ecc4e629c49b08345cfc91ccabd206e",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P1",
       "phase": "needs-triage",
       "claim": null,
       "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1040"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1041"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T22:02:39.980Z"
+  "last_inventory_checked_at": "2026-11-19T22:08:43.164Z"
 }
