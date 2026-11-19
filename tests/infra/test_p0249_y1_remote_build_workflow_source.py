@@ -88,7 +88,12 @@ class Y1RemoteBuildWorkflowSourceTests(unittest.TestCase):
         self.assertNotIn("\\${{", self.new)
         self.assertIn("env:\n      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}",
                       self.new)
-        bridge = (ROOT / ".github/workflows/p0249-y1-owner-delegated-remote-build-once.yml").read_text()
+        bridge_path = ROOT / ".github/workflows/p0249-y1-owner-delegated-remote-build-once.yml"
+        # The temporary dispatcher MUST be deleted after its single use;
+        # permanent manual protected release tests above still always run.
+        if not bridge_path.exists():
+            return
+        bridge = bridge_path.read_text()
         self.assertNotIn("\\${{", bridge)
         self.assertIn("GH_TOKEN: ${{ github.token }}", bridge)
         self.assertIn("c009961ab876f9336fac7941957658810eb56c8c", bridge)
