@@ -13,10 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 4,
+    "open_prs": 3,
     "by_feature": {
-      "issue249": 3,
-      "shared": 1
+      "issue249": 3
     }
   },
   "entries": [
@@ -53,30 +52,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1029"
     },
     {
-      "pr": 1034,
-      "title": "docs(group2): record F3 private-PNG source integration and remaining review gates",
-      "feature": "shared",
-      "head_sha": "126652e496336f5c4933910f89f1068dea40ec7f",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "ready-for-review",
-      "claim": {
-        "owner": "manual-integration-chat-1034-user-handoff-20261120",
-        "head_sha": "126652e496336f5c4933910f89f1068dea40ec7f",
-        "claimed_at": "2026-11-19T22:00:31.068Z",
-        "expires_at": "2026-11-19T22:30:31.068Z"
-      },
-      "checkpoint": {
-        "owner": "manual-integration-chat-1034-user-handoff-20261120",
-        "head_sha": "126652e496336f5c4933910f89f1068dea40ec7f",
-        "at": "2026-11-19T22:00:31.068Z",
-        "status": "User-directed takeover from manual-integration-chat-a-20261120 to complete #1034; docs-only append (4 files, 19 lines) and exact-head CI PASS 4/4; expected-sha merge next",
-        "ci": "PR run #44623492609 PASS 4/4; main postmerge pending"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1034"
-    },
-    {
       "pr": 1039,
       "title": "fix(#249): read-only Y1 package-mode classification after failed five-route ZIP",
       "feature": "issue249",
@@ -100,5 +75,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1039"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T22:00:31.068Z"
+  "last_inventory_checked_at": "2026-11-19T22:01:42.554Z"
 }
