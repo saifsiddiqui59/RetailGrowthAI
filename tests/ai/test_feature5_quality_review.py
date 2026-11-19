@@ -126,5 +126,88 @@ class TestQualityApproval(unittest.TestCase):
             VisualReview(**dict(self.row, notes="ok"))
 
 
+    def test_equality_spoof_cannot_approve_fake_human_decision_or_identity(self):
+        # A forged adapter value can claim to compare equal to APPROVED or to
+        # the server's reviewer UUID. Do not trust arbitrary __eq__/__ne__.
+        class AlwaysEqual:
+            def __eq__(self, other):
+                return True
+            def __ne__(self, other):
+                return False
+
+        class SpoofedString(str):
+            # Equality overrides otherwise make Python str subclasses
+            # unhashable; preserve normal hashing for malicious dict-key test.
+            __hash__ = str.__hash__
+            def __eq__(self, other):
+                return True
+            def __ne__(self, other):
+                return False
+
+        with self.assertRaises(MotionError):
+            VisualReview(**dict(self.row, decision=AlwaysEqual()))
+        with self.assertRaises(MotionError):
+            VisualReview(**dict(self.row, decision=SpoofedString("REJECTED")))
+        for field in ("shop_id", "job_id", "output_asset_id", "reviewer_user_id",
+                      "source_asset_id"):
+            with self.subTest(field=field), self.assertRaises(MotionError):
+                VisualReview(**dict(self.row, **{
+                    field: SpoofedString(self.row[field])
+                }))
+        bad_checks = dict(self.row["checks"])
+        bad_checks.pop("garment_color")
+        bad_checks[SpoofedString("garment_color")] = True
+        with self.assertRaises(MotionError):
+            VisualReview(**dict(self.row, checks=bad_checks))
+
+    def test_verified_reviewer_and_media_digest_must_be_exact_strings(self):
+        class AlwaysEqual:
+            def __eq__(self, other):
+                return True
+            def __ne__(self, other):
+                return False
+
+        class SpoofedString(str):
+            # Equality overrides otherwise make Python str subclasses
+            # unhashable; preserve normal hashing for malicious dict-key test.
+            __hash__ = str.__hash__
+            def __eq__(self, other):
+                return True
+            def __ne__(self, other):
+                return False
+
+        record = VisualReview(**self.row)
+        args = {
+            "authoritative_shop_id": self.shop,
+            "authoritative_reviewer_user_id": self.row["reviewer_user_id"],
+            "actual_media_sha256": self.hash,
+            "reviewer_has_write_role": True,
+        }
+        for field in ("authoritative_shop_id", "authoritative_reviewer_user_id"):
+            with self.subTest(field=field), self.assertRaises(MotionError):
+                record.approved_for_feature4(**dict(args, **{
+                    field: SpoofedString(str(uuid4())),
+                }))
+        with self.assertRaises(MotionError):
+            record.approved_for_feature4(**dict(args, actual_media_sha256=AlwaysEqual()))
+        with self.assertRaises(MotionError):
+            record.approved_for_feature4(**dict(args,
+                actual_media_sha256=SpoofedString("0" * 64)))
+        # Defend against accidental privileged mutation even if a frozen
+        # object's safeguards are bypassed inside trusted Python code.
+        object.__setattr__(record, "decision", AlwaysEqual())
+        with self.assertRaises(MotionError):
+            record.approved_for_feature4(**args)
+
+    def test_real_plain_string_review_still_passes(self):
+        record = VisualReview(**self.row)
+        self.assertTrue(record.approved_for_feature4(
+            authoritative_shop_id=self.shop,
+            authoritative_reviewer_user_id=self.row["reviewer_user_id"],
+            actual_media_sha256=self.hash,
+            reviewer_has_write_role=True,
+        ))
+
+
 if __name__ == "__main__":
     unittest.main()
