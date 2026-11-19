@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "ledger_branch": "coordination/pr-execution-ledger",
-  "snapshot_date": "2026-11-19",
+  "snapshot_date": "2026-11-20",
   "data_kind": "Live GitHub open PR inventory; acceptance separate from closure",
   "main_merge_owner": "manual-integration",
   "lease_policy": {
@@ -135,7 +135,7 @@
       "title": "build(#249): exact five-route Y1 GET staging with deny-list tests",
       "feature": "issue249",
       "head_sha": "b205ce13db013dfbff4e8cb9dafc537dd8bdc486",
-      "base_branch": "feat/p0249-y1-extra-readonly-get-source-20261117",
+      "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P2",
       "phase": "in-progress",
