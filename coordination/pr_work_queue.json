@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 3,
+    "open_prs": 4,
     "by_feature": {
-      "issue249": 3
+      "issue249": 4
     }
   },
   "entries": [
@@ -63,6 +63,28 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1041"
+    },
+    {
+      "pr": 1043,
+      "title": "fix(#249): reversible Linux Y1 remote-build five-GET DEV release",
+      "feature": "issue249",
+      "head_sha": "a023535e7e867ebd80728713b23bf16be4393566",
+      "base_branch": "main",
+      "work_owner": "manual-issue249",
+      "priority": "P0",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-issue249-remote-build-release-chat-20261120",
+        "head_sha": "a023535e7e867ebd80728713b23bf16be4393566",
+        "claimed_at": "2026-11-19T22:17:00.140Z",
+        "expires_at": "2026-11-19T23:47:00.140Z"
+      },
+      "checkpoint": {
+        "owner": "manual-issue249-remote-build-release-chat-20261120",
+        "next_action": "Exact-head Part1 #44627060151 four-job CI, fix owned release code, then reviewed protected DEV remote-build deployment. Do not touch #1027/#964/#1007/#1022; no blind ZIP push.",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1043"
     }
   ],
   "last_inventory_checked_at": "2026-11-19T22:08:43.164Z"
