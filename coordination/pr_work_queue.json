@@ -13,16 +13,40 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 16,
+    "open_prs": 14,
     "by_feature": {
-      "issue249": 9,
-      "shared": 3,
       "F2": 2,
+      "F3": 1,
       "F5": 1,
-      "F3": 1
+      "issue249": 8,
+      "shared": 2
     }
   },
   "entries": [
+    {
+      "pr": 1030,
+      "title": "test(#249): repair signed two-shop GET fixtures after no-redirect transport",
+      "feature": "issue249",
+      "head_sha": "c6b56c7aa18f5c8adf54b9c57a15e65bf90af3fc",
+      "base_branch": "main",
+      "work_owner": "manual-issue249",
+      "priority": "P0",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-primary-20261120",
+        "head_sha": "c6b56c7aa18f5c8adf54b9c57a15e65bf90af3fc",
+        "claimed_at": "2026-11-19T18:51:51.724Z",
+        "expires_at": "2026-11-19T20:21:51.724Z"
+      },
+      "checkpoint": {
+        "owner": "manual-integration-chat-primary-20261120",
+        "at": "2026-11-19T18:51:51.724Z",
+        "head_sha": "c6b56c7aa18f5c8adf54b9c57a15e65bf90af3fc",
+        "status": "Fix latest-main 11 Python failures caused by old urlopen fake after #1018 no-redirect transport; source PR #1030; exact PR CI pending; no cloud changes",
+        "source_main_ci": "44591535212 failed Python 11"
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1030"
+    },
     {
       "pr": 1029,
       "title": "fix(#249): recover protected original Flex incident diagnostics (manual only)",
@@ -121,27 +145,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1019"
     },
     {
-      "pr": 1018,
-      "title": "fix(#249): protect user JWT and service-role PostgREST from HTTP redirects",
-      "feature": "issue249",
-      "head_sha": "4b41d2307ef016ada93f7e281cb67da2c61af0fa",
-      "base_branch": "main",
-      "work_owner": "manual-integration-chat-f-20261119",
-      "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-y1-20261120",
-        "head_sha": "4b41d2307ef016ada93f7e281cb67da2c61af0fa",
-        "claimed_at": "2026-11-19T18:43:16.121Z",
-        "expires_at": "2026-11-19T20:13:16.121Z"
-      },
-      "checkpoint": {
-        "next_action": "Owner-authorized code/security review and exact-head CI; integrate current-main JWT no-redirect prerequisite for guarded Y1 source. Do not deploy until own protections verified.",
-        "head_sha": "4b41d2307ef016ada93f7e281cb67da2c61af0fa"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1018"
-    },
-    {
       "pr": 1013,
       "title": "feat(F5): restore original GPU-off human visual QA gate and negative tests",
       "feature": "F5",
@@ -165,30 +168,6 @@
         "merge_review_blocker": "independent affected F4 security review"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1013"
-    },
-    {
-      "pr": 1007,
-      "title": "docs(integration): evidence-backed 10-PR chat D closure checkpoint",
-      "feature": "shared",
-      "head_sha": "0aeaaedc426cdc83925869025acf97f2a005759a",
-      "base_branch": "main",
-      "work_owner": "manual-integration-chat-d-20261119",
-      "priority": "P2",
-      "phase": "ready-for-merge",
-      "claim": {
-        "owner": "manual-integration-chat-primary-20261120",
-        "head_sha": "0aeaaedc426cdc83925869025acf97f2a005759a",
-        "claimed_at": "2026-11-19T18:45:24.410Z",
-        "expires_at": "2026-11-19T20:15:24.410Z"
-      },
-      "checkpoint": {
-        "owner": "manual-integration-chat-primary-20261120",
-        "at": "2026-11-19T18:45:24.410Z",
-        "head_sha": "0aeaaedc426cdc83925869025acf97f2a005759a",
-        "status": "Exact-head Part1 #44590187279 4/4 PASS, source/docs-only; wait concurrent #1018 exact-main CI then serialized docs merge",
-        "ci": "44590187279 4/4"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1007"
     },
     {
       "pr": 995,
@@ -252,27 +231,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/972"
     },
     {
-      "pr": 968,
-      "title": "feat(#249): stage three original JWT/RLS GET status routes for isolated Y1 (source only)",
-      "feature": "issue249",
-      "head_sha": "a655e26ec88eea61930faabb144d746c812611a0",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-y1-20261120",
-        "head_sha": "a655e26ec88eea61930faabb144d746c812611a0",
-        "claimed_at": "2026-11-19T18:44:29.570Z",
-        "expires_at": "2026-11-19T20:14:29.570Z"
-      },
-      "checkpoint": {
-        "next_action": "Review exact 3 GET original JWT/RLS source, verify 4/4 and fresh main after security #1018, parent-first merge; no hosted deployment.",
-        "head_sha": "a655e26ec88eea61930faabb144d746c812611a0"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/968"
-    },
-    {
       "pr": 965,
       "title": "fix(#249): repair Feature2 verifier and protect original JWT/service-role transports",
       "feature": "issue249",
@@ -333,5 +291,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/880"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T18:42:13.741Z"
+  "last_inventory_checked_at": "2026-11-19T18:51:51.724Z"
 }
