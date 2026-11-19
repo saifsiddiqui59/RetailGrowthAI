@@ -13,10 +13,11 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 4,
+    "open_prs": 5,
     "by_feature": {
       "issue249": 3,
-      "shared": 1
+      "shared": 1,
+      "F5": 1
     }
   },
   "entries": [
@@ -98,7 +99,30 @@
         "status": "Group2 append-only canonical docs after #880 source+main 4/4; retain #1019 release gates"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1034"
+    },
+    {
+      "pr": 1036,
+      "title": "security(F5): fail closed on equality-spoofed human visual reviews",
+      "feature": "F5",
+      "head_sha": "5c3217525cf0521a3a4fe027bd983b9e6d2fa76b",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P1",
+      "phase": "ci-review-pending",
+      "claim": {
+        "owner": "manual-integration-chat-a-20261120",
+        "head_sha": "5c3217525cf0521a3a4fe027bd983b9e6d2fa76b",
+        "claimed_at": "2026-11-19T21:40:57.465Z",
+        "expires_at": "2026-11-19T23:10:57.465Z"
+      },
+      "checkpoint": {
+        "owner": "manual-integration-chat-a-20261120",
+        "head_sha": "5c3217525cf0521a3a4fe027bd983b9e6d2fa76b",
+        "ci": "#44621042437 in progress",
+        "status": "Fix equality-spoofed Feature5 visual review identities/decisions/digests; original #1013 source merged, no GPU/paid usage"
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1036"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T21:38:05.658Z"
+  "last_inventory_checked_at": "2026-11-19T21:40:57.465Z"
 }
