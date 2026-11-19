@@ -36,6 +36,16 @@ Original Flex `rgai-dev-functions-d4e5ddbd` is unchanged; issue #249 stays OPEN.
   it reproduces the prior **route shape**, not the exact unknown historical
   deployed ZIP bytes. Do not claim bit-identical rollback.
 
+## CI-only fresh-process safety gate
+- Both release shapes are staged from the exact source allowlist and indexed in
+  separate isolated Python interpreters using the real `azure.functions` module.
+- Every entrypoint must return a handler-marked 401 when unauthenticated,
+  except the explicit health endpoint (200). Original JWT/RLS/store modules
+  must remain lazily unloaded while shadow flags and Supabase settings are off.
+- This source CI check does **not** constitute independent review, real hosted
+  JWT/tenant authorization, a five-route Azure deployment, or an approval to
+  bypass the protected DEV environment.
+
 ## Remaining before Y1 replacement
 1. Independent shared JWT/RLS/render/poster/Azure ops review of #968, #995,
    and this workflow; exact-head 4/4, main merge in parent-child order.
