@@ -182,8 +182,12 @@ def get(path, token=""):
             status = response.status
             marked = bool(response.headers.get("X-Request-ID"))
     except urllib.error.HTTPError as exc:
-        status = exc.code
-        marked = bool(exc.headers.get("X-Request-ID"))
+        try:
+            status = exc.code
+            marked = bool(exc.headers.get("X-Request-ID"))
+        finally:
+            # urllib HTTPError owns a live response even for blocked 30x.
+            exc.close()
     except (urllib.error.URLError, TimeoutError, OSError):
         status, marked = 0, False
     return status, marked, round(time.monotonic() - started, 3)
