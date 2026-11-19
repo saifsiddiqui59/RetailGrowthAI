@@ -57,22 +57,22 @@
       "pr": 1019,
       "title": "feat(F2): port default-off signed VoiceStudio route from stacked #925 onto current main",
       "feature": "F2",
-      "head_sha": "78015cf6ed26dfbb2829425fbab628267df61541",
+      "head_sha": "1067d9eb2945f38e962bd859de81da5688c98292",
       "base_branch": "main",
       "work_owner": "manual-integration-chat-f-20261119",
       "priority": "P1",
       "phase": "ci-review-pending",
       "claim": {
         "owner": "manual-integration-chat-primary-group2-20261120",
-        "head_sha": "78015cf6ed26dfbb2829425fbab628267df61541",
+        "head_sha": "1067d9eb2945f38e962bd859de81da5688c98292",
         "claimed_at": "2026-11-19T21:21:11.970Z",
-        "expires_at": "2026-11-19T22:51:11.970Z"
+        "expires_at": "2026-11-19T22:58:32.934Z"
       },
       "checkpoint": {
         "owner": "manual-integration-chat-primary-group2-20261120",
-        "head_sha": "78015cf6ed26dfbb2829425fbab628267df61541",
-        "at": "2026-11-19T21:23:52.145Z",
-        "next_action": "Replaced undefined SupabaseJWTVerifier with cached_supabase_verifier; runtime-mocked activation test; CI #44618141028 in progress; keep draft, default OFF until independently reviewed route and SQL/licensing"
+        "head_sha": "1067d9eb2945f38e962bd859de81da5688c98292",
+        "at": "2026-11-19T21:28:32.934Z",
+        "next_action": "VoiceStudio default-off source root current main reconciliation with cached JWT verifier bugfix; fresh exact-head 4/4 CI #44618670490 in progress; keep signed/license/worker gates"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1019"
     },
@@ -80,22 +80,22 @@
       "pr": 1013,
       "title": "feat(F5): restore original GPU-off human visual QA gate and negative tests",
       "feature": "F5",
-      "head_sha": "553abe935d68d4d7e17285419bd3b6ea6da006ce",
+      "head_sha": "8129dcaf446b21052fc6ed09a053d0729037e7e5",
       "base_branch": "main",
       "work_owner": "manual-integration-chat-e-F5-20261119",
       "priority": "P1",
-      "phase": "in-progress",
+      "phase": "ci-review-pending",
       "claim": {
         "owner": "manual-integration-chat-primary-group2-20261120",
-        "head_sha": "553abe935d68d4d7e17285419bd3b6ea6da006ce",
+        "head_sha": "8129dcaf446b21052fc6ed09a053d0729037e7e5",
         "claimed_at": "2026-11-19T21:17:21.529Z",
-        "expires_at": "2026-11-19T22:47:21.529Z"
+        "expires_at": "2026-11-19T22:58:32.934Z"
       },
       "checkpoint": {
         "owner": "manual-integration-chat-primary-group2-20261120",
-        "head_sha": "553abe935d68d4d7e17285419bd3b6ea6da006ce",
-        "at": "2026-11-19T21:17:21.529Z",
-        "next_action": "Review signed immutable reviewer contract; exact-head F5 CI green, awaiting previous main serialized CI"
+        "head_sha": "8129dcaf446b21052fc6ed09a053d0729037e7e5",
+        "at": "2026-11-19T21:28:32.934Z",
+        "next_action": "Non-activated F5 human visual QA source rebased on latest F3 main, exact-head 4/4 CI #44618904369 in progress"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1013"
     },
