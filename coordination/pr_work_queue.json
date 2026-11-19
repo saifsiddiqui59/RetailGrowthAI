@@ -104,22 +104,22 @@
       "pr": 979,
       "title": "fix(testing): reject forged worker event IDs, statuses and media receipts",
       "feature": "shared",
-      "head_sha": "729e0114fc1710464ce3cd18c0f0550835a54b34",
+      "head_sha": "c3de37c65459b549a740282fcaa1ccc8e9494866",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
       "phase": "in-progress",
       "claim": {
         "owner": "manual-integration-chat-primary-group2-20261120",
-        "head_sha": "729e0114fc1710464ce3cd18c0f0550835a54b34",
-        "claimed_at": "2026-11-19T21:09:23.458Z",
-        "expires_at": "2026-11-19T22:39:23.458Z"
+        "head_sha": "c3de37c65459b549a740282fcaa1ccc8e9494866",
+        "claimed_at": "2026-11-19T21:12:14.600Z",
+        "expires_at": "2026-11-19T22:42:14.600Z"
       },
       "checkpoint": {
         "owner": "manual-integration-chat-primary-group2-20261120",
-        "head_sha": "729e0114fc1710464ce3cd18c0f0550835a54b34",
-        "at": "2026-11-19T21:09:23.458Z",
-        "next_action": "Repair Playwright offline origin to valid mock .supabase.co and validate secure worker trace without relaxing production checks"
+        "at": "2026-11-19T21:12:14.600Z",
+        "head_sha": "c3de37c65459b549a740282fcaa1ccc8e9494866",
+        "next_action": "Changed mock E2E origin only; exact-head CI #44616303805 pending; recheck latest main"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/979"
     },
@@ -131,15 +131,18 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "ready-for-review",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-primary-group2-20261120",
+        "head_sha": "c4b2708bb9b21944f171c071951ab8656311d4c8",
+        "claimed_at": "2026-11-19T21:12:14.600Z",
+        "expires_at": "2026-11-19T22:42:14.600Z"
+      },
       "checkpoint": {
-        "at": "2026-11-19T05:02:32.695Z",
-        "owner": "manual-integration-chat-c-20261119",
-        "head_after": "c4b2708bb9b21944f171c071951ab8656311d4c8",
-        "status": "ready-for-review",
-        "ci": "#44460780655 exact-head Part1 4/4 SUCCESS",
-        "next_action": "Motion prompt mutation race denied after last rights reread; source-only HMAC still not durable JWT/RLS or publication approval."
+        "owner": "manual-integration-chat-primary-group2-20261120",
+        "at": "2026-11-19T21:12:14.600Z",
+        "head_sha": "c4b2708bb9b21944f171c071951ab8656311d4c8",
+        "next_action": "Inspect editorial rights race and restore feature-owned source on current main safely"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/972"
     },
