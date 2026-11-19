@@ -3,6 +3,7 @@ import importlib.util
 import io
 from email.message import Message
 import urllib.request
+import urllib.error
 import urllib.response
 import json
 import os
@@ -56,6 +57,18 @@ class PublicShadowTrialSafetyTests(unittest.TestCase):
         self.assertEqual(attempted, [
             "https://" + trial.SITE + ".azurewebsites.net" + trial.CAMPAIGN_PATH
         ])
+
+    def test_denied_y1_http_response_is_always_closed(self):
+        payload = io.BytesIO(b'{"error":"UNAUTHORIZED"}')
+        headers = Message()
+        headers["X-Request-ID"] = "test-only"
+        denied = urllib.error.HTTPError(
+            "https://" + trial.SITE + ".azurewebsites.net" + trial.CAMPAIGN_PATH,
+            401, "Unauthorized", headers, payload)
+        with patch.object(trial.NO_REDIRECT_OPENER, "open", side_effect=denied):
+            status, marked, _ = trial.get(trial.CAMPAIGN_PATH)
+        self.assertEqual((status, marked), (401, True))
+        self.assertTrue(payload.closed)
 
     def test_exact_public_only_setting_allowlist(self):
         self.assertEqual(set(trial.NAMES), {
