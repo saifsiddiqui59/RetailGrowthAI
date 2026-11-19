@@ -15,14 +15,40 @@
   "summary": {
     "open_prs": 18,
     "by_feature": {
-      "shared": 5,
       "issue249": 9,
+      "shared": 5,
       "F2": 2,
       "F5": 1,
       "F3": 1
     }
   },
   "entries": [
+    {
+      "pr": 1029,
+      "title": "fix(#249): recover protected original Flex incident diagnostics (manual only)",
+      "feature": "issue249",
+      "head_sha": "81f914a2045c209f1b9864edca2e4918323f3667",
+      "base_branch": "main",
+      "work_owner": "manual-issue249",
+      "priority": "P2",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1029"
+    },
+    {
+      "pr": 1028,
+      "title": "fix(#249): recover Y1 index diagnostic as protected manual-only source",
+      "feature": "issue249",
+      "head_sha": "f08349170ff0b5ee7821d03e342691bcd9dadd38",
+      "base_branch": "main",
+      "work_owner": "manual-issue249",
+      "priority": "P2",
+      "phase": "needs-triage",
+      "claim": null,
+      "checkpoint": null,
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1028"
+    },
     {
       "pr": 1027,
       "title": "ci: fix apt-mirror timeouts without skipping Chromium or FFmpeg",
@@ -317,32 +343,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/939"
     },
     {
-      "pr": 921,
-      "title": "audit(#249): inspect Y1 remote build and deployment logs",
-      "feature": "issue249",
-      "head_sha": "64ba7a53ae7942791185d98bbd08d8d71e642bb6",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P0",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/921"
-    },
-    {
-      "pr": 887,
-      "title": "ci(#249): review isolated DEV-only manual Azure incident workflow",
-      "feature": "issue249",
-      "head_sha": "539923046e91c0b78bd014030e7dee6cd7e018e7",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P2",
-      "phase": "needs-triage",
-      "claim": null,
-      "checkpoint": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/887"
-    },
-    {
       "pr": 880,
       "title": "Feature3 F3-08: fail-closed current output rights authority boundary and negative tests",
       "feature": "F3",
@@ -362,5 +362,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/880"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T08:04:53.710Z"
+  "last_inventory_checked_at": "2026-11-19T09:04:15Z"
 }
