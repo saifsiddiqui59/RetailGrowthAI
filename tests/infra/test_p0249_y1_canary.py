@@ -187,9 +187,9 @@ class Y1CanaryGuardTests(unittest.TestCase):
             self.assertTrue(responses[0].closed)
 
     def test_redirected_health_cannot_meet_initial_hosted_readiness(self):
-        with patch.object(guard, "get", return_value=(302, True, 0.2)) as fetch, \\
-             patch.object(guard.time, "sleep"), \\
-             self.assertRaisesRegex(RuntimeError, "initial readiness"):
+        with (patch.object(guard, "get", return_value=(302, True, 0.2)) as fetch,
+              patch.object(guard.time, "sleep"),
+              self.assertRaisesRegex(RuntimeError, "initial readiness")):
             guard.probe()
         self.assertEqual(fetch.call_count, 3)
 
