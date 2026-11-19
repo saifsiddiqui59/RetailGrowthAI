@@ -40,20 +40,18 @@
       "pr": 1028,
       "title": "fix(#249): recover Y1 index diagnostic as protected manual-only source",
       "feature": "issue249",
-      "head_sha": "f08349170ff0b5ee7821d03e342691bcd9dadd38",
+      "head_sha": "68c0287bcc20241326446fbb9b8b45f97c2518c7",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-issue249-y1-diagnostic-20261120",
-        "head_sha": "f08349170ff0b5ee7821d03e342691bcd9dadd38",
-        "claimed_at": "2026-11-19T19:02:44.052Z",
-        "expires_at": "2026-11-19T20:32:44.052Z"
-      },
+      "phase": "ready-for-review",
+      "claim": null,
       "checkpoint": {
-        "head_sha": "f08349170ff0b5ee7821d03e342691bcd9dadd38",
-        "next_action": "Review exact 2/5 Y1 read-only diagnostic and harden safe source/CI; no Azure dispatch or edits"
+        "head_sha": "68c0287bcc20241326446fbb9b8b45f97c2518c7",
+        "commits": 3,
+        "tests": "exact site index/provenance + duplicate setting privacy offline suite, CI all four PASS",
+        "ci": "#44594529414 exact HEAD 4/4 success",
+        "next_action": "Protected manual-only diagnostic needs shared workflow review and post-main 4/4; no Azure run"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1028"
     },
