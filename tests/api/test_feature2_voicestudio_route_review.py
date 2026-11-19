@@ -117,6 +117,82 @@ def test_route_passes_only_bearer_and_body_to_trusted_api():
     assert json.loads(result.text)["approved"] is False
 
 
+
+def test_enabled_builder_resolves_cached_jwt_verifier_without_network(monkeypatch):
+    """Old root used an undefined SupabaseJWTVerifier name after JWT cache migration."""
+    import sys
+    from types import ModuleType
+    from unittest.mock import patch
+
+    namespace = isolated()
+    origin = "https://synthetic.supabase.co"
+    secret = "synthetic-no-real-service-key"
+    values = {
+        "RETAIL_VOICESTUDIO_HTTP_ENABLED": "true",
+        "RETAIL_VOICESTUDIO_COMMERCIAL_MODEL_APPROVED": "true",
+        "RETAIL_SUPABASE_URL": origin,
+        "RETAIL_SUPABASE_PUBLISHABLE_KEY": "synthetic-public-key",
+        "RETAIL_SUPABASE_SERVICE_ROLE_KEY": secret,
+        "RETAIL_VOICESTUDIO_UPSTREAM_URL": "https://not-a-real-upstream.test",
+        "RETAIL_VOICESTUDIO_UPSTREAM_API_KEY": "synthetic-upstream-key",
+        "RETAIL_VOICESTUDIO_MODEL_LICENSE_EVIDENCE_SHA256": "a" * 64,
+    }
+    for name, value in values.items():
+        monkeypatch.setenv(name, value)
+    verified = object()
+    store = object()
+    private_storage = object()
+    sentinel = object()
+    calls = []
+
+    def cached(origin_value):
+        calls.append(("verifier", origin_value))
+        return verified
+
+    def tenant(origin_value, publishable_key):
+        calls.append(("tenant", origin_value, publishable_key))
+        return store
+
+    def private(origin_value, service_key):
+        calls.append(("private", origin_value, service_key))
+        return private_storage
+
+    def build_handler(*args, **kw):
+        assert args[0] is verified
+        assert args[1] is store
+        assert callable(args[2])
+        assert args[3] is private_storage
+        assert kw["enabled"] is True
+        assert kw["commercial_model_verified"] is True
+        calls.append(("handler",))
+        return sentinel
+
+    namespace["cached_supabase_verifier"] = cached
+    namespace["TenantStore"] = tenant
+    fake = {}
+    for module_name, attr, value in (
+        ("feature2_voicestudio_http", "VoiceStudioSignedAPI", build_handler),
+        ("feature2_voicestudio_sql", "VoiceStudioSqlStore", object),
+        ("feature2_voicestudio_storage", "VoiceStudioPrivateStorage", private),
+    ):
+        module = ModuleType(module_name)
+        setattr(module, attr, value)
+        fake[module_name] = module
+    with patch.dict(sys.modules, fake):
+        assert namespace["build_feature2_voicestudio_api"]() is sentinel
+
+    assert calls == [
+        ("verifier", origin),
+        ("tenant", origin, values["RETAIL_SUPABASE_PUBLISHABLE_KEY"]),
+        ("private", origin, secret),
+        ("handler",),
+    ]
+    source = APP.read_text(encoding="utf-8")
+    assert "from security import cached_supabase_verifier" in source
+    assert "SupabaseJWTVerifier(origin)" not in source
+
+
+
 def test_malformed_body_returns_400_without_job_inference():
     namespace = isolated()
     calls = []
