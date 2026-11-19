@@ -89,19 +89,20 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-e-F5-20261119",
       "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-f-20261119-resume",
-        "claimed_at": "2026-11-19T07:28:42.756Z",
-        "expires_at": "2026-11-19T08:58:42.756Z",
-        "head_sha": "553abe935d68d4d7e17285419bd3b6ea6da006ce"
-      },
+      "phase": "ready-for-review",
+      "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119-resume",
-        "at": "2026-11-19T07:37:28.573Z",
-        "status": "F5 reviewed-checklist mutation guard and 2 new negative tests committed; no hosted approval",
-        "ci": "44480645631 exact-head in progress; affected F4 reviewer still required",
-        "task_done": false
+        "at": "2026-11-19T07:58:18.857Z",
+        "status": "F5 original human-review QA source hardened against mutable checklist tampering; exact-head CI 4/4 success, no independent F4/JWT security review",
+        "head_sha": "553abe935d68d4d7e17285419bd3b6ea6da006ce",
+        "ci_run": 44480645631,
+        "ci_attempt": 3,
+        "ci_conclusion": "success",
+        "all_four_jobs_success": true,
+        "source_only": true,
+        "original_feature_done": false,
+        "merge_review_blocker": "independent affected F4 security review"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1013"
     },
