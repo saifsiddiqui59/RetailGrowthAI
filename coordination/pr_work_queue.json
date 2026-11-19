@@ -61,12 +61,18 @@
       "work_owner": "manual-integration",
       "priority": "P2",
       "phase": "ci-review-pending",
-      "claim": null,
+      "claim": {
+        "owner": "manual-integration-chat-a-20261120",
+        "head_sha": "126652e496336f5c4933910f89f1068dea40ec7f",
+        "claimed_at": "2026-11-19T21:56:19.118Z",
+        "expires_at": "2026-11-19T23:26:19.118Z"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-a-20261120",
-        "head_sha": "01697a7ff3126e627d72bc62e0faa944c1e7d1f5",
-        "at": "2026-11-19T21:52:47.651Z",
-        "status": "Re-scoped #1034 after #1037 merged; now only new F5 #1036 equality-spoof and VoiceStudio descendant-main evidence, four docs append-only"
+        "head_sha": "126652e496336f5c4933910f89f1068dea40ec7f",
+        "at": "2026-11-19T21:56:19.118Z",
+        "ci": "#44623492609 pending/running",
+        "status": "Reconciled to latest #249 main docs; only 4 additive F5/Voice integration evidence sections remain; #1036 source already merged"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1034"
     },
