@@ -106,8 +106,13 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-f-20261119",
       "priority": "P1",
-      "phase": "ready-for-review",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-g-security-20261119",
+        "claimed_at": "2026-11-19T08:07:12.333Z",
+        "expires_at": "2026-11-19T09:07:12.333Z",
+        "head_sha": "179536e181e0396e753ee99f066ce5b1a787a596"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
         "at": "2026-11-19T05:21:52.720Z",
