@@ -85,7 +85,7 @@
       "pr": 1013,
       "title": "feat(F5): restore original GPU-off human visual QA gate and negative tests",
       "feature": "F5",
-      "head_sha": "8aecc7c687c217b5c7a0b67498ef9a4a53400824",
+      "head_sha": "553abe935d68d4d7e17285419bd3b6ea6da006ce",
       "base_branch": "main",
       "work_owner": "manual-integration-chat-e-F5-20261119",
       "priority": "P1",
@@ -94,15 +94,14 @@
         "owner": "manual-integration-chat-f-20261119-resume",
         "claimed_at": "2026-11-19T07:28:42.756Z",
         "expires_at": "2026-11-19T08:58:42.756Z",
-        "head_sha": "8aecc7c687c217b5c7a0b67498ef9a4a53400824"
+        "head_sha": "553abe935d68d4d7e17285419bd3b6ea6da006ce"
       },
       "checkpoint": {
-        "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T05:08:38.516Z",
-        "status": "F5 reviewer identity spoofing fix, source-ready, no hosted/visual acceptance",
-        "head_sha": "8aecc7c687c217b5c7a0b67498ef9a4a53400824",
-        "ci": "exact-head #44461405531 4/4",
-        "blocker": "independent affected F4 security review"
+        "owner": "manual-integration-chat-f-20261119-resume",
+        "at": "2026-11-19T07:37:28.573Z",
+        "status": "F5 reviewed-checklist mutation guard and 2 new negative tests committed; no hosted approval",
+        "ci": "44480645631 exact-head in progress; affected F4 reviewer still required",
+        "task_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1013"
     },
@@ -172,7 +171,7 @@
       "pr": 995,
       "title": "build(#249): exact five-route Y1 GET staging with deny-list tests",
       "feature": "issue249",
-      "head_sha": "aad2c453b490e97721624a89a76a8ac6097a9073",
+      "head_sha": "b98fbd9d19d37a19deb97ef6c7639b56ac7b29ac",
       "base_branch": "feat/p0249-y1-extra-readonly-get-source-20261117",
       "work_owner": "manual-issue249",
       "priority": "P2",
@@ -181,15 +180,14 @@
         "owner": "manual-integration-chat-f-20261119-resume",
         "claimed_at": "2026-11-19T07:28:42.756Z",
         "expires_at": "2026-11-19T08:58:42.756Z",
-        "head_sha": "aad2c453b490e97721624a89a76a8ac6097a9073"
+        "head_sha": "b98fbd9d19d37a19deb97ef6c7639b56ac7b29ac"
       },
       "checkpoint": {
-        "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T04:57:40.576Z",
-        "status": "staging TOCTOU fixed in actual source/test",
-        "code_commit": "aad2c453b490e97721624a89a76a8ac6097a9073",
-        "CI": "exact-head #44459814242 4/4 PASS",
-        "blocker": "#968 parent not merged; independent auth/ops/security approval"
+        "owner": "manual-integration-chat-f-20261119-resume",
+        "at": "2026-11-19T07:37:28.572Z",
+        "status": "Y1 source staged immutable snapshots and now bounded pre-read; sparse 3GB rejection added; no deployment",
+        "ci": "44480970404 exact-head running; stacked on #968; independent ops/security review needed",
+        "task_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/995"
     },
