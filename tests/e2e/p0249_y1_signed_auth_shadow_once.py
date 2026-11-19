@@ -57,7 +57,10 @@ def y1_read(token, *, campaign=CAMPAIGN):
         with helper.NO_REDIRECT_OPENER.open(req, timeout=18) as response:
             status, headers, body = response.status, response.headers, response.read(4096)
     except urllib.error.HTTPError as response:
-        status, headers, body = response.code, response.headers, response.read(4096)
+        try:
+            status, headers, body = response.code, response.headers, response.read(4096)
+        finally:
+            response.close()
     except (urllib.error.URLError, TimeoutError, OSError):
         return 0, False, None, 18.0
     try:
