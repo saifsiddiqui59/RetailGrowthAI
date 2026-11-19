@@ -10,7 +10,8 @@ import argparse
 import ast
 import json
 from pathlib import Path
-import shutil
+
+MAX_SOURCE_BYTES = 2 * 1024 * 1024
 
 # Deliberately exhaustive: never copy function_app.py, workers, queues,
 # service credentials, mutable deployment settings or entire source folders.
@@ -48,8 +49,8 @@ ROUTES = {
 }
 
 
-def _validated_manifest(source: Path, route: str) -> None:
-    manifest = json.loads(source.read_text(encoding="utf-8"))
+def _validated_manifest(raw: bytes, route: str) -> None:
+    manifest = json.loads(raw)
     if (set(manifest) != {"scriptFile", "entryPoint", "bindings"}
             or manifest["scriptFile"] != "__init__.py"
             or manifest["entryPoint"] != "main"
@@ -85,29 +86,36 @@ def stage_sources(repo: Path, target: Path) -> Path:
     if not target.parent.is_dir() or target.parent.is_symlink():
         raise ValueError("staging parent must already exist and not be a symlink")
 
-    # Preflight every byte and route before creating any output directory.
+    # Read and validate each original ONCE before output exists. Staging must
+    # use these exact validated bytes, never re-read potentially replaced code
+    # or manifests after the preflight (preflight/copy TOCTOU).
+    approved: dict[str, bytes] = {}
     for dest, relative in SOURCES.items():
         source = repo / relative
         if not source.is_file() or source.is_symlink() or repo not in source.resolve().parents:
             raise ValueError("missing or symlinked allowlisted Y1 source: " + relative)
+        raw = source.read_bytes()
+        if not raw or len(raw) > MAX_SOURCE_BYTES:
+            raise ValueError("Y1 source size outside approved limit")
+        approved[dest] = raw
         if dest.endswith(".py"):
-            ast.parse(source.read_text(encoding="utf-8"), filename=relative)
+            ast.parse(raw.decode("utf-8"), filename=relative)
         elif dest.endswith("function.json"):
-            _validated_manifest(source, ROUTES[Path(dest).parent.name])
-    host = json.loads((repo / SOURCES["host.json"]).read_text(encoding="utf-8"))
+            _validated_manifest(raw, ROUTES[Path(dest).parent.name])
+    host = json.loads(approved["host.json"])
     if host.get("version") != "2.0":
         raise ValueError("unexpected Azure Functions host version")
-    pins = (repo / SOURCES["requirements.txt"]).read_text(encoding="utf-8").splitlines()
+    pins = approved["requirements.txt"].decode("utf-8").splitlines()
     if pins != ["azure-functions==1.24.0", "PyJWT[crypto]==2.10.1"]:
         raise ValueError("pinned Y1 Python requirements changed; review needed")
 
     target.mkdir()
-    for dest, relative in SOURCES.items():
+    for dest, raw in approved.items():
         outfile = target / dest
         outfile.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(repo / relative, outfile)
-        if outfile.read_bytes() != (repo / relative).read_bytes():
-            raise ValueError("original Y1 source changed during staging")
+        outfile.write_bytes(raw)
+        if outfile.read_bytes() != raw:
+            raise ValueError("validated Y1 source staging readback mismatch")
     actual = {str(p.relative_to(target)) for p in target.rglob("*") if p.is_file()}
     if actual != set(SOURCES):
         raise ValueError("unexpected file in Y1 source staging")
