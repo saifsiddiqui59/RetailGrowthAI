@@ -83,6 +83,22 @@ class Y1RemoteBuildWorkflowSourceTests(unittest.TestCase):
             self.assertIn(token, w)
         self.assertNotIn("SIGNED_RLS=PASS", w)
 
+    def test_no_obsolete_external_package_rejection_or_literal_secret_escape(self):
+        self.assertNotIn("--fail-if-pinned-package", self.new)
+        self.assertNotIn("\\${{", self.new)
+        self.assertIn("env:\n      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}",
+                      self.new)
+        bridge = (ROOT / ".github/workflows/p0249-y1-owner-delegated-remote-build-once.yml").read_text()
+        self.assertNotIn("\\${{", bridge)
+        self.assertIn("GH_TOKEN: ${{ github.token }}", bridge)
+        self.assertIn("c009961ab876f9336fac7941957658810eb56c8c", bridge)
+        self.assertIn("on:\n  push:\n", bridge)
+        self.assertIn("actions: write", bridge)
+        self.assertIn("event=push", bridge)
+        self.assertIn("P0249_OWNER_REMOTE_BUILD_EXACT_MAIN_CI_4OF4=PASS", bridge)
+        self.assertIn("p0249-dev-y1-five-get-remote-build-protected.yml/dispatches", bridge)
+        self.assertNotIn("az functionapp", bridge)
+
     def test_original_pkg_backup_is_owned_and_sanitized_not_published(self):
         script = (ROOT / "ops/p0249_y1_remote_build_mode.py").read_text()
         for token in (
