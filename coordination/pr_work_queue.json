@@ -90,7 +90,12 @@
       "work_owner": "manual-integration-chat-e-F5-20261119",
       "priority": "P1",
       "phase": "in-progress",
-      "claim": null,
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119-resume",
+        "claimed_at": "2026-11-19T07:28:42.756Z",
+        "expires_at": "2026-11-19T08:58:42.756Z",
+        "head_sha": "8aecc7c687c217b5c7a0b67498ef9a4a53400824"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
         "at": "2026-11-19T05:08:38.516Z",
@@ -110,7 +115,12 @@
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P2",
       "phase": "in-progress",
-      "claim": null,
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119-resume",
+        "claimed_at": "2026-11-19T07:28:42.756Z",
+        "expires_at": "2026-11-19T08:58:42.756Z",
+        "head_sha": "2a35fe131dac57752b217d95c3d064711424a38e"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
         "at": "2026-11-19T05:08:38.516Z",
@@ -130,7 +140,12 @@
       "work_owner": "manual-issue249",
       "priority": "P1",
       "phase": "in-progress",
-      "claim": null,
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119-resume",
+        "claimed_at": "2026-11-19T07:28:42.756Z",
+        "expires_at": "2026-11-19T08:58:42.756Z",
+        "head_sha": "a5f531aab5d448a22fc898d8d893f75a2f2e218b"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
         "at": "2026-11-19T04:57:40.576Z",
@@ -162,7 +177,12 @@
       "work_owner": "manual-issue249",
       "priority": "P2",
       "phase": "in-progress",
-      "claim": null,
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119-resume",
+        "claimed_at": "2026-11-19T07:28:42.756Z",
+        "expires_at": "2026-11-19T08:58:42.756Z",
+        "head_sha": "aad2c453b490e97721624a89a76a8ac6097a9073"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
         "at": "2026-11-19T04:57:40.576Z",
@@ -221,8 +241,13 @@
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P2",
-      "phase": "blocked",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119-resume",
+        "claimed_at": "2026-11-19T07:28:42.756Z",
+        "expires_at": "2026-11-19T08:58:42.756Z",
+        "head_sha": "a655e26ec88eea61930faabb144d746c812611a0"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
         "at": "2026-11-19T05:11:40.474Z",
@@ -240,8 +265,13 @@
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P2",
-      "phase": "blocked",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119-resume",
+        "claimed_at": "2026-11-19T07:28:42.756Z",
+        "expires_at": "2026-11-19T08:58:42.756Z",
+        "head_sha": "63f5cbe4bbc3840b3ced6aeb60938976137782bc"
+      },
       "checkpoint": {
         "owner": "manual-integration-chat-f-20261119",
         "at": "2026-11-19T05:11:40.474Z",
