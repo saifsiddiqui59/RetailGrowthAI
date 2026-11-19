@@ -26,14 +26,22 @@
     {
       "pr": 1027,
       "title": "ci: fix apt-mirror timeouts without skipping Chromium or FFmpeg",
-      "head_sha": "4469fc1d3c6cea710bcf77b903be191257262bc4",
+      "head_sha": "6466880519fa7c072986c7624f3a43fd7499acba",
       "base_branch": "main",
       "feature": "shared",
       "work_owner": "manual-integration",
       "priority": "P1",
-      "phase": "needs-triage",
+      "phase": "ready-for-review",
       "claim": null,
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1027"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1027",
+      "checkpoint": {
+        "owner": "manual-ci-verification-chat-g-20261119",
+        "at": "2026-11-19T08:19:28.347Z",
+        "status": "exact-head PR four mandatory jobs SUCCESS; shared workflow independent review still missing; do not merge before affected reviewer",
+        "ci": "PR Actions #44486001496 4/4 PASS",
+        "head_sha": "6466880519fa7c072986c7624f3a43fd7499acba",
+        "feature_done": false
+      }
     },
     {
       "pr": 1026,
