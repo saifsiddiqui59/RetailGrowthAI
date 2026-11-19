@@ -135,7 +135,7 @@
       "pr": 1002,
       "title": "docs(#249): record Y1 five-GET release source and missing live acceptance",
       "feature": "issue249",
-      "head_sha": "a5f531aab5d448a22fc898d8d893f75a2f2e218b",
+      "head_sha": "c70a76100417af0811050f67e07cb9815244ca8b",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P1",
@@ -144,14 +144,14 @@
         "owner": "manual-integration-chat-f-20261119-resume",
         "claimed_at": "2026-11-19T07:28:42.756Z",
         "expires_at": "2026-11-19T08:58:42.756Z",
-        "head_sha": "a5f531aab5d448a22fc898d8d893f75a2f2e218b"
+        "head_sha": "c70a76100417af0811050f67e07cb9815244ca8b"
       },
       "checkpoint": {
-        "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T04:57:40.576Z",
-        "status": "four project docs revised to reflect #995 source TOCTOU fix",
-        "CI": "exact-head #44460427036 4/4 PASS",
-        "review": "independent shared docs/ops required"
+        "owner": "manual-integration-chat-f-20261119-resume",
+        "at": "2026-11-19T07:31:53.361Z",
+        "status": "resolved docs conflict with latest main via safe two-parent merge; preserved four #249 source/TOCTOU evidence sections",
+        "ci": "exact-head 44480247191 and 44480239321 in progress",
+        "review": "independent shared project docs and #249 ops review still required; no deployment"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1002"
     },
