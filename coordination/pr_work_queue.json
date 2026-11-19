@@ -102,7 +102,7 @@
       "pr": 1018,
       "title": "fix(#249): protect user JWT and service-role PostgREST from HTTP redirects",
       "feature": "issue249",
-      "head_sha": "179536e181e0396e753ee99f066ce5b1a787a596",
+      "head_sha": "4b41d2307ef016ada93f7e281cb67da2c61af0fa",
       "base_branch": "main",
       "work_owner": "manual-integration-chat-f-20261119",
       "priority": "P1",
@@ -111,14 +111,16 @@
         "owner": "manual-integration-chat-g-security-20261119",
         "claimed_at": "2026-11-19T08:07:12.333Z",
         "expires_at": "2026-11-19T09:07:12.333Z",
-        "head_sha": "179536e181e0396e753ee99f066ce5b1a787a596"
+        "head_sha": "4b41d2307ef016ada93f7e281cb67da2c61af0fa"
       },
       "checkpoint": {
-        "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T05:21:52.720Z",
-        "status": "current-main privileged HTTP no-redirect + JWKS 503 + Feature2 enabled cached-verifier NameError fix; exact PR #44463610067 4/4 PASS; independent security review REQUIRED before merge",
-        "ci": "44463610067 SUCCESS 4/4",
-        "original_tasks_done": false
+        "owner": "manual-integration-chat-g-security-20261119",
+        "at": "2026-11-19T08:08:23.930Z",
+        "status": "ported missing original #965 Y1 signing-key dependency outage 503/no-DB/no-token regression to scoped #1018 current-main test",
+        "source_commit": "4b41d2307ef016ada93f7e281cb67da2c61af0fa",
+        "ci": "new exact-head #44485024323 in progress",
+        "original_paths_source_port": "7/12 identical blobs; 5 compatible variants, original hosted handler regression restored",
+        "blocker": "independent auth/security/Functions review still needed; no source merge or DEV deploy"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1018"
     },
