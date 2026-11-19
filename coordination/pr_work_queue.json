@@ -281,7 +281,7 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "ready-for-review",
+      "phase": "ci-review-pending",
       "claim": {
         "owner": "manual-integration-chat-c-20261119",
         "claimed_at": "2026-11-19T04:49:23.103Z",
@@ -289,11 +289,11 @@
         "head_sha": "c4b2708bb9b21944f171c071951ab8656311d4c8"
       },
       "checkpoint": {
-        "at": "2026-11-19T04:49:23.103Z",
+        "at": "2026-11-19T04:51:17.056Z",
         "owner": "manual-integration-chat-c-20261119",
         "head_after": "c4b2708bb9b21944f171c071951ab8656311d4c8",
-        "status": "ready-for-review",
-        "next_action": "4/4 PR CI #44132961182 at a204af9, independent editorial rights/F4 review and non-atomic CAS acceptance pending."
+        "status": "motion-digest-race-fixed",
+        "next_action": "Source hardening + synthetic mutation regression committed, exact-head Part1 CI #44460780655 running; independent F2/F4 rights review still required."
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/972"
     },
@@ -313,11 +313,11 @@
         "head_sha": "6427e3cd8c14a82e0bcf26daad71dfc1f776e43d"
       },
       "checkpoint": {
-        "at": "2026-11-19T04:49:23.103Z",
+        "at": "2026-11-19T04:51:17.056Z",
         "owner": "manual-integration-chat-c-20261119",
         "head_after": "6427e3cd8c14a82e0bcf26daad71dfc1f776e43d",
-        "status": "ready-for-review",
-        "next_action": "Exact-head 9d5ded4 Part1 #44383584218 4/4; independent shared-doc review required"
+        "status": "reconciled-docs-ci-4of4-review-required",
+        "next_action": "Latest reconciled four canonical docs exact-head Part1 CI #44459893892 4/4 SUCCESS; check fresh main and require independent shared docs review."
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/970"
     },
@@ -373,11 +373,11 @@
         "head_sha": "67da2a97f3c50f6fcd04ae9a505cd7f78743944d"
       },
       "checkpoint": {
-        "at": "2026-11-19T04:49:23.103Z",
+        "at": "2026-11-19T04:51:17.056Z",
         "owner": "manual-integration-chat-c-20261119",
         "head_after": "67da2a97f3c50f6fcd04ae9a505cd7f78743944d",
-        "status": "ready-for-review",
-        "next_action": "Exact-head 67da2a97 Part1 #44458919848 4/4; current main compatibility to recheck and independent shared coordination review required"
+        "status": "reconciled-control-ci-4of4-review-required",
+        "next_action": "Current main reconciled nine governance paths, exact-head Part1 #44458919848 4/4 SUCCESS; independent coordination/governance review required."
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/964"
     },
@@ -389,7 +389,7 @@
       "base_branch": "feat/feature3-f3-08-current-rights-attestation-20261106",
       "work_owner": "schedule-f3",
       "priority": "P0",
-      "phase": "source-consolidated-review-pending",
+      "phase": "ci-review-pending",
       "claim": {
         "owner": "manual-integration-chat-c-20261119",
         "claimed_at": "2026-11-19T04:49:23.103Z",
@@ -397,11 +397,11 @@
         "head_sha": "1d7b7c2f03177da82a60285dc0864b26d9c5ae7d"
       },
       "checkpoint": {
-        "at": "2026-11-19T04:49:23.103Z",
+        "at": "2026-11-19T04:51:17.056Z",
         "owner": "manual-integration-chat-c-20261119",
         "head_after": "1d7b7c2f03177da82a60285dc0864b26d9c5ae7d",
-        "status": "source-consolidated-review-pending",
-        "next_action": "Six child JWT/JWKS/HTTP full-PNG source and tests ported byte-for-byte to #880; verify #880 final-head 4/4 then retire source PR #944 unmerged; independent F3 security review remains for parent"
+        "status": "stacked-child-source-consolidated",
+        "next_action": "F3 #944 source hardening preserved in child, now reconciled parent #880; CI #44460476922 4/4 SUCCESS at 1d7b7c2; independent F3 JWT/rights review and parent merge still required."
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/944"
     },
@@ -487,11 +487,11 @@
         "head_sha": "72f08ccf156c5b9225f79cf6987bef541488df69"
       },
       "checkpoint": {
-        "at": "2026-11-19T04:49:23.103Z",
+        "at": "2026-11-19T04:51:17.056Z",
         "owner": "manual-integration-chat-c-20261119",
         "head_after": "72f08ccf156c5b9225f79cf6987bef541488df69",
-        "status": "ci-review-pending",
-        "next_action": "#879 source merged into keeper (old head 1176b2d Part1 #44460220136 4/4), now #944 six original blobs ported plus 8 source-only adapter package fence; new exact-head Part1 CI pending; mandatory independent F3/Functions review"
+        "status": "F3 parent consolidating old #879",
+        "next_action": "Original #879 closed as duplicate on its preserved source; new #880 head must pass 4/4 and independent rights/security review before main."
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/880"
     },
