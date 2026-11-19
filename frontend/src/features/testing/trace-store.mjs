@@ -91,7 +91,7 @@ export function createTraceStore({ supabaseUrl, publishableKey, tokenProvider, f
   if (typeof supabaseUrl !== 'string') throw new Error('Trace storage must use a trusted HTTPS origin')
   const url = new URL(supabaseUrl)
   if (url.protocol !== 'https:' ||
-      !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.supabase\\.co$/.test(url.hostname) ||
+      !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.supabase\.co$/.test(url.hostname) ||
       (url.port !== '' && url.port !== '443') ||
       url.username || url.password || url.search || url.hash ||
       !['', '/'].includes(url.pathname)) throw new Error('Trace storage must use a trusted HTTPS origin')
