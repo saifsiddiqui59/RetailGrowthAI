@@ -21,3 +21,7 @@ Restored exact original negative regression files:
 - `tests/infra/test_p0249_feature2_cached_verifier.py` old SHA `b1ead1811989cff4e963671dba4a4a688f875a8f`.
 
 Prior PR CI #44460641511 **4/4** predates this extension; it MUST NOT be counted for the new head. Run focused Python suites and all four required exact new-head CI jobs, then obtain independent JWT/RLS service-role security review before any source merge and new exact-main CI. This source-only change does not fix original Flex 503, deploy cloud routes, activate Y1, or establish hosted customer proof.
+
+## Original root Feature2 builder defect detected by actual CI
+
+The exact-new-head Python regression in GitHub Actions #44462808283 exposed a preexisting **real Functions enabled-code NameError**: `function_app.py` imports only `cached_supabase_verifier`, but `build_feature2_api()` still called now-unimported `SupabaseJWTVerifier(origin)`. This can produce a nonfunctional Feature2 route whenever enabled; it is not an acceptable reason to classify all real 503s as resolved. Ported the historical #965 one-line correct source usage against the current-main builder and preserved the original test source blob `test_p0249_feature2_cached_verifier.py`. The two tests previously failed with `NameError` and wrong AST call, now require an exact new-head four-job CI rerun. No role, claim, external provider, or SQL approval was enabled. All code remains **review-blocked** for independent shared Functions/auth security review before main merge.
