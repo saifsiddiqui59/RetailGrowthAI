@@ -119,16 +119,16 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-f-20261119",
       "priority": "P1",
-      "phase": "ready-for-review",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-y1-20261120",
+        "head_sha": "4b41d2307ef016ada93f7e281cb67da2c61af0fa",
+        "claimed_at": "2026-11-19T18:43:16.121Z",
+        "expires_at": "2026-11-19T20:13:16.121Z"
+      },
       "checkpoint": {
-        "owner": "manual-integration-chat-g-security-20261119",
-        "at": "2026-11-19T08:14:51.282Z",
-        "status": "ported missing original #965 real Y1 JWKS signing-key outage test to current-main security source; CI exact-head 4/4 passed; independent protected reviewer still required",
-        "commit": "4b41d2307ef016ada93f7e281cb67da2c61af0fa",
-        "ci": "PR run 44485024323 completed SUCCESS 4/4",
-        "historicalComparison": "7/12 identical source blobs, 5 compatible variations; original outage regression restored",
-        "feature_done": false
+        "next_action": "Owner-authorized code/security review and exact-head CI; integrate current-main JWT no-redirect prerequisite for guarded Y1 source. Do not deploy until own protections verified.",
+        "head_sha": "4b41d2307ef016ada93f7e281cb67da2c61af0fa"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1018"
     },
