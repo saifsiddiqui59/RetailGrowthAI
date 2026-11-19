@@ -7,6 +7,7 @@
 - The full source suite still executes real `video-engine/ci.sh` with **1,051** media unit tests, an actual 30-second 1080×1920 synthetic H.264/AAC render, exact ffprobe stream checks, sampled content/xfade/audio assertions and CPU benchmark. Nothing is skipped to obtain green CI. Existing separately skipped media tests are unchanged.
 - FFmpeg 8.1 exposed a genuine color-range mismatch in JPEG-derived composition: encoded `yuvj420p` instead of the required `yuv420p`. The renderer now converts frame pixels to TV/limited range via `scale=in_range=auto:out_range=tv` and signals `-color_range tv`, while the strict probe still REJECTS `yuvj420p` and reports only safe codec/geometry metadata on failures.
 - Real mobile Playwright navigation now scrolls the offscreen Subscription link in a long drawer into view before asserting it is visible in the viewport, clickable and reaches the correct subscription page. No mocked browser or route test bypass.
+- The isolated Supabase security job also avoids unconditional Ubuntu apt-mirror access: pin the GitHub-hosted Ubuntu 24.04 runner, verify its preinstalled PostgreSQL 16 `psql` exists, and **fail closed** if it does not. Every tenant RLS/private storage/feature-budget SQL test remains mandatory; CI regression checks now enforce those commands.
 
 ## Exact-head source CI evidence
 

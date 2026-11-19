@@ -17,6 +17,7 @@ class AptIndependentCISourceTests(unittest.TestCase):
         cls.workflow = WORKFLOW.read_text(encoding="utf-8")
         cls.browser = cls.workflow.split("  frontend:\n", 1)[1].split("  python:\n", 1)[0]
         cls.media = cls.workflow.split("  video:\n", 1)[1].split("  security:\n", 1)[0]
+        cls.security = cls.workflow.split("  security:\n", 1)[1]
 
     def test_all_four_mandatory_jobs_remain(self):
         for name in ("  frontend:", "  python:", "  video:", "  security:"):
@@ -55,6 +56,24 @@ class AptIndependentCISourceTests(unittest.TestCase):
         self.assertNotIn("apt-get", self.media)
         self.assertNotIn("|| true", self.media)
         self.assertNotIn("continue-on-error:", self.media)
+
+    def test_disposable_supabase_sql_remains_real_without_apt_mirror(self):
+        # Ubuntu 24.04 images already ship a PostgreSQL client. No forced
+        # external apt update can starve or silently skip isolation tests.
+        self.assertIn("runs-on: ubuntu-24.04", self.security)
+        self.assertIn("command -v psql", self.security)
+        self.assertIn("psql --version", self.security)
+        self.assertNotIn("apt-get", self.security)
+        for required in (
+            "supabase db start",
+            "psql -X -v ON_ERROR_STOP=1",
+            "tests/security/rls_negative.sql",
+            "tests/security/storage_negative.sql",
+            "tests/security/feature2_ai_budget_negative.sql",
+            "tests/security/feature2_ai_budget_rollback_rehearsal.sql",
+        ):
+            with self.subTest(required=required):
+                self.assertIn(required, self.security)
 
     def test_renderer_converts_full_range_jpeg_to_limited_without_weakening_probe(self):
         render = (ROOT / "video-engine/render.py").read_text(encoding="utf-8")

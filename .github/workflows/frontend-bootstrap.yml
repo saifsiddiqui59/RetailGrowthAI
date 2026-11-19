@@ -218,7 +218,8 @@ jobs:
 
   security:
     name: Supabase isolation + authentication client tests
-    runs-on: ubuntu-latest
+    # Pin the runner image with an already-installed PostgreSQL 16 client.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     permissions:
       contents: read
@@ -270,11 +271,17 @@ jobs:
             sleep "$((attempt * 12))"
             : > "$log"
           done
-      - name: Install PostgreSQL command-line client
+      - name: Verify preinstalled PostgreSQL client (no Ubuntu apt mirror)
         shell: bash
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client
+          set -euo pipefail
+          # GitHub's Ubuntu 24.04 image provides PostgreSQL 16; fail visibly
+          # if the runner changes rather than skipping real RLS/SQL tests.
+          if ! command -v psql >/dev/null 2>&1; then
+            echo '::error::Preinstalled PostgreSQL client missing; real SQL tests cannot run.'
+            exit 1
+          fi
+          psql --version
       - name: Assert cross-tenant data and private storage denial
         shell: bash
         env:
