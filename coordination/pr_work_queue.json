@@ -13,13 +13,13 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 17,
+    "open_prs": 16,
     "by_feature": {
       "F2": 2,
       "F3": 1,
       "F5": 1,
       "issue249": 9,
-      "shared": 4
+      "shared": 3
     }
   },
   "entries": [
@@ -81,21 +81,13 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-c-20261119",
       "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-primary-20261120",
-        "head_sha": "dfff7942f95fca0d394bdd550ba5b4bd8666f08f",
-        "claimed_at": "2026-11-19T18:38:36.810Z",
-        "expires_at": "2026-11-19T20:08:36.810Z"
-      },
+      "phase": "blocked",
+      "claim": null,
       "checkpoint": {
-        "owner": "manual-integration-chat-primary-20261119",
-        "at": "2026-11-19T18:06:46.753Z",
-        "head_sha": "dfff7942f95fca0d394bdd550ba5b4bd8666f08f",
-        "status": "Exact-head four mandatory Part1 CI jobs SUCCESS; no independent shared review; no main merge",
-        "ci": "#44461891645 4/4",
-        "review_count": 0,
-        "feature_done": false
+        "status": "All 30 additive original #1022 source lines preserved in current-main reconciled #1007 (branch head 0aeaaedc); retire #1022 UNMERGED only after #1007 merge, exact-main CI success, content parity",
+        "owner": "manual-integration-chat-primary-20261120",
+        "at": "2026-11-19T18:40:27.886Z",
+        "dependent_pr": 1007
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1022"
     },
@@ -169,22 +161,22 @@
       "pr": 1007,
       "title": "docs(integration): evidence-backed 10-PR chat D closure checkpoint",
       "feature": "shared",
-      "head_sha": "6ed3aa3b47482ccbedc9361d3727d3b6889d2e44",
+      "head_sha": "0aeaaedc426cdc83925869025acf97f2a005759a",
       "base_branch": "main",
       "work_owner": "manual-integration-chat-d-20261119",
       "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-primary-20261120",
-        "head_sha": "6ed3aa3b47482ccbedc9361d3727d3b6889d2e44",
-        "claimed_at": "2026-11-19T18:38:36.810Z",
-        "expires_at": "2026-11-19T20:08:36.810Z"
-      },
+      "phase": "ci-review-pending",
+      "claim": null,
       "checkpoint": {
+        "status": "exact original #1007 plus #1022 docs content consolidated on #964 main; mandatory exact-head Part1 CI #44590187279 in progress; no direct-main merge",
         "owner": "manual-integration-chat-primary-20261120",
-        "head_sha": "6ed3aa3b47482ccbedc9361d3727d3b6889d2e44",
-        "status": "Reconcile superseded historical PR status before docs merge",
-        "at": "2026-11-19T18:34:56.199Z"
+        "at": "2026-11-19T18:40:27.886Z",
+        "head_sha": "0aeaaedc426cdc83925869025acf97f2a005759a",
+        "source_prs": [
+          1007,
+          1022
+        ],
+        "ci": "PR #44590187279 in progress"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1007"
     },
@@ -296,32 +288,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/965"
     },
     {
-      "pr": 964,
-      "title": "feat(coordination): serialize main merges and use CAS-backed PR queue",
-      "feature": "shared",
-      "head_sha": "1e080a470ac3d32ec83225cb1cc94c52783b5b8d",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-primary-20261120",
-        "head_sha": "1e080a470ac3d32ec83225cb1cc94c52783b5b8d",
-        "claimed_at": "2026-11-19T18:36:11.271Z",
-        "expires_at": "2026-11-19T20:06:11.271Z"
-      },
-      "checkpoint": {
-        "owner": "manual-integration-chat-primary-20261119",
-        "at": "2026-11-19T18:06:46.753Z",
-        "head_sha": "1e080a470ac3d32ec83225cb1cc94c52783b5b8d",
-        "status": "Security fix + two regression tests committed; exact-head Part1 four-job CI running; independent governance/security review required",
-        "ci": "#44583824300 in progress",
-        "review_count": 0,
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/964"
-    },
-    {
       "pr": 939,
       "title": "ops(#249): bounded DEV Y1 public-only JWT shadow trial with rollback",
       "feature": "issue249",
@@ -354,5 +320,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/880"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T18:35:47.563Z"
+  "last_inventory_checked_at": "2026-11-19T18:40:27.886Z"
 }
