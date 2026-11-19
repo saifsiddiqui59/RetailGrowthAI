@@ -13,62 +13,39 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 19,
+    "open_prs": 17,
     "by_feature": {
-      "F5": 1,
-      "issue249": 9,
       "shared": 4,
-      "F2": 3,
-      "F3": 1,
-      "F4": 1
+      "F2": 2,
+      "issue249": 9,
+      "F5": 1,
+      "F3": 1
     }
   },
   "entries": [
     {
-      "pr": 1024,
-      "title": "docs(#249): preserve all 12 original auth/JWKS source patches from legacy #965",
-      "feature": "issue249",
-      "head_sha": "d56e393bbf3641af1d5299e5073aabcda5483681",
+      "pr": 1022,
+      "title": "docs(F3): record #879/#944 source consolidation and #880 4/4 evidence",
+      "head_sha": "dfff7942f95fca0d394bdd550ba5b4bd8666f08f",
+      "feature": "shared",
       "base_branch": "main",
-      "work_owner": "manual-integration-chat-f-20261119",
-      "priority": "P2",
-      "phase": "in-progress",
+      "work_owner": "manual-integration-chat-c-20261119",
+      "priority": "P1",
+      "phase": "ci-review-pending",
       "claim": {
-        "owner": "manual-integration-chat-f-20261119",
-        "head_sha": "d56e393bbf3641af1d5299e5073aabcda5483681",
-        "claimed_at": "2026-11-19T05:21:52.720Z",
-        "expires_at": "2026-11-19T06:51:52.720Z"
+        "owner": "manual-integration-chat-c-20261119",
+        "claimed_at": "2026-11-19T05:00:43.888Z",
+        "expires_at": "2026-11-19T06:30:43.888Z",
+        "head_sha": "dfff7942f95fca0d394bdd550ba5b4bd8666f08f"
       },
       "checkpoint": {
-        "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T05:21:52.720Z",
-        "status": "archival PR for original #965; exact original patch parity verified; PR/main CI pending",
-        "original_tasks_done": false
+        "at": "2026-11-19T05:00:43.888Z",
+        "owner": "manual-integration-chat-c-20261119",
+        "head_after": "dfff7942f95fca0d394bdd550ba5b4bd8666f08f",
+        "status": "ci-review-pending",
+        "next_action": "Docs-only exact head dfff7942 Part1 #44461891645 pending, independent shared-doc review needed; records F3 source results omitted from earlier merged #970"
       },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1024"
-    },
-    {
-      "pr": 1023,
-      "title": "docs(#249): preserve four exact original #1002 Y1 canonical-doc patches without stale overwrite",
-      "feature": "issue249",
-      "head_sha": "b5c39857d46dac1dd98d6cc942f8f0040b9fff77",
-      "base_branch": "main",
-      "work_owner": "manual-integration-chat-f-20261119",
-      "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-f-20261119",
-        "head_sha": "b5c39857d46dac1dd98d6cc942f8f0040b9fff77",
-        "claimed_at": "2026-11-19T05:21:52.720Z",
-        "expires_at": "2026-11-19T06:51:52.720Z"
-      },
-      "checkpoint": {
-        "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T05:21:52.720Z",
-        "status": "archival PR for original #1002; exact original patch parity verified; PR/main CI pending",
-        "original_tasks_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1023"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1022"
     },
     {
       "pr": 1019,
@@ -135,6 +112,31 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1013"
     },
     {
+      "pr": 1007,
+      "title": "docs(integration): evidence-backed 10-PR chat D closure checkpoint",
+      "feature": "shared",
+      "head_sha": "2a35fe131dac57752b217d95c3d064711424a38e",
+      "base_branch": "main",
+      "work_owner": "manual-integration-chat-d-20261119",
+      "priority": "P2",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-f-20261119",
+        "claimed_at": "2026-11-19T04:27:18.533Z",
+        "expires_at": "2026-11-19T05:57:18.533Z",
+        "head_sha": "2a35fe131dac57752b217d95c3d064711424a38e"
+      },
+      "checkpoint": {
+        "owner": "manual-integration-chat-f-20261119",
+        "at": "2026-11-19T05:08:38.516Z",
+        "status": "clean append-only two-parent reconciliation of latest main docs, existing unique sections preserved",
+        "ci": "#44462876075 queued/running",
+        "blocker": "independent shared docs review",
+        "mergeBase": "20473f0d4d5452ee8c641ced1a33a919d7b61544"
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1007"
+    },
+    {
       "pr": 1002,
       "title": "docs(#249): record Y1 five-GET release source and missing live acceptance",
       "feature": "issue249",
@@ -170,31 +172,6 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1001"
-    },
-    {
-      "pr": 1007,
-      "title": "docs(integration): evidence-backed 10-PR chat D closure checkpoint",
-      "feature": "shared",
-      "head_sha": "2a35fe131dac57752b217d95c3d064711424a38e",
-      "base_branch": "main",
-      "work_owner": "manual-integration-chat-d-20261119",
-      "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-f-20261119",
-        "claimed_at": "2026-11-19T04:27:18.533Z",
-        "expires_at": "2026-11-19T05:57:18.533Z",
-        "head_sha": "2a35fe131dac57752b217d95c3d064711424a38e"
-      },
-      "checkpoint": {
-        "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T05:08:38.516Z",
-        "status": "clean append-only two-parent reconciliation of latest main docs, existing unique sections preserved",
-        "ci": "#44462876075 queued/running",
-        "blocker": "independent shared docs review",
-        "mergeBase": "20473f0d4d5452ee8c641ced1a33a919d7b61544"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1007"
     },
     {
       "pr": 995,
@@ -313,7 +290,7 @@
       "pr": 964,
       "title": "feat(coordination): serialize main merges and use CAS-backed PR queue",
       "feature": "shared",
-      "head_sha": "09087f4f63786a40cedbcd851fd750a0c78f12cf",
+      "head_sha": "98577b57b76e8ad7f60fd9ec79aca82b6d59c05e",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
@@ -346,27 +323,6 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/939"
-    },
-    {
-      "pr": 925,
-      "title": "review(feature2): OFF-by-default signed VoiceStudio Azure Functions route",
-      "feature": "F2",
-      "head_sha": "69a4edce42c3e7ed54c6984b9876a7bdd07d41f0",
-      "base_branch": "feat/feature2-voicestudio-register-wav-20261111",
-      "work_owner": "schedule-f2",
-      "priority": "P1",
-      "phase": "closed-unmerged",
-      "claim": null,
-      "checkpoint": {
-        "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T05:11:40.474Z",
-        "status": "original 3/3 historical patches archived #1021; PR 4/4 #44461278643, exact merged-main #44462373840 4/4; original DRAFT #925 closed UNMERGED",
-        "archive_pr": 1021,
-        "archive_merge_sha": "20473f0d4d5452ee8c641ced1a33a919d7b61544",
-        "current_main_safe_route_review_pr": 1019,
-        "original_tasks_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/925"
     },
     {
       "pr": 921,
@@ -417,51 +373,7 @@
         "next_action": "Head 72f08ccf Part1 #44460852580 and #44460858767 4/4 PASS; original #879/#944 source preserved and closed unmerged; independent F3/Functions security/rights review still absent"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/880"
-    },
-    {
-      "pr": 322,
-      "title": "WIP Feature #4 — Timeline Studio engine (illustrated demo rejected; visual QA open)",
-      "feature": "F4",
-      "head_sha": "b9525a9ea3d5e5aee351edf89a3c011c2314ed2e",
-      "base_branch": "main",
-      "work_owner": "manual-integration-chat-d-20261119",
-      "priority": "P0",
-      "phase": "closed-unmerged",
-      "claim": null,
-      "checkpoint": {
-        "owner": "manual-integration-chat-f-20261119",
-        "at": "2026-11-19T05:08:38.516Z",
-        "status": "old F4 draft #322 closed UNMERGED, 184/188 exact main blobs, four historical patch hunks preserved in merged #1020",
-        "archive_pr": 1020,
-        "archive_merge": "762e0269c02bd3c8ddb3d87d03c95ef94f7229ee",
-        "ci": "archive PR #44461045029 4/4, descendant main #44462373840 4/4",
-        "original_tasks_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/322"
-    },
-    {
-      "pr": 1022,
-      "title": "docs(F3): record #879/#944 source consolidation and #880 4/4 evidence",
-      "head_sha": "dfff7942f95fca0d394bdd550ba5b4bd8666f08f",
-      "feature": "shared",
-      "base_branch": "main",
-      "work_owner": "manual-integration-chat-c-20261119",
-      "priority": "P1",
-      "phase": "ci-review-pending",
-      "claim": {
-        "owner": "manual-integration-chat-c-20261119",
-        "claimed_at": "2026-11-19T05:00:43.888Z",
-        "expires_at": "2026-11-19T06:30:43.888Z",
-        "head_sha": "dfff7942f95fca0d394bdd550ba5b4bd8666f08f"
-      },
-      "checkpoint": {
-        "at": "2026-11-19T05:00:43.888Z",
-        "owner": "manual-integration-chat-c-20261119",
-        "head_after": "dfff7942f95fca0d394bdd550ba5b4bd8666f08f",
-        "status": "ci-review-pending",
-        "next_action": "Docs-only exact head dfff7942 Part1 #44461891645 pending, independent shared-doc review needed; records F3 source results omitted from earlier merged #970"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1022"
     }
-  ]
+  ],
+  "last_inventory_checked_at": "2026-11-19T05:57:12Z"
 }
