@@ -164,25 +164,27 @@
       "pr": 995,
       "title": "build(#249): exact five-route Y1 GET staging with deny-list tests",
       "feature": "issue249",
-      "head_sha": "b98fbd9d19d37a19deb97ef6c7639b56ac7b29ac",
+      "head_sha": "144c65b5af2ce55df1b9705c6f1fac46a550d9c9",
       "base_branch": "feat/p0249-y1-extra-readonly-get-source-20261117",
       "work_owner": "manual-issue249",
       "priority": "P2",
-      "phase": "blocked",
-      "claim": null,
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-integration-chat-g-20261119",
+        "claimed_at": "2026-11-19T07:55:11.333Z",
+        "expires_at": "2026-11-19T09:25:11.333Z",
+        "head_sha": "144c65b5af2ce55df1b9705c6f1fac46a550d9c9"
+      },
       "checkpoint": {
-        "owner": "manual-integration-chat-f-20261119-resume",
-        "at": "2026-11-19T07:52:19.498Z",
-        "status": "source fixed: immutable preflight snapshots, bounded files, 3GiB sparse regression; full four-job CI not green (runner apt download failures/cancelled concurrent runs), stacked parent #968 and independent tenant/JWT/ops review",
-        "head_sha": "b98fbd9d19d37a19deb97ef6c7639b56ac7b29ac",
+        "owner": "manual-integration-chat-g-20261119",
+        "at": "2026-11-19T07:55:11.333Z",
+        "status": "current source fixed O_NOFOLLOW and bounded regular descriptor read with symlink-swap regression; exact-head CI retry running",
         "source_commits": [
-          "4af18e9c3fdf40cf83eea323233e0e13880020bc",
-          "b98fbd9d19d37a19deb97ef6c7639b56ac7b29ac"
+          "5d9f99fcb7396be26a1312d7ae73af0252e5ddcc",
+          "144c65b5af2ce55df1b9705c6f1fac46a550d9c9"
         ],
-        "ci_run": 44480970404,
-        "ci_attempts": "attempt1 failure external apt; attempts2/3 cancelled, Python + Supabase successful",
-        "python_evidence": "new sparse 3GiB and source race tests passed in Python job",
-        "done": false
+        "ci": "run 44482574026 attempt2 in progress (attempt1 cancelled); no full 4/4 acceptance yet",
+        "blockers": "stacked on independent JWT/RLS source #968 and affected-lead review; NO Azure deployment"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/995"
     },
