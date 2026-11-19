@@ -184,24 +184,23 @@
       "pr": 970,
       "title": "docs(integration): F2/F4 source recovery, 10-PR reconciliation and CI receipts",
       "feature": "F2",
-      "head_sha": "9d5ded4037bc54fb7d3aae7a94831c3f25f85db1",
+      "head_sha": "6427e3cd8c14a82e0bcf26daad71dfc1f776e43d",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "ready-for-review",
+      "phase": "ci-review-pending",
       "claim": {
         "owner": "manual-integration-chat-c-20261119",
         "claimed_at": "2026-11-19T04:35:17.466Z",
         "expires_at": "2026-11-19T06:05:17.466Z",
-        "head_sha": "9d5ded4037bc54fb7d3aae7a94831c3f25f85db1"
+        "head_sha": "6427e3cd8c14a82e0bcf26daad71dfc1f776e43d"
       },
       "checkpoint": {
-        "at": "2026-11-19T04:35:17.466Z",
+        "at": "2026-11-19T04:41:24.610Z",
         "owner": "manual-integration-chat-c-20261119",
-        "head_after": "9d5ded4037bc54fb7d3aae7a94831c3f25f85db1",
-        "status": "ready-for-review",
-        "ci": "Final exact-head #44383584218 Part1 4/4 PASS",
-        "next_action": "Shared canonical docs reconciled and exact-head 4/4; independent shared-doc review required before merge; maintain current main changes"
+        "head_after": "6427e3cd8c14a82e0bcf26daad71dfc1f776e43d",
+        "status": "mergeable after main conflict fix; exact-head CI pending",
+        "next_action": "Preserved all four canonical docs main updates plus 209 unique historical receipt lines; current-main Git merge commit 6427e3c; exact-head CI #44459893892 pending, independent docs reviewer still needed."
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/970"
     },
