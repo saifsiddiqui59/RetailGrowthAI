@@ -1,0 +1,98 @@
+"""F3-08 HTTP response boundary for authenticated private PNG bytes.
+
+This is an adapter, not an Azure Functions route registration. A caller must
+mount it behind the normal JWT-protected Function route and provide the
+server-owned scoped reader factory. No browser-supplied rights are accepted.
+"""
+from __future__ import annotations
+
+from uuid import UUID
+from io import BytesIO
+
+from PIL import Image, UnidentifiedImageError
+
+from feature3_private_binary_http import _valid_png_chunks
+
+from feature3_private_png_reader import PrivateGeneratedDownloadDenied
+from tenant_store import StorageUnavailable
+
+_MAX_PNG_BYTES = 25 * 1024 * 1024
+_DENIED_HEADERS = {
+    "Cache-Control": "no-store, private",
+    "Pragma": "no-cache",
+    "X-Content-Type-Options": "nosniff",
+}
+_PNG_HEADERS = {
+    **_DENIED_HEADERS,
+    "Content-Type": "image/png",
+    "Content-Disposition": 'attachment; filename="generated.png"',
+    "X-Content-Type-Options": "nosniff",
+}
+
+
+def private_png_http_response(*, reader_factory, shop_id, job_id, bearer_token):
+    """Return (status, immutable headers, body) without leaking denial details.
+
+    JWT verification, active membership, current rights and byte integrity
+    remain mandatory responsibilities of the trusted scoped reader. Never
+    invoke this function with an untrusted fixture factory in hosted routes.
+    """
+    if not callable(reader_factory):
+        raise ValueError("Trusted scoped reader factory required")
+    try:
+        # Reject malformed route scope before invoking any tenant reader.
+        for scope in (shop_id, job_id):
+            if type(scope) is not str or len(scope) != 36:
+                raise PrivateGeneratedDownloadDenied("Unavailable")
+            parsed = UUID(scope)
+            if parsed.version != 4 or str(parsed) != scope:
+                raise PrivateGeneratedDownloadDenied("Unavailable")
+        if type(bearer_token) is not str or not bearer_token.startswith("Bearer "):
+            raise PrivateGeneratedDownloadDenied("Unavailable")
+        token = bearer_token[7:]
+        if (not 12 <= len(token) <= 8192 or
+                token.startswith(("sb_secret_", "sb_publishable_")) or
+                any(ord(ch) < 33 or ord(ch) > 126 for ch in token) or
+                any(ch in token for ch in (",", ";", '"', "\\"))):
+            raise PrivateGeneratedDownloadDenied("Unavailable")
+        # Reject malformed compact JWS framing before constructing any reader.
+        # This is input hygiene only; the scoped reader MUST still verify the
+        # cryptographic signature, issuer, audience, membership and rights.
+        parts = token.split(".")
+        if (len(parts) != 3 or any(not part for part in parts) or
+                len(parts[0]) > 2048 or len(parts[1]) > 6144 or
+                len(parts[2]) > 2048 or
+                any(len(part) % 4 == 1 for part in parts) or
+                any(any(not (ch.isascii() and (ch.isalnum() or ch in "-_"))
+                        for ch in part) for part in parts)):
+            raise PrivateGeneratedDownloadDenied("Unavailable")
+        reader = reader_factory(shop_id, job_id)
+        body = reader.read(user_token=token, shop_id=shop_id, job_id=job_id)
+        # A compromised or obsolete reader can return a self-consistent but
+        # invalid payload. A PNG signature alone cannot authenticate pixels or
+        # prevent a trailing-data covert channel. Independently validate CRC,
+        # chunk framing, complete pixels and bounded dimensions before 200.
+        if (type(body) is not bytes or not 100 <= len(body) <= _MAX_PNG_BYTES or
+                not _valid_png_chunks(body)):
+            raise PrivateGeneratedDownloadDenied("Unavailable")
+        try:
+            with Image.open(BytesIO(body)) as image:
+                if (image.format != "PNG" or getattr(image, "n_frames", 1) != 1 or
+                        not 256 <= image.width <= 8192 or
+                        not 256 <= image.height <= 8192 or
+                        image.width * image.height > 16_777_216):
+                    raise PrivateGeneratedDownloadDenied("Unavailable")
+                image.verify()
+            with Image.open(BytesIO(body)) as image:
+                image.load()
+        except (OSError, SyntaxError, EOFError, RuntimeError,
+                UnidentifiedImageError, Image.DecompressionBombError):
+            raise PrivateGeneratedDownloadDenied("Unavailable")
+        return 200, dict(_PNG_HEADERS), body
+    except (PrivateGeneratedDownloadDenied, ValueError, TypeError, AttributeError):
+        # PermissionError is an OSError subclass: deny before outage handling.
+        # Never convert a tenant/rights denial into a retryable 503.
+        return 404, dict(_DENIED_HEADERS), b""
+    except (StorageUnavailable, OSError):
+        # Only actual backend failures are retryable; never disclose details.
+        return 503, {**_DENIED_HEADERS, "Retry-After": "5"}, b""
