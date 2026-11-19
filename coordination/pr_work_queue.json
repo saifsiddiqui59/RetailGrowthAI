@@ -13,7 +13,7 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 23,
+    "open_prs": 24,
     "by_feature": {
       "F5": 3,
       "issue249": 9,
@@ -24,6 +24,26 @@
     }
   },
   "entries": [
+    {
+      "pr": 1019,
+      "title": "feat(F2): port default-off signed VoiceStudio route from stacked #925 onto current main",
+      "feature": "F2",
+      "head_sha": "90c944db0a197a66456669d48c7469ec8712f75c",
+      "base_branch": "main",
+      "work_owner": "manual-integration-chat-f-20261119",
+      "priority": "P1",
+      "phase": "ready-for-review",
+      "claim": null,
+      "checkpoint": {
+        "owner": "manual-integration-chat-f-20261119",
+        "at": "2026-11-19T04:48:00.629Z",
+        "status": "current-main source recovered from #925; protected root route, draft",
+        "CI": "44460740340 pending",
+        "independentReview": "required",
+        "originalTasksDone": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1019"
+    },
     {
       "pr": 1018,
       "title": "fix(#249): protect user JWT and service-role PostgREST from HTTP redirects",
@@ -144,7 +164,7 @@
       "pr": 1002,
       "title": "docs(#249): record Y1 five-GET release source and missing live acceptance",
       "feature": "issue249",
-      "head_sha": "4576f14467750ac26bfaf7b327cd9bbc335967dc",
+      "head_sha": "a5f531aab5d448a22fc898d8d893f75a2f2e218b",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P1",
@@ -153,9 +173,15 @@
         "owner": "manual-integration-chat-f-20261119",
         "claimed_at": "2026-11-19T04:27:18.533Z",
         "expires_at": "2026-11-19T05:57:18.533Z",
-        "head_sha": "4576f14467750ac26bfaf7b327cd9bbc335967dc"
+        "head_sha": "a5f531aab5d448a22fc898d8d893f75a2f2e218b"
       },
-      "checkpoint": null,
+      "checkpoint": {
+        "owner": "manual-integration-chat-f-20261119",
+        "at": "2026-11-19T04:48:00.629Z",
+        "status": "canonical #249 docs updated with #995 preflight/copy security fix and exact-head 4/4",
+        "CI": "new head 44460427036 pending",
+        "independentReview": "required before docs merge"
+      },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1002"
     },
     {
@@ -409,12 +435,14 @@
         "head_sha": "69a4edce42c3e7ed54c6984b9876a7bdd07d41f0"
       },
       "checkpoint": {
-        "owner": "manual-integration-chat-d-20261119",
-        "at": "2026-11-18T19:21:27.166Z",
-        "status": "blocked; NOT DONE",
-        "blockers": "Stacked draft on #920; independent root Functions JWT/RLS review",
-        "tests": "No new tests executed in this triage",
-        "next_action": "Address review/compatibility gates in owned feature work; never bypass security or main CI"
+        "owner": "manual-integration-chat-f-20261119",
+        "at": "2026-11-19T04:48:00.629Z",
+        "status": "original stacked 925 root-route source ported onto current main in review-only DRAFT #1019",
+        "new_review_pr": 1019,
+        "new_head": "90c944db0a197a66456669d48c7469ec8712f75c",
+        "source_head": "69a4edce42c3e7ed54c6984b9876a7bdd07d41f0",
+        "review": "root Functions JWT/RLS, signed private VoiceStudio; independent review mandatory",
+        "original_tasks_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/925"
     },
