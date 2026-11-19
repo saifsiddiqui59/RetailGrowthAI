@@ -2,10 +2,98 @@
 // PostgREST RLS checks current OWNER/EDITOR membership on every request.
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
+const WORKER_FIELDS = new Set([
+  'id', 'shop_id', 'job_id', 'feature', 'operation', 'status',
+  'attempt', 'elapsed_ms', 'metadata', 'recorded_at',
+])
+const WORKER_TERMINALS = Object.freeze({
+  F2: Object.freeze({
+    'planning.complete': 'SUCCEEDED',
+    'planning.denied': 'DENIED',
+    'planning.failed': 'FAILED',
+    'planning.unconfigured': 'UNCONFIGURED',
+  }),
+  F4: Object.freeze({
+    'render.complete': 'SUCCEEDED',
+    'render.denied': 'DENIED',
+    'render.failed': 'FAILED',
+  }),
+})
+// Date.parse normalizes impossible calendar dates (for example February 30).
+// Validate the signed RPC receipt's calendar and offset before accepting it.
+function validWorkerTimestamp(value) {
+  if (typeof value !== 'string' || value.length > 64) return false
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?(Z|[+-]\d{2}:\d{2})$/.exec(value)
+  if (!match) return false
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const hour = Number(match[4])
+  const minute = Number(match[5])
+  const second = Number(match[6])
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+  const days = [0, 31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  if (year < 1 || month < 1 || month > 12 || day < 1 ||
+      day > days[month] || hour > 23 || minute > 59 || second > 59) return false
+  const zone = match[8]
+  if (zone !== 'Z') {
+    const zoneHours = Number(zone.slice(1, 3))
+    const zoneMinutes = Number(zone.slice(4, 6))
+    if (zoneHours > 14 || zoneMinutes > 59 ||
+        (zoneHours === 14 && zoneMinutes !== 0)) return false
+  }
+  return Number.isFinite(Date.parse(value))
+}
+
+// Defensive validation is not a substitute for authenticated backend/RLS
+// authority or independent cryptographic provenance from the worker service.
+function trustedWorkerSpan(row, shopId, jobId) {
+  if (!row || typeof row !== 'object' || Array.isArray(row) ||
+      Object.keys(row).length !== WORKER_FIELDS.size ||
+      Object.keys(row).some(key => !WORKER_FIELDS.has(key)) ||
+      !UUID.test(row.id || '') || row.shop_id !== shopId || row.job_id !== jobId ||
+      typeof row.feature !== 'string' ||
+      !Object.hasOwn(WORKER_TERMINALS, row.feature) ||
+      !Object.hasOwn(WORKER_TERMINALS[row.feature], row.operation) ||
+      WORKER_TERMINALS[row.feature][row.operation] !== row.status ||
+      !Number.isInteger(row.attempt) || row.attempt < 1 || row.attempt > 5 ||
+      !Number.isInteger(row.elapsed_ms) || row.elapsed_ms < 0 ||
+      row.elapsed_ms > 1800000 ||
+      !validWorkerTimestamp(row.recorded_at)) return false
+  const meta = row.metadata
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta) ||
+      JSON.stringify(meta).length > 2000) return false
+  const fields = Object.keys(meta)
+  if (row.operation === 'planning.complete') {
+    return fields.length === 2 &&
+      fields.includes('generated_days') && fields.includes('planner_mode') &&
+      meta.generated_days === 7 &&
+      ['foundry', 'dev_mock'].includes(meta.planner_mode)
+  }
+  if (row.operation === 'render.complete') {
+    return fields.length === 4 &&
+      ['codec', 'video_width', 'video_height', 'duration_seconds']
+        .every(field => fields.includes(field)) &&
+      meta.codec === 'h264/aac' &&
+      meta.video_width === 1080 && meta.video_height === 1920 &&
+      typeof meta.duration_seconds === 'number' &&
+      Number.isFinite(meta.duration_seconds) &&
+      meta.duration_seconds >= 29.8 && meta.duration_seconds <= 30.2
+  }
+  return fields.length === 0
+}
+
 export function createTraceStore({ supabaseUrl, publishableKey, tokenProvider, fetchImpl = fetch }) {
   if (!supabaseUrl || !publishableKey) return null
+  // Do not forward a tenant JWT to an arbitrary HTTPS host. Only the
+  // canonical project root can receive private worker traces. A web/app
+  // configuration change is not permission to send auth tokens elsewhere.
+  if (typeof supabaseUrl !== 'string') throw new Error('Trace storage must use a trusted HTTPS origin')
   const url = new URL(supabaseUrl)
-  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash ||
+  if (url.protocol !== 'https:' ||
+      !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.supabase\.co$/.test(url.hostname) ||
+      (url.port !== '' && url.port !== '443') ||
+      url.username || url.password || url.search || url.hash ||
       !['', '/'].includes(url.pathname)) throw new Error('Trace storage must use a trusted HTTPS origin')
   if (typeof tokenProvider !== 'function') throw new Error('Trace storage requires a signed-in user')
   async function request(table, { method = 'GET', query = {}, body } = {}) {
@@ -98,6 +186,7 @@ export function createTraceStore({ supabaseUrl, publishableKey, tokenProvider, f
         throw new Error('Select one to five distinct authorized job references')
       }
       const all = []
+      const seenEventIds = new Set()
       for (const jobId of jobIds) {
         // RPC is a read-only operation despite its POST transport method.
         // One signed query per known job; never retry or claim missing = failed.
@@ -108,14 +197,12 @@ export function createTraceStore({ supabaseUrl, publishableKey, tokenProvider, f
         if (!response || response.source !== 'trusted_backend_persisted' ||
             response.shop_id !== shopId || response.job_id !== jobId ||
             !Array.isArray(response.events) || response.events.length > 10 ||
-            response.events.some(row => row?.shop_id !== shopId || row?.job_id !== jobId ||
-              !['F2', 'F4'].includes(row?.feature) ||
-              !['SUCCEEDED','FAILED','DENIED','UNCONFIGURED'].includes(row?.status) ||
-              !Number.isInteger(row?.attempt) || row.attempt < 1 || row.attempt > 5 ||
-              !Number.isInteger(row?.elapsed_ms) || row.elapsed_ms < 0 ||
-              row.elapsed_ms > 1800000)) {
+            new Set(response.events.map(row => row?.id)).size !== response.events.length ||
+            response.events.some(row => !trustedWorkerSpan(row, shopId, jobId) ||
+              seenEventIds.has(row.id))) {
           throw new Error('Private backend span RPC returned inconsistent tenant or source')
         }
+        for (const row of response.events) seenEventIds.add(row.id)
         all.push(...response.events)
       }
       return all

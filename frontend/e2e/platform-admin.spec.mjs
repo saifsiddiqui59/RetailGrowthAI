@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-const SUPABASE = 'https://e2e.supabase.test'
+const SUPABASE = 'https://e2e-fixture.supabase.co'
 const SHOP = 'f1000000-0000-4000-8000-000000000011'
 const USER = 'f1000000-0000-4000-8000-000000000001'
 const roles = ['ROOT', 'OWNER', 'EDITOR', 'VIEWER']
