@@ -32,25 +32,41 @@ class TestQualityApproval(unittest.TestCase):
         with self.assertRaises(MotionError):
             record.approved_for_feature4(
                 authoritative_shop_id=self.shop, actual_media_sha256=self.hash,
+                authoritative_reviewer_user_id=self.row["reviewer_user_id"],
                 reviewer_has_write_role=True)
 
     def test_review_can_authorize_only_exact_private_clip(self):
         r = VisualReview(**self.row)
         self.assertTrue(r.approved_for_feature4(
             authoritative_shop_id=self.shop, actual_media_sha256=self.hash,
-            reviewer_has_write_role=True))
+            authoritative_reviewer_user_id=self.row["reviewer_user_id"],
+                reviewer_has_write_role=True))
         with self.assertRaises(MotionError):
             r.approved_for_feature4(
                 authoritative_shop_id=uid(), actual_media_sha256=self.hash,
+                authoritative_reviewer_user_id=self.row["reviewer_user_id"],
                 reviewer_has_write_role=True)
         with self.assertRaises(MotionError):
             r.approved_for_feature4(
                 authoritative_shop_id=self.shop, actual_media_sha256="0" * 64,
+                authoritative_reviewer_user_id=self.row["reviewer_user_id"],
                 reviewer_has_write_role=True)
         with self.assertRaises(MotionError):
             r.approved_for_feature4(
                 authoritative_shop_id=self.shop, actual_media_sha256=self.hash,
+                authoritative_reviewer_user_id=self.row["reviewer_user_id"],
                 reviewer_has_write_role=False)
+
+    def test_recorded_reviewer_must_match_current_authenticated_actor(self):
+        r = VisualReview(**self.row)
+        for actor in (uid(), "not-a-valid-jwt-user-id"):
+            with self.subTest(actor=actor), self.assertRaises(MotionError):
+                r.approved_for_feature4(
+                    authoritative_shop_id=self.shop,
+                    authoritative_reviewer_user_id=actor,
+                    actual_media_sha256=self.hash,
+                    reviewer_has_write_role=True,
+                )
 
     def test_bad_motion_and_unreviewed_disclosure_rejected(self):
         for change in (
@@ -64,7 +80,8 @@ class TestQualityApproval(unittest.TestCase):
             with self.assertRaises(MotionError):
                 r.approved_for_feature4(
                     authoritative_shop_id=self.shop, actual_media_sha256=self.hash,
-                    reviewer_has_write_role=True)
+                    authoritative_reviewer_user_id=self.row["reviewer_user_id"],
+                reviewer_has_write_role=True)
 
     def test_missing_checks_and_unsafe_review_structure(self):
         for values in ({}, {"garment_color": True}, dict(self.row["checks"], lip_sync="ignored")):
