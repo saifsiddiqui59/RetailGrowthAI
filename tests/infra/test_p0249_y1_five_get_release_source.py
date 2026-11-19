@@ -113,9 +113,9 @@ class Y1FiveRouteReleaseSourceTests(unittest.TestCase):
     def test_fresh_process_indexes_all_approved_functions_without_secrets(self):
         """Test BOTH release shapes with real azure.functions, not import stubs.
 
-        CI injects pinned azure-functions/PyJWT via uv's PYTHONPATH. Use -s
-        to isolate user-site packages without hiding the uv-provided libraries.
-        Run outside the checkout
+        CI installs pinned azure-functions/PyJWT into an ephemeral uv overlay.
+        Forward only site-package roots to the subprocess; use -s to isolate
+        user-site packages and run outside the checkout
         in a separate interpreter: no original app/worker modules may leak into
         sys.modules or sys.path, and no hosted Auth or Azure calls are made.
         """
@@ -168,6 +168,16 @@ class Y1FiveRouteReleaseSourceTests(unittest.TestCase):
             for key in ("RGAI_P0249_READONLY_SHADOW", "RGAI_P0249_EXTRA_GET_SHADOW",
                         "RETAIL_SUPABASE_URL", "RETAIL_SUPABASE_PUBLISHABLE_KEY"):
                 env.pop(key, None)
+            # uv run --with loads transient wheels into the parent process
+            # even when sys.executable points at a base interpreter. Pass
+            # only installed-package roots (never the checkout) to the
+            # isolated child, so real Azure SDK imports resolve in CI.
+            import azure.functions as azure_functions
+            installed = [str(Path(azure_functions.__file__).resolve().parents[2])]
+            installed.extend(str(Path(p).resolve()) for p in sys.path
+                             if p and Path(p).is_dir()
+                             and ({"site-packages", "dist-packages"} & set(Path(p).parts)))
+            env["PYTHONPATH"] = os.pathsep.join(dict.fromkeys(installed))
             proc = subprocess.run(
                 [sys.executable, "-s", "-c", script, str(stage),
                  ",".join(sorted(expected))],
