@@ -1,0 +1,24 @@
+# Issue #249 — Reversible isolated Y1 remote-build five-route trial
+
+**Status:** implementation and CI pending; not a successful Azure deployment until protected run passes.
+
+## Observed Azure evidence
+
+- The owner-delegated five-route trial [#44618073780](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/44618073780) failed strict index acceptance: only two functions in 12 checks after `config-zip --build-remote false`. Independent restore verified two functions and 20/20 health and unknown-route probes.
+- Protected read-only diagnostic [#44624372284](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/44624372284) showed Linux Consumption Y1 with `WEBSITE_RUN_FROM_PACKAGE` set to an **external HTTPS Blob URL**, `SCM_DO_BUILD_DURING_DEPLOYMENT=true`, `ENABLE_ORYX_BUILD` absent, and two indexed functions. No SAS token or URL was logged. Original Flex unchanged.
+- Per [Microsoft's Functions ZIP deployment guidance](https://learn.microsoft.com/en-us/azure/azure-functions/deployment-zip-push), use **no run-from-package setting**, `SCM_DO_BUILD_DURING_DEPLOYMENT=true` and `ENABLE_ORYX_BUILD=true` for Linux Consumption Oryx remote build. Direct ZIP push with an existing external package URL cannot be treated as activation of the ZIP.
+
+## Isolated, protected release plan
+
+1. Preserve original five-GET source-byte allowlists, JWT no-redirect negative security gates and offline manifest/import contract checks before any Azure mutation. Create a *clean source-only* ZIP for Oryx, distinct from the pre-vendored rollback ZIP.
+2. On exact tagged existing Central India DEV Y1 only, verify original Flex untouched, baseline exactly two functions, no customer/shadow settings and currently recognized HTTPS Azure Blob package URL. Before changing the old package URI, store it temporarily in `RGAI_P0249_Y1_BASELINE_PACKAGE_REF` with `RGAI_P0249_Y1_REMOTE_BUILD_RUN_ID` identifying the current protected Actions run. Azure CLI output and errors are always captured/redacted. Refuse unexpected owner markers or routes.
+3. Remove only `WEBSITE_RUN_FROM_PACKAGE` and set `ENABLE_ORYX_BUILD=true`; keep `SCM_DO_BUILD_DURING_DEPLOYMENT=true`. Run `config-zip --build-remote true` with the approved source-only ZIP. This trial changes **only** the isolated Y1's deployment settings and code, **never** the original Flex, any SQL/Auth, queue or customer data.
+4. Require exact five indexed GET-only functions, 20/20 health and unknown-route checks, no-redirect handler-marked missing-JWT 401 on four protected endpoints, another 240-second idle interval, a second 20/20 and four negative auth checks. These prove only **negative authentication and health**, not true signed two-shop RLS or write/media parity.
+5. A failure, canceled run or unknown/foreign function invokes same-run then independent protected rollback. It restores **the exact original external package reference**, removes only the trial-added `ENABLE_ORYX_BUILD`, manually syncs triggers, verifies two indexed functions and 20/20 live health/unknown probes. It removes temporary URL/owner backup keys **only after** proven restoration. If restore is uncertain, report urgent operator recovery; never mark success or overwrite unknown resources.
+6. On a successful five-route deployment, **retain the opaque original-package backup in the isolated Y1 only** until subsequent signed 2-shop/rollback acceptance and explicitly reviewed cleanup. Do not print, upload, or copy the secret URL into artifacts, GitHub logs, source or documentation. A separate protected cleanup must safely remove this temporary backup and reverify stability.
+
+## Gates that remain open
+
+Source CI and protected five-route negative canary alone cannot close Issue #249. Require genuine signed DEV two-shop (own vs foreign, revoked JWT) positive/negative RLS, original POST/PATCH/private media and billing/queues parity, original Flex gateway p95/p99 and markerless 503 diagnosis, and rollback evidence before any frontend cutover. Keep GPU/paid AI disabled, PROD and WineShopPOS unchanged.
+
+No automatic push-triggered Azure writes: the protected workflow remains manual-only with environment `dev` and reviewed exact-main SHA. A separately reviewed owner-delegated one-shot **only dispatches** that workflow after exact-head four-job CI; protected identity, scope and rollback gates remain enforced.
