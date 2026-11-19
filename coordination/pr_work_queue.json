@@ -61,13 +61,12 @@
       "claim": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1027",
       "checkpoint": {
-        "owner": "manual-ci-fix-chat-g-20261119",
-        "at": "2026-11-19T13:20:42.861Z",
-        "status": "Final-head PR and push 4/4 successful; apt-free security psql regression and scoped docs committed; independent shared workflow affected-lead review required before main merge",
+        "owner": "manual-integration-chat-primary-20261119",
+        "at": "2026-11-19T18:06:46.753Z",
         "head_sha": "218deebd810b6ba2dc14f8144aa05de117cfd84a",
-        "ci": "PR #44531808109 SUCCESS 4/4; push #44531793361 SUCCESS 4/4",
+        "status": "Exact-head four mandatory Part1 CI jobs SUCCESS; no independent shared review; no main merge",
+        "ci": "#44531808109 4/4",
         "review_count": 0,
-        "comment_id": 7010330836,
         "feature_done": false
       }
     },
@@ -103,14 +102,16 @@
       "base_branch": "main",
       "work_owner": "manual-integration-chat-c-20261119",
       "priority": "P1",
-      "phase": "ci-review-pending",
+      "phase": "ready-for-review",
       "claim": null,
       "checkpoint": {
-        "at": "2026-11-19T05:00:43.888Z",
-        "owner": "manual-integration-chat-c-20261119",
-        "head_after": "dfff7942f95fca0d394bdd550ba5b4bd8666f08f",
-        "status": "ci-review-pending",
-        "next_action": "Docs-only exact head dfff7942 Part1 #44461891645 pending, independent shared-doc review needed; records F3 source results omitted from earlier merged #970"
+        "owner": "manual-integration-chat-primary-20261119",
+        "at": "2026-11-19T18:06:46.753Z",
+        "head_sha": "dfff7942f95fca0d394bdd550ba5b4bd8666f08f",
+        "status": "Exact-head four mandatory Part1 CI jobs SUCCESS; no independent shared review; no main merge",
+        "ci": "#44461891645 4/4",
+        "review_count": 0,
+        "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1022"
     },
@@ -191,15 +192,13 @@
       "phase": "ready-for-review",
       "claim": null,
       "checkpoint": {
-        "owner": "manual-integration-chat-g-docs-20261119",
-        "at": "2026-11-19T08:09:37.177Z",
-        "status": "four shared canonical docs updated append-only; exact-head source CI success, independent review still pending",
-        "ci": "PR run #44484297479 exact SHA 6ed3aa3b4 four jobs all SUCCESS",
-        "source_ci": [
-          "#995 #44482574026 attempt2 4/4",
-          "#1013 #44480645631 attempt3 4/4"
-        ],
-        "task_done": false
+        "owner": "manual-integration-chat-primary-20261119",
+        "at": "2026-11-19T18:06:46.753Z",
+        "head_sha": "6ed3aa3b47482ccbedc9361d3727d3b6889d2e44",
+        "status": "Exact-head four mandatory Part1 CI jobs SUCCESS; no independent shared review; no main merge",
+        "ci": "#44484297479 4/4",
+        "review_count": 0,
+        "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1007"
     },
@@ -314,22 +313,20 @@
       "pr": 964,
       "title": "feat(coordination): serialize main merges and use CAS-backed PR queue",
       "feature": "shared",
-      "head_sha": "98577b57b76e8ad7f60fd9ec79aca82b6d59c05e",
+      "head_sha": "1e080a470ac3d32ec83225cb1cc94c52783b5b8d",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P2",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-integration-chat-primary-20261119",
-        "head_sha": "98577b57b76e8ad7f60fd9ec79aca82b6d59c05e",
-        "claimed_at": "2026-11-19T18:02:11.534Z",
-        "expires_at": "2026-11-19T19:32:11.538Z"
-      },
+      "phase": "ci-review-pending",
+      "claim": null,
       "checkpoint": {
         "owner": "manual-integration-chat-primary-20261119",
-        "head_sha": "98577b57b76e8ad7f60fd9ec79aca82b6d59c05e",
-        "at": "2026-11-19T18:02:11.534Z",
-        "status": "reviewing token-safe redirect transport in queue client"
+        "at": "2026-11-19T18:06:46.753Z",
+        "head_sha": "1e080a470ac3d32ec83225cb1cc94c52783b5b8d",
+        "status": "Security fix + two regression tests committed; exact-head Part1 four-job CI running; independent governance/security review required",
+        "ci": "#44583824300 in progress",
+        "review_count": 0,
+        "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/964"
     },
