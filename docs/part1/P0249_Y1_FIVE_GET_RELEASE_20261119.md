@@ -50,6 +50,20 @@ Original Flex `rgai-dev-functions-d4e5ddbd` is unchanged; issue #249 stays OPEN.
   JWT/tenant authorization, a five-route Azure deployment, or an approval to
   bypass the protected DEV environment.
 
+## Parent-safe release import audit (2026-11-19)
+- Parent #995's staging module is kept **byte-for-byte unchanged**: it bounds
+  each original source before reading, validates exact manifests/pins and copies
+  only the immutable validated bytes. Its sparse multi-GB file rejection remains.
+- This release's `build_five_get_release.py` then audits imports from those
+  **exact staged bytes**, not mutable original checkout paths. A newly introduced
+  unvendored, privileged worker, relative or unpinned Azure SDK import removes
+  the staging directory and aborts **before** any ZIP, dependency install or
+  Azure change. The rollback-two path also audits all five originals first.
+- This separation keeps the parent staging security intact while allowing the
+  Y1 release to apply stricter packaging-only import closure without modifying
+  the shared parent stage script. Neither CI nor the source audit approves DEV
+  deployment, tenant RLS or independent JWT/ops review.
+
 ## Remaining before Y1 replacement
 1. Independent shared JWT/RLS/render/poster/Azure ops review of #968, #995,
    and this workflow; exact-head 4/4, main merge in parent-child order.
