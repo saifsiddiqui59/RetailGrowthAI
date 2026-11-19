@@ -64,7 +64,7 @@
     {
       "pr": 1025,
       "title": "fix(#249): reconcile five-GET Y1 manual release with atomic source validation",
-      "head_sha": "42db0fe853494ca12b65d73ef29f0969d4c39b92",
+      "head_sha": "a4deee0ab869e5229961d1bf29d41ffdd46e5e65",
       "base_branch": "feat/p0249-y1-five-get-stage-20261119",
       "feature": "issue249",
       "work_owner": "manual-issue249",
@@ -72,16 +72,15 @@
       "phase": "in-progress",
       "claim": {
         "owner": "manual-integration-chat-y1-20261120",
-        "head_sha": "42db0fe853494ca12b65d73ef29f0969d4c39b92",
+        "head_sha": "a4deee0ab869e5229961d1bf29d41ffdd46e5e65",
         "claimed_at": "2026-11-19T18:45:07.371Z",
         "expires_at": "2026-11-19T20:15:07.371Z"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1025",
       "checkpoint": {
         "owner": "manual-integration-chat-y1-20261120",
-        "head_sha": "42db0fe853494ca12b65d73ef29f0969d4c39b92",
-        "previous_head": "057f0a81c4e30456ea3351ca83c78f17fb7aaeb4",
-        "status": "non-force merge commit preserving original nine release-only blobs on exact updated parent #995; 4/4 CI pending; manual protected DEV dispatch not executed",
+        "head_sha": "a4deee0ab869e5229961d1bf29d41ffdd46e5e65",
+        "status": "Nine unchanged protected release paths merged with newest #995 main-reconciled parent, preserving #1030 security fixture. Exact-head four CI pending. No DEV dispatch.",
         "feature_done": false
       }
     },
