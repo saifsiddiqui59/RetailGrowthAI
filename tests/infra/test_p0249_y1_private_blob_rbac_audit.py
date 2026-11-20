@@ -85,8 +85,8 @@ class AuditTests(unittest.TestCase):
         self.assertNotIn("SECRET", output.getvalue())
         calls = azure.call_args_list
         self.assertEqual(len(calls), 3)
-        self.assertIn("/blobServices/default/containers/private", calls[1].args)
-        self.assertNotIn("/blobServices/default/containers/private", calls[2].args)
+        self.assertTrue(any("/blobServices/default/containers/private" in str(v) for v in calls[1].args))
+        self.assertFalse(any("/blobServices/default/containers/private" in str(v) for v in calls[2].args))
 
     def test_read_only_workflow_and_script_exclude_mutations(self):
         code = (ROOT / "ops/p0249_y1_private_blob_rbac_audit.py").read_text()
