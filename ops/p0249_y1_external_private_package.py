@@ -53,7 +53,7 @@ def scoped_baseline(settings, indexes, *, recovery=False):
     """Fail closed before using the original signed Blob package reference."""
     if not isinstance(settings, dict) or not isinstance(indexes, frozenset):
         raise RuntimeError("Unrecognized Y1 baseline shape")
-    if not indexes.issubset(mode.FIVE) or not indexes:
+    if not indexes.issubset(mode.FIVE) or (not indexes and not recovery):
         raise RuntimeError("Unknown Y1 index; refuse mutation")
     if any(key in settings for key in mode.SHADOWS):
         raise RuntimeError("Unexpected customer or shadow Y1 settings")
@@ -65,11 +65,13 @@ def scoped_baseline(settings, indexes, *, recovery=False):
     actual = settings.get(PACKAGE_KEY)
     if not recovery and (indexes != mode.TWO or actual != old or NEW_OWNER in settings):
         raise RuntimeError("Unexpected active Y1 package or concurrent trial")
-    if recovery and (NEW_OWNER in settings and settings.get(NEW_OWNER) != _run_id()):
+    if recovery and (settings.get(NEW_OWNER) != _run_id()
+                     and (NEW_OWNER in settings or actual != old)):
         raise RuntimeError("Unowned Y1 external rollout")
     if "ENABLE_ORYX_BUILD" in settings:
         raise RuntimeError("Unexpected Y1 Oryx setting; refuse external mode")
-    if str(settings.get("SCM_DO_BUILD_DURING_DEPLOYMENT", "")).lower() != "true":
+    if (not recovery and
+            str(settings.get("SCM_DO_BUILD_DURING_DEPLOYMENT", "")).lower() != "true"):
         raise RuntimeError("Unexpected Y1 build setting drift")
     container = parsed.path.strip("/").split("/", 1)[0]
     if not container or len(container) > 63 or not all(c.islower() or c.isdigit() or c=="-" for c in container):
@@ -164,6 +166,7 @@ def publish(zippath):
     if (after.get(PACKAGE_KEY)!=uri or after.get(NEW_OWNER)!=_run_id()
             or after.get(BACKUP)!=old):
         raise RuntimeError("Y1 package reference switch not persisted")
+    guard.verify()
     print("P0249_Y1_VERSIONED_EXTERNAL_PACKAGE=ACTIVATED_REDACTED",flush=True)
     # Linux Consumption external package mode requires trigger sync.
     # Use the WebSites ARM action (no command may contain the signed URI).
@@ -187,9 +190,11 @@ def _wait_for(target, attempts=18, delay=12):
 def verify():
     values,indexed=_read_site()
     old,_=scoped_baseline(values,indexed,recovery=True)
+    current=values.get(PACKAGE_KEY)
     if (values.get(NEW_OWNER)!=_run_id() or
-            not mode._package_url(values.get(PACKAGE_KEY)) or
-            values.get(PACKAGE_KEY)==old or indexed!=mode.FIVE):
+            not mode._package_url(current) or
+            urlsplit(current).hostname != EXPECTED_URI_HOST or
+            current==old or indexed!=mode.FIVE):
         raise RuntimeError("Hosted five-function external package not active")
     print("P0249_Y1_VERSIONED_PRIVATE_FIVE_INDEX=PASS",flush=True)
 
