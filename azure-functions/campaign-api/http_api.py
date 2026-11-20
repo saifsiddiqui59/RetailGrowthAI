@@ -10,7 +10,7 @@ from draft_api import DraftAPI
 
 
 class HTTPAPI:
-    def __init__(self, verify_token, store, planning_queue=None, render_api=None, failure_store=None, durable_outbox=False, poster_api=None, poster_render_api=None, feature3_api=None):
+    def __init__(self, verify_token, store, planning_queue=None, render_api=None, failure_store=None, durable_outbox=False, poster_api=None, poster_render_api=None, feature3_api=None, feature4_api=None):
         self.verify_token = verify_token
         self.store = store
         self.planning_queue = planning_queue
@@ -20,6 +20,8 @@ class HTTPAPI:
         self.poster_api = poster_api
         self.poster_render_api = poster_render_api
         self.feature3_api = feature3_api
+        # Source-only; no public route/worker is registered until v2 ledger approval.
+        self.feature4_api = feature4_api
 
     def handle(self, method, path, authorization, body=None):
         try:
@@ -149,6 +151,28 @@ class HTTPAPI:
                 if len(parts) == 2 and parts[0] == "poster-jobs":
                     return self.poster_render_api.get(token, user_id, parts[1])
                 return 404, {"error": "NOT_FOUND"}
+            # Feature2->Feature4 versioned HTTP seam. The function_app.py
+            # registration and transactional backend remain OFF until reviewed.
+            # Never reinterpret the original /campaigns/{id}/renders v1 route.
+            if path.startswith("/campaigns/") and path.endswith("/feature4-renders"):
+                parts = path.strip("/").split("/")
+                if (method != "POST" or len(parts) != 3 or
+                        parts[0] != "campaigns" or parts[2] != "feature4-renders"):
+                    return 404, {"error": "NOT_FOUND"}
+                if self.feature4_api is None:
+                    return 503, {"error": "FEATURE4_V2_DISABLED"}
+                return self.feature4_api.create(token, user_id, parts[1], body)
+            if path.startswith("/feature4-render-jobs/"):
+                parts = path.strip("/").split("/")
+                if (method != "GET" or parts[0] != "feature4-render-jobs" or
+                        not (len(parts) == 2 or
+                             (len(parts) == 3 and parts[2] == "download"))):
+                    return 404, {"error": "NOT_FOUND"}
+                if self.feature4_api is None:
+                    return 503, {"error": "FEATURE4_V2_DISABLED"}
+                if len(parts) == 3:
+                    return self.feature4_api.download(token, user_id, parts[1])
+                return self.feature4_api.get(token, user_id, parts[1])
             if method == "POST" and path.startswith("/campaigns/") and path.endswith("/renders"):
                 if self.render_api is None:
                     return 503, {"error": "RENDER_NOT_CONFIGURED"}
