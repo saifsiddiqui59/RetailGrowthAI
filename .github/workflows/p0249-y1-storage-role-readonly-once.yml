@@ -1,5 +1,7 @@
 name: "RetailGrowthAI #249 isolated Y1 Blob write-role inventory (read-only)"
-# One-time owner-delegated protected DEV READ-ONLY evidence. No Azure writes.
+# Second one-time owner-delegated protected DEV READ-ONLY evidence. No Azure writes.
+# The first job #44673238009 reached RBAC role-list metadata then failed. This
+# run checks fixed error categories with scoped account-parent read-only fallback.
 on:
   push:
     branches: [main]
@@ -16,7 +18,7 @@ jobs:
       github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
-      startsWith(github.event.head_commit.message, 'ops(#249): inspect Y1 private Blob upload scope')
+      startsWith(github.event.head_commit.message, 'ops(#249): classify Y1 Blob RBAC query')
     environment: dev
     runs-on: ubuntu-24.04
     timeout-minutes: 14
