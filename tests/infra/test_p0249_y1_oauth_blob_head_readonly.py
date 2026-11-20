@@ -74,13 +74,10 @@ class BlobOAuthHeadTests(unittest.TestCase):
         token.assert_not_called()
         probe.assert_not_called()
 
-    def test_exact_read_only_workflow_and_source(self):
+    def test_retired_one_shot_and_remaining_read_only_source(self):
         code = (ROOT / "ops/p0249_y1_oauth_blob_head_readonly.py").read_text()
-        workflow = (ROOT / ".github/workflows/p0249-y1-oauth-blob-head-once.yml").read_text()
-        self.assertIn("environment: dev", workflow)
-        self.assertIn("id-token: write", workflow)
-        self.assertIn("startsWith(github.event.head_commit.message", workflow)
-        self.assertIn("p0249_y1_oauth_blob_head_readonly.py", workflow)
+        retired = ROOT / ".github/workflows/p0249-y1-oauth-blob-head-once.yml"
+        self.assertFalse(retired.exists(), "One-shot incident audit must be retired")
         self.assertIn("method=\"HEAD\"", code)
         self.assertIn("NoRedirects", code)
         self.assertIn("pkg.scoped_baseline(settings, indexed)", code)
@@ -89,9 +86,6 @@ class BlobOAuthHeadTests(unittest.TestCase):
                           "role assignment create", "functionapp config appsettings set",
                           "method=\"POST\"", "method=\"PUT\""):
             self.assertNotIn(forbidden,code)
-            self.assertNotIn(forbidden,workflow)
-        for key in ("\n  workflow_dispatch:", "\n  schedule:", "\n  pull_request:"):
-            self.assertNotIn(key,workflow)
 
 
 if __name__ == "__main__":
