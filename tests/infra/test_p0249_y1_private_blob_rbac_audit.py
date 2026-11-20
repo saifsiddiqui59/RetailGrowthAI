@@ -88,11 +88,10 @@ class AuditTests(unittest.TestCase):
         self.assertTrue(any("/blobServices/default/containers/private" in str(v) for v in calls[1].args))
         self.assertFalse(any("/blobServices/default/containers/private" in str(v) for v in calls[2].args))
 
-    def test_read_only_workflow_and_script_exclude_mutations(self):
+    def test_retired_one_shot_and_script_exclude_mutations(self):
         code = (ROOT / "ops/p0249_y1_private_blob_rbac_audit.py").read_text()
-        wf = (ROOT / ".github/workflows/p0249-y1-storage-role-readonly-once.yml").read_text()
-        self.assertIn("environment: dev", wf)
-        self.assertIn("startsWith(github.event.head_commit.message", wf)
+        workflow = ROOT / ".github/workflows/p0249-y1-storage-role-readonly-once.yml"
+        self.assertFalse(workflow.exists(), "Completed one-shot role audit must be retired")
         self.assertIn("get-access-token", code)
         self.assertIn("--assignee-object-id", code)
         self.assertIn("original_two_route_and_package_recovery", code)
@@ -110,9 +109,8 @@ class AuditTests(unittest.TestCase):
                        "functionapp\", \"config\", \"appsettings\", \"set",
                        "az storage account keys list"):
             self.assertNotIn(unsafe, code)
-        for bad in ("workflow_dispatch:", "az functionapp", "az storage blob upload",
-                    "run: az role assignment create"):
-            self.assertNotIn(bad, wf)
+        self.assertNotIn("az storage blob upload", code)
+        self.assertNotIn("role assignment create", code)
 
 if __name__ == "__main__":
     unittest.main()
