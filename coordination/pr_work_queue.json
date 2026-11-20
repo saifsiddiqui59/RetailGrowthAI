@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 2,
+    "open_prs": 3,
     "by_feature": {
-      "issue249": 2
+      "issue249": 3
     }
   },
   "entries": [
@@ -50,6 +50,29 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1029"
+    },
+    {
+      "pr": 1053,
+      "title": "ops(#249): diagnose failed private Y1 Blob with pinned OAuth HEAD only",
+      "feature": "issue249",
+      "head_sha": "3e33a6143448ec6e9e02d6dc9522ee9d8832b28d",
+      "base_branch": "main",
+      "work_owner": "manual-issue249",
+      "priority": "P0",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-issue249-oauth-head-chat-20261120",
+        "head_sha": "3e33a6143448ec6e9e02d6dc9522ee9d8832b28d",
+        "claimed_at": "2026-11-20T09:25:58.807Z",
+        "expires_at": "2026-11-20T10:55:58.807Z"
+      },
+      "checkpoint": {
+        "owner": "manual-issue249-oauth-head-chat-20261120",
+        "ci": "exact-head pending",
+        "next_action": "Review four mandatory jobs, then run existing protected read-only one-shot; no Azure writes.",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1053"
     }
   ],
   "last_inventory_checked_at": "2026-11-20T04:02:00Z"
