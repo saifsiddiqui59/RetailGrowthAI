@@ -1,0 +1,42 @@
+name: "RetailGrowthAI #249 isolated Y1 Blob write-role inventory (read-only)"
+# One-time owner-delegated protected DEV READ-ONLY evidence. No Azure writes.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/p0249-y1-storage-role-readonly-once.yml"
+permissions:
+  contents: read
+concurrency:
+  group: p0249-y1-blob-write-role-audit-20261120
+  cancel-in-progress: false
+jobs:
+  inspect:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      startsWith(github.event.head_commit.message, 'ops(#249): inspect Y1 private Blob upload scope')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 14
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Read-only exact Y1 package/2-index and OIDC Blob data-role inventory
+        run: python3 -u ops/p0249_y1_private_blob_rbac_audit.py
+      - name: End Azure session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
