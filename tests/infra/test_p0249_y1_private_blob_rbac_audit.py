@@ -47,6 +47,47 @@ class AuditTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             a._scope_and_container(rid, uri.replace(a.guard.STORAGE, "otheraccount"), sub)
 
+    def test_cli_failure_category_never_prints_sensitive_error_bytes(self):
+        for raw, expected in (
+            ("AuthorizationPermissionMismatch https://private/?sig=SECRET", "ACCESS_DENIED"),
+            ("error: unrecognized arguments https://private/?sig=SECRET", "CLI_ARGUMENT"),
+            ("InvalidScope?sig=SECRET", "INVALID_OR_MISSING_SCOPE"),
+            ("unexpected https://private/?sig=SECRET", "OTHER_REDACTED"),
+        ):
+            value = a._cli_error_class(raw)
+            self.assertEqual(value, expected)
+            self.assertNotIn("SECRET", value)
+            self.assertNotIn("https", value)
+
+    def test_denied_container_metadata_falls_back_only_to_verified_parent(self):
+        import io
+        from contextlib import redirect_stdout
+        import p0249_y1_remote_build_mode as mode
+        sub = "11111111-1111-4111-8111-111111111111"
+        client = "22222222-2222-4222-8222-222222222222"
+        old = f"https://{a.guard.STORAGE}.blob.core.windows.net/private/old.zip?sig=SECRET"
+        settings = {mode.BACKUP: old, "WEBSITE_RUN_FROM_PACKAGE": old}
+        resource_id = (f"/subscriptions/{sub}/resourceGroups/{a.guard.RG}"
+                       f"/providers/Microsoft.Storage/storageAccounts/{a.guard.STORAGE}")
+        with patch.object(a.guard, "verify", return_value=None), \
+             patch.object(a.guard, "command", return_value={"id":resource_id}), \
+             patch.object(a.mode, "_settings", return_value=settings), \
+             patch.object(a.mode, "_index", return_value=mode.TWO), \
+             patch.object(a, "_service_principal_oid", return_value="33333333-3333-4333-8333-333333333333"), \
+             patch.object(a, "_az_json", side_effect=[{"accessToken":"OPAQUE"}, RuntimeError("redacted"), []]) as azure, \
+             patch.dict(os.environ, {"RGAI_DEV_EXPECTED_SUBSCRIPTION":sub,"AZURE_CLIENT_ID":client}):
+            output = io.StringIO()
+            with redirect_stdout(output):
+                a.audit()
+        self.assertIn("STORAGE_ACCOUNT_METADATA_FALLBACK", output.getvalue())
+        self.assertIn('"scope_class": "STORAGE_ACCOUNT_PARENT_ONLY"', output.getvalue())
+        self.assertIn('"container_direct_roles_unverified": true', output.getvalue())
+        self.assertNotIn("SECRET", output.getvalue())
+        calls = azure.call_args_list
+        self.assertEqual(len(calls), 3)
+        self.assertIn("/blobServices/default/containers/private", calls[1].args)
+        self.assertNotIn("/blobServices/default/containers/private", calls[2].args)
+
     def test_read_only_workflow_and_script_exclude_mutations(self):
         code = (ROOT / "ops/p0249_y1_private_blob_rbac_audit.py").read_text()
         wf = (ROOT / ".github/workflows/p0249-y1-storage-role-readonly-once.yml").read_text()
