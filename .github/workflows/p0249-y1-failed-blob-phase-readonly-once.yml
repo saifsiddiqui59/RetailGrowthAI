@@ -1,0 +1,44 @@
+name: "RetailGrowthAI #249 Y1 Blob failure phase v2 (read only)"
+# One-shot GitHub owner authorization; strictly DEV identity and safe read-only.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/p0249-y1-failed-blob-phase-readonly-once.yml"
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0249-failed-blob-phase-readonly-once
+  cancel-in-progress: false
+jobs:
+  diagnose:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'ops(#249): classify Y1 private Blob upload failure')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Fixed-enum read-only Blob diagnostics plus original 20 health/unknown
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_blob_readonly_phase_v2.py
+      - name: End Azure OIDC
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
