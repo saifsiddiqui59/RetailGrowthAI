@@ -1,0 +1,81 @@
+name: "RetailGrowthAI #249 one-shot delegated original Flex read-only incident audit"
+# Github-only dispatch bridge. No Azure login, resource writes, or customer HTTP.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/p0249-flex-incident-delegated-once.yml"
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: p0249-original-flex-readonly-dispatch-once
+  cancel-in-progress: false
+jobs:
+  dispatch:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      startsWith(github.event.head_commit.message, 'ops(#249): launch original Flex historical read-only query')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 23
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Prove exact reviewed read-only source and collector
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD:.github/workflows/p0-249-incident-platform-readonly-manual.yml)" = "2eceff11359b22e74859282bef684267bab003e3"
+          test "$(git rev-parse HEAD:ops/p0_249_recent_http_platform_readonly.py)" = "6aefe12004852926cd16f32c500c03c14876a7e9"
+          python3 -m unittest discover -s tests/infra -p 'test_p0249_incident_platform_manual_workflow.py' -v
+          python3 -m unittest discover -s tests/infra -p 'test_p0249_original_flex_delegated_once.py' -v
+          echo "P0249_ORIGINAL_FLEX_FIXED_SOURCE=PASS_NO_AZURE_WRITES"
+      - name: Require four exact-current-main mandatory CI jobs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          accepted=false
+          for attempt in $(seq 1 105); do
+            runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&event=push&per_page=40")"
+            run_id="$(jq -r --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha==$sha and .name=="RetailGrowthAI Part 1 CI")] | sort_by(.created_at) | last | .id // empty' <<< "$runs")"
+            if [[ -n "$run_id" ]]; then
+              status="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .status)"
+              if [[ "$status" == "completed" ]]; then
+                conclusion="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .conclusion)"
+                test "$conclusion" = "success" || { echo "::error::Exact main CI failed"; exit 2; }
+                gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" | jq -e '
+                  ["Python / uv + campaign contract tests",
+                   "Frontend build + contract tests",
+                   "FFmpeg codecs + renderer tests",
+                   "Supabase isolation + authentication client tests"] as $expected |
+                  [.jobs[] | select(.name as $name | $expected | index($name) != null)] as $required |
+                  ($required | length) == 4 and all($required[]; .status == "completed" and .conclusion == "success")
+                ' >/dev/null
+                accepted=true
+                break
+              fi
+            fi
+            sleep 10
+          done
+          test "$accepted" = "true" || { echo "::error::Exact main four-job CI not proven"; exit 2; }
+          echo "P0249_ORIGINAL_FLEX_DISPATCH_MAIN_CI=PASS_4OF4"
+      - name: Dispatch protected manual-only original Flex historical query exactly once
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)"
+          test "$current" = "$GITHUB_SHA" || { echo "::error::Main moved; refuse stale dispatch"; exit 2; }
+          gh workflow run p0-249-incident-platform-readonly-manual.yml --ref main \
+            -f confirm=YES-P0249-FLEX-INCIDENT-READONLY
+          echo "P0249_ORIGINAL_FLEX_PROTECTED_READONLY_DISPATCH=REQUESTED"
