@@ -103,8 +103,8 @@ def test_proxy_marker_cannot_certify_original_flex_and_curl_error_is_failure(mon
     def fake_run(argv, **kwargs):
         header = Path(argv[argv.index("--dump-header") + 1])
         header.write_text(
-            "HTTP/1.1 200 Connection established\\r\\nX-Request-ID: proxy-only\\r\\n\\r\\n"
-            "HTTP/2 401\\r\\nContent-Type: application/json\\r\\n\\r\\n"
+            "HTTP/1.1 200 Connection established\r\nX-Request-ID: proxy-only\r\n\r\n"
+            "HTTP/2 401\r\nContent-Type: application/json\r\n\r\n"
         )
         class Result:
             stdout = "401|0.002|0.011|0.060|0.062|0.080|0.091"
@@ -120,7 +120,7 @@ def test_proxy_marker_cannot_certify_original_flex_and_curl_error_is_failure(mon
 
     def fake_failed(argv, **kwargs):
         header = Path(argv[argv.index("--dump-header") + 1])
-        header.write_text("HTTP/2 401\\r\\nX-Request-ID: handler-only\\r\\n\\r\\n")
+        header.write_text("HTTP/2 401\r\nX-Request-ID: handler-only\r\n\r\n")
         class Result:
             stdout = "401|0.002|0.011|0.060|0.062|0.080|0.091"
             returncode = 28
