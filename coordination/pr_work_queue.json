@@ -52,28 +52,21 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1029"
     },
     {
-      "pr": 1046,
-      "title": "fix(#249): activate five Y1 GETs via versioned private Blob package",
+      "pr": 1047,
+      "title": "ops(#249): inspect failed private Y1 Blob upload without Azure writes",
       "feature": "issue249",
-      "head_sha": "c072371b5dd9c598a2a4be5fda0fe6568b7e6bdd",
+      "head_sha": "5b7b765f86ff6aa1dcddc5da2199a5762c314d6c",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P0",
       "phase": "in-progress",
-      "claim": {
-        "owner": "manual-issue249-versioned-blob-chat-20261120",
-        "head_sha": "c072371b5dd9c598a2a4be5fda0fe6568b7e6bdd",
-        "claimed_at": "2026-11-20T03:45:45.253Z",
-        "expires_at": "2026-11-20T05:15:45.253Z"
-      },
+      "claim": null,
       "checkpoint": {
-        "owner": "manual-issue249-versioned-blob-chat-20261120",
-        "CI": "#44669856645 current exact head in progress",
-        "next_action": "Merge source only after 4/4; one-shot protected DEV external-URI Y1 five-route canary. Original two-route confirmed 20/20 #44668555433; rollback URI must never be printed or changed outside isolated Y1. No touch excluded PRs.",
-        "feature_done": false
+        "ci": "exact-head #44671566400 in_progress, four jobs in_progress at observation",
+        "next_action": "Manual Issue249 owner: await four-job CI and independent security review; read-only DEV diagnostic only, no deployment or merge by scheduler"
       },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1046"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1047"
     }
   ],
-  "last_inventory_checked_at": "2026-11-19T23:03:44Z"
+  "last_inventory_checked_at": "2026-11-20T04:02:00Z"
 }
