@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 3,
+    "open_prs": 4,
     "by_feature": {
-      "issue249": 3
+      "issue249": 4
     }
   },
   "entries": [
@@ -72,6 +72,29 @@
         "next_action": "Read-only root cause classification of failed versioned Blob upload; original Y1 two functions 20/20 verified, no Azure writes"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1050"
+    },
+    {
+      "pr": 1051,
+      "title": "fix(#249): identify Y1 OIDC RBAC query denial without exposing secrets",
+      "feature": "issue249",
+      "head_sha": "8f1b5237ade53ab4a78505efac714c753db24af3",
+      "base_branch": "main",
+      "work_owner": "manual-issue249",
+      "priority": "P0",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-issue249-rbac-fallback-chat-20261120",
+        "head_sha": "8f1b5237ade53ab4a78505efac714c753db24af3",
+        "claimed_at": "2026-11-20T04:22:57.327Z",
+        "expires_at": "2026-11-20T05:52:57.327Z"
+      },
+      "checkpoint": {
+        "owner": "manual-issue249-rbac-fallback-chat-20261120",
+        "ci": "#44673932528 exact-head in progress",
+        "next_action": "Verify 4/4, merge scoped read-only diagnostic, review outcome; no Azure write.",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1051"
     }
   ],
   "last_inventory_checked_at": "2026-11-20T04:02:00Z"
