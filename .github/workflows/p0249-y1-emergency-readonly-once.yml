@@ -1,0 +1,44 @@
+name: "RetailGrowthAI #249 emergency Y1 original-package status (read only)"
+# One-time owner-requested 2026-11-20 incident inspection. No Azure writes.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/p0249-y1-emergency-readonly-once.yml"
+permissions:
+  contents: read
+concurrency:
+  group: p0249-y1-emergency-readonly-20261120
+  cancel-in-progress: false
+jobs:
+  inspect:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      startsWith(github.event.head_commit.message, 'ops(#249): emergency read-only Y1 restore check')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Inspect exact Y1 original package, run owner and 20/20 public health
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_emergency_readonly_state.py
+      - name: End Azure OIDC session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
