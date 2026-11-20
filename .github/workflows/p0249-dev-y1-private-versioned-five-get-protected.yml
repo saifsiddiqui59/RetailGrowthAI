@@ -1,0 +1,204 @@
+name: "RetailGrowthAI #249 Y1 five-GET private Blob release (protected + original URI rollback)"
+# Manual-only protected DEV workflow; owner one-shot dispatch separately reviewed.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Publish exactly five GET-only handlers to private versioned Y1 Blob (6-day SAS trial)"
+        required: true
+        type: choice
+        options: ["NO", "YES-P0249-Y1-PRIVATE-BLOB-FIVE-GET-RESTORE"]
+      reviewed_main_sha:
+        description: "Exact reviewed 40-character main SHA"
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0249-y1-five-get-release
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'workflow_dispatch' &&
+      inputs.confirm == 'YES-P0249-Y1-PRIVATE-BLOB-FIVE-GET-RESTORE'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 39
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      attempted: ${{ steps.mutation_marker.outputs.attempted }}
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      REVIEWED_MAIN_SHA: ${{ inputs.reviewed_main_sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Exact reviewed main, no redirects, bounded source and rollback tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$REVIEWED_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$GITHUB_SHA" = "$REVIEWED_MAIN_SHA" || {
+            echo "::error::No matching reviewed main SHA"; exit 2;
+          }
+          python3 -m unittest discover -s tests/infra -p 'test_p0249_y1_external_private_package.py' -v
+          python3 -m unittest discover -s tests/infra -p 'test_p0249_y1_external_release_workflow.py' -v
+          python3 -m unittest discover -s tests/infra -p 'test_p0249_y1_five_get*.py' -v
+      - name: Build exact approved five-GET pre-vendored ZIP (no worker routes)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ops/p0249-y1-readonly-extra-get/build_five_get_release.py --mode five --target "$RUNNER_TEMP/y1-five"
+          python3 ops/p0249-y1-readonly-extra-get/build_five_get_release.py --mode rollback-two --target "$RUNNER_TEMP/y1-two"
+          python3 ops/p0249-y1-readonly-extra-get/verify_staged_y1_auth_transport.py --target "$RUNNER_TEMP/y1-five"
+          python3 ops/p0249-y1-readonly-extra-get/verify_staged_y1_auth_transport.py --target "$RUNNER_TEMP/y1-two"
+          python3 -m pip install --disable-pip-version-check --no-cache-dir -r "$RUNNER_TEMP/y1-five/requirements.txt" --target "$RUNNER_TEMP/y1-five/.python_packages/lib/site-packages" --quiet
+          python3 - <<'PY'
+          import json,os,pathlib
+          root=pathlib.Path(os.environ["RUNNER_TEMP"])/"y1-five"
+          expected={"p0249_health","campaign_read","render_job_read","poster_job_read","poster_draft_read"}
+          manifest=list(root.glob("*/function.json"))
+          assert len(manifest)==5 and {m.parent.name for m in manifest}==expected
+          assert not (root/"function_app.py").exists()
+          assert (root/".python_packages/lib/site-packages/azure/functions/__init__.py").is_file()
+          assert (root/".python_packages/lib/site-packages/jwt/__init__.py").is_file()
+          for f in manifest:
+              m=json.loads(f.read_text())
+              assert m["bindings"][0]["type"]=="httpTrigger"
+              assert m["bindings"][0]["methods"]==["get"]
+              assert m["bindings"][1]["type"]=="http"
+          print("P0249_Y1_EXTERNAL_FIVE_GET_PREVENDORED_INDEX=PASS")
+          PY
+          (cd "$RUNNER_TEMP/y1-five" && zip -qr "$RUNNER_TEMP/y1-five.zip" .)
+          test -s "$RUNNER_TEMP/y1-five.zip"
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Read-only original Flex/Y1, private container and signed SAS access checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_external_private_package.py preflight --zip "$RUNNER_TEMP/y1-five.zip"
+      - name: Record potential Y1 mutation before first Blob upload
+        id: mutation_marker
+        shell: bash
+        run: echo "attempted=true" >> "$GITHUB_OUTPUT"
+      - name: Publish versioned private Y1 Blob and prove five indexes plus idle HTTP
+        shell: bash
+        run: |
+          set -euo pipefail
+          on_exit() {
+            rc=$?
+            trap - EXIT
+            if [ "$rc" -ne 0 ]; then
+              echo "::warning::Y1 external private trial failed; restore exact original URI"
+              python3 -u ops/p0249_y1_external_private_package.py rollback ||
+                echo "::error::Same-run original URI rollback uncertain; independent restore required"
+            fi
+            exit "$rc"
+          }
+          trap on_exit EXIT
+          python3 -u ops/p0249_y1_external_private_package.py publish --zip "$RUNNER_TEMP/y1-five.zip"
+          for attempt in $(seq 1 18); do
+            if python3 -u ops/p0249_y1_external_private_package.py verify; then
+              break
+            fi
+            if [ "$attempt" -eq 18 ]; then
+              echo "::error::Five GET routes not indexed from new versioned private package"; exit 2;
+            fi
+            sleep 12
+          done
+          python3 -u - <<'PY'
+          import sys,time,urllib.error,urllib.request
+          sys.path.insert(0,"ops")
+          import p0249_y1_canary_guard as g
+          class NoRedirects(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+          opener=urllib.request.build_opener(NoRedirects())
+          def guarded_get(path):
+              req=urllib.request.Request(
+                  "https://rgai-dev-y1-p0249-d4e5ddbd.azurewebsites.net"+path,
+                  headers={"Cache-Control":"no-store"},method="GET")
+              start=time.monotonic()
+              try:
+                  with opener.open(req,timeout=18) as response:
+                      status=response.status
+                      marker=bool(response.headers.get("X-Request-ID"))
+              except urllib.error.HTTPError as err:
+                  try:
+                      status=err.code
+                      marker=bool(err.headers.get("X-Request-ID"))
+                  finally:
+                      err.close()
+              except (urllib.error.URLError,TimeoutError,OSError):
+                  status,marker=0,False
+              return status,marker,time.monotonic()-start
+          uid="11111111-1111-4111-8111-111111111111"
+          paths=("/api/campaigns/"+uid,"/api/render-jobs/"+uid,
+                 "/api/poster-jobs/"+uid,"/api/poster-drafts/"+uid)
+          for window in ("immediate","after_240s_idle"):
+              if window=="after_240s_idle":
+                  print("P0249_Y1_START_IDLE_SECONDS=240",flush=True)
+                  time.sleep(240)
+              g.probe()  # 20 real health/unknown GETs in each window.
+              for path in paths:
+                  status,marker,seconds=guarded_get(path)
+                  ok=(status==401 and marker and seconds<18)
+                  print(f"P0249_Y1_GET_DENIAL window={window} type={path.split('/')[2]} "
+                        f"status={status} marked={marker} seconds={seconds} pass={ok}",flush=True)
+                  if not ok: raise SystemExit("Y1 original JWT missing-credential denial failed")
+          print("P0249_Y1_FIVE_READONLY_GET_IDLE_NEGATIVE=PASS",flush=True)
+          PY
+          python3 -u ops/p0249_y1_external_private_package.py verify
+          python3 -u ops/p0249_y1_canary_guard.py verify
+          trap - EXIT
+          echo "P0249_Y1_VERSIONED_PRIVATE_FIVE_GET_HOSTED_NEGATIVE_AUTH=PASS"
+      - name: End Azure OIDC
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
+
+  independent-restore:
+    needs: deploy
+    if: >-
+      always() &&
+      needs.deploy.outputs.attempted == 'true' &&
+      needs.deploy.result != 'success'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 22
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Independently restore exact original two-route external Blob reference
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_external_private_package.py rollback
+          python3 -u ops/p0249_y1_canary_guard.py verify
+          echo "P0249_Y1_EXTERNAL_BLOB_INDEPENDENT_ORIGINAL_TWO_ROUTE_ROLLBACK=PASS"
+      - name: End Azure OIDC
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
