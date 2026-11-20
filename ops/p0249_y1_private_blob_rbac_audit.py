@@ -96,6 +96,7 @@ def classify_role_list(assignments):
 
 def audit():
     guard.verify()  # Protected exact DEV resource, Y1 SKU and original Flex.
+    print("P0249_Y1_BLOB_RBAC_STAGE=VERIFIED_RESOURCE_IDENTITY", flush=True)
     settings = mode._settings()
     indexed = mode._index()
     original = settings.get(BACKUP)
@@ -104,6 +105,7 @@ def audit():
         settings.get(PACKAGE) != original or
         any(name in settings for name in mode.SHADOWS)):
         raise RuntimeError("Y1 original package/2-route recovery not verified")
+    print("P0249_Y1_BLOB_RBAC_STAGE=VERIFIED_TWO_ROUTE_BASELINE", flush=True)
 
     sub = os.environ.get("RGAI_DEV_EXPECTED_SUBSCRIPTION", "")
     client_id = os.environ.get("AZURE_CLIENT_ID", "")
@@ -114,10 +116,13 @@ def audit():
                             "-g", guard.RG, "-n", guard.STORAGE)
     storage_id = account.get("id") if isinstance(account, dict) else None
     scope = _scope_and_container(storage_id, original, sub)
+    print("P0249_Y1_BLOB_RBAC_STAGE=VERIFIED_STORAGE_CONTAINER_SCOPE", flush=True)
 
     token = _az_json("account", "get-access-token", "--resource-type", "arm")
     oid = _service_principal_oid(token.get("accessToken") if isinstance(token, dict) else None,
                                  client_id)
+    print("P0249_Y1_BLOB_RBAC_STAGE=VERIFIED_OIDC_CLIENT_CLAIM", flush=True)
+    print("P0249_Y1_BLOB_RBAC_STAGE=QUERYING_READONLY_ROLE_ASSIGNMENTS", flush=True)
     assignments = _az_json("role", "assignment", "list",
                            "--assignee-object-id", oid, "--scope", scope,
                            "--include-inherited", "--all",
