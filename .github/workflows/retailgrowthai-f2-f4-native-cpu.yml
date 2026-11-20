@@ -110,6 +110,8 @@ jobs:
             "$RUNNER_TEMP/f2-f4-evidence"
           test -s "$RUNNER_TEMP/f2-f4-evidence/synthetic-f2-f4.mp4"
           test -s "$RUNNER_TEMP/f2-f4-evidence/f2-f4-offline-receipt.json"
+          test -s "$RUNNER_TEMP/f2-f4-evidence/synthetic-f2-mit-director-to-f4.mp4"
+          test -s "$RUNNER_TEMP/f2-f4-evidence/mit-director-f4-offline-receipt.json"
           echo "CPU-only F2->F4 real MP4 verification (synthetic, NOT retailer approval)." >> "$GITHUB_STEP_SUMMARY"
       - name: Save synthetic-only acceptance evidence for inspection
         if: always()
@@ -119,6 +121,8 @@ jobs:
           path: |
             ${{ runner.temp }}/f2-f4-evidence/f2-f4-offline-receipt.json
             ${{ runner.temp }}/f2-f4-evidence/synthetic-f2-f4.mp4
+            ${{ runner.temp }}/f2-f4-evidence/synthetic-f2-mit-director-to-f4.mp4
+            ${{ runner.temp }}/f2-f4-evidence/mit-director-f4-offline-receipt.json
             ${{ runner.temp }}/f2f4-hyperframes-lock.json
           retention-days: 1
           if-no-files-found: warn
