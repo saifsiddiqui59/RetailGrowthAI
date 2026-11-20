@@ -52,7 +52,7 @@ class ExternalPrivatePackageTests(unittest.TestCase):
     def setUp(self):
         self.fake=FakeY1()
         patches=[patch.object(x,"_read_site",side_effect=self.fake.read),
-                 patch.object(x,"azure",side_effect=self.fake.az),
+                 patch.object(x,"azure",side_effect=lambda *args:self.fake.az(*args)),
                  patch.object(mode,"_settings",side_effect=lambda:dict(self.fake.settings)),
                  patch.object(mode,"_set",side_effect=self.fake.set),
                  patch.object(x.guard,"probe",return_value=None),
