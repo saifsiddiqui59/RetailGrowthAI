@@ -13,9 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 1,
+    "open_prs": 2,
     "by_feature": {
-      "issue249": 1
+      "issue249": 1,
+      "unclassified": 1
     }
   },
   "entries": [
@@ -23,19 +24,36 @@
       "pr": 1059,
       "title": "Issue249 integration PR (live title not verified)",
       "feature": "issue249",
-      "head_sha": "8ccd4647fca7f48ba3c840837dd7fd8600183eb3",
+      "head_sha": "ffcb040735f95194fd9995219bd2805481da7844",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P1",
       "phase": "in-progress",
       "checkpoint": {
         "owner": "manual-issue249",
-        "ci": "Exact-head #44798059356 four mandatory jobs IN_PROGRESS; #44798059430 extended CPU IN_PROGRESS at 2026-11-20T19:00Z",
-        "next_action": "Wait for exact-head CI, inspect 4 jobs and perform independent integration/security review; no automatic merge",
+        "ci": "Exact-head #44807752994 extended CPU in_progress; mandatory exact-head #44807766420 pending at 2026-11-20T20:03Z",
+        "next_action": "Wait for exact-head mandatory 4-job CI and extended CPU; independent security/integration review; no automatic merge",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1059"
+    },
+    {
+      "pr": 1064,
+      "title": "Live title not verified",
+      "feature": "unclassified",
+      "head_sha": "bd6693e97af56014ea985f7ef3301e07a8ad107f",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P1",
+      "phase": "review",
+      "checkpoint": {
+        "owner": "manual-integration",
+        "ci": "Exact-head #44804945219 completed SUCCESS; four mandatory jobs independently verified PASS",
+        "next_action": "Independent owner/security review; no automatic merge",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
     }
   ],
-  "last_inventory_checked_at": "2026-11-20T19:00:20Z"
+  "last_inventory_checked_at": "2026-11-20T20:03:02Z"
 }
