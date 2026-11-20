@@ -13,22 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 1,
-    "by_feature": {
-      "issue249": 1
-    }
+    "open_prs": 0,
+    "by_feature": {}
   },
-  "entries": [
-    {
-      "number": 1058,
-      "head_sha": "3f2e78ca12c491397996f36f1bc94aa2bf174c20",
-      "base_ref": "main",
-      "owner": "issue249",
-      "integration_owner": "manual-integration",
-      "lease": null,
-      "ci_run_id": 44768996597,
-      "ci_status": "PASS 4/4 exact-head; independently checked"
-    }
-  ],
-  "last_inventory_checked_at": "2026-11-20T16:04:00Z"
+  "entries": [],
+  "last_inventory_checked_at": "2026-11-20T17:02:00Z"
 }
