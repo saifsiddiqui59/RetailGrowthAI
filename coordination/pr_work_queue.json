@@ -60,11 +60,17 @@
       "work_owner": "manual-issue249",
       "priority": "P0",
       "phase": "in-progress",
-      "claim": null,
+      "claim": {
+        "owner": "manual-issue249-continuation-20261120",
+        "head_sha": "3c731fa5e8310be1051de5069afa3352ad947458",
+        "claimed_at": "2026-11-20T09:14:06.955Z",
+        "expires_at": "2026-11-20T10:44:06.956Z"
+      },
       "checkpoint": {
-        "owner": "manual-issue249-blob-phase-v2-chat-20261120",
-        "ci": "#44672407368 running",
-        "next_action": "Read-only root cause classification of failed versioned Blob upload; original Y1 two functions 20/20 verified, no Azure writes"
+        "owner": "manual-issue249-continuation-20261120",
+        "ci": "exact-head run #44672407368 success 4/4, reconfirm before merge",
+        "next_action": "Scope review #1050, integrate if safe exact-head 4/4, verify protected read-only Blob error and retire trigger.",
+        "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1050"
     }
