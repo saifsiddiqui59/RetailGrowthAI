@@ -13,35 +13,11 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 1,
+    "open_prs": 0,
     "by_feature": {
-      "issue249": 1
+      "issue249": 0
     }
   },
-  "entries": [
-    {
-      "pr": 1057,
-      "title": "ops(#249): one-shot protected DEV signed JWT Y1 shadow test dispatch",
-      "feature": "issue249",
-      "head_sha": "f7c8077c944e6391192d079fe25d45ef5be5d55a",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P0",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-issue249-jwt-y1-dispatch-20261120",
-        "head_sha": "f7c8077c944e6391192d079fe25d45ef5be5d55a",
-        "claimed_at": "2026-11-20T15:41:30.735Z",
-        "expires_at": "2026-11-20T17:11:30.735Z"
-      },
-      "checkpoint": {
-        "owner": "manual-issue249-jwt-y1-dispatch-20261120",
-        "ci": "exact-head CI in progress",
-        "next_action": "Ensure 4/4 PR and main green before exact source-pinned one-shot dispatch. Inspect actual signed user and rollback; retire bridge.",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1057"
-    }
-  ],
+  "entries": [],
   "last_inventory_checked_at": "2026-11-20T04:02:00Z"
 }
