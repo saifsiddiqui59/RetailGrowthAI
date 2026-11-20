@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "video-engine"))
 
 from creative_contract import CreativeContractError, render_inputs
-from feature2_feature4_bridge import compile_feature2_direction
+from feature2_feature4_bridge import compile_feature2_direction, direction_review_digest
 from test_feature4_intent_compiler import pair, SHOP, OTHER, CAMPAIGN
 
 
@@ -37,6 +37,10 @@ def original():
         },
     }
     return direction, trusted
+
+
+# Simulates a trusted frozen-review store supplying a SHA independently.
+REVIEW = direction_review_digest(original()[0])
 
 
 class Feature2Feature4DirectionTests(unittest.TestCase):
