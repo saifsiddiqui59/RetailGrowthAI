@@ -1,0 +1,84 @@
+name: "RetailGrowthAI #249 single owner-delegated private Blob five-GET release"
+# Only this approved one-shot source merge triggers dispatch, never Azure writes.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/p0249-y1-private-blob-owner-once.yml"
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: rgai-p0249-private-five-owner-delegated-once
+  cancel-in-progress: false
+jobs:
+  dispatch:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'ops(#249): owner-delegated Y1 private five-route trial')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify exact reviewed permanent release, original auth and rollback files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          verify_blob() { test "$(git rev-parse "HEAD:$1")" = "$2"; }
+          verify_blob .github/workflows/p0249-dev-y1-private-versioned-five-get-protected.yml 11d5b9f8f5e03041c99d991052fd42183133a7d2
+          verify_blob ops/p0249_y1_external_private_package.py a6c43cf9e737891b90161e354441bd7816591422
+          verify_blob tests/infra/test_p0249_y1_external_private_package.py f1e2f0ac227006ed0ccab339861b600e1432659a
+          verify_blob tests/infra/test_p0249_y1_external_release_workflow.py df57832678e7dba9f40d97e430e99abc621d9090
+          verify_blob azure-functions/campaign-api/tenant_store.py d5091e4cf14071473813b77226c2a5ad61b84635
+          verify_blob ops/p0249-y1-readonly-extra-get/build_five_get_release.py b6cc730a0bce59093e831965ca4ee1f817121203
+          echo "P0249_OWNER_PRIVATE_FIVE_PINNED_SOURCES=PASS"
+      - name: Require four-job Part1 CI SUCCESS on this exact main SHA
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          accepted=false
+          for attempt in $(seq 1 78); do
+            runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&event=push&per_page=40")"
+            run_id="$(jq -r --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha==$sha and .name=="RetailGrowthAI Part 1 CI")] | sort_by(.created_at) | last | .id // empty' <<< "$runs")"
+            if [ -n "$run_id" ]; then
+              state="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .status)"
+              if [ "$state" = "completed" ]; then
+                outcome="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .conclusion)"
+                test "$outcome" = "success" || { echo "::error::Exact-main CI failed"; exit 2; }
+                gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" | jq -e '
+                  [.jobs[] | select(
+                    .name == "Python / uv + campaign contract tests" or
+                    .name == "Supabase isolation + authentication client tests" or
+                    .name == "Frontend build + contract tests" or
+                    .name == "FFmpeg codecs + renderer tests"
+                  ) | .conclusion] | length == 4 and all(.[]; . == "success")
+                ' >/dev/null
+                accepted=true
+                echo "P0249_PRIVATE_FIVE_EXACT_MAIN_CI_4OF4=PASS"
+                break
+              fi
+            fi
+            sleep 15
+          done
+          test "$accepted" = "true" || { echo "::error::Exact-main CI timed out"; exit 2; }
+      - name: Dispatch existing protected DEV private Blob release once
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)"
+          test "$current" = "$GITHUB_SHA" || { echo "::error::Main advanced"; exit 2; }
+          prior="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?event=workflow_dispatch&per_page=100")"
+          duplicate="$(jq -r --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha==$sha and .name=="RetailGrowthAI #249 Y1 five-GET private Blob release (protected + original URI rollback)")] | length' <<< "$prior")"
+          test "$duplicate" = "0" || { echo "::error::Already dispatched"; exit 2; }
+          jq -nc --arg sha "$GITHUB_SHA" '{ref:"main",inputs:{confirm:"YES-P0249-Y1-PRIVATE-BLOB-FIVE-GET-RESTORE",reviewed_main_sha:$sha}}' |
+            gh api -X POST "repos/$GITHUB_REPOSITORY/actions/workflows/p0249-dev-y1-private-versioned-five-get-protected.yml/dispatches" --input -
+          echo "P0249_PRIVATE_VERSIONED_FIVE_PROTECTED=DISPATCH_REQUESTED"
