@@ -12,6 +12,8 @@ import copy
 import hashlib
 import json
 import math
+import hmac
+import re
 
 from creative_contract import CreativeContractError, safe_ref
 from feature4_intent_compiler import compile_approved_storyboard
@@ -33,6 +35,20 @@ def _direction_json(value):
     if len(encoded.encode("utf-8")) > 96_000:
         raise CreativeContractError("Creative direction exceeds trusted input limit")
     return encoded
+
+
+def direction_review_digest(direction):
+    """Canonical SHA for entire frozen approval, excluding its own hash field.
+
+    Caller MUST read the expected digest from independently trusted approval
+    storage; hashing client input alone does not authorize a review.
+    """
+    if type(direction) is not dict:
+        raise CreativeContractError("Malformed creative approval")
+    immutable = copy.deepcopy(direction)
+    immutable.pop("review_hash", None)
+    return hashlib.sha256(b"rgai-f2-f4-approved-v1\\0" +
+                          _direction_json(immutable).encode("utf-8")).hexdigest()
 
 
 def _scenes(direction):
@@ -94,7 +110,9 @@ def compile_feature2_direction(direction, snapshot, *, reviewed_hash):
     if (direction["version"] != VERSION or direction["source_feature"] != "feature2"
             or direction["approved"] is not True):
         raise CreativeContractError("Feature2 direction is not approved or versioned")
-    safe_ref(reviewed_hash, "trusted creative approval hash")
+    if (type(reviewed_hash) is not str or not re.fullmatch(r"[0-9a-f]{64}", reviewed_hash)
+            or not hmac.compare_digest(direction_review_digest(direction), reviewed_hash)):
+        raise CreativeContractError("Creative direction bytes differ from immutable approval")
     if (direction["review_hash"] != reviewed_hash
             or direction["shop_id"] != snapshot.get("shop_id")
             or direction["campaign_id"] != snapshot.get("campaign_id")
