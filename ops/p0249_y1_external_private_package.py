@@ -31,6 +31,23 @@ PACKAGE_KEY = "WEBSITE_RUN_FROM_PACKAGE"
 BACKUP = mode.BACKUP
 OLD_OWNER = mode.OWNER
 
+# Diagnostic labels are an immutable allowlist, never Azure stderr or a signed URL.
+SAFE_STAGES = frozenset({
+    "START", "BASELINE_READ", "CONTAINER_CHECK", "SAS_GENERATION",
+    "BLOB_UPLOAD", "BLOB_PROPERTIES", "BLOB_SIZE_CHECK",
+    "OWNER_MARK", "OWNER_PROOF", "PACKAGE_SWITCH", "PACKAGE_PROOF",
+    "TRIGGER_SYNC", "INDEX_VERIFY", "ROLLBACK_VERIFY",
+})
+CURRENT_STAGE = "START"
+
+
+def mark_stage(stage):
+    global CURRENT_STAGE
+    if type(stage) is not str or stage not in SAFE_STAGES:
+        raise RuntimeError("Unknown redacted Y1 diagnostic stage")
+    CURRENT_STAGE = stage
+
+
 
 def azure(*args):
     """Azure CLI JSON with all stderr/URI-bearing output quarantined."""
@@ -90,6 +107,7 @@ def _run_id():
 
 
 def _read_site():
+    mark_stage("BASELINE_READ")
     guard.verify()
     return mode._settings(), mode._index()
 
@@ -99,6 +117,7 @@ def _blob_name():
 
 
 def _sas(account, container, name):
+    mark_stage("SAS_GENERATION")
     # The user delegation SAS lifetime is intentionally bounded to SIX days
     # for isolated non-production canary verification (maximum SDK: 7 days).
     expiry = (datetime.now(timezone.utc) + timedelta(days=6)).strftime("%Y-%m-%dT%H:%MZ")
@@ -112,6 +131,7 @@ def _sas(account, container, name):
 
 
 def _upload(account, container, name, zippath):
+    mark_stage("BLOB_UPLOAD")
     info = azure("storage", "blob", "upload",
                  "--account-name", account, "--container-name", container,
                  "--name", name, "--file", str(zippath),
@@ -119,11 +139,13 @@ def _upload(account, container, name, zippath):
                  "--content-type", "application/zip")
     if not isinstance(info, dict):
         raise RuntimeError("Y1 private Blob upload not confirmed")
+    mark_stage("BLOB_PROPERTIES")
     check = azure("storage", "blob", "show",
                   "--account-name", account, "--container-name", container,
                   "--name", name, "--auth-mode", "login")
     props = check.get("properties") if isinstance(check,dict) else None
     size = (props or {}).get("contentLength") if isinstance(props,dict) else None
+    mark_stage("BLOB_SIZE_CHECK")
     if not isinstance(size, int) or size != zippath.stat().st_size:
         raise RuntimeError("Y1 new Blob size not verified")
     print("P0249_Y1_VERSIONED_PRIVATE_BLOB=UPLOADED_VERIFIED",flush=True)
@@ -138,6 +160,7 @@ def preflight(zippath):
         raise RuntimeError("Reviewed Y1 ZIP size outside bound")
     # Fail before any upload if caller cannot read the preexisting private
     # container or generate a short-lived read-only user delegation SAS.
+    mark_stage("CONTAINER_CHECK")
     exists = azure("storage","container","exists","--account-name", ACCOUNT,
                    "--name",container,"--auth-mode","login")
     if not (isinstance(exists,dict) and exists.get("exists") is True):
@@ -159,12 +182,16 @@ def publish(zippath):
         raise RuntimeError("Y1 baseline changed after private upload")
     # Owner set BEFORE the active package ref, so recovery can always
     # attribute the trial. Both settings are applied to the isolated Y1 only.
+    mark_stage("OWNER_MARK")
     mode._set(**{NEW_OWNER:_run_id()})
+    mark_stage("OWNER_PROOF")
     switched=mode._settings()
     if (switched.get(NEW_OWNER)!=_run_id() or switched.get(PACKAGE_KEY)!=old):
         raise RuntimeError("Y1 new trial owner not persisted")
     uri="https://"+EXPECTED_URI_HOST+"/"+container+"/"+name+"?"+sas
+    mark_stage("PACKAGE_SWITCH")
     mode._set(**{PACKAGE_KEY:uri})
+    mark_stage("PACKAGE_PROOF")
     after=mode._settings()
     if (after.get(PACKAGE_KEY)!=uri or after.get(NEW_OWNER)!=_run_id()
             or after.get(BACKUP)!=old):
@@ -173,6 +200,7 @@ def publish(zippath):
     print("P0249_Y1_VERSIONED_EXTERNAL_PACKAGE=ACTIVATED_REDACTED",flush=True)
     # Linux Consumption external package mode requires trigger sync.
     # Use the WebSites ARM action (no command may contain the signed URI).
+    mark_stage("TRIGGER_SYNC")
     azure("resource","invoke-action","-g",RG,"-n",SITE,
           "--resource-type","Microsoft.Web/sites",
           "--action","syncfunctiontriggers")
@@ -192,6 +220,7 @@ def _wait_for(target, attempts=18, delay=12):
 
 def verify():
     values,indexed=_read_site()
+    mark_stage("INDEX_VERIFY")
     old,_=scoped_baseline(values,indexed,recovery=True)
     current=values.get(PACKAGE_KEY)
     if (values.get(NEW_OWNER)!=_run_id() or
@@ -216,6 +245,7 @@ def rollback():
     # are already observed.
     if not _wait_for(mode.TWO):
         raise RuntimeError("Original two-function index not restored")
+    mark_stage("ROLLBACK_VERIFY")
     guard.probe()
     print("P0249_Y1_EXACT_ORIGINAL_URI_AND_HTTP_ROLLBACK=PASS_20OF20",flush=True)
 
@@ -233,9 +263,15 @@ def main():
      "rollback":rollback}[args.mode]()
 
 
-if __name__=="__main__":
+def entrypoint():
+    mark_stage("START")
     try:
         main()
     except Exception:
-        print("P0249_Y1_VERSIONED_EXTERNAL_RELEASE=FAILED_REDACTED",flush=True)
+        # Only a static phase label; never exception text, Azure CLI output or SAS.
+        print(f"P0249_Y1_VERSIONED_EXTERNAL_RELEASE=FAILED_REDACTED phase={CURRENT_STAGE}",flush=True)
         raise SystemExit(2)
+
+
+if __name__=="__main__":
+    entrypoint()
