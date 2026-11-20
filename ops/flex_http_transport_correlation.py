@@ -77,8 +77,8 @@ _FIXED_CLASSES = frozenset(("worker_exit", "worker_start", "host_start", "host_l
 _FIXED_LEVELS = frozenset(("Information", "Warning", "Error", "Critical", "Verbose", "Debug"))
 _FIXED_ACTIVITY = frozenset(("Succeeded", "Failed", "Accepted", "Started", "Canceled", "Cancelled"))
 _BUCKET_RE = re.compile(
-    r"^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
-    r"(?:\\.\\d{1,7})?(?:Z|\\+00:00)$"
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}"
+    r"(?:\.\d{1,7})?(?:Z|\+00:00)$"
 )
 
 
