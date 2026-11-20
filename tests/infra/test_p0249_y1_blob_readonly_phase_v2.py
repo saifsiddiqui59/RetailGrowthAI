@@ -20,6 +20,25 @@ class BlobPhaseTests(unittest.TestCase):
             for secret in ("SECRET","NEVER","TOPSECRET","PIN","IMPORTANT","https"):
                 self.assertNotIn(secret,observed)
 
+    def test_baseline_mismatch_stops_even_after_sanitized_health_probe(self):
+        from unittest.mock import patch
+        from contextlib import redirect_stdout
+        from io import StringIO
+        import p0249_y1_remote_build_mode as mode
+        output=StringIO()
+        with patch.object(probe.guard, 'verify', return_value=None), \
+             patch.object(probe.mode, '_settings', return_value={}), \
+             patch.object(probe.mode, '_index', return_value=mode.TWO), \
+             patch.object(probe.pkg, 'scoped_baseline', side_effect=RuntimeError('SECRET URI')), \
+             patch.object(probe.guard, 'probe', return_value=None) as health, \
+             patch.object(probe, 'read_blob') as read, redirect_stdout(output):
+            with self.assertRaisesRegex(RuntimeError, 'Original Y1 baseline mismatch'):
+                probe.main()
+        health.assert_called_once()
+        read.assert_not_called()
+        self.assertIn('ORIGINAL_BASELINE_NOT_MATCHED', output.getvalue())
+        self.assertNotIn('SECRET', output.getvalue())
+
     def test_script_and_one_shot_only_read_existing_blob(self):
         s=(ROOT/"ops/p0249_y1_blob_readonly_phase_v2.py").read_text()
         wf=(ROOT/".github/workflows/p0249-y1-failed-blob-phase-readonly-once.yml").read_text()
