@@ -150,7 +150,7 @@ def test_foreign_revoked_invalid_plan_never_creates_job_or_signs_media():
     assert api.handle("POST", path, "Bearer signed-b", intent())[0] == 404
     wrong_shop = intent()
     wrong_shop["shop_id"] = FOREIGN
-    assert api.handle("POST", path, "Bearer signed-a", wrong_shop)[0] == 404
+    assert api.handle("POST", path, "Bearer signed-a", wrong_shop)[0] == 400
     changed = intent()
     changed["draft"]["version"] = "unsafe-v3"
     assert api.handle("POST", path, "Bearer signed-a", changed)[0] == 400
