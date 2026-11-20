@@ -27,14 +27,18 @@
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P0",
-      "phase": "ready-for-review",
-      "claim": null,
-      "checkpoint": {
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-issue249-y1-jwt-review-20261120",
         "head_sha": "14ca12280d159a3661a536deba5062d98b327ec9",
-        "commits": 8,
-        "tests": "Y1 2/5 exact index + OFF second shadow flag + HTTP handle closure; full 4/4 PASS",
-        "ci": "exact PR head #44593231155: COMPLETED SUCCESS all 4 mandatory jobs",
-        "next_action": "Independent protected-DEV workflow/JWT review, then main-only integration; no live release or Auth users"
+        "claimed_at": "2026-11-20T15:35:13.820Z",
+        "expires_at": "2026-11-20T17:05:13.820Z"
+      },
+      "checkpoint": {
+        "owner": "manual-issue249-y1-jwt-review-20261120",
+        "ci": "head run #44593231155 4/4 prior; latest main acceptance separate",
+        "next_action": "Audit 7-path temporary signed JWT Y1 Auth trial and rollback; do not dispatch or merge before exact-head and release safety gates",
+        "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/939"
     }
