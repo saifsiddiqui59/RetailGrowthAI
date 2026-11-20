@@ -60,10 +60,16 @@
       "work_owner": "manual-issue249",
       "priority": "P0",
       "phase": "in-progress",
-      "claim": null,
+      "claim": {
+        "owner": "manual-issue249-readonly-blob-check-chat-20261120",
+        "head_sha": "5b7b765f86ff6aa1dcddc5da2199a5762c314d6c",
+        "claimed_at": "2026-11-20T04:02:24.236Z",
+        "expires_at": "2026-11-20T05:32:24.236Z"
+      },
       "checkpoint": {
-        "ci": "exact-head #44671566400 in_progress, four jobs in_progress at observation",
-        "next_action": "Manual Issue249 owner: await four-job CI and independent security review; read-only DEV diagnostic only, no deployment or merge by scheduler"
+        "owner": "manual-issue249-readonly-blob-check-chat-20261120",
+        "ci": "#44671566400 exact head running",
+        "next_action": "Owner's protected read-only exact failed-Blob upload audit; original Y1 verified 20/20 after restore; no new Azure writes or ZIP retries."
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1047"
     }
