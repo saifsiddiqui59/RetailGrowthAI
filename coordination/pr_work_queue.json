@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 2,
+    "open_prs": 1,
     "by_feature": {
-      "issue249": 2
+      "issue249": 1
     }
   },
   "entries": [
@@ -35,29 +35,6 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1059"
-    },
-    {
-      "pr": 1063,
-      "title": "docs(#249): retire original-package HEAD one-shot after protected access denial",
-      "feature": "issue249",
-      "head_sha": "44a0d43c01bf11569b71b677a57f277f49f773b2",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P1",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-issue249-original-head-closeout-20261121",
-        "head_sha": "44a0d43c01bf11569b71b677a57f277f49f773b2",
-        "claimed_at": "2026-11-20T19:14:13.414Z",
-        "expires_at": "2026-11-20T20:44:13.414Z"
-      },
-      "checkpoint": {
-        "owner": "manual-issue249-original-head-closeout-20261121",
-        "ci": "exact head 4 jobs pending",
-        "next_action": "Review CI, reconcile newer main, remove one-shot and document protected OAuth ACCESS_DENIED. No Azure writes.",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1063"
     }
   ],
   "last_inventory_checked_at": "2026-11-20T19:00:20Z"
