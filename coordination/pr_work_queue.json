@@ -20,27 +20,27 @@
   },
   "entries": [
     {
-      "pr": 1060,
-      "title": "fix(#249): fail Y1 private package release before write on OIDC Blob HEAD denial",
+      "pr": 1061,
+      "title": "docs(#249): record guarded Y1 OAuth prewrite gate and remaining Azure acceptance",
       "feature": "issue249",
-      "head_sha": "b9df7a99affececa3581c095124476d2cff45fe4",
+      "head_sha": "8c62820a2fd72b4f341ddb0f50aafdd323b2f9af",
       "base_branch": "main",
       "work_owner": "manual-issue249",
-      "priority": "P0",
+      "priority": "P1",
       "phase": "in-progress",
       "claim": {
-        "owner": "manual-issue249-y1-oauth-preflight-20261121",
-        "head_sha": "b9df7a99affececa3581c095124476d2cff45fe4",
-        "claimed_at": "2026-11-20T18:47:46.046Z",
-        "expires_at": "2026-11-20T20:17:46.050Z"
+        "owner": "manual-issue249-docs-20261121",
+        "head_sha": "8c62820a2fd72b4f341ddb0f50aafdd323b2f9af",
+        "claimed_at": "2026-11-20T18:54:00.753Z",
+        "expires_at": "2026-11-20T20:24:00.753Z"
       },
       "checkpoint": {
-        "owner": "manual-issue249-y1-oauth-preflight-20261121",
-        "ci": "exact-head #44796057690 in progress",
-        "next_action": "Review 4/4 CI, repair tests if needed, merge code guard, update docs. No cloud IAM or release mutation.",
+        "owner": "manual-issue249-docs-20261121",
+        "ci": "exact-head PR CI pending",
+        "next_action": "Verify #1060 merged-main CI and #1061 exact-head 4/4, then merge documentation to main.",
         "feature_done": false
       },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1060"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1061"
     }
   ],
   "last_inventory_checked_at": "2026-11-20T17:02:00Z"
