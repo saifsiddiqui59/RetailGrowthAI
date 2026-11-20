@@ -13,35 +13,11 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 1,
+    "open_prs": 0,
     "by_feature": {
-      "issue249": 1
+      "issue249": 0
     }
   },
-  "entries": [
-    {
-      "pr": 939,
-      "title": "ops(#249): bounded DEV Y1 public-only JWT shadow trial with rollback",
-      "feature": "issue249",
-      "head_sha": "14ca12280d159a3661a536deba5062d98b327ec9",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P0",
-      "phase": "in-progress",
-      "claim": {
-        "owner": "manual-issue249-y1-jwt-review-20261120",
-        "head_sha": "14ca12280d159a3661a536deba5062d98b327ec9",
-        "claimed_at": "2026-11-20T15:35:13.820Z",
-        "expires_at": "2026-11-20T17:05:13.820Z"
-      },
-      "checkpoint": {
-        "owner": "manual-issue249-y1-jwt-review-20261120",
-        "ci": "head run #44593231155 4/4 prior; latest main acceptance separate",
-        "next_action": "Audit 7-path temporary signed JWT Y1 Auth trial and rollback; do not dispatch or merge before exact-head and release safety gates",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/939"
-    }
-  ],
+  "entries": [],
   "last_inventory_checked_at": "2026-11-20T04:02:00Z"
 }
