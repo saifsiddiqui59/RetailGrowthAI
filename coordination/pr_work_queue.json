@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 1,
+    "open_prs": 2,
     "by_feature": {
-      "issue249": 1
+      "issue249": 2
     }
   },
   "entries": [
@@ -35,6 +35,29 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1059"
+    },
+    {
+      "pr": 1062,
+      "title": "ops(#249): one-shot original Y1 package OAuth HEAD read-only diagnosis",
+      "feature": "issue249",
+      "head_sha": "09b82a0e2baf5cdd475fbdf669e6858bb993b277",
+      "base_branch": "main",
+      "work_owner": "manual-issue249",
+      "priority": "P0",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-issue249-original-y1-head-once-20261121",
+        "head_sha": "09b82a0e2baf5cdd475fbdf669e6858bb993b277",
+        "claimed_at": "2026-11-20T19:03:57.622Z",
+        "expires_at": "2026-11-20T20:33:57.622Z"
+      },
+      "checkpoint": {
+        "owner": "manual-issue249-original-y1-head-once-20261121",
+        "ci": "exact head in progress",
+        "next_action": "Exact-head CI 4/4, merge with exact one-shot title; inspect protected original Blob OAuth result, then retire workflow. No Azure writes.",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1062"
     }
   ],
   "last_inventory_checked_at": "2026-11-20T19:00:20Z"
