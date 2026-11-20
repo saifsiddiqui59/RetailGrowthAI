@@ -34,7 +34,7 @@ jobs:
           verify_blob ops/p0249_y1_external_private_package.py 9099ada0d8bb4d7dc4c0613aba140801c4beaab6
           verify_blob tests/infra/test_p0249_y1_external_private_package.py 3d6a21785c719573df80694fde91775883eb0a2c
           verify_blob tests/infra/test_p0249_y1_external_release_workflow.py df57832678e7dba9f40d97e430e99abc621d9090
-          verify_blob azure-functions/campaign-api/tenant_store.py d5091e4cf14071473813b77226c1a5ad61b84635
+          verify_blob azure-functions/campaign-api/tenant_store.py d5091e4cf14071473813b77226c2a5ad61b84635
           verify_blob ops/p0249-y1-readonly-extra-get/build_five_get_release.py b6cc730a0bce59093e831965ca4ee1f817121203
           echo "P0249_OWNER_PRIVATE_FIVE_PINNED_SOURCES=PASS"
       - name: Require four-job Part1 CI SUCCESS on this exact main SHA
