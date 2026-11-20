@@ -131,10 +131,13 @@ class Feature2Feature4DirectionTests(unittest.TestCase):
             "start": 0, "duration": 2, "text": "Diwali Fashion",
         }]
         direction["script"] = copy.deepcopy(snapshot["script"])
+        # The test reviewer freezes this NEW revision, including transcript.
+        direction["review_hash"] = direction_review_digest(direction)
         with self.assertRaisesRegex(CreativeContractError, "subtitles|recording"):
-            compile_feature2_direction(direction, snapshot, reviewed_hash=REVIEW)
+            compile_feature2_direction(direction, snapshot, reviewed_hash=direction["review_hash"])
         direction["voiceover_asset_id"] = "musicowned"  # synthetic audio fixture
-        out = compile_feature2_direction(direction, snapshot, reviewed_hash=REVIEW)
+        direction["review_hash"] = direction_review_digest(direction)
+        out = compile_feature2_direction(direction, snapshot, reviewed_hash=direction["review_hash"])
         self.assertEqual(out["request"]["voiceover_asset_id"], "musicowned")
         self.assertEqual(len(render_inputs(out["request"], out["manifest"]).plan["caption_cues"]), 1)
 

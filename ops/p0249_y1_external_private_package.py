@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 from datetime import datetime, timedelta, timezone
+from email.utils import formatdate
 import hashlib
 import json
 import os
@@ -17,6 +18,8 @@ import subprocess
 import sys
 import time
 from urllib.parse import urlsplit
+import urllib.error
+import urllib.request
 
 import p0249_y1_canary_guard as guard
 import p0249_y1_remote_build_mode as mode
@@ -33,7 +36,7 @@ OLD_OWNER = mode.OWNER
 
 # Diagnostic labels are an immutable allowlist, never Azure stderr or a signed URL.
 SAFE_STAGES = frozenset({
-    "START", "BASELINE_READ", "CONTAINER_CHECK", "SAS_GENERATION",
+    "START", "BASELINE_READ", "CONTAINER_CHECK", "BLOB_OAUTH_READ", "SAS_GENERATION",
     "BLOB_UPLOAD", "BLOB_PROPERTIES", "BLOB_SIZE_CHECK",
     "OWNER_MARK", "OWNER_PROOF", "PACKAGE_SWITCH", "PACKAGE_PROOF",
     "TRIGGER_SYNC", "INDEX_VERIFY", "ROLLBACK_VERIFY",
@@ -151,6 +154,75 @@ def _upload(account, container, name, zippath):
     print("P0249_Y1_VERSIONED_PRIVATE_BLOB=UPLOADED_VERIFIED",flush=True)
 
 
+
+class _NoBlobRedirect(urllib.request.HTTPRedirectHandler):
+    """Never forward the in-memory OIDC token to a redirected host."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def _oauth_head_original_private_blob(old_uri, container):
+    """Demand effective OAuth read access to known-existing original package.
+
+    This is read-only and a necessary data-plane check, NOT proof of Put Blob
+    authorization. Never forward the saved URI's SAS query or log credentials.
+    """
+    mark_stage("BLOB_OAUTH_READ")
+    try:
+        original = urlsplit(old_uri)
+        valid = (original.scheme == "https"
+                 and original.hostname == EXPECTED_URI_HOST
+                 and original.port in (None, 443)
+                 and not original.username and not original.password
+                 and not original.fragment
+                 and original.path.startswith("/" + container + "/")
+                 and not original.path.endswith("/")
+                 and len(original.path) <= 2048
+                 and not any(segment in (".", "..") for segment in original.path.split("/"))
+                 and all(ord(ch) >= 33 for ch in original.path)
+                 and chr(92) not in original.path)
+    except (TypeError, ValueError):
+        valid = False
+    if not valid:
+        raise RuntimeError("Original private package Blob path not approved (redacted)")
+    credential = azure("account", "get-access-token",
+                       "--resource", "https://storage.azure.com/")
+    token = credential.get("accessToken") if isinstance(credential, dict) else None
+    if not (isinstance(token, str) and 100 < len(token) < 30000
+            and token.isascii() and not any(ch.isspace() for ch in token)):
+        raise RuntimeError("Azure Storage OAuth token not available (redacted)")
+    # URL is reconstructed from pinned Azure account + original *path only*.
+    # It intentionally contains NO original SAS or other query parameters.
+    req = urllib.request.Request(
+        "https://" + EXPECTED_URI_HOST + original.path,
+        method="HEAD",
+        headers={"Authorization": "Bearer " + token,
+                 "x-ms-date": formatdate(usegmt=True),
+                 "x-ms-version": "2023-11-03",
+                 "Cache-Control": "no-store"},
+    )
+    opener = urllib.request.build_opener(_NoBlobRedirect())
+    try:
+        with opener.open(req, timeout=18) as response:
+            if response.status != 200:
+                raise RuntimeError("Original private Blob OAuth HEAD rejected (redacted)")
+    except urllib.error.HTTPError as exc:
+        status = exc.code
+        exc.close()
+        if status in (401, 403):
+            print("P0249_Y1_ORIGINAL_BLOB_OAUTH_READ=ACCESS_DENIED", flush=True)
+        elif status == 404:
+            print("P0249_Y1_ORIGINAL_BLOB_OAUTH_READ=NOT_FOUND_OR_HIDDEN", flush=True)
+        else:
+            print("P0249_Y1_ORIGINAL_BLOB_OAUTH_READ=HTTP_UNEXPECTED", flush=True)
+        raise RuntimeError("Original package OAuth HEAD failed (redacted)") from None
+    except (urllib.error.URLError, TimeoutError, OSError):
+        print("P0249_Y1_ORIGINAL_BLOB_OAUTH_READ=NETWORK_UNAVAILABLE", flush=True)
+        raise RuntimeError("Original package OAuth HEAD unavailable (redacted)") from None
+    print("P0249_Y1_ORIGINAL_BLOB_OAUTH_READ=PASS_NO_WRITES", flush=True)
+
+
+
 def preflight(zippath):
     site, indexed = _read_site()
     old, container = scoped_baseline(site, indexed)
@@ -165,6 +237,7 @@ def preflight(zippath):
                    "--name",container,"--auth-mode","login")
     if not (isinstance(exists,dict) and exists.get("exists") is True):
         raise RuntimeError("Original Y1 private container not available to OIDC")
+    _oauth_head_original_private_blob(old, container)
     _sas(ACCOUNT,container,_blob_name())
     print("P0249_Y1_EXISTING_PRIVATE_STORAGE_AND_SAS_PREFLIGHT=PASS_NO_WRITES",flush=True)
 

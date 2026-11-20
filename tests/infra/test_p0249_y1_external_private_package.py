@@ -58,6 +58,7 @@ class ExternalPrivatePackageTests(unittest.TestCase):
                  patch.object(mode,"_settings",side_effect=lambda:dict(self.fake.settings)),
                  patch.object(mode,"_set",side_effect=self.fake.set),
                  patch.object(x.guard,"verify",return_value=None),
+                 patch.object(x,"_oauth_head_original_private_blob",return_value=None),
                  patch.object(x.guard,"probe",return_value=None),
                  patch.object(x,"_wait_for",side_effect=lambda expected,**kwargs: frozenset(self.fake.names)==expected),
                  patch.dict(os.environ,{"GITHUB_RUN_ID":"44670001234"})]
@@ -178,6 +179,9 @@ class ExternalPrivatePackageTests(unittest.TestCase):
         src=(ROOT/"ops/p0249_y1_external_private_package.py").read_text()
         for invalid in ('print(uri)','print(old)','print(sas)','keys list','--account-key','--overwrite", "true'):
             self.assertNotIn(invalid,src)
+        self.assertIn('"BLOB_OAUTH_READ"',src)
+        self.assertIn("_oauth_head_original_private_blob(old, container)",src)
+        self.assertIn("method=\"HEAD\"",src)
         self.assertIn('"--as-user"',src)
         self.assertIn('"--auth-mode", "login"',src)
         self.assertIn('raise RuntimeError("Y1 scoped Azure operation failed (redacted)")',src)
