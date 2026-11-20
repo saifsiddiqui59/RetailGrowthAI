@@ -2,9 +2,9 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-19T19:00:08Z",
-  "last_inventory_count": 12,
-  "last_inventory_checked_at": "2026-11-19T19:00:08Z",
+  "last_written_at": "2026-11-20T04:55:41Z",
+  "last_inventory_count": 3,
+  "last_inventory_checked_at": "2026-11-20T04:55:41Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
@@ -609,7 +609,37 @@
   },
   "current_automation_inspection": {
     "status": "UNVERIFIED",
-    "reason": "All four automation get calls returned 404; retain last verified run metadata",
-    "checked_at": "2026-11-19T08:05:12.664Z"
+    "reason": "F2/F3/F4/F7 automation get calls returned 404; preserve last verified run metadata and paused-owner review classification",
+    "checked_at": "2026-11-20T04:55:41Z"
+  },
+  "issue249_ci_watch": {
+    "checked_at_utc": "2026-11-20T04:55:41Z",
+    "open_prs": [
+      {
+        "pr": 939,
+        "head_sha": "14ca12280d159a3661a536deba5062d98b327ec9",
+        "latest_run_id": 44593231155,
+        "status": "SUCCESS",
+        "jobs_passed": 4,
+        "jobs_total": 4
+      },
+      {
+        "pr": 1029,
+        "head_sha": "81f914a2045c209f1b9864edca2e4918323f3667",
+        "latest_run_id": 44487449611,
+        "status": "SUCCESS",
+        "jobs_passed": 4,
+        "jobs_total": 4
+      },
+      {
+        "pr": 1050,
+        "head_sha": "3c731fa5e8310be1051de5069afa3352ad947458",
+        "latest_run_id": 44672407368,
+        "status": "SUCCESS",
+        "jobs_passed": 4,
+        "jobs_total": 4
+      }
+    ],
+    "review_required": true
   }
 }
