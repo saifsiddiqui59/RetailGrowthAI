@@ -8,6 +8,7 @@ import copy
 import hashlib
 import json
 import shutil
+import tempfile
 import subprocess
 import sys
 import unittest
@@ -15,7 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "video-engine"))
-from creative_contract import CreativeContractError, render_inputs  # noqa: E402
+from creative_contract import CreativeContractError, render_inputs, compile_creative_reel  # noqa: E402
 from feature2_mit_director_projection import propose_mit_director_reel  # noqa: E402
 from feature2_feature4_bridge import compile_feature2_direction, direction_review_digest  # noqa: E402
 from test_feature4_intent_compiler import pair, SHOP, CAMPAIGN  # noqa: E402
@@ -129,6 +130,36 @@ class RealPinnedDirectorProjectionTests(unittest.TestCase):
         self.assertEqual(output["source_review_hash"], direction["review_hash"])
         self.assertIsNone(output["request"].get("voiceover_asset_id"))
         self.assertIsNone(output["request"].get("music_asset_id"))
+
+    def test_actual_mit_director_to_real_f4_hyperframes_composition(self):
+        from PIL import Image
+        proposal = self.propose()
+        direction, snapshot = freeze_for_test(proposal)
+        approved = compile_feature2_direction(
+            direction, snapshot, reviewed_hash=direction["review_hash"])
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            media = root / "original-owned"
+            media.mkdir()
+            filename = approved["manifest"]["assets"][F4_ID]["path"]
+            Image.new("RGB", (540, 960), (65, 111, 149)).save(media / filename)
+            project = compile_creative_reel(
+                approved["request"], approved["manifest"], media,
+                root / "composition")
+            html = (project / "index.html").read_text(encoding="utf-8")
+            config = json.loads((project / "render-config.json").read_text())
+            self.assertEqual((config["duration_seconds"], config["width"],
+                              config["height"], config["fps"]),
+                             (30, 1080, 1920, 30))
+            self.assertEqual(config["renderer"], "hyperframes")
+            self.assertTrue((project / "assets" / "silence.wav").is_file())
+            for scene in proposal["scenes"]:
+                self.assertIn(scene["headline"], html)
+            # A text-only proposal may be displayed, but a synthetic compile
+            # cannot assert that speech audio, true camera motion or a real
+            # retailer's rights have been verified.
+            self.assertEqual(proposal["voiceover_text"],
+                             self.original["creative_direction_v1"]["voiceover_script"])
 
     def test_genuine_director_tamper_gpu_offer_foreign_media_rejected(self):
         cases = [

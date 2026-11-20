@@ -69,7 +69,7 @@ def _current_hash(plan, requests, motion_by_id):
     for request in requests:
         ref = request["asset_id"]
         original = next((m for m in motion_by_id.values()
-                         if m["reference_media_id"] == ref), None)
+                         if m.get("reference_media_id") == ref), None)
         if original is None:
             _error("missing original garment source")
         garment_facts.append(original["garment_lock"])
@@ -119,7 +119,7 @@ def propose_mit_director_reel(bundle, *, media_aliases):
                 or ref.get("rights_review_required") is not True):
             _error("unsupported original source media lineage")
         source_ids.add(safe_ref(ref.get("asset_id"), "source reference"))
-    if set(media_aliases) != source_ids:
+    if len(source_ids) != len(requests) or set(media_aliases) != source_ids:
         _error("media alias mapping must cover exactly the original references")
     for asset in media_aliases.values():
         safe_ref(asset, "F4 candidate media ID")
@@ -131,8 +131,9 @@ def propose_mit_director_reel(bundle, *, media_aliases):
                 or not _ID.fullmatch(item["shot_id"])
                 or item["shot_id"] in source_motion):
             _error("cross-shop or duplicated original motion details")
-        if (item.get("requested_profile", {}).get("inference_approved") is not False
-                or item["requested_profile"].get("provider_profile_verified") is not False):
+        profile = item.get("requested_profile")
+        if (type(profile) is not dict or profile.get("inference_approved") is not False
+                or profile.get("provider_profile_verified") is not False):
             _error("GPU/model inference is not part of this CPU projection")
         source_motion[item["shot_id"]] = item
     expected = _current_hash(plan, requests, source_motion)
@@ -146,7 +147,8 @@ def propose_mit_director_reel(bundle, *, media_aliases):
         _error("missing original narration/CTA")
     cta = _headline(plan["cta"], "CTA")
     if (type(plan.get("authorized_offer_ids")) is not list or
-            type(plan.get("approved_media_evidence_sha256")) is not str):
+            not _SHA.fullmatch(str(plan.get("approved_media_evidence_sha256"))) or
+            not _SHA.fullmatch(str(plan.get("approved_offer_evidence_sha256")))):
         _error("missing original claims/media source lineage")
     output, directions, narration = [], [], []
     seen_scenes, seen_shots = set(), set()
