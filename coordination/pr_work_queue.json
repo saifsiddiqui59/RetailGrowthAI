@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 2,
+    "open_prs": 1,
     "by_feature": {
-      "issue249": 2
+      "issue249": 1
     }
   },
   "entries": [
@@ -37,24 +37,6 @@
         "next_action": "Independent protected-DEV workflow/JWT review, then main-only integration; no live release or Auth users"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/939"
-    },
-    {
-      "pr": 1055,
-      "title": "ops(#249): one-shot owner-delegated original Flex read-only incident dispatch",
-      "feature": "issue249",
-      "head_sha": "11734f5112451916bec53260c1dbe0eeca760897",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P0",
-      "phase": "in-progress",
-      "claim": null,
-      "checkpoint": {
-        "owner": "manual-issue249-original-flex-bridge-20261120",
-        "ci": "exact-head pending",
-        "next_action": "Review 4/4 CI and merged-main CI, dispatch protected manual-only historical Flex audit; retire one-shot after evidence. No Azure writes.",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1055"
     }
   ],
   "last_inventory_checked_at": "2026-11-20T04:02:00Z"
