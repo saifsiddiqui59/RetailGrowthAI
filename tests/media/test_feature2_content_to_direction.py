@@ -13,7 +13,7 @@ from ai_agents.schemas import CampaignBrief
 from ai_agents.content_intelligence import RetailerProfile, create_content_draft
 from creative_contract import CreativeContractError, render_inputs
 from feature2_content_to_direction import propose_direction_from_content_draft
-from feature2_feature4_bridge import compile_feature2_direction
+from feature2_feature4_bridge import compile_feature2_direction, direction_review_digest
 
 SHOP = "11111111-1111-4111-8111-111111111111"
 OTHER = "44444444-4444-4444-8444-444444444444"
@@ -68,6 +68,10 @@ def freeze_test_review(proposal):
         "assets": {MEDIA: row},
     }
     return direction, snapshot
+
+
+# Trusted offline approval fixture digest; never synthesized by an HTTP handler.
+REVIEW = direction_review_digest(freeze_test_review(propose_direction_from_content_draft(fixture()))[0])
 
 
 class OfflineContentToVideoContract(unittest.TestCase):
