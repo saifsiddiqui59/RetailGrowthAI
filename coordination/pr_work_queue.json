@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 2,
+    "open_prs": 3,
     "by_feature": {
-      "issue249": 2
+      "issue249": 3
     }
   },
   "entries": [
@@ -50,6 +50,29 @@
       "claim": null,
       "checkpoint": null,
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1029"
+    },
+    {
+      "pr": 1045,
+      "title": "ops(#249): emergency read-only Y1 recovery state and 20/20 health",
+      "feature": "issue249",
+      "head_sha": "467973bef40423be6c7657749121fa8700317a88",
+      "base_branch": "main",
+      "work_owner": "manual-issue249",
+      "priority": "P0",
+      "phase": "in-progress",
+      "claim": {
+        "owner": "manual-issue249-safe-restore-chat-20261120",
+        "head_sha": "467973bef40423be6c7657749121fa8700317a88",
+        "claimed_at": "2026-11-20T03:31:01.662Z",
+        "expires_at": "2026-11-20T05:01:01.662Z"
+      },
+      "checkpoint": {
+        "owner": "manual-issue249-safe-restore-chat-20261120",
+        "CI": "PR Part1 #44668083455 in progress",
+        "next_action": "Read-only Y1 baseline vs current/backup state and public 20/20 health. Owner authorised work; NO Azure settings or ZIP write until precise state verified. Failed release #44629301025 and both restores failed.",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1045"
     }
   ],
   "last_inventory_checked_at": "2026-11-19T23:03:44Z"
