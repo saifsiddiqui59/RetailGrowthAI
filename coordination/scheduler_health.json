@@ -2,9 +2,9 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-20T04:55:41Z",
-  "last_inventory_count": 3,
-  "last_inventory_checked_at": "2026-11-20T04:55:41Z",
+  "last_written_at": "2026-11-20T09:57:34Z",
+  "last_inventory_count": 2,
+  "last_inventory_checked_at": "2026-11-20T09:57:34Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
@@ -108,19 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "9a4a0c66-bc34-8328-805f-46b7c09e3c83",
-      "started_at": "2026-11-17T22:23:46.743498Z",
-      "completed_at": "2026-11-17T22:24:12.778946Z",
-      "duration_seconds": 26.035,
-      "verified_code_test_commits": 0,
-      "local_tests_verified": null,
-      "ci": "F2 #917 exact-head push 4/4 PASS #44010051857; #925 not rechecked this run",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "PR #917 full head unchanged since last verified checkpoint; no new source/test SHA. Inherited/null executor; F2 #848 manual-integration."
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f2",
@@ -416,6 +403,14 @@
       "verified_code_test_commits": null,
       "classification": "REVIEW_BLOCKED",
       "evidence": "No new source/test commit independently verified; automation currently disabled; executor not provisioned"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1055,
+      "run_id": 44713603379,
+      "head_sha": "11734f5112451916bec53260c1dbe0eeca760897",
+      "status": "SUCCESS 4/4",
+      "evidence": "Four independently inspected mandatory jobs; review still required"
     }
   ],
   "current_review_gates": {
@@ -641,5 +636,33 @@
       }
     ],
     "review_required": true
+  },
+  "current_ci_verified": {
+    "checked_at": "2026-11-20T09:57:34Z",
+    "open_prs": [
+      {
+        "pr": 939,
+        "head_sha": "14ca12280d159a3661a536deba5062d98b327ec9",
+        "latest_run_id": 44593231155,
+        "status": "SUCCESS",
+        "jobs_passed": 4,
+        "jobs_total": 4
+      },
+      {
+        "pr": 1055,
+        "head_sha": "11734f5112451916bec53260c1dbe0eeca760897",
+        "latest_run_id": 44713603379,
+        "status": "SUCCESS",
+        "jobs_passed": 4,
+        "jobs_total": 4
+      }
+    ],
+    "new_source_test_commits": "UNKNOWN",
+    "coding_automations": {
+      "F2": "UNVERIFIED inaccessible",
+      "F3": "disabled",
+      "F4": "disabled REVIEW_BLOCKED",
+      "F7": "disabled REVIEW_BLOCKED"
+    }
   }
 }
