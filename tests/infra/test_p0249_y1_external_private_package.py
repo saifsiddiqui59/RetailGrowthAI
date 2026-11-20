@@ -1,5 +1,7 @@
 """Offline safety checks for versioned external private Y1 package rollout."""
 from pathlib import Path
+from contextlib import redirect_stdout
+from io import StringIO
 import tempfile
 import os
 import sys
@@ -141,6 +143,36 @@ class ExternalPrivatePackageTests(unittest.TestCase):
         self.fake.settings[x.PACKAGE_KEY]="https://"+x.EXPECTED_URI_HOST+"/private/new.zip?sig=NEW"
         self.fake.names=mode.FIVE
         x.verify()
+
+
+    def test_failed_private_blob_commands_emit_only_allowlisted_stage(self):
+        with tempfile.TemporaryDirectory() as d:
+            z=Path(d)/"new.zip";z.write_bytes(b"x"*4000)
+            self.fake.blob_size=4000
+            real_az=self.fake.az
+            for operation, phase in (("upload","BLOB_UPLOAD"),("show","BLOB_PROPERTIES")):
+                with self.subTest(operation=operation):
+                    self.fake.writes.clear()
+                    def blocked(*argv):
+                        if argv[:3]==("storage","blob",operation):
+                            raise RuntimeError("PRIVATE-SECRET?sig=NOT-FOR-LOG")
+                        return real_az(*argv)
+                    out=StringIO()
+                    with patch.object(x,"azure",side_effect=blocked), patch.object(
+                        sys,"argv",["y1","publish","--zip",str(z)]
+                    ), redirect_stdout(out), self.assertRaises(SystemExit) as failure:
+                        x.entrypoint()
+                    self.assertEqual(failure.exception.code,2)
+                    self.assertIn("FAILED_REDACTED phase="+phase,out.getvalue())
+                    self.assertNotIn("PRIVATE-SECRET",out.getvalue())
+                    self.assertNotIn("sig=",out.getvalue())
+                    self.assertNotIn(x.EXPECTED_URI_HOST,out.getvalue())
+                    self.assertFalse(any(isinstance(w,tuple) for w in self.fake.writes))
+
+    def test_phase_marker_rejects_dynamic_or_nonallowlisted_value(self):
+        for unsafe in ("https://storage?sig=BAD", "BLOB_UPLOAD\\nsecret", object()):
+            with self.assertRaises(RuntimeError):
+                x.mark_stage(unsafe)
 
     def test_released_code_does_not_print_url_or_storage_account_keys(self):
         src=(ROOT/"ops/p0249_y1_external_private_package.py").read_text()
