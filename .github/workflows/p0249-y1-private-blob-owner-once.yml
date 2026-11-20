@@ -32,7 +32,7 @@ jobs:
           verify_blob() { test "$(git rev-parse "HEAD:$1")" = "$2"; }
           verify_blob .github/workflows/p0249-dev-y1-private-versioned-five-get-protected.yml 11d5b9f8f5e03041c99d991052fd42183133a7d2
           verify_blob ops/p0249_y1_external_private_package.py a6c43cf9e737891b90161e354441bd7816591422
-          verify_blob tests/infra/test_p0249_y1_external_private_package.py bc35bafde07305063d2e629c412d3af018eba495
+          verify_blob tests/infra/test_p0249_y1_external_private_package.py f1e2f0ac227006ed0ccab339861b600e1432659a
           verify_blob tests/infra/test_p0249_y1_external_release_workflow.py df57832678e7dba9f40d97e430e99abc621d9090
           verify_blob azure-functions/campaign-api/tenant_store.py d5091e4cf14071473813b77226c2a5ad61b84635
           verify_blob ops/p0249-y1-readonly-extra-get/build_five_get_release.py b6cc730a0bce59093e831965ca4ee1f817121203
