@@ -20,6 +20,24 @@ BACKUP = mode.BACKUP
 PACKAGE = "WEBSITE_RUN_FROM_PACKAGE"
 
 
+def _cli_error_class(stderr):
+    """Collapse Azure CLI stderr to fixed safe categories; never echo its contents."""
+    text = str(stderr).lower()
+    if any(value in text for value in (
+            "authorizationfailed", "authorizationpermissionmismatch",
+            "authenticationfailed", "permissiondenied", "forbidden",
+            "unauthorized", "status code 403", "status: 403")):
+        return "ACCESS_DENIED"
+    if any(value in text for value in (
+            "unrecognized arguments", "invalid choice", "not a recognized command",
+            "invalidcommand", "command not found")):
+        return "CLI_ARGUMENT"
+    if any(value in text for value in (
+            "invalidscope", "scopenotfound", "resourcenotfound", "status: 404")):
+        return "INVALID_OR_MISSING_SCOPE"
+    return "OTHER_REDACTED"
+
+
 def _az_json(*args):
     """Only known, read-only Azure calls; stdout/stderr never printed."""
     allowed = (
@@ -36,6 +54,9 @@ def _az_json(*args):
     except (OSError, subprocess.TimeoutExpired):
         raise RuntimeError("Read-only Azure diagnostic unavailable") from None
     if process.returncode:
+        step = "ARM_TOKEN" if tuple(args[:2]) == ("account", "get-access-token") else "ROLE_LIST"
+        print("P0249_Y1_BLOB_RBAC_AZ_RESULT=" + step + "_" +
+              _cli_error_class(process.stderr), flush=True)
         raise RuntimeError("Read-only Azure diagnostic denied (redacted)")
     try:
         return json.loads(process.stdout)
@@ -123,11 +144,29 @@ def audit():
                                  client_id)
     print("P0249_Y1_BLOB_RBAC_STAGE=VERIFIED_OIDC_CLIENT_CLAIM", flush=True)
     print("P0249_Y1_BLOB_RBAC_STAGE=QUERYING_READONLY_ROLE_ASSIGNMENTS", flush=True)
-    assignments = _az_json("role", "assignment", "list",
-                           "--assignee-object-id", oid, "--scope", scope,
-                           "--include-inherited", "--all",
-                           "--fill-principal-name", "false")
+    try:
+        assignments = _az_json("role", "assignment", "list",
+                               "--assignee-object-id", oid, "--scope", scope,
+                               "--include-inherited", "--all",
+                               "--fill-principal-name", "false")
+        reviewed_scope = "EXACT_PRIVATE_CONTAINER"
+    except RuntimeError:
+        # A forbidden container-scoped ARM metadata read does not prove
+        # missing Blob data-plane rights. Try the verified parent account
+        # metadata without broadening application or storage privileges.
+        print("P0249_Y1_BLOB_RBAC_STAGE=STORAGE_ACCOUNT_METADATA_FALLBACK", flush=True)
+        account_scope = scope.split("/blobServices/default/containers/", 1)[0]
+        if account_scope == scope:
+            raise RuntimeError("Cannot construct existing storage account scope")
+        assignments = _az_json("role", "assignment", "list",
+                               "--assignee-object-id", oid,
+                               "--scope", account_scope,
+                               "--include-inherited", "--all",
+                               "--fill-principal-name", "false")
+        reviewed_scope = "STORAGE_ACCOUNT_PARENT_ONLY"
     result = classify_role_list(assignments)
+    result["scope_class"] = reviewed_scope
+    result["container_direct_roles_unverified"] = reviewed_scope != "EXACT_PRIVATE_CONTAINER"
     result["original_two_route_and_package_recovery"] = True
     print("P0249_Y1_REDACTED_BLOB_RBAC_AUDIT=" + json.dumps(result, sort_keys=True),
           flush=True)
