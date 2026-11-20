@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "ledger_branch": "coordination/pr-execution-ledger",
-  "snapshot_date": "2026-11-20",
+  "snapshot_date": "2026-11-21",
   "data_kind": "Live GitHub open PR inventory; acceptance separate from closure",
   "main_merge_owner": "manual-integration",
   "lease_policy": {
@@ -20,28 +20,22 @@
   },
   "entries": [
     {
-      "pr": 1061,
-      "title": "docs(#249): record guarded Y1 OAuth prewrite gate and remaining Azure acceptance",
+      "pr": 1059,
+      "title": "Issue249 integration PR (live title not verified)",
       "feature": "issue249",
-      "head_sha": "8c62820a2fd72b4f341ddb0f50aafdd323b2f9af",
+      "head_sha": "8ccd4647fca7f48ba3c840837dd7fd8600183eb3",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P1",
       "phase": "in-progress",
-      "claim": {
-        "owner": "manual-issue249-docs-20261121",
-        "head_sha": "8c62820a2fd72b4f341ddb0f50aafdd323b2f9af",
-        "claimed_at": "2026-11-20T18:54:00.753Z",
-        "expires_at": "2026-11-20T20:24:00.753Z"
-      },
       "checkpoint": {
-        "owner": "manual-issue249-docs-20261121",
-        "ci": "exact-head PR CI pending",
-        "next_action": "Verify #1060 merged-main CI and #1061 exact-head 4/4, then merge documentation to main.",
+        "owner": "manual-issue249",
+        "ci": "Exact-head #44798059356 four mandatory jobs IN_PROGRESS; #44798059430 extended CPU IN_PROGRESS at 2026-11-20T19:00Z",
+        "next_action": "Wait for exact-head CI, inspect 4 jobs and perform independent integration/security review; no automatic merge",
         "feature_done": false
       },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1061"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1059"
     }
   ],
-  "last_inventory_checked_at": "2026-11-20T17:02:00Z"
+  "last_inventory_checked_at": "2026-11-20T19:00:20Z"
 }
