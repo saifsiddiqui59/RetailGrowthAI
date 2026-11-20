@@ -47,12 +47,7 @@
       "work_owner": "manual-issue249",
       "priority": "P0",
       "phase": "in-progress",
-      "claim": {
-        "owner": "manual-issue249-original-flex-bridge-20261120",
-        "head_sha": "11734f5112451916bec53260c1dbe0eeca760897",
-        "claimed_at": "2026-11-20T09:47:04.215Z",
-        "expires_at": "2026-11-20T11:17:04.215Z"
-      },
+      "claim": null,
       "checkpoint": {
         "owner": "manual-issue249-original-flex-bridge-20261120",
         "ci": "exact-head pending",
