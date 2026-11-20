@@ -52,27 +52,27 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1029"
     },
     {
-      "pr": 1045,
-      "title": "ops(#249): emergency read-only Y1 recovery state and 20/20 health",
+      "pr": 1046,
+      "title": "fix(#249): activate five Y1 GETs via versioned private Blob package",
       "feature": "issue249",
-      "head_sha": "467973bef40423be6c7657749121fa8700317a88",
+      "head_sha": "c072371b5dd9c598a2a4be5fda0fe6568b7e6bdd",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P0",
       "phase": "in-progress",
       "claim": {
-        "owner": "manual-issue249-safe-restore-chat-20261120",
-        "head_sha": "467973bef40423be6c7657749121fa8700317a88",
-        "claimed_at": "2026-11-20T03:31:01.662Z",
-        "expires_at": "2026-11-20T05:01:01.662Z"
+        "owner": "manual-issue249-versioned-blob-chat-20261120",
+        "head_sha": "c072371b5dd9c598a2a4be5fda0fe6568b7e6bdd",
+        "claimed_at": "2026-11-20T03:45:45.253Z",
+        "expires_at": "2026-11-20T05:15:45.253Z"
       },
       "checkpoint": {
-        "owner": "manual-issue249-safe-restore-chat-20261120",
-        "CI": "PR Part1 #44668083455 in progress",
-        "next_action": "Read-only Y1 baseline vs current/backup state and public 20/20 health. Owner authorised work; NO Azure settings or ZIP write until precise state verified. Failed release #44629301025 and both restores failed.",
+        "owner": "manual-issue249-versioned-blob-chat-20261120",
+        "CI": "#44669856645 current exact head in progress",
+        "next_action": "Merge source only after 4/4; one-shot protected DEV external-URI Y1 five-route canary. Original two-route confirmed 20/20 #44668555433; rollback URI must never be printed or changed outside isolated Y1. No touch excluded PRs.",
         "feature_done": false
       },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1045"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1046"
     }
   ],
   "last_inventory_checked_at": "2026-11-19T23:03:44Z"
