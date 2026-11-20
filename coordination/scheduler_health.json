@@ -2,9 +2,9 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-20T09:57:34Z",
-  "last_inventory_count": 2,
-  "last_inventory_checked_at": "2026-11-20T09:57:34Z",
+  "last_written_at": "2026-11-20T21:01:30Z",
+  "last_inventory_count": 3,
+  "last_inventory_checked_at": "2026-11-20T21:01:30Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
@@ -108,43 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "332a913d-7a00-8328-89eb-1a509e772433",
-      "started_at": "2026-11-17T23:29:56.911171Z",
-      "completed_at": "2026-11-17T23:30:19.137748Z",
-      "duration_seconds": 22.226,
-      "verified_code_test_commits": null,
-      "ci": "exact-head #44010051857 4/4 PASS; current new commits UNKNOWN",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "GitHub head unchanged; run completed without independently verified source/test delta"
-    },
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "a72aa6e3-cadc-8328-ba07-b8ff680ab269",
-      "started_at": "2026-11-18T00:26:09.187947Z",
-      "completed_at": "2026-11-18T00:26:38.109888Z",
-      "duration_seconds": 28.922,
-      "verified_code_test_commits": null,
-      "local_tests_verified": null,
-      "ci": "#917 exact-head 44010051857 PASS 4/4; #925 earlier exact-head 44002627409 reported, not rechecked here",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "Automation reports 0 code/test commits; no new commit independently verified; #917 exact-head 4 CI jobs verified; executor environment inherited/null"
-    },
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "32661fd2-506c-8328-8207-c961d2be9c54",
-      "started_at": "2026-11-18T01:24:56.933942Z",
-      "completed_at": "2026-11-18T01:25:31.928424Z",
-      "duration_seconds": 34.995,
-      "verified_code_test_commits": null,
-      "ci": "PASS 4/4 exact-head push #44010051857 (four jobs inspected)",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "Run summary is not independent source/test commit verification; no new head observed"
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f2",
@@ -411,6 +374,30 @@
       "head_sha": "11734f5112451916bec53260c1dbe0eeca760897",
       "status": "SUCCESS 4/4",
       "evidence": "Four independently inspected mandatory jobs; review still required"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 44809597371,
+      "head_sha": "535caefa33b5dbe487e3158442d9fe11bc91acb4",
+      "status": "SUCCESS 4/4",
+      "evidence": "Four mandatory jobs independently checked; manual review remains"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 44809597915,
+      "head_sha": "535caefa33b5dbe487e3158442d9fe11bc91acb4",
+      "status": "CPU TEST SUCCESS",
+      "evidence": "Native F2-to-F4 CPU test job independently checked"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 44809605005,
+      "head_sha": "535caefa33b5dbe487e3158442d9fe11bc91acb4",
+      "status": "SUCCESS 4/4",
+      "evidence": "Four mandatory jobs independently checked; manual review remains"
     }
   ],
   "current_review_gates": {
@@ -604,8 +591,8 @@
   },
   "current_automation_inspection": {
     "status": "UNVERIFIED",
-    "reason": "F2/F3/F4/F7 automation get calls returned 404; preserve last verified run metadata and paused-owner review classification",
-    "checked_at": "2026-11-20T04:55:41Z"
+    "reason": "F2/F3/F4/F7 automation get returned 404",
+    "checked_at": "2026-11-20T21:01:30Z"
   },
   "issue249_ci_watch": {
     "checked_at_utc": "2026-11-20T04:55:41Z",
