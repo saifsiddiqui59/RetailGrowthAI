@@ -183,7 +183,7 @@ def accept_actual_mit_director(output_dir):
             "hosted_preview_available": False,
         }
         (out / "mit-director-f4-offline-receipt.json").write_text(
-            json.dumps(receipt, indent=2, sort_keys=True) + "\\n",
+            json.dumps(receipt, indent=2, sort_keys=True) + "\n",
             encoding="utf-8")
         target = out / "synthetic-f2-mit-director-to-f4.mp4"
         with artifact.open("rb") as source_bytes, target.open("xb") as dest:
