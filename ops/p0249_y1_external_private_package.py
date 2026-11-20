@@ -58,7 +58,10 @@ def scoped_baseline(settings, indexes, *, recovery=False):
     if any(key in settings for key in mode.SHADOWS):
         raise RuntimeError("Unexpected customer or shadow Y1 settings")
     old = settings.get(BACKUP)
-    parsed = urlsplit(old) if isinstance(old, str) else None
+    try:
+        parsed = urlsplit(old) if isinstance(old, str) else None
+    except ValueError as exc:
+        raise RuntimeError("Original Y1 package URI invalid (redacted)") from None
     if not (mode._package_url(old) and parsed.hostname == EXPECTED_URI_HOST
             and parsed.path.count("/") >= 2 and settings.get(OLD_OWNER) == EXPECTED_FAILED_OWNER):
         raise RuntimeError("Original package backup missing or unowned")
