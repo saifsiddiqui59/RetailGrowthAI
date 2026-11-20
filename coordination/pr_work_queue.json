@@ -39,27 +39,27 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/939"
     },
     {
-      "pr": 1029,
-      "title": "fix(#249): recover protected original Flex incident diagnostics (manual only)",
+      "pr": 1055,
+      "title": "ops(#249): one-shot owner-delegated original Flex read-only incident dispatch",
       "feature": "issue249",
-      "head_sha": "81f914a2045c209f1b9864edca2e4918323f3667",
+      "head_sha": "11734f5112451916bec53260c1dbe0eeca760897",
       "base_branch": "main",
       "work_owner": "manual-issue249",
-      "priority": "P2",
+      "priority": "P0",
       "phase": "in-progress",
       "claim": {
-        "owner": "manual-issue249-original-flex-20261120",
-        "head_sha": "81f914a2045c209f1b9864edca2e4918323f3667",
-        "claimed_at": "2026-11-20T09:37:08.747Z",
-        "expires_at": "2026-11-20T11:07:08.747Z"
+        "owner": "manual-issue249-original-flex-bridge-20261120",
+        "head_sha": "11734f5112451916bec53260c1dbe0eeca760897",
+        "claimed_at": "2026-11-20T09:47:04.215Z",
+        "expires_at": "2026-11-20T11:17:04.215Z"
       },
       "checkpoint": {
-        "owner": "manual-issue249-original-flex-20261120",
-        "ci": "exact PR head #44487449611 previous 4/4; verify latest and CI after current main.",
-        "next_action": "Review original Flex read-only scoped workflow, merge source only after green PR+main CI, protected dispatch separately. No Azure writes.",
+        "owner": "manual-issue249-original-flex-bridge-20261120",
+        "ci": "exact-head pending",
+        "next_action": "Review 4/4 CI and merged-main CI, dispatch protected manual-only historical Flex audit; retire one-shot after evidence. No Azure writes.",
         "feature_done": false
       },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1029"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1055"
     }
   ],
   "last_inventory_checked_at": "2026-11-20T04:02:00Z"
