@@ -72,6 +72,44 @@ class OriginalBlobReadGuardTests(unittest.TestCase):
             self.assertNotIn(forbidden, output.getvalue())
         self.assertEqual(release.CURRENT_STAGE, "BLOB_OAUTH_READ")
 
+    def test_denial_classes_are_fixed_and_never_reflect_untrusted_headers(self):
+        classes = (
+            (401, "AuthenticationFailed", "ACCESS_DENIED_401_AUTHENTICATION"),
+            (403, "AuthorizationPermissionMismatch", "ACCESS_DENIED_403_PERMISSION_MISMATCH"),
+            (403, "NetworkAccessDenied", "ACCESS_DENIED_403_NETWORK_POLICY"),
+            (403, "AuthenticationFailed", "ACCESS_DENIED_403_AUTHENTICATION"),
+            (403, "AuthorizationFailure", "ACCESS_DENIED_403_UNCLASSIFIED"),
+            (403, "AuthorizationPermissionMismatch?sig=SECRET", "ACCESS_DENIED_403_UNCLASSIFIED"),
+            (302, "Location=https://hostile.invalid/?sig=SECRET", "REDIRECT_DENIED"),
+            (404, "BlobNotFound", "NOT_FOUND_OR_HIDDEN"),
+            (503, "ServiceUnavailable", "TRANSIENT_OR_UPSTREAM"),
+        )
+        for status, code, expected in classes:
+            with self.subTest(status=status, code=code):
+                self.assertEqual(release._original_blob_oauth_http_label(status, code), expected)
+                headers = Message()
+                headers["x-ms-error-code"] = code
+                headers["Location"] = "https://hostile.invalid/?sig=SECRET"
+                error = urllib.error.HTTPError(
+                    "https://hostile.invalid/?sig=SECRET", status, "SENSITIVE",
+                    headers, BytesIO(b"SENSITIVE"))
+                opener = MagicMock()
+                opener.open.side_effect = error
+                output = StringIO()
+                with (
+                    patch.object(release, "azure", return_value={"accessToken": TOKEN}),
+                    patch.object(release.urllib.request, "build_opener", return_value=opener),
+                    redirect_stdout(output),
+                ):
+                    with self.assertRaisesRegex(RuntimeError, "redacted"):
+                        release._oauth_head_original_private_blob(ORIGINAL, "private")
+                self.assertEqual(
+                    output.getvalue().strip(),
+                    "P0249_Y1_ORIGINAL_BLOB_OAUTH_READ=" + expected)
+                for forbidden in ("SENSITIVE", "SECRET", "hostile.invalid", "sig=", TOKEN):
+                    self.assertNotIn(forbidden, output.getvalue())
+                opener.open.assert_called_once()
+
     def test_redirect_is_denied_without_second_origin_request(self):
         headers = Message()
         headers["Location"] = "https://hostile.invalid/steal"

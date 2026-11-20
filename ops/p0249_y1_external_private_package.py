@@ -161,6 +161,32 @@ class _NoBlobRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
+def _original_blob_oauth_http_label(status, error_code):
+    """Fixed receipt only: distinguish a permission mismatch from network/auth denial.
+
+    Header values are untrusted. Never print an arbitrary x-ms-error-code,
+    response body, signed URI, bearer token, principal or account details.
+    Even an exact 403 code does NOT prove a particular IAM assignment is absent.
+    """
+    if status == 401:
+        return "ACCESS_DENIED_401_AUTHENTICATION"
+    if status == 403:
+        if error_code == "AuthorizationPermissionMismatch":
+            return "ACCESS_DENIED_403_PERMISSION_MISMATCH"
+        if error_code == "NetworkAccessDenied":
+            return "ACCESS_DENIED_403_NETWORK_POLICY"
+        if error_code in ("AuthenticationFailed", "InvalidAuthenticationInfo"):
+            return "ACCESS_DENIED_403_AUTHENTICATION"
+        return "ACCESS_DENIED_403_UNCLASSIFIED"
+    if status == 404:
+        return "NOT_FOUND_OR_HIDDEN"
+    if status in (301, 302, 303, 307, 308):
+        return "REDIRECT_DENIED"
+    if status in (408, 429, 500, 502, 503, 504):
+        return "TRANSIENT_OR_UPSTREAM"
+    return "HTTP_UNEXPECTED"
+
+
 def _oauth_head_original_private_blob(old_uri, container):
     """Demand effective OAuth read access to known-existing original package.
 
@@ -207,14 +233,13 @@ def _oauth_head_original_private_blob(old_uri, container):
             if response.status != 200:
                 raise RuntimeError("Original private Blob OAuth HEAD rejected (redacted)")
     except urllib.error.HTTPError as exc:
-        status = exc.code
-        exc.close()
-        if status in (401, 403):
-            print("P0249_Y1_ORIGINAL_BLOB_OAUTH_READ=ACCESS_DENIED", flush=True)
-        elif status == 404:
-            print("P0249_Y1_ORIGINAL_BLOB_OAUTH_READ=NOT_FOUND_OR_HIDDEN", flush=True)
-        else:
-            print("P0249_Y1_ORIGINAL_BLOB_OAUTH_READ=HTTP_UNEXPECTED", flush=True)
+        try:
+            # Never emit the raw response header: it is attacker-controlled.
+            code = exc.headers.get("x-ms-error-code") if exc.headers else None
+            label = _original_blob_oauth_http_label(exc.code, code)
+        finally:
+            exc.close()
+        print("P0249_Y1_ORIGINAL_BLOB_OAUTH_READ=" + label, flush=True)
         raise RuntimeError("Original package OAuth HEAD failed (redacted)") from None
     except (urllib.error.URLError, TimeoutError, OSError):
         print("P0249_Y1_ORIGINAL_BLOB_OAUTH_READ=NETWORK_UNAVAILABLE", flush=True)
