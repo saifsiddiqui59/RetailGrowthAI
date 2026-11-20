@@ -22,6 +22,15 @@ CANARY_PREFIX = "rgai-p0249-jwt-"
 CAMPAIGN = "11111111-1111-4111-8111-111111111111"
 
 
+class _BlockRedirects(urllib.request.HTTPRedirectHandler):
+    """Never follow HTTP redirects from trusted DEV origins."""
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+NO_REDIRECT_OPENER = urllib.request.build_opener(_BlockRedirects())
+
+
 def request(url, method="GET", data=None, headers=None, expected=(200,), timeout=20):
     if not (url.startswith(SUPABASE + "/") or url.startswith(PREVIEW + "/")):
         raise RuntimeError("UNTRUSTED_EXTERNAL_HOST")
@@ -33,14 +42,17 @@ def request(url, method="GET", data=None, headers=None, expected=(200,), timeout
     req = urllib.request.Request(url, data=body, method=method, headers=meta)
     started = time.monotonic()
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as response:
+        with NO_REDIRECT_OPENER.open(req, timeout=timeout) as response:
             status = response.status
             headers_out = response.headers
             body_raw = response.read(32768)
     except urllib.error.HTTPError as response:
-        status = response.code
-        headers_out = response.headers
-        body_raw = response.read(32768)
+        try:
+            status = response.code
+            headers_out = response.headers
+            body_raw = response.read(32768)
+        finally:
+            response.close()
     elapsed = time.monotonic() - started
     if status not in expected:
         # No token, private payload, service key or response body in errors.
@@ -53,7 +65,13 @@ def request(url, method="GET", data=None, headers=None, expected=(200,), timeout
 
 
 def admin_headers(key):
-    return {"apikey": key, "Authorization": "Bearer " + key}
+    # Modern opaque admin keys are API keys, NOT signed JWTs.
+    # Only legacy JWT service_role keys may be forwarded as a Bearer token.
+    if key.startswith("sb_secret_"):
+        return {"apikey": key}
+    if key.startswith("eyJ") and key.count(".") == 2:
+        return {"apikey": key, "Authorization": "Bearer " + key}
+    raise RuntimeError("INVALID_DEV_ADMIN_KEY_CLASS")
 
 
 def jwt_claims_for_local_shape_only(jwt):
@@ -70,28 +88,57 @@ def jwt_claims_for_local_shape_only(jwt):
 
 
 def owner_only_cleanup(key, marker, created_uid):
-    if not marker.startswith(CANARY_PREFIX) or len(marker) > 64:
+    # Never delete a user outside the exact marker format minted here.
+    # A plausible prefix alone is not proof this is our disposable account.
+    suffix = marker[len(CANARY_PREFIX):] if isinstance(marker, str) else ""
+    if (not isinstance(marker, str) or not marker.startswith(CANARY_PREFIX) or
+            len(suffix) != 16 or any(ch not in "0123456789abcdef" for ch in suffix)):
         raise RuntimeError("UNSAFE_AUTH_CLEANUP_SCOPE")
     if created_uid is None:
         # Reconcile uncertain admin-create ACK by an EXACT synthetic email
         # search. Never delete any real user or replay a possibly committed POST.
-        _, page, _, _ = request(
-            SUPABASE + "/auth/v1/admin/users?page=1&per_page=100",
-            headers=admin_headers(key), expected=(200,), timeout=20
-        )
-        users = page.get("users", []) if isinstance(page, dict) else []
-        matches = [u for u in users
-                   if isinstance(u, dict) and u.get("email") == marker + "@example.invalid"]
-        if len(matches) > 1:
-            raise RuntimeError("AMBIGUOUS_SYNTHETIC_AUTH_FIXTURE")
+        # A single first page is insufficient once DEV holds >100 accounts:
+        # it can falsely report an uncertain-ACK account as absent.
+        matches = []
+        for number in range(1, 11):
+            _, result, _, _ = request(
+                SUPABASE + f"/auth/v1/admin/users?page={number}&per_page=100",
+                headers=admin_headers(key), expected=(200,), timeout=20
+            )
+            if not isinstance(result, dict) or not isinstance(result.get("users"), list):
+                raise RuntimeError("UNVERIFIABLE_SYNTHETIC_AUTH_INVENTORY")
+            users = result["users"]
+            matches.extend(u for u in users
+                           if isinstance(u, dict) and
+                           u.get("email") == marker + "@example.invalid")
+            if len(matches) > 1:
+                raise RuntimeError("AMBIGUOUS_SYNTHETIC_AUTH_FIXTURE")
+            next_page = result.get("next_page")
+            if next_page not in (None, 0, ""):
+                if (not isinstance(next_page, int) or isinstance(next_page, bool) or
+                        next_page != number + 1):
+                    raise RuntimeError("UNSAFE_SYNTHETIC_AUTH_PAGINATION")
+                continue
+            if "next_page" in result or len(users) < 100:
+                break
+        else:
+            raise RuntimeError("SYNTHETIC_AUTH_INVENTORY_PAGE_LIMIT")
         if not matches:
             print("P0249_DISPOSABLE_AUTH_ACCOUNT_NOT_CREATED=true", flush=True)
             return
         created_uid = matches[0].get("id")
-    request(
-        SUPABASE + "/auth/v1/admin/users/" + str(uuid.UUID(created_uid)),
-        method="DELETE", headers=admin_headers(key), expected=(200, 204), timeout=20
-    )
+    # A privileged API could return a mismatched ID in a create/list response,
+    # or another process may have modified the identity before deletion.
+    # Confirm the exact synthetic email AND UUID from a fresh Admin read.
+    target = str(uuid.UUID(created_uid))
+    url = SUPABASE + "/auth/v1/admin/users/" + target
+    _, user, _, _ = request(url, headers=admin_headers(key),
+                           expected=(200,), timeout=20)
+    if (not isinstance(user, dict) or user.get("id") != target or
+            user.get("email") != marker + "@example.invalid"):
+        raise RuntimeError("UNSAFE_SYNTHETIC_AUTH_DELETE_TARGET")
+    request(url, method="DELETE", headers=admin_headers(key),
+            expected=(200, 204), timeout=20)
     print("P0249_DISPOSABLE_AUTH_ACCOUNT_DELETED=true", flush=True)
 
 
