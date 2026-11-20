@@ -56,7 +56,7 @@ def main():
     except Exception:
         print("P0249_Y1_BLOB_PHASE=ORIGINAL_BASELINE_NOT_MATCHED",flush=True)
         guard.probe()
-        return
+        raise RuntimeError("Original Y1 baseline mismatch; no Blob operation allowed") from None
     print("P0249_Y1_BLOB_PHASE=PINNED_ORIGINAL_BASELINE",flush=True)
     name="p0249-y1-trial/"+FAILED_RUN+"/five-readonly.zip"
     args=("--account-name",pkg.ACCOUNT,"--container-name",container,"--name",name,
