@@ -148,6 +148,8 @@ def compile_feature2_direction(direction, snapshot, *, reviewed_hash):
     result = compile_approved_storyboard(draft, snapshot)
     source = copy.deepcopy(direction)
     encoded = _direction_json(source).encode("utf-8")
+    # Exact server-created v2 intent for the read-only editor; never browser authority.
+    result["approved_draft"] = copy.deepcopy(draft)
     result["source_direction"] = source
     result["source_review_hash"] = reviewed_hash
     result["source_sha256"] = hashlib.sha256(encoded).hexdigest()
