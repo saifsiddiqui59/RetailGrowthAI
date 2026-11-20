@@ -15,7 +15,8 @@ sys.path.insert(0, str(ROOT / "video-engine"))
 from creative_contract import CreativeContractError  # noqa: E402
 from feature2_feature4_bridge import compile_feature2_direction  # noqa: E402
 from feature2_feature4_intake import Feature4ApprovedPlanIntake, Feature4IntakeUnavailable  # noqa: E402
-from test_feature2_feature4_bridge import original, REVIEW, SHOP, CAMPAIGN, JOB, OTHER  # noqa: E402
+from test_feature2_feature4_bridge import original, REVIEW, SHOP, CAMPAIGN, OTHER
+JOB = "33333333-3333-4333-8333-333333333333"  # noqa: E402
 
 USER = "77777777-7777-4777-8777-777777777777"
 
