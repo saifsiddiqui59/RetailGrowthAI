@@ -118,6 +118,21 @@ class ExternalPrivatePackageTests(unittest.TestCase):
             x.rollback()
         self.assertEqual(self.fake.writes,[])
 
+    def test_rollback_allows_owner_proven_zero_indexes_and_changed_build_flag(self):
+        self.fake.settings[x.NEW_OWNER]="44670001234"
+        self.fake.settings[x.PACKAGE_KEY]="https://"+x.EXPECTED_URI_HOST+"/private/other.zip?sig=SECRET"
+        self.fake.settings["SCM_DO_BUILD_DURING_DEPLOYMENT"]="false"
+        self.fake.names=frozenset()
+        x.rollback()
+        self.assertEqual(self.fake.settings[x.PACKAGE_KEY],self.fake.old)
+        self.assertEqual(frozenset(self.fake.names),mode.TWO)
+
+    def test_rollback_rejects_other_package_when_no_new_owner(self):
+        self.fake.settings[x.PACKAGE_KEY]="https://"+x.EXPECTED_URI_HOST+"/private/unowned.zip"
+        with self.assertRaisesRegex(RuntimeError,"Unowned"):
+            x.rollback()
+        self.assertEqual(self.fake.writes,[])
+
     def test_verify_requires_five_owned_originals_and_new_url(self):
         with self.assertRaisesRegex(RuntimeError,"five-function"):
             x.verify()
