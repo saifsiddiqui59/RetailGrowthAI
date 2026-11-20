@@ -60,12 +60,7 @@
       "work_owner": "manual-issue249",
       "priority": "P0",
       "phase": "in-progress",
-      "claim": {
-        "owner": "manual-issue249-blob-phase-v2-chat-20261120",
-        "head_sha": "3c731fa5e8310be1051de5069afa3352ad947458",
-        "claimed_at": "2026-11-20T04:08:59.677Z",
-        "expires_at": "2026-11-20T05:38:59.677Z"
-      },
+      "claim": null,
       "checkpoint": {
         "owner": "manual-issue249-blob-phase-v2-chat-20261120",
         "ci": "#44672407368 running",
