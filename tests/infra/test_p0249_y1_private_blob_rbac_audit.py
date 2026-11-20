@@ -55,6 +55,14 @@ class AuditTests(unittest.TestCase):
         self.assertIn("get-access-token", code)
         self.assertIn("--assignee-object-id", code)
         self.assertIn("original_two_route_and_package_recovery", code)
+        labels = ["VERIFIED_RESOURCE_IDENTITY", "VERIFIED_TWO_ROUTE_BASELINE",
+                  "VERIFIED_STORAGE_CONTAINER_SCOPE", "VERIFIED_OIDC_CLIENT_CLAIM",
+                  "QUERYING_READONLY_ROLE_ASSIGNMENTS"]
+        markers = ["P0249_Y1_BLOB_RBAC_STAGE=" + label for label in labels]
+        for marker in markers:
+            self.assertIn(marker, code)
+        self.assertEqual([code.index(marker) for marker in markers],
+                         sorted(code.index(marker) for marker in markers))
         self.assertNotIn("print(token)", code)
         self.assertNotIn("print(assignments)", code)
         for unsafe in ("_set(", "blob\", \"upload", "role\", \"assignment\", \"create",
