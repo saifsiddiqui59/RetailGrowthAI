@@ -1,6 +1,8 @@
 """Existing F2 brief/content output -> no-edit F4 creative handoff; offline-only."""
 import copy
+import json
 import sys
+import tempfile
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,7 +13,7 @@ sys.path.insert(0, str(ROOT / "ai-agents" / "src"))
 
 from ai_agents.schemas import CampaignBrief
 from ai_agents.content_intelligence import RetailerProfile, create_content_draft
-from creative_contract import CreativeContractError, render_inputs
+from creative_contract import CreativeContractError, render_inputs, compile_creative_reel
 from feature2_content_to_direction import propose_direction_from_content_draft
 from feature2_feature4_bridge import compile_feature2_direction, direction_review_digest
 
@@ -102,6 +104,28 @@ class OfflineContentToVideoContract(unittest.TestCase):
                             for s in output["request"]["scenes"]))
         self.assertEqual(output["source_direction"]["scene_directions"],
                          proposal["scene_directions"])
+
+    def test_real_f2_plan_compiles_into_f4_timed_hyperframes_project(self):
+        from PIL import Image
+        proposal = propose_direction_from_content_draft(fixture())
+        direction, snapshot = freeze_test_review(proposal)
+        approved = compile_feature2_direction(direction, snapshot, reviewed_hash=REVIEW)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            media = root / "owned"
+            media.mkdir()
+            image_name = approved["manifest"]["assets"][MEDIA]["path"]
+            Image.new("RGB", (360, 640), (64, 118, 162)).save(media / image_name)
+            output = compile_creative_reel(
+                approved["request"], approved["manifest"], media, root / "composition")
+            html = (output / "index.html").read_text(encoding="utf-8")
+            config = json.loads((output / "render-config.json").read_text())
+            self.assertEqual((config["duration_seconds"], config["fps"],
+                              config["width"], config["height"]), (30, 30, 1080, 1920))
+            for scene in proposal["scenes"]:
+                self.assertIn(scene["headline"], html)
+            self.assertTrue((output / "assets" / "silence.wav").is_file())
+            self.assertEqual(config["renderer"], "hyperframes")
 
     def test_no_implicit_approval_foreign_campaign_edited_sidecar_or_inference(self):
         tests = [
