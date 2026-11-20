@@ -1252,3 +1252,8 @@ Old #879 and stacked #944 closed unmerged once their unique source, tests, enabl
 ## 2026-11-20 — Y1 Azure errors: redact contents, identify static phase only
 - [#44670935079](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/44670935079) failed in private-Blob publish; both rollback paths returned the exact original URI, two GET indexes and 20/20 health. The error was fully redacted, not attributable to a particular Azure substep. Do not assume missing write permission absent evidence.
 - Permit only source-controlled fixed phase labels for baseline, private container, SAS, blob upload/inspect, owner, pointer, sync and rollback. Never log raw Azure output, exceptions, SAS, package URI or identity credentials. No automatic identical redeployment; original Flex/PROD/WineShopPOS/GPU protected.
+
+## 2026-11-20 — #249 fail closed on unproven Blob write authorization
+- A user-delegation read-only SAS can be generated without demonstrating that the caller may `Put Blob`. The protected Y1 external private release #44670935079 passed SAS preflight but failed before upload verification; therefore its write permission and exact failure stage remain **unknown**, not a reason to escalate permissions blindly.
+- Prefer an exact guarded, redacted, **read-only** OIDC role metadata audit against the existing Y1 private package container, with no principal IDs, JWT, SAS, scopes or raw ARM output in CI. Treat role classification as diagnostic only; custom roles/deny/ABAC may affect effective authorization. Changes to Azure RBAC or repeated deployments need separate evidence and safe scope.
+- Independently recovered Y1 exact original two-route external package with 20/20 HTTP; original Flex untouched and Issue #249 OPEN.
