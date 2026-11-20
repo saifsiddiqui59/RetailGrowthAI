@@ -52,26 +52,26 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1029"
     },
     {
-      "pr": 1047,
-      "title": "ops(#249): inspect failed private Y1 Blob upload without Azure writes",
+      "pr": 1050,
+      "title": "fix(#249): classify failed Y1 private Blob read error without exposing secrets",
       "feature": "issue249",
-      "head_sha": "5b7b765f86ff6aa1dcddc5da2199a5762c314d6c",
+      "head_sha": "3c731fa5e8310be1051de5069afa3352ad947458",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P0",
       "phase": "in-progress",
       "claim": {
-        "owner": "manual-issue249-readonly-blob-check-chat-20261120",
-        "head_sha": "5b7b765f86ff6aa1dcddc5da2199a5762c314d6c",
-        "claimed_at": "2026-11-20T04:02:24.236Z",
-        "expires_at": "2026-11-20T05:32:24.236Z"
+        "owner": "manual-issue249-blob-phase-v2-chat-20261120",
+        "head_sha": "3c731fa5e8310be1051de5069afa3352ad947458",
+        "claimed_at": "2026-11-20T04:08:59.677Z",
+        "expires_at": "2026-11-20T05:38:59.677Z"
       },
       "checkpoint": {
-        "owner": "manual-issue249-readonly-blob-check-chat-20261120",
-        "ci": "#44671566400 exact head running",
-        "next_action": "Owner's protected read-only exact failed-Blob upload audit; original Y1 verified 20/20 after restore; no new Azure writes or ZIP retries."
+        "owner": "manual-issue249-blob-phase-v2-chat-20261120",
+        "ci": "#44672407368 running",
+        "next_action": "Read-only root cause classification of failed versioned Blob upload; original Y1 two functions 20/20 verified, no Azure writes"
       },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1047"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1050"
     }
   ],
   "last_inventory_checked_at": "2026-11-20T04:02:00Z"
