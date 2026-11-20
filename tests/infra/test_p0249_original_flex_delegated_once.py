@@ -16,13 +16,13 @@ class OriginalFlexDelegatedOnceTests(unittest.TestCase):
         self.assertTrue(MANUAL.is_file())
         self.assertTrue(COLLECTOR.is_file())
         workflow = MANUAL.read_text()
-        self.assertIn("on:\\n  workflow_dispatch:", workflow)
+        self.assertIn("workflow_dispatch:", workflow)
         self.assertIn("github.event_name == 'workflow_dispatch'", workflow)
         self.assertIn("github.ref == 'refs/heads/main'", workflow)
         self.assertIn("environment: dev", workflow)
         self.assertIn("YES-P0249-FLEX-INCIDENT-READONLY", workflow)
         for trigger in ("push", "schedule", "workflow_run", "repository_dispatch"):
-            self.assertNotIn("\\n  " + trigger + ":", workflow)
+            self.assertNotIn("  " + trigger + ":", workflow)
         for denied in ("az storage blob upload", "az functionapp config set",
                        "az role assignment create", "az deployment group create"):
             self.assertNotIn(denied, workflow)
