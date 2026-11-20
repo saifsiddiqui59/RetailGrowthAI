@@ -66,7 +66,9 @@ def accept(output_dir):
                                    encoded_dir, timeout_seconds=720)
         path = Path(actual["file_path"])
         proof = verify_mp4(path, duration=30, width=1080, height=1920, fps=30)
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()\n        proof["sha256"] = digest\n        if (actual["output_probe"]["sha256"] != digest
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        proof["sha256"] = digest
+        if (actual["output_probe"]["sha256"] != digest
                 or actual["rendered_as"] != "AUTHORIZED_ASSEMBLY"
                 or actual["fallback_events"] or
                 actual["render_job_id"] != snap["video_job_id"]):
