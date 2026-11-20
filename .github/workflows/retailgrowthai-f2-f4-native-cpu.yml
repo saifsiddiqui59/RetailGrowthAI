@@ -1,0 +1,89 @@
+name: RetailGrowthAI F2-F4 synthetic native CPU integration
+
+# Scoped to the integration branch; no cloud deployment, provider calls or secrets.
+# This optional proof supplements (never replaces) the four mandatory Part1 jobs.
+on:
+  push:
+    branches:
+      - feat/f2-f4-approved-cpu-handoff-20261121
+
+permissions:
+  contents: read
+
+concurrency:
+  group: f2f4-native-cpu-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-native-render:
+    name: F2 plan to F4 real 30s H264 AAC native CPU evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Node 22 for pinned native HyperFrames
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Verify local FFmpeg codecs and text overlays
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v ffmpeg
+          command -v ffprobe
+          ffmpeg -hide_banner -encoders | grep -Eq 'libx264([[:space:]]|$)'
+          ffmpeg -hide_banner -encoders | grep -Eq '[[:space:]]aac([[:space:]]|$)'
+          ffmpeg -hide_banner -filters | grep -Eq '[[:space:]]drawtext[[:space:]]'
+      - name: Install disposable pinned Python imaging fixture dependency
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.1'
+          enable-cache: false
+      - name: Isolate Pillow for original synthetic owned stills
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv venv .f2f4-ci-venv --python python3
+          uv pip install --python .f2f4-ci-venv/bin/python "Pillow==13.0.0"
+          echo "$GITHUB_WORKSPACE/.f2f4-ci-venv/bin" >> "$GITHUB_PATH"
+      - name: Enforce existing HyperFrames pinned dependency lock
+        shell: bash
+        run: |
+          python3 video-engine/hyperframes/lock_guard.py \
+            --lock video-engine/hyperframes/package-lock.json \
+            --report "$RUNNER_TEMP/f2f4-hyperframes-lock.json"
+      - name: Install reviewed native renderer and Chromium shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=10s 180s \
+            npm ci --prefix video-engine/hyperframes --no-audit --no-fund
+          if [[ -x video-engine/hyperframes/node_modules/.bin/puppeteer ]]; then
+            timeout --signal=TERM --kill-after=10s 180s \
+              video-engine/hyperframes/node_modules/.bin/puppeteer browsers install chrome-headless-shell
+          fi
+      - name: Render Feature2 approved synthetic test plan through actual F4
+        shell: bash
+        timeout-minutes: 17
+        run: |
+          set -euo pipefail
+          install -d -m 700 "$RUNNER_TEMP/f2-f4-evidence"
+          python3 tests/media/feature2_f4_native_cpu_acceptance.py \
+            "$RUNNER_TEMP/f2-f4-evidence"
+          test -s "$RUNNER_TEMP/f2-f4-evidence/synthetic-f2-f4.mp4"
+          test -s "$RUNNER_TEMP/f2-f4-evidence/f2-f4-offline-receipt.json"
+          echo "CPU-only F2->F4 real MP4 verification (synthetic, NOT retailer approval)." >> "$GITHUB_STEP_SUMMARY"
+      - name: Save synthetic-only acceptance evidence for inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: f2f4-synthetic-native-cpu-evidence
+          path: |
+            ${{ runner.temp }}/f2-f4-evidence/f2-f4-offline-receipt.json
+            ${{ runner.temp }}/f2-f4-evidence/synthetic-f2-f4.mp4
+            ${{ runner.temp }}/f2f4-hyperframes-lock.json
+          retention-days: 1
+          if-no-files-found: warn
