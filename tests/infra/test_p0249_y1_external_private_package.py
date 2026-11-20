@@ -55,6 +55,7 @@ class ExternalPrivatePackageTests(unittest.TestCase):
                  patch.object(x,"azure",side_effect=lambda *args:self.fake.az(*args)),
                  patch.object(mode,"_settings",side_effect=lambda:dict(self.fake.settings)),
                  patch.object(mode,"_set",side_effect=self.fake.set),
+                 patch.object(x.guard,"verify",return_value=None),
                  patch.object(x.guard,"probe",return_value=None),
                  patch.object(x,"_wait_for",side_effect=lambda expected,**kwargs: frozenset(self.fake.names)==expected),
                  patch.dict(os.environ,{"GITHUB_RUN_ID":"44670001234"})]
