@@ -176,9 +176,11 @@ def _oauth_head_original_private_blob(old_uri, container):
                  and not original.username and not original.password
                  and not original.fragment
                  and original.path.startswith("/" + container + "/")
+                 and not original.path.endswith("/")
                  and len(original.path) <= 2048
                  and not any(segment in (".", "..") for segment in original.path.split("/"))
-                 and all(ord(ch) >= 33 and ch != "\\\\" for ch in original.path))
+                 and all(ord(ch) >= 33 for ch in original.path)
+                 and chr(92) not in original.path)
     except (TypeError, ValueError):
         valid = False
     if not valid:
