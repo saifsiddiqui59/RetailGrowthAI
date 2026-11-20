@@ -1,0 +1,110 @@
+name: "RetailGrowthAI #249 isolated Y1 ORIGINAL package OAuth HEAD (one-shot read only)"
+# Owner-delegated, one-time protected DEV audit; no Blob, role or appsettings write.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/p0249-y1-original-package-head-once.yml"
+permissions:
+  contents: read
+concurrency:
+  group: p0249-y1-original-package-head-readonly-once
+  cancel-in-progress: false
+jobs:
+  read_original_package:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      startsWith(github.event.head_commit.message, 'ops(#249): inspect original Y1 package OAuth HEAD')
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 19
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    env:
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Pin exact original-package helper and negative fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD:ops/p0249_y1_external_private_package.py)" = "75137cb2da5b682611533ef8c484eaa71ffa6f51"
+          test "$(git rev-parse HEAD:tests/infra/test_p0249_y1_original_blob_oauth_preflight.py)" = "0001d47e1987207a7cee86df1232b74e6990ac08"
+          python3 -m unittest discover -s tests/infra -p 'test_p0249_y1_original_blob_oauth_preflight.py' -v
+          echo "P0249_Y1_ORIGINAL_BLOB_EXACT_SOURCE=PASS_NO_AZURE_WRITES"
+      - name: Require four successful exact current-main CI jobs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          accepted=false
+          for attempt in $(seq 1 95); do
+            runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&event=push&per_page=40")"
+            run_id="$(jq -r --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha==$sha and .name=="RetailGrowthAI Part 1 CI")] | sort_by(.created_at) | last | .id // empty' <<< "$runs")"
+            if [[ -n "$run_id" ]]; then
+              status="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .status)"
+              if [[ "$status" == "completed" ]]; then
+                conclusion="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .conclusion)"
+                test "$conclusion" = "success" || { echo "::error::Exact main CI failed"; exit 2; }
+                gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" | jq -e '
+                  ["Python / uv + campaign contract tests",
+                   "Frontend build + contract tests",
+                   "FFmpeg codecs + renderer tests",
+                   "Supabase isolation + authentication client tests"] as $expected |
+                  [.jobs[] | select(.name as $name | $expected | index($name) != null)] as $required |
+                  ($required | length) == 4 and all($required[]; .status == "completed" and .conclusion == "success")
+                ' >/dev/null
+                accepted=true
+                break
+              fi
+            fi
+            sleep 10
+          done
+          test "$accepted" = "true" || { echo "::error::Exact main four-job CI not proven"; exit 2; }
+          current="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)"
+          test "$current" = "$GITHUB_SHA" || { echo "::error::main moved; refuse stale protected read"; exit 2; }
+          echo "P0249_Y1_ORIGINAL_BLOB_CURRENT_MAIN_CI=PASS_4OF4"
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Direct OAuth HEAD original saved package and 20 original Y1 public HTTP checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u - <<'PY'
+          import sys
+          sys.path.insert(0, "ops")
+          import p0249_y1_canary_guard as guard
+          import p0249_y1_remote_build_mode as mode
+          import p0249_y1_external_private_package as package
+          try:
+              guard.verify()
+              settings, index = mode._settings(), mode._index()
+              original, container = package.scoped_baseline(settings, index)
+              if index != mode.TWO or settings.get(package.PACKAGE_KEY) != original:
+                  raise RuntimeError("Original two-route package not restored")
+              print("P0249_Y1_ORIGINAL_BLOB_OAUTH_STAGE=VERIFIED_TWO_ROUTE_BASELINE", flush=True)
+              package._oauth_head_original_private_blob(original, container)
+              guard.probe()
+              print("P0249_Y1_ORIGINAL_BLOB_OAUTH_HEAD=PASS_AND_HTTP_20OF20", flush=True)
+          except Exception:
+              # No raw Azure/HTTP error, path, SAS or bearer may reach CI output.
+              print("P0249_Y1_ORIGINAL_BLOB_OAUTH_HEAD=DENIED_OR_INCONCLUSIVE_NO_WRITES", flush=True)
+              raise SystemExit(2)
+          PY
+      - name: Logout from OIDC session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
