@@ -22,6 +22,7 @@ RG = guard.RG
 SITE = guard.SITE
 BACKUP = "RGAI_P0249_Y1_BASELINE_PACKAGE_REF"
 OWNER = "RGAI_P0249_Y1_REMOTE_BUILD_RUN_ID"
+LEGACY_FAILED_RUN = "44629301025"  # Exact prior owned protected release, never arbitrary
 SHADOWS = (
     "RGAI_P0249_READONLY_SHADOW", "RGAI_P0249_EXTRA_GET_SHADOW",
     "RETAIL_SUPABASE_URL", "RETAIL_SUPABASE_PUBLISHABLE_KEY",
@@ -133,11 +134,17 @@ def prepare():
         raise RuntimeError("Y1 baseline is not exactly two functions")
     before = _settings()
     _assert_settings(before)
-    if BACKUP in before or OWNER in before:
-        raise RuntimeError("Y1 protected backup/owner already exists")
     original = before.get("WEBSITE_RUN_FROM_PACKAGE")
     if not _package_url(original):
         raise RuntimeError("Y1 baseline is not an expected Azure HTTPS package URL")
+    # Previous protected run #44629301025 retained an OWNED original URI
+    # backup after its failed rollback. Re-adopt ONLY that exact known owner
+    # with active and backup URLs byte-identical; never accept arbitrary
+    # owners, partial markers, or an active package different from backup.
+    if BACKUP in before or OWNER in before:
+        if not (before.get(OWNER) == LEGACY_FAILED_RUN
+                and before.get(BACKUP) == original):
+            raise RuntimeError("Y1 existing backup/owner is not safe to adopt")
     if "ENABLE_ORYX_BUILD" in before:
         raise RuntimeError("Y1 Oryx baseline unexpected; do not overwrite")
     run_id = _run_id()
@@ -180,6 +187,16 @@ def rollback():
     _assert_settings(before)
     old = before.get(BACKUP)
     owner = before.get(OWNER)
+    # If a new trial was denied before any setting write, a prior known
+    # owner must not be mistaken for our own rollback ownership. Prove
+    # unchanged original URL, no Oryx flag, exactly two handlers and live
+    # 20/20 health instead; do not mutate or delete legacy recovery keys.
+    if (owner == LEGACY_FAILED_RUN and _package_url(old)
+            and before.get("WEBSITE_RUN_FROM_PACKAGE") == old
+            and "ENABLE_ORYX_BUILD" not in before and _index() == TWO):
+        guard.probe()
+        print("P0249_Y1_LEGACY_ORIGINAL_PACKAGE_RETAINED=PASS_20OF20", flush=True)
+        return
     if old is None and owner is None:
         if ("WEBSITE_RUN_FROM_PACKAGE" in before
                 and _package_url(before.get("WEBSITE_RUN_FROM_PACKAGE"))
@@ -206,7 +223,11 @@ def rollback():
             "ENABLE_ORYX_BUILD" in after or after.get(OWNER) != run_id):
         raise RuntimeError("Y1 original package reference not restored")
     # Re-sync the external package after its URL is restored; no raw URL/log.
-    _az("functionapp", "sync-function-triggers", "-g", RG, "-n", SITE)
+    # Azure CLI sync-function-triggers is not reliable on this Linux Y1;
+    # use the pinned WebSites ARM syncfunctiontriggers action.
+    _az("resource", "invoke-action", "-g", RG, "-n", SITE,
+        "--resource-type", "Microsoft.Web/sites",
+        "--action", "syncfunctiontriggers")
     if not _wait_for_index(TWO):
         raise RuntimeError("Y1 rollback did not reindex the original two functions")
     guard.probe()
