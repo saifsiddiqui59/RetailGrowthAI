@@ -24,14 +24,14 @@
       "pr": 1059,
       "title": "Issue249 integration PR (live title not verified)",
       "feature": "issue249",
-      "head_sha": "cf92fd7ecea43d7a6ed211059778d807ad36f67c",
+      "head_sha": "d638763c433231d7a94992bec4cb08a7e31448f1",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P1",
       "phase": "in-progress",
       "checkpoint": {
         "owner": "manual-issue249",
-        "ci": "Exact-head Part1 #44862983054 and #44862978503 each SUCCESS 4/4; native F2-F4 CPU #44862978550 SUCCESS; independent Issue249 review remains",
+        "ci": "Exact-head Part1 #44913217191 and #44913211287 SUCCESS 4/4; native F2-F4 CPU #44913211326 SUCCESS (workflow conclusion); independent Issue249 review remains",
         "next_action": "Manual Issue249 owner to review security/integration at latest exact head; no automatic merge",
         "feature_done": false
       },
