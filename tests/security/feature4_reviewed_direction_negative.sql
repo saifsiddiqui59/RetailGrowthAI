@@ -142,7 +142,7 @@ from public.feature4_creative_plans
 where id='f4300000-0000-4000-8000-000000000001';
 set local role authenticated;
 select set_config('request.jwt.claims','{"role":"authenticated","sub":"f4010000-0000-4000-8000-000000000001","is_anonymous":false}',true);
-do $
+do $$
 begin
   if public.feature4_review_cpu_plan(
       'f4300000-0000-4000-8000-000000000002',
@@ -150,7 +150,7 @@ begin
        where id='f4300000-0000-4000-8000-000000000002')) is not null then
      raise exception 'FAIL: stale or nonexistent F2 campaign day approved';
   end if;
-end $;
+end $$;
 
 -- Owner explicitly approves only its current saved source, no automatic fixture
 -- promotion. Hash is independently predetermined by Python serializer.
