@@ -8,7 +8,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "azure-functions" / "campaign-api"))
-from recovery_runtime import dispatch_feature4_cpu_outbox, reconcile_feature4_cpu  # noqa
+from recovery_runtime import dispatch_feature4_cpu_outbox, reconcile_feature4_cpu, record_feature4_cpu_poison  # noqa
 from render_worker import _VerifiedFeature4Media, _Feature4CpuAdmin  # noqa
 from tenant_store import StorageUnavailable  # noqa
 
@@ -24,12 +24,16 @@ class FakeAdmin:
         self.events = [{"id": EVENT, "job_id": JOB, "lease_token": TOKEN}]
         self.acks = []
         self.reconciled = 0
+        self.poison = []
 
     def feature4_outbox_claim(self, limit):
         return self.events
 
     def feature4_outbox_confirm(self, event, sent):
         self.acks.append((event["id"], sent))
+
+    def feature4_record_poison(self, digest, job_id):
+        self.poison.append((digest, job_id))
 
     def feature4_reconcile(self):
         self.reconciled += 1
@@ -68,6 +72,17 @@ def test_failed_dispatch_is_nondestructive_and_bounded():
     with pytest.raises(StorageUnavailable):
         dispatch_feature4_cpu_outbox(admin, queue)
     assert len(admin.acks) == 1
+
+
+def test_feature4_poison_receipt_is_durable_before_ack_and_never_grants_job():
+    store = FakeAdmin()
+    payload = JOB.encode("ascii")
+    assert record_feature4_cpu_poison(store, payload) == JOB
+    assert store.poison == [(hashlib.sha256(payload).hexdigest(), JOB)]
+    assert record_feature4_cpu_poison(store, b"../untrusted") is None
+    assert store.poison[-1][1] is None
+    with pytest.raises(ValueError):
+        record_feature4_cpu_poison(store, "untrusted")
 
 
 class FakeMedia:
@@ -150,4 +165,5 @@ def test_queue_worker_never_indexes_on_default_off_and_never_reuses_v1():
     assert 'queue_name="retail-feature4-cpu-render"' in scoped
     assert "def feature4_cpu_render_message(" in scoped
     assert "def feature4_cpu_dispatch_timer(" in scoped
+    assert "def feature4_cpu_poison_message(" in scoped
     assert "retail-reel-render" not in scoped
