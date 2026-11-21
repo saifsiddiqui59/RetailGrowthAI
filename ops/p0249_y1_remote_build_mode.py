@@ -220,6 +220,18 @@ def rollback():
     print("P0249_Y1_ORIGINAL_EXTERNAL_PACKAGE_ROLLBACK=PASS", flush=True)
 
 
+def verify_build_mode():
+    """Fail closed when an external publisher removes required Oryx settings."""
+    guard.verify()
+    s = _settings()
+    _assert_settings(s)
+    if (s.get(OWNER) != _run_id() or not _package_url(s.get(BACKUP))
+            or "WEBSITE_RUN_FROM_PACKAGE" in s
+            or str(s.get("ENABLE_ORYX_BUILD", "")).lower() != "true"):
+        raise RuntimeError("Y1 remote build settings or owner drifted")
+    print("P0249_Y1_REMOTE_BUILD_POSTPUBLISH_SETTINGS=PASS", flush=True)
+
+
 def verify_five():
     guard.verify()
     value = _settings()
@@ -235,10 +247,11 @@ def verify_five():
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("mode", choices=("prepare", "rollback", "verify-five"))
+    p.add_argument("mode", choices=("prepare", "rollback", "verify-five", "verify-build-mode"))
     args = p.parse_args()
     {"prepare": prepare, "rollback": rollback,
-     "verify-five": verify_five}[args.mode]()
+     "verify-five": verify_five,
+     "verify-build-mode": verify_build_mode}[args.mode]()
 
 
 if __name__ == "__main__":
