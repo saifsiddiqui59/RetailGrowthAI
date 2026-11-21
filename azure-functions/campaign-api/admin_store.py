@@ -386,6 +386,8 @@ class AdminStore:
                 "id": aid, "shop_id": sid, "path": row["object_path"],
                 "mime": row["mime_type"], "source": row["source"],
                 "license": row["license_name"]}
+                or row.get("shop_id") != sid
+                or row.get("storage_bucket") != "retailgrowth-media"
                 or row["source"] != "UPLOAD" or row["license_name"] != "owned"
                 or not isinstance(evidence, str) or not evidence.strip()):
                 raise StorageUnavailable("original private media rights changed")
