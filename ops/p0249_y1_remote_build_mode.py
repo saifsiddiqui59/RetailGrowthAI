@@ -135,6 +135,10 @@ def prepare():
     before = _settings()
     _assert_settings(before)
     original = before.get("WEBSITE_RUN_FROM_PACKAGE")
+    # Preserve the existing fail-closed second-run/foreign-owner rejection
+    # before inspecting a package URL removed by an earlier active trial.
+    if (BACKUP in before or OWNER in before) and before.get(OWNER) != LEGACY_FAILED_RUN:
+        raise RuntimeError("Y1 protected backup/owner already exists")
     if not _package_url(original):
         raise RuntimeError("Y1 baseline is not an expected Azure HTTPS package URL")
     # Previous protected run #44629301025 retained an OWNED original URI
