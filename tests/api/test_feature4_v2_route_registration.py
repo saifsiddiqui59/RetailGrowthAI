@@ -53,5 +53,10 @@ def test_feature4_api_remains_unconfigured_without_atomic_store():
     assert "self.feature4_api = feature4_api" in source
     assert "FEATURE4_V2_DISABLED" in source
     # An added route does not attach a fake authority to a billable job.
-    assert "feature4_api=" not in app
+    assert 'feature4_api=(Feature4CpuRenderAPI(store)' in app
+    assert 'RETAIL_FEATURE4_CPU_RENDER_ENABLED' in app
+    assert 'RETAIL_FEATURE4_CPU_WORKER_ENABLED' in app
+    assert 'RETAIL_FEATURE4_PLAN_REVIEW_ENABLED' in app
+    assert 'RETAIL_FEATURE4_PLAN_ISSUE_ENABLED' in app
+    assert 'bool(connection and admin)' in app
     assert "Feature4ApprovedPlanIntake" not in app
