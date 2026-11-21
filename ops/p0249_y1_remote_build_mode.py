@@ -143,7 +143,8 @@ def prepare():
     # owners, partial markers, or an active package different from backup.
     if BACKUP in before or OWNER in before:
         if not (before.get(OWNER) == LEGACY_FAILED_RUN
-                and before.get(BACKUP) == original):
+                and before.get(BACKUP) == original
+                and urlsplit(original).hostname == guard.STORAGE + ".blob.core.windows.net"):
             raise RuntimeError("Y1 existing backup/owner is not safe to adopt")
     if "ENABLE_ORYX_BUILD" in before:
         raise RuntimeError("Y1 Oryx baseline unexpected; do not overwrite")
@@ -192,6 +193,7 @@ def rollback():
     # unchanged original URL, no Oryx flag, exactly two handlers and live
     # 20/20 health instead; do not mutate or delete legacy recovery keys.
     if (owner == LEGACY_FAILED_RUN and _package_url(old)
+            and urlsplit(old).hostname == guard.STORAGE + ".blob.core.windows.net"
             and before.get("WEBSITE_RUN_FROM_PACKAGE") == old
             and "ENABLE_ORYX_BUILD" not in before and _index() == TWO):
         guard.probe()
