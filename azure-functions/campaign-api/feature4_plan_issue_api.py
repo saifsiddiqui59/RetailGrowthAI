@@ -6,12 +6,8 @@ private owned rights are enforced before inserting a source-only DRAFT via
 service_role. The separate explicit SQL review must happen before any render.
 No AI provider, billing, queue dispatch or approval occurs here.
 """
-import sys
-from pathlib import Path
-
 from tenant_store import canonical_uuid, StorageUnavailable
-
-VIDEO_DIR = Path(__file__).resolve().parents[2] / "video-engine"
+from feature2_saved_campaign_proposal import saved_campaign_creative_proposal
 
 
 class Feature4PlanIssueAPI:
@@ -33,9 +29,6 @@ class Feature4PlanIssueAPI:
             return 403, {"error": "FORBIDDEN"}
         # Validate only server-fetched source; never accept a copy, offer,
         # media rights flag, reviewer, digest or plan ID from the POST.
-        if VIDEO_DIR.as_posix() not in sys.path:
-            sys.path.insert(0, str(VIDEO_DIR))
-        from feature2_saved_campaign_proposal import saved_campaign_creative_proposal
         days = [d for d in campaign.get("days", []) if d.get("id") == did]
         if len(days) != 1 or not isinstance(days[0], dict):
             return 404, {"error": "NOT_FOUND"}

@@ -12,7 +12,18 @@ import hashlib
 import json
 import re
 
-from creative_contract import CreativeContractError, uuid
+from tenant_store import canonical_uuid
+
+
+class CreativeContractError(ValueError):
+    """Same strict pure JSON contract, with no video/codec import on HTTP host."""
+
+
+def uuid(value, label):
+    try:
+        return canonical_uuid(value)
+    except (TypeError, AttributeError, ValueError) as exc:
+        raise CreativeContractError("Invalid " + label) from exc
 
 SAFE_SHOP_IMAGE = re.compile(r"^([0-9a-f-]{36})/uploads/([0-9a-f-]{36})\.(png|jpg|webp)$")
 MIME = {"image/png": "png", "image/jpeg": "jpg", "image/webp": "webp"}
