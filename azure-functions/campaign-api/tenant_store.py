@@ -70,10 +70,15 @@ class TenantStore:
 
     def _request(self, table, token, *, query=None, method="GET", data=None):
         if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs", "poster_drafts", "poster_jobs", "business_profiles", "shop_content_drafts", "feature3_gpu_jobs", "feature4_creative_plans",
-                         "rpc/feature4_review_cpu_plan", "rpc/feature4_revoke_cpu_plan"}:
+                         "rpc/feature4_review_cpu_plan", "rpc/feature4_revoke_cpu_plan",
+                         "feature4_cpu_render_jobs", "rpc/feature4_submit_cpu_render"}:
             raise ValueError("unsupported table")
         # Feature4 proposals are service-issued and immutable to browsers.
         # Only current JWT-based narrow review/revoke RPCs can mutate them.
+        if table == "feature4_cpu_render_jobs" and method != "GET":
+            raise ValueError("F4 CPU jobs are always read-only under JWT")
+        if table == "rpc/feature4_submit_cpu_render" and method != "POST":
+            raise ValueError("F4 CPU rendering requires authenticated POST")
         if table == "feature4_creative_plans" and method != "GET":
             raise ValueError("Feature4 creative plans are read-only via JWT")
         if table in ("rpc/feature4_review_cpu_plan",
@@ -564,3 +569,37 @@ class TenantStore:
         if type(result) is not bool:
             raise StorageUnavailable("invalid Feature4 revocation result")
         return result
+
+    def feature4_submit_cpu_render(self, token, plan_id, expected_review_hash):
+        """Pure user-JWT PostgREST RPC; DB alone locks editor/revision/quota/outbox.
+
+        Browser must NOT supply its own storyboard, media URLs, job ID or
+        service-role key. Idempotent replay requires fresh membership+rights.
+        """
+        pid = canonical_uuid(plan_id)
+        if (type(expected_review_hash) is not str or
+                re.fullmatch(r"[0-9a-f]{64}", expected_review_hash) is None):
+            raise ValueError("Expected approved F2 revision SHA256")
+        result = self._request("rpc/feature4_submit_cpu_render", token,
+            method="POST", data={"p_plan_id": pid,
+                                 "p_expected_review_hash": expected_review_hash})
+        if result is not None and type(result) is not dict:
+            raise StorageUnavailable("invalid CPU render transaction receipt")
+        return result
+
+    def feature4_job(self, token, user_id, job_id):
+        """Current RLS-scoped v2 job; a foreign shop must read no row."""
+        jid = canonical_uuid(job_id)
+        rows = self._request("feature4_cpu_render_jobs", token, query={
+            "select": "id,shop_id,campaign_id,plan_id,status,output_asset_id,error_code",
+            "id": "eq." + jid, "limit": "1",
+        })
+        if type(rows) is not list or len(rows) > 1:
+            raise StorageUnavailable("ambiguous Feature4 CPU job")
+        if not rows:
+            return None
+        row = rows[0]
+        if (type(row) is not dict or row.get("id") != jid or
+                not self.member(token, user_id, row["shop_id"], write=False)):
+            return None
+        return row
