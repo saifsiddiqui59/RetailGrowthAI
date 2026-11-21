@@ -2,9 +2,9 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-21T04:00:00Z",
+  "last_written_at": "2026-11-21T15:00:17Z",
   "last_inventory_count": 3,
-  "last_inventory_checked_at": "2026-11-21T04:00:00Z",
+  "last_inventory_checked_at": "2026-11-21T15:00:17Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
@@ -108,46 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "b7272f18-a4a8-8328-9dc9-3d425aa2267e",
-      "started_at": "2026-11-18T05:22:11.112898Z",
-      "completed_at": "2026-11-18T05:22:32.740314Z",
-      "duration_seconds": 21.628,
-      "verified_code_test_commits": null,
-      "reported_code_test_commits": 0,
-      "local_tests_verified": false,
-      "ci": "PR #925 exact-head push #44002627409 PASS 4/4; four jobs independently inspected",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "No source/test commit independently verified; exact head unchanged; inherited/null environment; independent security review pending"
-    },
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "5f63e396-0db0-8328-9b66-4e222d4de957",
-      "started_at": "2026-11-18T06:22:07.385700Z",
-      "completed_at": "2026-11-18T06:22:34.222134Z",
-      "duration_seconds": 26.837,
-      "verified_code_test_commits": null,
-      "reported_code_test_commits": null,
-      "local_tests_verified": false,
-      "ci": "PR #925 exact-head push #44002627409 PASS 4/4, four jobs independently inspected",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "New completed automation run; source/test commit delta unverified; inherited/null executor; manual security review pending"
-    },
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "2dfc6e69-a058-8328-9f83-7117beb4b5e3",
-      "started_at": "2026-11-18T07:22:22.608368Z",
-      "completed_at": "2026-11-18T07:22:46.582905Z",
-      "duration_seconds": 23.975,
-      "verified_code_test_commits": null,
-      "ci": "PR #925 exact-head run #44002627409 4/4 PASS; four jobs verified previously; no new source/test SHA",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "Completed run, no independently verified new source/test commit; inherited/null executor; manual security review"
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f2",
@@ -382,6 +342,30 @@
       "head_sha": "cf92fd7ecea43d7a6ed211059778d807ad36f67c",
       "status": "CPU TEST SUCCESS",
       "evidence": "Independently inspected exact-head jobs; manual Issue249 review remains"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 44913211287,
+      "head_sha": "d638763c433231d7a94992bec4cb08a7e31448f1",
+      "status": "SUCCESS 4/4",
+      "evidence": "Four mandatory jobs independently checked"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 44913211326,
+      "head_sha": "d638763c433231d7a94992bec4cb08a7e31448f1",
+      "status": "SUCCESS native CPU workflow",
+      "evidence": "Workflow success; job-level verification not claimed"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 44913217191,
+      "head_sha": "d638763c433231d7a94992bec4cb08a7e31448f1",
+      "status": "SUCCESS 4/4",
+      "evidence": "Latest mandatory run; four jobs independently checked"
     }
   ],
   "current_review_gates": {
@@ -635,6 +619,13 @@
         "run": 44808654931,
         "jobs": "4/4 PASS"
       }
+    },
+    "pr1059": {
+      "head_sha": "d638763c433231d7a94992bec4cb08a7e31448f1",
+      "latest_run_id": 44913217191,
+      "latest_status": "SUCCESS 4/4",
+      "last_four_job_pass": 44913217191,
+      "verified_at": "2026-11-21T15:00:17Z"
     }
   }
 }
