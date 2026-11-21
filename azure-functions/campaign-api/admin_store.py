@@ -63,6 +63,11 @@ class AdminStore:
                         "campaigns", "campaign_days", "shop_memberships", "media_assets", "render_jobs",
                         "trend_snapshots", "rpc/feature2_claim_collection", "rpc/feature2_finish_collection",
                         "shop_content_drafts", "feature4_creative_plans",
+                        "shops", "feature4_cpu_render_jobs",
+                        "rpc/feature4_claim_cpu_outbox", "rpc/feature4_confirm_cpu_outbox",
+                        "rpc/feature4_reconcile_cpu_render", "rpc/feature4_claim_cpu_render",
+                        "rpc/feature4_cpu_claim_current", "rpc/feature4_fail_cpu_render",
+                        "rpc/feature4_complete_cpu_render",
                         "rpc/feature2_reserve_ai_budget", "rpc/feature2_settle_ai_budget",
                         "rpc/feature3_reserve_gpu_job", "rpc/feature3_claim_gpu_job",
                         "rpc/feature3_finish_gpu_job", "feature3_gpu_jobs",
@@ -77,6 +82,12 @@ class AdminStore:
                         "rpc/feature3_read_current_model_review",
                         "rpc/retail_feature_worker_append"):
             raise ValueError("unsupported worker path")
+        # F4 v2: no direct worker-table writes. All leasing/settlement must
+        # pass service_role-only, fenced SQL transactions. Shops are read-only.
+        if path in ("shops", "feature4_cpu_render_jobs") and method != "GET":
+            raise ValueError("feature4 worker tables are read-only")
+        if path.startswith("rpc/feature4_") and method != "POST":
+            raise ValueError("feature4 worker mutation requires POST RPC")
         # Service-only, source-issued F2 proposals: immutable until a
         # separate JWT owner/editor SQL review or revoke transaction.
         if path == "feature4_creative_plans" and method not in ("GET", "POST"):
@@ -312,3 +323,128 @@ class AdminStore:
     def render_failure(self, job, code, permanent=False):
         self._claim_rpc("fail_render_claim", job,
                         {"p_code": code, "p_permanent": bool(permanent)})
+
+
+    # Feature4 v2 uses a DISTINCT source and job/queue ledger from legacy v1.
+    def feature4_render_status(self, job_id):
+        rows = self.request("feature4_cpu_render_jobs", query={
+            "select": "status", "id": "eq." + canonical_uuid(job_id), "limit": "1"})
+        return rows[0]["status"] if rows else None
+
+    def claim_feature4_render(self, job_id):
+        return self.request("rpc/feature4_claim_cpu_render", method="POST",
+                            data={"p_id": canonical_uuid(job_id)})
+
+    def feature4_claim_current(self, claim):
+        return self.request("rpc/feature4_cpu_claim_current", method="POST",
+            data={"p_id": canonical_uuid(claim["id"]),
+                  "p_token": canonical_uuid(claim["render_claim_token"])}) is True
+
+    def feature4_render_authorized(self, claim):
+        # The database rechecks BOTH current actor/reviewer memberships, whole
+        # direction digest, saved day, media owner/license and exact claim lease.
+        return self.feature4_claim_current(claim)
+
+    def feature4_load_bundle(self, claim):
+        """Build a CPU-only manifest from actual service-role DB reads, never queue bytes."""
+        from feature2_feature4_bridge import compile_feature2_direction
+
+        jid, sid = canonical_uuid(claim["id"]), canonical_uuid(claim["shop_id"])
+        pid = canonical_uuid(claim["plan_id"])
+        if not self.feature4_claim_current(claim):
+            raise StorageUnavailable("render claim or rights revoked")
+        plans = self.request("feature4_creative_plans", query={
+            "select": "id,shop_id,campaign_id,state,review_sha256,approved_direction,media_snapshot,media_asset_ids",
+            "id": "eq." + pid, "shop_id": "eq." + sid, "limit": "1"})
+        if len(plans) != 1:
+            raise StorageUnavailable("approved source plan unavailable")
+        p = plans[0]
+        if (p.get("state") != "APPROVED" or p.get("campaign_id") != claim["campaign_id"]
+                or p.get("review_sha256") != claim["approved_review_sha256"]
+                or not isinstance(p.get("approved_direction"), dict)
+                or not isinstance(p.get("media_snapshot"), list)):
+            raise StorageUnavailable("untrusted source approval snapshot")
+        source = p["approved_direction"]
+        ids = [canonical_uuid(x) for x in p["media_asset_ids"]]
+        if not 1 <= len(ids) <= 12 or len(ids) != len(set(ids)):
+            raise StorageUnavailable("invalid private media references")
+        rows = self.request("media_assets", query={
+            "select": "id,shop_id,storage_bucket,object_path,mime_type,source,license_name,license_url,attribution",
+            "shop_id": "eq." + sid, "id": "in.(" + ",".join(ids) + ")"})
+        if len(rows) != len(ids) or {a["id"] for a in rows} != set(ids):
+            raise StorageUnavailable("source media absent or cross-shop")
+        approved = {a["id"]: a for a in p["media_snapshot"]}
+        media = {}
+        for row in rows:
+            aid = row["id"]
+            evidence = row.get("attribution") or row.get("license_url")
+            # Rights/source fields must match the original retailer-signed
+            # review snapshot; uploader evidence must still be present.
+            if (approved.get(aid) != {
+                "id": aid, "shop_id": sid, "path": row["object_path"],
+                "mime": row["mime_type"], "source": row["source"],
+                "license": row["license_name"]}
+                or row["source"] != "UPLOAD" or row["license_name"] != "owned"
+                or not isinstance(evidence, str) or not evidence.strip()):
+                raise StorageUnavailable("original private media rights changed")
+            media[aid] = {
+                "shop_id": sid, "kind": "image",
+                "source_feature": "retailer", "approved": True,
+                "storage_bucket": "retailgrowth-media",
+                "object_path": row["object_path"], "mime_type": row["mime_type"],
+                "license_name": "owned", "rights_evidence": evidence[:500],
+                "rights_source": "retailer-owned-upload",
+            }
+        shops = self.request("shops", query={
+            "select": "name", "id": "eq." + sid, "limit": "1"})
+        if len(shops) != 1 or not isinstance(shops[0].get("name"), str):
+            raise StorageUnavailable("shop branding unavailable")
+        snapshot = {
+            "shop_id": sid, "campaign_id": claim["campaign_id"],
+            "video_job_id": jid, "approval_id": pid,
+            "idempotency_key": claim["idempotency_key"],
+            "script": source["script"],
+            "brand": {"shop_name": shops[0]["name"][:85],
+                      "primary_color": "#202020", "logo_asset_id": None},
+            "assets": media,
+        }
+        compiled = compile_feature2_direction(
+            source, snapshot, reviewed_hash=p["review_sha256"])
+        if not self.feature4_claim_current(claim):
+            raise StorageUnavailable("render claim expired while loading bundle")
+        return compiled["bundle"]
+
+    def feature4_outbox_claim(self, limit=10):
+        result = self.request("rpc/feature4_claim_cpu_outbox", method="POST",
+                              data={"p_limit": limit})
+        if not isinstance(result, list):
+            raise StorageUnavailable("malformed feature4 outbox claim")
+        return result
+
+    def feature4_outbox_confirm(self, event, sent):
+        accepted = self.request("rpc/feature4_confirm_cpu_outbox", method="POST",
+            data={"p_id": canonical_uuid(event["id"]),
+                  "p_lease_token": canonical_uuid(event["lease_token"]),
+                  "p_sent": bool(sent)})
+        if accepted is not True:
+            raise StorageUnavailable("feature4 outbox dispatch lease lost")
+
+    def feature4_reconcile(self):
+        return self.request("rpc/feature4_reconcile_cpu_render", method="POST",
+                            data={"p_limit": 20})
+
+    def complete_feature4_render(self, claim, object_path, proof, rendered_as):
+        if rendered_as != "AUTHORIZED_ASSEMBLY" or not isinstance(proof, dict):
+            raise StorageUnavailable("invalid verified CPU render result")
+        return self.request("rpc/feature4_complete_cpu_render", method="POST",
+            data={"p_id": canonical_uuid(claim["id"]),
+                  "p_token": canonical_uuid(claim["render_claim_token"]),
+                  "p_path": object_path, "p_sha256": proof["sha256"]}) is True
+
+    def feature4_render_failure(self, claim, code, *, permanent=False):
+        result = self.request("rpc/feature4_fail_cpu_render", method="POST",
+            data={"p_id": canonical_uuid(claim["id"]),
+                  "p_token": canonical_uuid(claim["render_claim_token"]),
+                  "p_code": code, "p_permanent": bool(permanent)})
+        if result is not True:
+            raise StorageUnavailable("cannot release stale CPU claim")
