@@ -1,3 +1,4 @@
+import { lazy, Suspense, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useRetailAuth } from '../../auth/AuthProvider.jsx'
@@ -8,6 +9,8 @@ import { Badge } from '../../components/ui/badge.jsx'
 import { Button } from '../../components/ui/button.jsx'
 import { Card } from '../../components/ui/card.jsx'
 import { Skeleton } from '../../components/ui/skeleton.jsx'
+import CreativePlanReview from '../video/CreativePlanReview.jsx'
+const VideoStudioConnected = lazy(() => import('../video/VideoStudioConnected.jsx'))
 
 const STAGES = [
   { step: '01', title: 'Discover a trend', description: 'Review trend evidence and save a content idea for your business.',
@@ -22,6 +25,7 @@ const STAGES = [
 
 export default function CreativeLaunchpad() {
   const { client, user, configured } = useRetailAuth()
+  const [showVideoEditor, setShowVideoEditor] = useState(false)
   const shopsQuery = useAuthorizedShops({ client, user, configured })
   const shops = shopsQuery.data || []
   // Never use an unchecked URL value or user-entered business ID.
@@ -100,6 +104,23 @@ export default function CreativeLaunchpad() {
         </ol>
       </Card>
     </div>
+    {configured && user && <CreativePlanReview key={shopId || 'none'}
+      client={client} user={user} shopId={shopId}
+      role={shops.find(item => item.id === shopId)?.membership?.role || null} />}
+    {configured && user && Boolean(shopId) && <Card className="panel rg-local-video-access">
+      <h2>Professional Reel storyboard editor</h2>
+      <p>Review and edit a local scene timeline for your selected business. A
+        local storyboard is not an approved campaign and cannot queue or download
+        cloud renders before the signed F2→F4 backend is enabled.</p>
+      <Button type="button" variant="outline"
+        onClick={() => setShowVideoEditor(value => !value)}>
+        {showVideoEditor ? 'Close local editor' : 'Open storyboard editor'}
+      </Button>
+      {showVideoEditor && <Suspense fallback={<p role="status">Loading video editor…</p>}>
+        <VideoStudioConnected key={shopId} shopId={shopId}
+          enabled={false} mediaAssets={[]} musicAssets={[]} />
+      </Suspense>}
+    </Card>}
     <Card className="panel rg-creative-notice">
       <strong>Publishing is a separate step.</strong>
       <p>Opening these tools does not schedule or publish anything. Poster/video cloud rendering, AI content generation, social connections and delivery receipts depend on their own validated backend workflows. No credits are spent by this page.</p>

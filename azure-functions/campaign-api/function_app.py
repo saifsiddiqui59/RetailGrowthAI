@@ -22,6 +22,8 @@ from feature3_v2_api import Feature3V2API
 from feature3_v2_store import Feature3V2Store
 from poster_admin import PosterAdmin
 from poster_queue import AzurePosterQueue
+from feature4_plan_review_api import Feature4PlanReviewAPI, Feature4CpuRenderAPI
+from feature4_plan_issue_api import Feature4PlanIssueAPI
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
@@ -52,7 +54,24 @@ def build_api():
     return HTTPAPI(cached_supabase_verifier(url), store, queue, render_api,
                    failure_store=admin, durable_outbox=bool(connection and admin),
                    poster_api=poster_api, poster_render_api=poster_render_api,
-                   feature3_api=feature3_api)
+                   feature3_api=feature3_api,
+                   # Do not reserve a single quota unit without an actual
+                   # reviewed CPU worker, queue, current plan RPC and source
+                   # metadata gates. All flags default OFF in hosted DEV/PROD.
+                   feature4_api=(Feature4CpuRenderAPI(store)
+                     if (os.environ.get("RETAIL_FEATURE4_CPU_RENDER_ENABLED") == "true"
+                         and os.environ.get("RETAIL_FEATURE4_CPU_WORKER_ENABLED") == "true"
+                         and os.environ.get("RETAIL_FEATURE4_PLAN_REVIEW_ENABLED") == "true"
+                         and os.environ.get("RETAIL_FEATURE4_PLAN_ISSUE_ENABLED") == "true"
+                         and bool(connection and admin))
+                     else None),
+                   feature4_review_api=(Feature4PlanReviewAPI(store)
+                     if os.environ.get("RETAIL_FEATURE4_PLAN_REVIEW_ENABLED") == "true"
+                     else None),
+                   feature4_issue_api=(Feature4PlanIssueAPI(store,admin)
+                     if admin is not None and
+                     os.environ.get("RETAIL_FEATURE4_PLAN_ISSUE_ENABLED") == "true"
+                     else None))
 
 
 def dispatch(request, path):
@@ -259,6 +278,51 @@ def save_campaign_day(req: func.HttpRequest) -> func.HttpResponse:
 @app.route(route="campaigns/{campaign_id}/renders", methods=["POST"])
 def create_render(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch(req, "/campaigns/" + req.route_params["campaign_id"] + "/renders")
+
+
+# Additive v2 F2→F4 entry points. Registration alone never enables a render:
+# HTTPAPI.feature4_api is None by default, and only a reviewed atomic store
+# may later be injected. All calls flow through the same JWT verifier.
+# Do not reroute legacy /campaigns/{id}/renders or start a GPU/provider.
+@app.route(route="campaigns/{campaign_id}/feature4-renders", methods=["POST"])
+def create_feature4_render(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/campaigns/" + req.route_params["campaign_id"]
+                    + "/feature4-renders")
+
+
+@app.route(route="feature4-render-jobs/{job_id}", methods=["GET"])
+def get_feature4_render(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/feature4-render-jobs/" + req.route_params["job_id"])
+
+
+@app.route(route="feature4-render-jobs/{job_id}/download", methods=["GET"])
+def download_feature4_render(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/feature4-render-jobs/" + req.route_params["job_id"]
+                    + "/download")
+
+
+# The review UI must be signed-in and deliberately confirm an exact
+# service-issued F2 proposal SHA. Disabled until the reviewed SQL migration
+# is deployed to a suitably isolated DEV environment.
+@app.route(route="campaigns/{campaign_id}/feature4-plans", methods=["POST"])
+def issue_feature4_creative_plan(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/campaigns/" + req.route_params["campaign_id"]
+                    + "/feature4-plans")
+
+
+@app.route(route="feature4-creative-plans/{plan_id}", methods=["GET"])
+def read_feature4_creative_plan(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/feature4-creative-plans/" + req.route_params["plan_id"])
+
+
+@app.route(route="feature4-creative-plans/{plan_id}/review", methods=["POST"])
+def review_feature4_creative_plan(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/feature4-creative-plans/" + req.route_params["plan_id"] + "/review")
+
+
+@app.route(route="feature4-creative-plans/{plan_id}/revoke", methods=["POST"])
+def revoke_feature4_creative_plan(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/feature4-creative-plans/" + req.route_params["plan_id"] + "/revoke")
 
 
 @app.route(route="render-jobs/{job_id}", methods=["GET"])

@@ -25,7 +25,7 @@ export default function VideoStudioConnected({
   const api = useMemo(() => createVideoTransport({
     enabled: routeReady,
     baseUrl: import.meta.env?.VITE_CAMPAIGN_API_BASE_URL,
-    tokenProvider: () => client.accessToken(),
+    tokenProvider: () => client.getAccessToken(),
     supabaseOrigin: import.meta.env?.VITE_SUPABASE_URL,
     routes,
   }), [routeReady, client, routes])
