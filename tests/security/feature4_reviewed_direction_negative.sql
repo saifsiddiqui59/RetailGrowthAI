@@ -119,6 +119,39 @@ begin
     then raise exception 'FAIL: VIEWER approved F2 plan'; end if;
 end $$;
 
+-- A changed or nonexistent campaign day must not authorize a stale
+-- signed source, even when proposal SHA, shop and licensed media all match.
+reset role;
+insert into public.feature4_creative_plans(
+ id,shop_id,campaign_id,issued_by,proposal,proposal_sha256,media_asset_ids)
+select 'f4300000-0000-4000-8000-000000000002',
+       shop_id,campaign_id,issued_by,
+       proposal || jsonb_build_object(
+         'day_id','f4400000-0000-4000-8000-000000000099',
+         'music_asset_id',null,
+         'source_reel',jsonb_build_object('duration_seconds',30)),
+       pg_catalog.encode(extensions.digest(
+         pg_catalog.convert_to(retail_private.python_json_v1(
+           proposal || jsonb_build_object(
+             'day_id','f4400000-0000-4000-8000-000000000099',
+             'music_asset_id',null,
+             'source_reel',jsonb_build_object('duration_seconds',30))
+         ),'UTF8'),'sha256'),'hex'),
+       media_asset_ids
+from public.feature4_creative_plans
+where id='f4300000-0000-4000-8000-000000000001';
+set local role authenticated;
+select set_config('request.jwt.claims','{"role":"authenticated","sub":"f4010000-0000-4000-8000-000000000001","is_anonymous":false}',true);
+do $
+begin
+  if public.feature4_review_cpu_plan(
+      'f4300000-0000-4000-8000-000000000002',
+      (select proposal_sha256 from public.feature4_creative_plans
+       where id='f4300000-0000-4000-8000-000000000002')) is not null then
+     raise exception 'FAIL: stale or nonexistent F2 campaign day approved';
+  end if;
+end $;
+
 -- Owner explicitly approves only its current saved source, no automatic fixture
 -- promotion. Hash is independently predetermined by Python serializer.
 select set_config('request.jwt.claims','{"role":"authenticated","sub":"f4010000-0000-4000-8000-000000000001","is_anonymous":false}',true);

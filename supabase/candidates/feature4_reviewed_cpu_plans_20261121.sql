@@ -176,6 +176,109 @@ begin
         'path',media.object_path,'mime',media.mime_type,
         'source',media.source,'license',media.license_name));
   end loop;
+  -- If the saved F2 reel is the source of this proposal, it must still
+  -- match the exact currently editable same-shop campaign day. A stale day
+  -- edit/rejection cannot receive an old creative approval receipt.
+  if (plan.proposal ? 'source_reel') then
+    if (pg_catalog.jsonb_typeof(plan.proposal->'source_reel') <> 'object'
+      or plan.proposal->'music_asset_id' <> 'null'::jsonb
+      or plan.proposal->>'day_id' is null
+      or (plan.proposal->>'day_id') !~
+           '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}
+    return pg_catalog.jsonb_build_object(
+      'approval_id',plan.id,'shop_id',plan.shop_id,
+      'campaign_id',plan.campaign_id,'review_hash',plan.review_sha256,
+      'status','APPROVED');
+  end if;
+
+  reviewed := plan.proposal || pg_catalog.jsonb_build_object(
+    'approved',true,'approval_id',plan.id::text,
+    'script',(plan.proposal->'script') ||
+      pg_catalog.jsonb_build_object('approved',true,'approval_id',plan.id::text));
+  -- Match Python direction_review_digest: SHA256 of the entire approved
+  -- direction (excluding its own review_hash) with an explicit NUL domain
+  -- separator. A browser never supplies this digest or the approved flag.
+  digest := pg_catalog.encode(extensions.digest(
+    pg_catalog.convert_to('rgai-f2-f4-approved-v1','UTF8') ||
+    pg_catalog.decode('00','hex') ||
+    pg_catalog.convert_to(retail_private.python_json_v1(reviewed),'UTF8'),
+    'sha256'),'hex');
+  update public.feature4_creative_plans
+     set state='APPROVED',
+         approved_direction=reviewed ||
+             pg_catalog.jsonb_build_object('review_hash',digest),
+         media_snapshot=snapshot,
+         review_sha256=digest, reviewed_by=actor,reviewed_at=now()
+   where id=plan.id;
+  return pg_catalog.jsonb_build_object(
+    'approval_id',plan.id,'shop_id',plan.shop_id,
+    'campaign_id',plan.campaign_id,'review_hash',digest,
+    'status','APPROVED');
+end
+$function$;
+revoke all on function retail_private.feature4_review_cpu_plan_internal(uuid,text)
+  from public,anon,authenticated;
+grant execute on function retail_private.feature4_review_cpu_plan_internal(uuid,text)
+  to authenticated;
+create function public.feature4_review_cpu_plan(
+  p_plan_id uuid,p_expected_source_sha256 text
+) returns jsonb language sql volatile security invoker set search_path=''
+as $wrapper$
+  select retail_private.feature4_review_cpu_plan_internal(
+      p_plan_id,p_expected_source_sha256)
+$wrapper$;
+revoke all on function public.feature4_review_cpu_plan(uuid,text)
+  from public,anon,authenticated;
+grant execute on function public.feature4_review_cpu_plan(uuid,text)
+  to authenticated;
+
+-- A revoked creative version must stay revoked; the retailer must obtain
+-- a NEW independently reviewed proposal before a new render job is allowed.
+create function retail_private.feature4_revoke_cpu_plan_internal(
+  p_plan_id uuid
+) returns boolean language plpgsql volatile security definer set search_path=''
+as $function$
+declare actor uuid := (select auth.uid());
+        count_changed integer;
+begin
+  if p_plan_id is null or actor is null
+     or (select auth.jwt())->>'role' is distinct from 'authenticated'
+     or actor::text is distinct from (select auth.jwt())->>'sub'
+     or (select auth.jwt())->>'is_anonymous'='true' then return false; end if;
+  update public.feature4_creative_plans p
+     set state='REVOKED',revoked_at=now()
+  where p.id=p_plan_id and p.state='APPROVED'
+    and exists (select 1 from public.shop_memberships m
+      where m.shop_id=p.shop_id and m.user_id=actor and m.active
+        and m.role='OWNER');
+  get diagnostics count_changed = row_count;
+  return count_changed=1;
+end
+$function$;
+revoke all on function retail_private.feature4_revoke_cpu_plan_internal(uuid)
+  from public,anon,authenticated;
+grant execute on function retail_private.feature4_revoke_cpu_plan_internal(uuid)
+  to authenticated;
+create function public.feature4_revoke_cpu_plan(p_plan_id uuid)
+returns boolean language sql volatile security invoker set search_path=''
+as $wrapper$
+  select retail_private.feature4_revoke_cpu_plan_internal(p_plan_id)
+$wrapper$;
+revoke all on function public.feature4_revoke_cpu_plan(uuid)
+  from public,anon,authenticated;
+grant execute on function public.feature4_revoke_cpu_plan(uuid) to authenticated;
+
+commit;
+
+      or not exists (
+        select 1 from public.campaign_days d
+        where d.id=(plan.proposal->>'day_id')::uuid
+          and d.campaign_id=plan.campaign_id
+          and d.shop_id=plan.shop_id
+          and d.review_status='DRAFT'
+          and d.instagram->'reel'=plan.proposal->'source_reel'
+      ) then return null; end if;
+  end if;
   if plan.state='APPROVED' then
     return pg_catalog.jsonb_build_object(
       'approval_id',plan.id,'shop_id',plan.shop_id,
