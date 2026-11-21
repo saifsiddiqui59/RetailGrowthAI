@@ -32,7 +32,11 @@ if os.environ.get("RETAIL_FEATURE4_CPU_WORKER_ENABLED") == "true":
         raise RuntimeError("Feature4 native artifact missing browser/renderer")
     os.environ["PATH"] = str(_bin) + os.pathsep + os.environ.get("PATH", "")
     os.environ["PUPPETEER_CACHE_DIR"] = str(_cache)
-    os.environ["PUPPETEER_EXECUTABLE_PATH"] = str(_cache / "chrome-headless-shell")
+    _browsers = list(_cache.glob(
+        "chrome-headless-shell/*/chrome-headless-shell-linux64/chrome-headless-shell"))
+    if len(_browsers) != 1 or _browsers[0].is_symlink():
+        raise RuntimeError("Feature4 pinned headless-browser executable not found")
+    os.environ["PUPPETEER_EXECUTABLE_PATH"] = str(_browsers[0])
 
     def _feature4_cpu_dependencies():
         from private_media import PrivateMedia
