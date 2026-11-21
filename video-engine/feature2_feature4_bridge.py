@@ -47,7 +47,7 @@ def direction_review_digest(direction):
         raise CreativeContractError("Malformed creative approval")
     immutable = copy.deepcopy(direction)
     immutable.pop("review_hash", None)
-    return hashlib.sha256(b"rgai-f2-f4-approved-v1\\0" +
+    return hashlib.sha256(b"rgai-f2-f4-approved-v1\0" +
                           _direction_json(immutable).encode("utf-8")).hexdigest()
 
 
