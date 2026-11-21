@@ -166,7 +166,7 @@ end $$;
 reset role;
 set local role anon;
 select set_config('request.jwt.claims','{"role":"anon"}',true);
-do $
+do $$
 declare denied boolean := false;
 begin
   begin
@@ -178,7 +178,7 @@ begin
   if not denied then
     raise exception 'FAIL: anonymous function EXECUTE was unexpectedly granted';
   end if;
-end $;
+end $$;
 reset role;
 rollback;
 \echo 'PASS: F2→F4 persisted SHA, real owner review/revoke, foreign and viewer denial, RLS revocation'
