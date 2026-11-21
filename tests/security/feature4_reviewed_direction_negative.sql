@@ -34,6 +34,10 @@ values('f4000000-0000-4000-8000-000000000002',
 
 reset role;
 select set_config('request.jwt.claims','{"role":"service_role","sub":"f4010000-0000-4000-8000-000000000001"}',true);
+-- The fixture intentionally tests approved draft selection, not a pending
+-- planning campaign that has not yet produced a valid storyboard.
+update public.campaigns set status='DRAFT'
+ where id='f4100000-0000-4000-8000-000000000001';
 insert into public.media_assets(id,shop_id,created_by,
     storage_bucket,object_path,mime_type,source,license_name)
 values('f4200000-0000-4000-8000-000000000001',
