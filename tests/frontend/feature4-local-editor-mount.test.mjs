@@ -1,8 +1,7 @@
-"""Static frontend source review: mounted local editor does not leak data.
-
-The actual authenticated browser source remains covered by mandatory Vite
-build/Playwright. Route controls are tested in video-transport.test.mjs.
-"""
+/**
+ * Static frontend source review: mounted local editor does not leak data.
+ * Actual authenticated browser flow remains covered by Vite/Playwright.
+ */
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
