@@ -1705,3 +1705,8 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 
 ## 2026-11-22 — #249 owner-delegated exact-main Y1 launch next
 - Run four exact-head CI jobs on the new one-shot dispatch bridge; independently inspect its restricted main SHA checks, source pins, exact 4/4 CI, prior-run duplicate block and no-Azure bridge scope. After reviewed merge with exact approved commit message, require real protected workflow run and verify 5/5 indexed, repeated 20/20, 240s negative auth, and original URI rollback on failure. If protected environment requires an external approval, do not bypass it. No traffic cutover or issue closure until full signed RLS and write/media/p95/p99 acceptance.
+
+## 2026-11-22 — #249 after failed Y1 release #44962137246
+1. Complete the protected Y1 read-only original-package/owner/20-of-20 audit via #1068. Do not repeat a package or setting write unless current active package, saved baseline, old run owner, Oryx flags, exact two index and no customer settings are proven.
+2. Review/test the exact-legacy-only recovery source candidate and its negative tests, obtain exact-head 4/4 and merge/main 4/4 before any second protected bounded attempt. Deny any unknown owner, changed package, foreign storage account or failed health.
+3. Only after a safe source and an exact main/owner protected release, require hosted 5/5 and two idle negative-auth windows, real signed two-shop RLS, original write/media/queue/billing and p95/p99 before traffic cutover or Issue #249 closure.
