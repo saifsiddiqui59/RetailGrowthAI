@@ -50,7 +50,10 @@ class Y1RemoteBuildWorkflowSourceTests(unittest.TestCase):
             "P0249_Y1_DEPLOY_PREFLIGHT=EXACT_TWO",
             'echo "attempted=true" >> "$GITHUB_OUTPUT"',
             "p0249_y1_remote_build_mode.py prepare",
-            '--src "$RUNNER_TEMP/y1-five-source.zip" --build-remote true',
+            "Azure/functions-action@c5060b3b8bb1ebbcb531abd00c822ecbaa8ea656",
+            "scm-do-build-during-deployment: 'true'",
+            "enable-oryx-build: 'true'",
+            "p0249_y1_remote_build_mode.py verify-build-mode",
             "P0249_Y1_REMOTE_BUILD_FIVE_ROUTE_HOSTED_NEGATIVE_AUTH_ACCEPTED_BACKUP_RETAINED",
         )
         positions = []
@@ -67,6 +70,9 @@ class Y1RemoteBuildWorkflowSourceTests(unittest.TestCase):
         self.assertIn("needs.deploy.outputs.attempted == 'true'", w)
         self.assertIn("needs.deploy.result != 'success'", w)
         self.assertIn("P0249_Y1_INDEPENDENT_ORIGINAL_EXTERNAL_ROLLBACK=PASS", w)
+        self.assertIn("Same-run rollback after failed publication", w)
+        self.assertIn("steps.mutation_marker.outputs.attempted == 'true'", w)
+        self.assertNotIn("az functionapp deployment source config-zip", w)
         self.assertNotIn('          --src "$RUNNER_TEMP/y1-two.zip"', w)
         self.assertNotIn("--build-remote false", w)
 
@@ -114,6 +120,7 @@ class Y1RemoteBuildWorkflowSourceTests(unittest.TestCase):
             '_set(ENABLE_ORYX_BUILD="true")',
             "_set(WEBSITE_RUN_FROM_PACKAGE=old)",
             "guard.probe()",
+            "P0249_Y1_REMOTE_BUILD_POSTPUBLISH_SETTINGS=PASS",
         ):
             self.assertIn(token, script)
         self.assertNotIn("print(original)", script)

@@ -166,7 +166,17 @@ jobs:
         run: |
           set -euo pipefail
           python3 -u ops/p0249_y1_remote_build_mode.py prepare
-      - name: Deploy five GETs with remote Oryx build, prove indexes and two HTTP windows
+      # CLI config-zip --build-remote removed ENABLE_ORYX_BUILD in #44629301025.
+      # Use pinned Microsoft action with both Linux Consumption Oryx flags.
+      - name: Publish exact five GETs using pinned Microsoft Functions action
+        id: publish_five
+        uses: Azure/functions-action@c5060b3b8bb1ebbcb531abd00c822ecbaa8ea656
+        with:
+          app-name: rgai-dev-y1-p0249-d4e5ddbd
+          package: ${{ runner.temp }}/y1-five-source
+          scm-do-build-during-deployment: 'true'
+          enable-oryx-build: 'true'
+      - name: Verify remote-build mode, five indexed GETs and two HTTP windows
         shell: bash
         run: |
           set -euo pipefail
@@ -182,9 +192,7 @@ jobs:
             exit "$rc"
           }
           trap on_exit EXIT
-          az functionapp deployment source config-zip -g rg-retailgrowth-dev \
-            -n rgai-dev-y1-p0249-d4e5ddbd \
-            --src "$RUNNER_TEMP/y1-five-source.zip" --build-remote true -o none
+          python3 -u ops/p0249_y1_remote_build_mode.py verify-build-mode
           for attempt in $(seq 1 12); do
             az functionapp function list -g rg-retailgrowth-dev \
               -n rgai-dev-y1-p0249-d4e5ddbd --query "[].name" \
@@ -249,6 +257,12 @@ jobs:
           python3 -u ops/p0249_y1_remote_build_mode.py verify-five
           trap - EXIT
           echo "P0249_Y1_REMOTE_BUILD_FIVE_ROUTE_HOSTED_NEGATIVE_AUTH_ACCEPTED_BACKUP_RETAINED"
+      - name: Same-run rollback after failed publication or verification
+        if: ${{ failure() && steps.mutation_marker.outputs.attempted == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -u ops/p0249_y1_remote_build_mode.py rollback
       - name: End Azure OIDC session
         if: always()
         run: az logout >/dev/null 2>&1 || true

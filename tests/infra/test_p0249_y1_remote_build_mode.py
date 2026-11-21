@@ -127,6 +127,22 @@ class Y1RemoteBuildModeTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "No Y1 backup"):
             y1.rollback()
 
+    def test_postpublish_build_settings_fail_closed_on_removed_oryx(self):
+        y1.prepare()
+        with contextlib.redirect_stdout(io.StringIO()) as b:
+            y1.verify_build_mode()
+        self.assertIn("POSTPUBLISH_SETTINGS=PASS", b.getvalue())
+        self.cloud.settings.pop("ENABLE_ORYX_BUILD")
+        self.cloud.mutations.clear()
+        with self.assertRaisesRegex(RuntimeError, "settings or owner drifted"):
+            y1.verify_build_mode()
+        self.assertEqual(self.cloud.mutations, [])
+        self.cloud.settings["ENABLE_ORYX_BUILD"] = "true"
+        self.cloud.settings["WEBSITE_RUN_FROM_PACKAGE"] = self.cloud.secret
+        with self.assertRaisesRegex(RuntimeError, "settings or owner drifted"):
+            y1.verify_build_mode()
+        self.assertEqual(self.cloud.mutations, [])
+
     def test_verify_five_requires_actual_routes_remote_mode_and_owner(self):
         y1.prepare()
         with self.assertRaisesRegex(RuntimeError, "not actually indexed"):
