@@ -57,7 +57,7 @@ test('unknown plan, mixed-case IDs, invalid SHA cannot reach server', async () =
   const client = transport(async () => { sends++; return mockResponse(receipt) })
   for (const wrong of [
     { planId: '../foreign' },
-    { shopId: OTHER.toUpperCase() },
+    { shopId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'.toUpperCase() },
     { campaignId: 'bad' },
     { reviewHash: 'not-a-reviewed-digest' },
     { reviewHash: 'f'.repeat(65) },
