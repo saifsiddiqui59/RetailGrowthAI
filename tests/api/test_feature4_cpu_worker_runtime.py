@@ -8,8 +8,9 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "azure-functions" / "campaign-api"))
+sys.path.insert(0, str(ROOT / "azure-functions" / "feature4-cpu-worker"))
 from recovery_runtime import dispatch_feature4_cpu_outbox, reconcile_feature4_cpu, record_feature4_cpu_poison  # noqa
-from render_worker import _VerifiedFeature4Media, _Feature4CpuAdmin  # noqa
+from cpu_backend import VerifiedFeature4Media, Feature4CpuAdmin  # noqa
 from tenant_store import StorageUnavailable  # noqa
 
 SHOP = "11111111-1111-4111-8111-111111111111"
@@ -108,7 +109,7 @@ def test_private_worker_rechecks_uploaded_bytes_before_finalize(tmp_path):
     output = tmp_path / "result.mp4"
     output.write_bytes(b"F4 original CPU bytes" * 100)
     media = FakeMedia()
-    wrapped = _VerifiedFeature4Media(media)
+    wrapped = VerifiedFeature4Media(media)
     key = wrapped.upload(SHOP, JOB, output, lease_token=LEASE)
     assert key == f"{SHOP}/renders/{JOB}/{LEASE}.mp4"
     assert media.remote_checks == [
@@ -144,7 +145,7 @@ class FakeStore:
 
 
 def test_feature4_worker_adapter_does_not_use_v1_render_status_or_claim():
-    adapter = _Feature4CpuAdmin(FakeStore())
+    adapter = Feature4CpuAdmin(FakeStore())
     assert adapter.render_status(JOB) == "QUEUED"
     assert adapter.claim_feature4_render(JOB) == {"id": JOB}
     assert adapter.render_authorized({"id": JOB}) is True
