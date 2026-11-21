@@ -163,7 +163,7 @@ begin
       where a.id=asset and a.shop_id=plan.shop_id for share;
     if not found or media.storage_bucket <> 'retailgrowth-media'
         or media.source <> 'UPLOAD'
-        or pg_catalog.coalesce(pg_catalog.lower(media.license_name),'') <> 'owned'
+        or coalesce(pg_catalog.lower(media.license_name),'') <> 'owned'
         or media.mime_type not in ('image/png','image/jpeg','image/webp')
         or pg_catalog.left(media.object_path,
                pg_catalog.length(plan.shop_id::text)+9) <>
