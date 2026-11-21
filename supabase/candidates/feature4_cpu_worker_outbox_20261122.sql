@@ -47,7 +47,7 @@ begin
          when o.attempts>=8 then 'DEAD' else 'PENDING' end,
    delivered_at=case when p_sent then now() else o.delivered_at end,
    retry_after=case when p_sent then o.retry_after else
-     now()+(pg_catalog.power(2,pg_catalog.least(o.attempts,7))
+     now()+(pg_catalog.power(2,least(o.attempts,7))
             * interval '1 minute') end,
    lease_token=null,lease_until=null
  where o.id=p_id and o.state='CLAIMED'
