@@ -239,7 +239,18 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
     if admin.feature4_claim_current(claim) is not True:
         return "STALE"
     try:
-        request, manifest, objects, audit = _bundle(claim, admin.load_feature4_bundle(claim))
+        source = admin.load_feature4_bundle(claim)
+        if (type(source) is dict and set(source) == {
+                "direction", "snapshot", "reviewed_hash"}):
+            # Existing v1 Azure ZIP does not ship the F2 bridge/HyperFrames.
+            # Only the distinct F4 worker artifact may execute this native
+            # CPU compilation, with current service-role approval rows.
+            from feature2_feature4_bridge import compile_feature2_direction
+            compiled = compile_feature2_direction(
+                source["direction"], source["snapshot"],
+                reviewed_hash=source["reviewed_hash"])
+            source = compiled["bundle"]
+        request, manifest, objects, audit = _bundle(claim, source)
         # A rights/lease change during the authoritative bundle lookup must
         # block all private staging and CPU work, not just output finalization.
         if (admin.render_authorized(claim) is not True or
