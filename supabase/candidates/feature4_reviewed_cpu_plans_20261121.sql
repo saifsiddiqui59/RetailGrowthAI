@@ -179,7 +179,7 @@ begin
   -- A source tied to a saved campaign day becomes stale when the retailer
   -- edits/rejects its original reel. Never approve an earlier source revision.
   if (plan.proposal ? 'source_reel') then
-    if (pg_catalog.jsonb_typeof(plan.proposal->'source_reel') <> 'object'
+    if pg_catalog.jsonb_typeof(plan.proposal->'source_reel') <> 'object'
        or plan.proposal->'music_asset_id' <> 'null'::jsonb
        or plan.proposal->>'day_id' is null
        or (plan.proposal->>'day_id') !~
