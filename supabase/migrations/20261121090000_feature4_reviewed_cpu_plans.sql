@@ -25,6 +25,8 @@ create table public.feature4_creative_plans (
   state text not null default 'DRAFT'
     check (state in ('DRAFT','APPROVED','REVOKED')),
   approved_direction jsonb,
+  -- Immutable same-shop, original private object/license metadata, never a URL.
+  media_snapshot jsonb,
   review_sha256 text check (
     review_sha256 is null or review_sha256 ~ '^[0-9a-f]{64}$'
   ),
@@ -35,13 +37,16 @@ create table public.feature4_creative_plans (
   foreign key(shop_id,campaign_id) references public.campaigns(shop_id,id),
   check (
     (state='DRAFT' and approved_direction is null and review_sha256 is null
-      and reviewed_by is null and reviewed_at is null and revoked_at is null)
+      and reviewed_by is null and reviewed_at is null and revoked_at is null
+      and media_snapshot is null)
     or (state='APPROVED' and approved_direction is not null
       and review_sha256 is not null and reviewed_by is not null
-      and reviewed_at is not null and revoked_at is null)
+      and reviewed_at is not null and revoked_at is null
+      and media_snapshot is not null)
     or (state='REVOKED' and approved_direction is not null
       and review_sha256 is not null and reviewed_by is not null
-      and reviewed_at is not null and revoked_at is not null)
+      and reviewed_at is not null and revoked_at is not null
+      and media_snapshot is not null)
   )
 );
 create index feature4_plans_shop_campaign on public.feature4_creative_plans
@@ -157,7 +162,7 @@ begin
       where a.id=asset and a.shop_id=plan.shop_id for share;
     if not found or media.storage_bucket <> 'retailgrowth-media'
         or media.source <> 'UPLOAD'
-        or pg_catalog.lower(media.license_name) <> 'owned'
+        or pg_catalog.coalesce(pg_catalog.lower(media.license_name),'') <> 'owned'
         or media.mime_type not in ('image/png','image/jpeg','image/webp')
         or pg_catalog.left(media.object_path,
                pg_catalog.length(plan.shop_id::text)+9) <>
@@ -191,6 +196,7 @@ begin
      set state='APPROVED',
          approved_direction=reviewed ||
              pg_catalog.jsonb_build_object('review_hash',digest),
+         media_snapshot=snapshot,
          review_sha256=digest, reviewed_by=actor,reviewed_at=now()
    where id=plan.id;
   return pg_catalog.jsonb_build_object(
