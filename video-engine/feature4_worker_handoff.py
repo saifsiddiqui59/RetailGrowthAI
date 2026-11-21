@@ -337,9 +337,9 @@ def process_feature4_cpu_render(job_id, admin, media):
     and execute this with service-only credentials. All flags remain OFF until
     that independently reviewed package and private queue are deployed.
     """
-    from render_worker import _Feature4CpuAdmin, _VerifiedFeature4Media
+    from cpu_backend import Feature4CpuAdmin, VerifiedFeature4Media
     try:
         return process_feature4_render(
-            job_id, _Feature4CpuAdmin(admin), _VerifiedFeature4Media(media))
+            job_id, Feature4CpuAdmin(admin), VerifiedFeature4Media(media))
     except Feature4ClaimBusy:
         return "CLAIMED_ELSEWHERE"
