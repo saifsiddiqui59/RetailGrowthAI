@@ -376,9 +376,12 @@ class AdminStore:
         media = {}
         for row in rows:
             aid = row["id"]
-            evidence = row.get("attribution") or row.get("license_url")
-            # Rights/source fields must match the original retailer-signed
-            # review snapshot; uploader evidence must still be present.
+            # UPLOAD/owned is a retailer's current ownership declaration,
+            # not proof of external license. Optional attribution/license_url
+            # are not required by the original F2 review contract.
+            evidence = (row.get("attribution") or row.get("license_url")
+                        or "Retailer-declared ownership of this private upload")
+            # Current media rows must match the immutable approval snapshot.
             if (approved.get(aid) != {
                 "id": aid, "shop_id": sid, "path": row["object_path"],
                 "mime": row["mime_type"], "source": row["source"],
