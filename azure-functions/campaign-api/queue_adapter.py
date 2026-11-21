@@ -31,3 +31,15 @@ class AzureRenderQueue(AzurePlanningQueue):
         self.client = QueueClient.from_connection_string(
             connection_string, queue_name="retail-reel-render"
         )  # does not provision a queue
+
+
+class AzureFeature4CpuQueue(AzurePlanningQueue):
+    """Separate v2 CPU queue: never dispatch these IDs to v1 render workers."""
+    NAME = "retail-feature4-cpu-render"
+
+    def __init__(self, connection_string: str):
+        if not connection_string:
+            raise ValueError("dedicated Feature4 CPU queue connection required")
+        self.client = QueueClient.from_connection_string(
+            connection_string, queue_name=self.NAME
+        )  # no create_queue, no paid worker provisioning
