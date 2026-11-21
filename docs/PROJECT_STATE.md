@@ -1671,3 +1671,6 @@ Manual integration chat C reviewed original PRs #979/#972/#970/#964/#944/#880/#8
 
 ## 2026-11-22 — #249 pinned Y1 remote deployment candidate (source only)
 - Confirmed protected remote-build #44629301025 had Azure CLI remove ENABLE_ORYX_BUILD and kept two indexed functions despite 12 checks. An isolated source branch proposes official pinned Azure/functions-action and immediate postpublish mode validation with unchanged original URI rollback. Await review/CI/real Azure acceptance; five hosted GETs, signed two-shop RLS, 503/p95/p99 and traffic transfer NOT DONE. The separate Blob OAuth read permission is still denied. No live write, PROD, WineShopPOS or GPU change.
+
+## 2026-11-22 — #249 pinned Y1 release dispatch bridge proposed (NOT cloud deployment)
+- #1066 source merged main `711360bc408898ebfa45d9dc17db82d7576ca205` after head #44960632349 4/4. Separate one-shot push-main GitHub-only bridge proposed to verify exact source hashes/current-main four mandatory green jobs and dispatch the existing manual DEV Y1 remote-build workflow once with its confirm+reviewed-main SHA. Bridge itself owns zero Azure/IAM calls; target retains tagged Y1, old-URI rollback, dev environment and all hosted gates. Do not claim 5/5 or issue closure before actual protected results. No WineShopPOS/PROD/GPU.
