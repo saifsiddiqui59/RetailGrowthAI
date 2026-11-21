@@ -10,7 +10,7 @@ from draft_api import DraftAPI
 
 
 class HTTPAPI:
-    def __init__(self, verify_token, store, planning_queue=None, render_api=None, failure_store=None, durable_outbox=False, poster_api=None, poster_render_api=None, feature3_api=None, feature4_api=None):
+    def __init__(self, verify_token, store, planning_queue=None, render_api=None, failure_store=None, durable_outbox=False, poster_api=None, poster_render_api=None, feature3_api=None, feature4_api=None, feature4_review_api=None):
         self.verify_token = verify_token
         self.store = store
         self.planning_queue = planning_queue
@@ -22,6 +22,7 @@ class HTTPAPI:
         self.feature3_api = feature3_api
         # Source-only; no public route/worker is registered until v2 ledger approval.
         self.feature4_api = feature4_api
+        self.feature4_review_api = feature4_review_api
 
     def handle(self, method, path, authorization, body=None):
         try:
@@ -151,6 +152,23 @@ class HTTPAPI:
                 if len(parts) == 2 and parts[0] == "poster-jobs":
                     return self.poster_render_api.get(token, user_id, parts[1])
                 return 404, {"error": "NOT_FOUND"}
+            # Authenticated Feature2 editorial review uses a database-issued
+            # plan. The browser can approve a saved exact proposal via RPC, not
+            # self-attest an arbitrary direction or launch a billed render.
+            if path.startswith("/feature4-creative-plans/"):
+                parts = path.strip("/").split("/")
+                if (len(parts) not in (2, 3) or parts[0] != "feature4-creative-plans"
+                        or (len(parts) == 2 and method != "GET")
+                        or (len(parts) == 3 and
+                            (method != "POST" or parts[2] not in ("review", "revoke")))):
+                    return 404, {"error": "NOT_FOUND"}
+                if self.feature4_review_api is None:
+                    return 503, {"error": "FEATURE4_REVIEW_DISABLED"}
+                if len(parts) == 2:
+                    return self.feature4_review_api.get(token, user_id, parts[1])
+                if parts[2] == "review":
+                    return self.feature4_review_api.review(token, user_id, parts[1], body)
+                return self.feature4_review_api.revoke(token, user_id, parts[1], body)
             # Feature2->Feature4 versioned HTTP seam. The function_app.py
             # registration and transactional backend remain OFF until reviewed.
             # Never reinterpret the original /campaigns/{id}/renders v1 route.

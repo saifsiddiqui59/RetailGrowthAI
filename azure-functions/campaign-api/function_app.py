@@ -22,6 +22,7 @@ from feature3_v2_api import Feature3V2API
 from feature3_v2_store import Feature3V2Store
 from poster_admin import PosterAdmin
 from poster_queue import AzurePosterQueue
+from feature4_plan_review_api import Feature4PlanReviewAPI
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
@@ -52,7 +53,10 @@ def build_api():
     return HTTPAPI(cached_supabase_verifier(url), store, queue, render_api,
                    failure_store=admin, durable_outbox=bool(connection and admin),
                    poster_api=poster_api, poster_render_api=poster_render_api,
-                   feature3_api=feature3_api)
+                   feature3_api=feature3_api,
+                   feature4_review_api=(Feature4PlanReviewAPI(store)
+                     if os.environ.get("RETAIL_FEATURE4_PLAN_REVIEW_ENABLED") == "true"
+                     else None))
 
 
 def dispatch(request, path):
@@ -280,6 +284,24 @@ def get_feature4_render(req: func.HttpRequest) -> func.HttpResponse:
 def download_feature4_render(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch(req, "/feature4-render-jobs/" + req.route_params["job_id"]
                     + "/download")
+
+
+# The review UI must be signed-in and deliberately confirm an exact
+# service-issued F2 proposal SHA. Disabled until the reviewed SQL migration
+# is deployed to a suitably isolated DEV environment.
+@app.route(route="feature4-creative-plans/{plan_id}", methods=["GET"])
+def read_feature4_creative_plan(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/feature4-creative-plans/" + req.route_params["plan_id"])
+
+
+@app.route(route="feature4-creative-plans/{plan_id}/review", methods=["POST"])
+def review_feature4_creative_plan(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/feature4-creative-plans/" + req.route_params["plan_id"] + "/review")
+
+
+@app.route(route="feature4-creative-plans/{plan_id}/revoke", methods=["POST"])
+def revoke_feature4_creative_plan(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/feature4-creative-plans/" + req.route_params["plan_id"] + "/revoke")
 
 
 @app.route(route="render-jobs/{job_id}", methods=["GET"])
