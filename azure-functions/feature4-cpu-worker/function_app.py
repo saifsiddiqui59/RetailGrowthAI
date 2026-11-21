@@ -5,8 +5,10 @@ backend dependencies in a separate reviewed artifact. This source alone
 does not provision queues or activate a cloud Function App.
 """
 import os
+from pathlib import Path
+from urllib.request import build_opener
 import azure.functions as func
-from admin_store import AdminStore
+from admin_store import AdminStore, _DenyRedirects
 
 app = func.FunctionApp()
 
@@ -14,14 +16,35 @@ app = func.FunctionApp()
 # deployment explicitly enables the worker. The default existing DEV package
 # does not require the new queue, migration or CPU cost.
 if os.environ.get("RETAIL_FEATURE4_CPU_WORKER_ENABLED") == "true":
+    # The separately built native artifact must carry its own Node22, FFmpeg,
+    # ffprobe, @hyperframes dependencies and headless-browser cache. Never
+    # fall back to an unreviewed system executable when a package is missing.
+    _root = Path(__file__).resolve().parent
+    _bin = _root / "bin"
+    _cache = _root / "puppeteer-cache"
+    for _executable in ("node", "ffmpeg", "ffprobe"):
+        _path = _bin / _executable
+        if not _path.is_file() or _path.is_symlink():
+            raise RuntimeError("Feature4 native artifact missing packaged executable")
+    if not _cache.is_dir() or not (
+            _root / "hyperframes" / "node_modules" /
+            "@hyperframes" / "producer").is_dir():
+        raise RuntimeError("Feature4 native artifact missing browser/renderer")
+    os.environ["PATH"] = str(_bin) + os.pathsep + os.environ.get("PATH", "")
+    os.environ["PUPPETEER_CACHE_DIR"] = str(_cache)
+    os.environ["PUPPETEER_EXECUTABLE_PATH"] = str(_cache / "chrome-headless-shell")
+
     def _feature4_cpu_dependencies():
         from private_media import PrivateMedia
         from queue_adapter import AzureFeature4CpuQueue
         origin = os.environ["RETAIL_SUPABASE_URL"]
         secret = os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]
         connection = os.environ["RETAIL_STORAGE"]
-        return (AdminStore(origin, secret),
-                PrivateMedia(origin, secret),
+        store = AdminStore(origin, secret)
+        # Never forward worker-role credentials across HTTP redirects.
+        private = PrivateMedia(origin, secret,
+                               transport=build_opener(_DenyRedirects()).open)
+        return (store, private,
                 AzureFeature4CpuQueue(connection))
 
     @app.queue_trigger(
