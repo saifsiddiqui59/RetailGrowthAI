@@ -1,10 +1,17 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '../../components/ui/button.jsx'
 import { Card } from '../../components/ui/card.jsx'
+import { createVideoTransport } from './video-transport.mjs'
 
 const REVIEW_ENABLED = import.meta.env?.VITE_FEATURE4_PLAN_REVIEW_ENABLED === 'true'
 const ISSUE_ENABLED = import.meta.env?.VITE_FEATURE4_PLAN_ISSUE_ENABLED === 'true'
+const CPU_RENDER_ENABLED = import.meta.env?.VITE_FEATURE4_CPU_RENDER_ENABLED === 'true'
+const CPU_ROUTES = Object.freeze({
+  create: campaign => '/campaigns/' + campaign + '/feature4-renders',
+  status: job => '/feature4-render-jobs/' + job,
+  download: job => '/feature4-render-jobs/' + job + '/download',
+})
 
 // REAL signed source review: no synthetic approval toggles and no generated
 // media/sounds/GPU calls. Only an explicit retailer click runs the narrow SQL
@@ -15,6 +22,22 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
   const [working, setWorking] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [cpuJob, setCpuJob] = useState(null)
+  const [cpuPreview, setCpuPreview] = useState(null)
+  const [cpuError, setCpuError] = useState('')
+  const cpuApi = useMemo(() => {
+    if (!CPU_RENDER_ENABLED || !REVIEW_ENABLED || !user || !shopId) return null
+    try {
+      return createVideoTransport({
+        enabled: true,
+        baseUrl: import.meta.env?.VITE_CAMPAIGN_API_BASE_URL,
+        tokenProvider: () => client.getAccessToken(),
+        supabaseOrigin: import.meta.env?.VITE_SUPABASE_URL,
+        routes: CPU_ROUTES,
+      })
+    } catch { return null }
+  }, [client, user?.id, shopId])
+
   const canReview = role === 'OWNER' || role === 'EDITOR'
   const reviews = useQuery({
     queryKey: ['f4-review', user?.id, shopId],
@@ -73,6 +96,87 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
       setWorking(false)
     }
   }
+
+  async function submitCpuRender() {
+    if (!cpuApi || !canReview || !plan || plan.state !== 'APPROVED' ||
+        working || typeof plan.review_sha256 !== 'string') return
+    setWorking(true)
+    setCpuError('')
+    setCpuPreview(null)
+    try {
+      const response = await cpuApi.createReviewedCpu({
+        shopId, campaignId: plan.campaign_id, planId: plan.id,
+        reviewHash: plan.review_sha256,
+      })
+      setCpuJob({ ...response, planId: plan.id })
+      setNotice('CPU render request confirmed by the server; status is private.')
+    } catch (cause) {
+      // Do NOT POST again automatically after an uncertain network response.
+      setCpuError(cause?.message || 'Render submission unconfirmed. Check your job status.')
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!cpuApi || !cpuJob || cpuJob.shop_id !== shopId ||
+        cpuJob.planId !== plan?.id || plan?.state !== 'APPROVED' ||
+        ['SUCCEEDED', 'FAILED'].includes(cpuJob.status)) return
+    let cancel = false
+    let timer = null
+    let failures = 0
+    const jobId = cpuJob.job_id
+    const currentPlan = cpuJob.planId
+    async function refresh() {
+      try {
+        const verified = await cpuApi.status({ jobId, shopId })
+        if (cancel) return
+        failures = 0
+        setCpuJob({ ...verified, planId: currentPlan })
+        if (verified.status === 'SUCCEEDED') {
+          const url = await cpuApi.download({ jobId, shopId })
+          if (!cancel) setCpuPreview(url)
+          return
+        }
+        if (verified.status === 'FAILED') {
+          setCpuError('Video rendering failed; check the private job status.')
+          return
+        }
+      } catch {
+        if (cancel) return
+        failures += 1
+        if (failures >= 3) {
+          setCpuError('Unable to confirm this render. Check history before requesting another.')
+          return
+        }
+      }
+      if (!cancel) timer = setTimeout(refresh, 3500)
+    }
+    timer = setTimeout(refresh, 3500)
+    return () => { cancel = true; if (timer !== null) clearTimeout(timer) }
+  }, [cpuApi, cpuJob?.job_id, cpuJob?.planId, cpuJob?.status,
+      plan?.id, plan?.state, shopId])
+
+  async function downloadCpu() {
+    if (!cpuApi || !cpuJob || cpuJob.shop_id !== shopId ||
+        cpuJob.planId !== plan?.id || cpuJob.status !== 'SUCCEEDED' ||
+        plan?.state !== 'APPROVED') return
+    try {
+      const signed = await cpuApi.download({ jobId: cpuJob.job_id, shopId })
+      setCpuPreview(signed)
+      const link = document.createElement('a')
+      link.href = signed
+      link.download = 'retailgrowthai-' + cpuJob.job_id + '.mp4'
+      link.rel = 'noopener noreferrer'
+      document.body.append(link)
+      link.click()
+      link.remove()
+    } catch {
+      setCpuPreview(null)
+      setCpuError('Private video could not be renewed; sign in and try again.')
+    }
+  }
+
   return <Card className="panel rg-creative-review" aria-label="Saved creative approvals">
     <div className="eyebrow">FEATURE 2 → FEATURE 4</div>
     <h2>Saved Creative Director reviews</h2>
@@ -122,7 +226,7 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
     {plan && <>
       <label>Review saved plan
         <select aria-label="Saved creative plan" value={plan.id}
-          onChange={event => { setSelectedId(event.target.value); setError(''); setNotice('') }}>
+          onChange={event => { setSelectedId(event.target.value); setError(''); setNotice(''); setCpuJob(null); setCpuPreview(null); setCpuError('') }}>
           {plans.map(item => <option key={item.id} value={item.id}>
             {item.campaign_id.slice(0, 8)} · {item.state}
           </option>)}
@@ -142,6 +246,26 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
         disabled={working} onClick={() => write('review')}>
         Approve this exact creative revision
       </Button>}
+      {CPU_RENDER_ENABLED && canReview && plan.state === 'APPROVED' && <>
+        <h3>Private CPU video render</h3>
+        {!cpuApi && <p role="status">
+          The verified CPU renderer is not configured; no job or credits were used.
+        </p>}
+        {cpuApi && <Button type="button" disabled={working} onClick={submitCpuRender}>
+          Render approved Reel using owned media
+        </Button>}
+        {cpuJob && cpuJob.planId === plan.id && <p role="status">
+          Render {cpuJob.status.toLowerCase()} · {cpuJob.job_id}
+        </p>}
+        {cpuJob && cpuJob.planId === plan.id &&
+          cpuJob.status === 'SUCCEEDED' && cpuApi && <Button type="button"
+            variant="outline" onClick={downloadCpu}>Download private MP4</Button>}
+        {cpuJob && cpuJob.planId === plan.id &&
+          cpuJob.status === 'SUCCEEDED' && cpuPreview &&
+          <video aria-label="Private CPU render preview" controls playsInline
+            preload="metadata" src={cpuPreview} />}
+        {cpuError && <p role="alert">{cpuError}</p>}
+      </>}
       {role === 'OWNER' && plan.state === 'APPROVED' && <Button
         type="button" variant="outline" disabled={working}
         onClick={() => write('revoke')}>Revoke this version</Button>}
