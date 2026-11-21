@@ -123,8 +123,8 @@ begin
     plan_id,reviewed->>'review_hash');
   if again is distinct from answer then
     raise exception 'FAIL: idempotent render replay created new job'; end if;
-  if (select count(*) from public.feature4_cpu_render_jobs
-      where plan_id='f5300000-0000-4000-8000-000000000001')<>1
+  if (select count(*) from public.feature4_cpu_render_jobs j
+      where j.plan_id='f5300000-0000-4000-8000-000000000001')<>1
     or (select count(*) from public.shop_usage_reservations
       where operation='render' and job_id=(answer->>'job_id')::uuid)<>1
 
