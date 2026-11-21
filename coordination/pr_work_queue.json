@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "ledger_branch": "coordination/pr-execution-ledger",
-  "snapshot_date": "2026-11-21",
+  "snapshot_date": "2026-11-22",
   "data_kind": "Live GitHub open PR inventory; acceptance separate from closure",
   "main_merge_owner": "manual-integration",
   "lease_policy": {
@@ -24,14 +24,14 @@
       "pr": 1059,
       "title": "Issue249 integration PR (live title not verified)",
       "feature": "issue249",
-      "head_sha": "d638763c433231d7a94992bec4cb08a7e31448f1",
+      "head_sha": "2179142549c6beecad6036399618364a72cb0b4b",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P1",
       "phase": "in-progress",
       "checkpoint": {
         "owner": "manual-issue249",
-        "ci": "Exact-head Part1 #44913217191 and #44913211287 SUCCESS 4/4; native F2-F4 CPU #44913211326 SUCCESS (workflow conclusion); independent Issue249 review remains",
+        "ci": "Exact-head #44963408318 and #44963405193 SUCCESS 4/4; native CPU #44963405190 SUCCESS; independent Issue249 review remains",
         "next_action": "Manual Issue249 owner to review security/integration at latest exact head; no automatic merge",
         "feature_done": false
       },
@@ -72,5 +72,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1065"
     }
   ],
-  "last_inventory_checked_at": "2026-11-21T04:00:00Z"
+  "last_inventory_checked_at": "2026-11-21T23:50:00Z"
 }
