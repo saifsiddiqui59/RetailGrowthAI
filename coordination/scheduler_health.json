@@ -2,9 +2,9 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-20T21:01:30Z",
+  "last_written_at": "2026-11-21T04:00:00Z",
   "last_inventory_count": 3,
-  "last_inventory_checked_at": "2026-11-20T21:01:30Z",
+  "last_inventory_checked_at": "2026-11-21T04:00:00Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
@@ -108,46 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "c494620a-73d0-8328-97e2-182860778d2f",
-      "started_at": "2026-11-18T02:27:00.725496Z",
-      "completed_at": "2026-11-18T02:27:23.640216Z",
-      "duration_seconds": 22.915,
-      "verified_code_test_commits": null,
-      "reported_code_test_commits": 0,
-      "local_tests_verified": false,
-      "ci": "PR #925 exact-head #44002627409 PASS 4/4, all jobs independently inspected",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "No new source/test commit independently verified; owner run reports zero; inherited/null execution environment"
-    },
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "7e061565-7850-8328-abf0-4550b8c1f585",
-      "started_at": "2026-11-18T03:23:23.628861Z",
-      "completed_at": "2026-11-18T03:24:11.789957Z",
-      "duration_seconds": 48.161,
-      "verified_code_test_commits": null,
-      "ci": "PR #925 exact-head #44002627409 PASS 4/4; all jobs independently inspected",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "Distinct completed run; no new source/test commit independently established; PR head unchanged; inherited/null executor environment"
-    },
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "6d602a17-4700-8328-a9f1-d20ee7d55faa",
-      "started_at": "2026-11-18T04:23:08.130757Z",
-      "completed_at": "2026-11-18T04:23:48.259320Z",
-      "duration_seconds": 40.129,
-      "verified_code_test_commits": null,
-      "reported_code_test_commits": 0,
-      "local_tests_verified": false,
-      "ci": "PR #925 exact-head push #44002627409 PASS 4/4; four jobs independently inspected",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "No new source/test commits verified; F2 reports #848 failures but PR manual-integration-owned, not a safe F2 coding claim; inherited/null environment"
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f2",
@@ -398,6 +358,30 @@
       "head_sha": "535caefa33b5dbe487e3158442d9fe11bc91acb4",
       "status": "SUCCESS 4/4",
       "evidence": "Four mandatory jobs independently checked; manual review remains"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 44862983054,
+      "head_sha": "cf92fd7ecea43d7a6ed211059778d807ad36f67c",
+      "status": "SUCCESS 4/4",
+      "evidence": "Independently inspected exact-head jobs; manual Issue249 review remains"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 44862978503,
+      "head_sha": "cf92fd7ecea43d7a6ed211059778d807ad36f67c",
+      "status": "SUCCESS 4/4",
+      "evidence": "Independently inspected exact-head jobs; manual Issue249 review remains"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 44862978550,
+      "head_sha": "cf92fd7ecea43d7a6ed211059778d807ad36f67c",
+      "status": "CPU TEST SUCCESS",
+      "evidence": "Independently inspected exact-head jobs; manual Issue249 review remains"
     }
   ],
   "current_review_gates": {
@@ -590,9 +574,13 @@
     "chatgpt_scheduler_runtime_increased": false
   },
   "current_automation_inspection": {
-    "status": "UNVERIFIED",
-    "reason": "F2/F3/F4/F7 automation get returned 404",
-    "checked_at": "2026-11-20T21:01:30Z"
+    "checked_at_utc": "2026-11-21T04:00:00Z",
+    "F2": "UNVERIFIED: automation ID inaccessible",
+    "F3": "disabled; inherited environment null; latest 45.589s",
+    "F4": "disabled; inherited environment null; latest 29.793s; REVIEW_BLOCKED",
+    "F7": "disabled; inherited environment null; latest 39.968s; REVIEW_BLOCKED",
+    "new_verified_source_test_commits": null,
+    "executor": "GITHUB_CONNECTOR_ONLY / EXECUTOR_NOT_PROVISIONED"
   },
   "issue249_ci_watch": {
     "checked_at_utc": "2026-11-20T04:55:41Z",
@@ -625,31 +613,28 @@
     "review_required": true
   },
   "current_ci_verified": {
-    "checked_at": "2026-11-20T09:57:34Z",
-    "open_prs": [
-      {
-        "pr": 939,
-        "head_sha": "14ca12280d159a3661a536deba5062d98b327ec9",
-        "latest_run_id": 44593231155,
-        "status": "SUCCESS",
-        "jobs_passed": 4,
-        "jobs_total": 4
+    "checked_at_utc": "2026-11-21T04:00:00Z",
+    "prs": {
+      "1059": {
+        "sha": "cf92fd7ecea43d7a6ed211059778d807ad36f67c",
+        "mandatory_runs": [
+          44862983054,
+          44862978503
+        ],
+        "jobs": "4/4 PASS each",
+        "native_cpu_run": 44862978550,
+        "native_cpu": "PASS"
       },
-      {
-        "pr": 1055,
-        "head_sha": "11734f5112451916bec53260c1dbe0eeca760897",
-        "latest_run_id": 44713603379,
-        "status": "SUCCESS",
-        "jobs_passed": 4,
-        "jobs_total": 4
+      "1064": {
+        "sha": "bd6693e97af56014ea985f7ef3301e07a8ad107f",
+        "run": 44804945219,
+        "jobs": "4/4 PASS"
+      },
+      "1065": {
+        "sha": "d8c2c12a87ffd0c43a15d21897aace549efa5e65",
+        "run": 44808654931,
+        "jobs": "4/4 PASS"
       }
-    ],
-    "new_source_test_commits": "UNKNOWN",
-    "coding_automations": {
-      "F2": "UNVERIFIED inaccessible",
-      "F3": "disabled",
-      "F4": "disabled REVIEW_BLOCKED",
-      "F7": "disabled REVIEW_BLOCKED"
     }
   }
 }
