@@ -45,7 +45,9 @@ class FakeAzure:
             for name in names:
                 self.settings.pop(name, None)
             return []
-        if args[:2] == ["functionapp", "sync-function-triggers"]:
+        if args[:2] == ["resource", "invoke-action"]:
+            assert "--action" in args and args[args.index("--action") + 1] == "syncfunctiontriggers"
+            assert "--resource-type" in args and args[args.index("--resource-type") + 1] == "Microsoft.Web/sites"
             self.sync += 1
             return None
         raise AssertionError("Unapproved Azure CLI path: " + repr(args[:4]))
@@ -113,6 +115,69 @@ class Y1RemoteBuildModeTests(unittest.TestCase):
         self.cloud.settings[y1.OWNER] = "44630000000"
         self.cloud.names = ["p0249_health", "unexpected_write_route"]
         with self.assertRaisesRegex(RuntimeError, "Unknown"):
+            y1.rollback()
+        self.assertEqual(self.cloud.mutations, [])
+
+    def test_verified_exact_legacy_owner_can_be_adopted_and_restored(self):
+        self.cloud.settings[y1.BACKUP] = self.cloud.secret
+        self.cloud.settings[y1.OWNER] = y1.LEGACY_FAILED_RUN
+        y1.prepare()
+        self.assertEqual(self.cloud.settings[y1.OWNER], "44630000000")
+        self.assertEqual(self.cloud.settings[y1.BACKUP], self.cloud.secret)
+        self.assertNotIn("WEBSITE_RUN_FROM_PACKAGE", self.cloud.settings)
+        y1.rollback()
+        self.assertEqual(self.cloud.settings["WEBSITE_RUN_FROM_PACKAGE"], self.cloud.secret)
+        self.assertNotIn(y1.BACKUP, self.cloud.settings)
+        self.assertNotIn(y1.OWNER, self.cloud.settings)
+
+    def test_legacy_unchanged_rollback_is_readonly_and_health_checked(self):
+        self.cloud.settings[y1.BACKUP] = self.cloud.secret
+        self.cloud.settings[y1.OWNER] = y1.LEGACY_FAILED_RUN
+        self.cloud.mutations.clear()
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            y1.rollback()
+        self.assertIn("LEGACY_ORIGINAL_PACKAGE_RETAINED=PASS_20OF20", output.getvalue())
+        self.assertEqual(self.cloud.mutations, [])
+        self.assertEqual(self.cloud.settings[y1.OWNER], y1.LEGACY_FAILED_RUN)
+
+    def test_reject_foreign_or_partial_legacy_marker_without_writes(self):
+        for owner, backup in (
+            ("12345678901", self.cloud.secret),
+            (y1.LEGACY_FAILED_RUN, "https://other.blob.core.windows.net/pkg.zip"),
+            (y1.LEGACY_FAILED_RUN, None),
+            (None, self.cloud.secret),
+        ):
+            with self.subTest(owner=owner, backup=backup):
+                self.cloud = FakeAzure()
+                if owner is not None:
+                    self.cloud.settings[y1.OWNER] = owner
+                if backup is not None:
+                    self.cloud.settings[y1.BACKUP] = backup
+                with self.assertRaises(RuntimeError):
+                    y1.prepare()
+                self.assertEqual(self.cloud.mutations, [])
+
+    def test_foreign_account_even_with_matching_legacy_backup_is_denied(self):
+        self.cloud = FakeAzure()
+        bad = "https://other.blob.core.windows.net/pkg.zip?sig=SENSITIVE"
+        self.cloud.settings["WEBSITE_RUN_FROM_PACKAGE"] = bad
+        self.cloud.settings[y1.BACKUP] = bad
+        self.cloud.settings[y1.OWNER] = y1.LEGACY_FAILED_RUN
+        with self.assertRaises(RuntimeError):
+            y1.prepare()
+        self.assertEqual(self.cloud.mutations, [])
+
+    def test_legacy_rollback_denies_modified_package_or_build_settings(self):
+        self.cloud.settings[y1.BACKUP] = self.cloud.secret
+        self.cloud.settings[y1.OWNER] = y1.LEGACY_FAILED_RUN
+        self.cloud.settings["WEBSITE_RUN_FROM_PACKAGE"] = (
+            "https://other.blob.core.windows.net/changed.zip")
+        with self.assertRaises(RuntimeError):
+            y1.rollback()
+        self.assertEqual(self.cloud.mutations, [])
+        self.cloud.settings["WEBSITE_RUN_FROM_PACKAGE"] = self.cloud.secret
+        self.cloud.settings["ENABLE_ORYX_BUILD"] = "true"
+        with self.assertRaises(RuntimeError):
             y1.rollback()
         self.assertEqual(self.cloud.mutations, [])
 
