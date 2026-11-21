@@ -4,12 +4,14 @@ import { Button } from '../../components/ui/button.jsx'
 import { Card } from '../../components/ui/card.jsx'
 
 const REVIEW_ENABLED = import.meta.env?.VITE_FEATURE4_PLAN_REVIEW_ENABLED === 'true'
+const ISSUE_ENABLED = import.meta.env?.VITE_FEATURE4_PLAN_ISSUE_ENABLED === 'true'
 
 // REAL signed source review: no synthetic approval toggles and no generated
 // media/sounds/GPU calls. Only an explicit retailer click runs the narrow SQL
 // RPC after fetching this business's persisted F2 proposal under RLS.
 export default function CreativePlanReview({ client, user, shopId, role }) {
   const [selectedId, setSelectedId] = useState('')
+  const [sourceId, setSourceId] = useState('')
   const [working, setWorking] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -20,6 +22,14 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
     enabled: REVIEW_ENABLED && Boolean(user && shopId),
     retry: false, staleTime: 12_000, gcTime: 0,
   })
+  const sources = useQuery({
+    queryKey: ['f4-saved-days', user?.id, shopId],
+    queryFn: () => client.listFeature4SourceDays(shopId),
+    enabled: REVIEW_ENABLED && ISSUE_ENABLED && Boolean(user && shopId && canReview),
+    retry: false, staleTime: 12_000, gcTime: 0,
+  })
+  const days = sources.data || []
+  const chosen = days.find(day => day.id === sourceId) || days[0] || null
   const plans = reviews.data || []
   const plan = plans.find(item => item.id === selectedId) || plans[0] || null
   const source = plan?.proposal
@@ -46,6 +56,23 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
       setWorking(false)
     }
   }
+  async function issueSource() {
+    if (!chosen || !canReview || working) return
+    setWorking(true)
+    setError('')
+    setNotice('')
+    try {
+      const result = await client.issueFeature4CreativePlan(
+        shopId, chosen.campaign_id, chosen.id)
+      setSelectedId(result.plan_id)
+      setNotice('Saved campaign storyboard prepared for retailer review.')
+      await reviews.refetch()
+    } catch (cause) {
+      setError(cause?.message || 'Unable to confirm creative proposal; check plan history.')
+    } finally {
+      setWorking(false)
+    }
+  }
   return <Card className="panel rg-creative-review" aria-label="Saved creative approvals">
     <div className="eyebrow">FEATURE 2 → FEATURE 4</div>
     <h2>Saved Creative Director reviews</h2>
@@ -56,6 +83,29 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
     {REVIEW_ENABLED && !shopId && <p role="status">
       Select a verified business to review its creative plans.
     </p>}
+    {REVIEW_ENABLED && ISSUE_ENABLED && shopId && canReview && <div
+      className="rg-f4-source-issue" aria-label="Saved campaign to Creative Director">
+      <h3>Prepare review from a saved campaign</h3>
+      {sources.isError && <p role="alert">Saved campaign days are unavailable.
+        <Button variant="outline" onClick={() => sources.refetch()}>Retry read</Button>
+      </p>}
+      {sources.isSuccess && !days.length && <p role="status">
+        No current 30-second draft Reel day is available for this shop.
+      </p>}
+      {chosen && <>
+        <label>Saved campaign day
+          <select value={chosen.id} aria-label="Creative source day"
+            onChange={event => setSourceId(event.target.value)}>
+            {days.map(day => <option key={day.id} value={day.id}>
+              {day.campaign_id.slice(0, 8)} · Day {day.day_index}
+            </option>)}
+          </select>
+        </label>
+        <Button type="button" disabled={working} onClick={issueSource}>
+          Prepare exact saved storyboard for review
+        </Button>
+      </>}
+    </div>}
     {reviews.isPending && reviews.isFetching && <p role="status">
       Reading private creative proposals…
     </p>}

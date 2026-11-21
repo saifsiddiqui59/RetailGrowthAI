@@ -31,6 +31,7 @@ export function createRetailClient({
   storage = typeof window === 'undefined' ? null : window.sessionStorage,
   fetchImpl = (...args) => fetch(...args),
   clock = () => Date.now(),
+  feature4ApiOrigin = import.meta.env?.VITE_CAMPAIGN_API_BASE_URL,
   uuidFactory = () => crypto.randomUUID(),
 } = {}) {
   const configured = Boolean(url && key && /^https:\/\//.test(url))
@@ -722,6 +723,69 @@ export function createRetailClient({
       nextOffset: rows.length === 101 ? offset + 100 : null,
     }
   }
+  async function listFeature4SourceDays(shopId) {
+    if (!UUID_V4.test(shopId || '')) throw Error('Verified business required')
+    const campaigns = await send('/rest/v1/campaigns', {
+      query: {select:'id,shop_id,status',shop_id:'eq.'+shopId,
+        status:'eq.DRAFT',order:'created_at.desc',limit:'21'},
+      token:await accessToken(),
+    })
+    if (!Array.isArray(campaigns) || campaigns.length>21 || campaigns.some(c =>
+      !c || c.shop_id!==shopId || c.status!=='DRAFT' ||
+      !UUID_V4.test(c.id||''))) throw Error('Untrusted saved campaign list')
+    if (!campaigns.length) return []
+    const allowed = new Set(campaigns.map(c => c.id))
+    const rows = await send('/rest/v1/campaign_days', {
+      query: {select:'id,campaign_id,shop_id,day_index,review_status,instagram',
+        shop_id:'eq.'+shopId, campaign_id:'in.('+[...allowed].join(',')+')',
+        review_status:'eq.DRAFT',order:'day_index.asc',limit:'101'},
+      token:await accessToken(),
+    })
+    if (!Array.isArray(rows) || rows.length>100 || rows.some(day =>
+      !day || !UUID_V4.test(day.id||'') || day.shop_id!==shopId ||
+      !allowed.has(day.campaign_id) || day.review_status!=='DRAFT' ||
+      !Number.isInteger(day.day_index) || day.day_index<1 || day.day_index>7)) {
+      throw Error('Untrusted saved video day list')
+    }
+    return rows.filter(day => day.instagram?.reel?.duration_seconds===30 &&
+      day.instagram.reel.aspect_ratio==='9:16' &&
+      Array.isArray(day.instagram.reel.storyboard) &&
+      day.instagram.reel.storyboard.length>0 &&
+      day.instagram.reel.music_asset_id==null)
+      .map(day => ({id:day.id,campaign_id:day.campaign_id,
+        shop_id:shopId,day_index:day.day_index}))
+  }
+
+  async function issueFeature4CreativePlan(shopId, campaignId, dayId) {
+    if (!UUID_V4.test(shopId||'') || !UUID_V4.test(campaignId||'') ||
+        !UUID_V4.test(dayId||'')) {
+      throw Error('Verified saved campaign and day required')
+    }
+    let url
+    try {
+      const base = new URL(feature4ApiOrigin)
+      if (base.protocol!=='https:' || base.username || base.password ||
+          base.pathname!=='/' || base.search || base.hash) throw Error()
+      url = base.origin+'/api/campaigns/'+campaignId+'/feature4-plans'
+    } catch { throw Error('Authenticated Feature4 backend not configured') }
+    const token = await accessToken()
+    // IMPORTANT: single explicit POST; never automatically retry an uncertain
+    // write on Azure issue #249 ingress. Server uses immutable revision key.
+    const response = await fetchImpl(url, {
+      method:'POST',redirect:'error',cache:'no-store',
+      headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({day_id:dayId}),
+    })
+    const result = await response.json().catch(()=>null)
+    if (!response.ok || !result || result.shop_id!==shopId ||
+        result.campaign_id!==campaignId || !UUID_V4.test(result.plan_id||'') ||
+        !['DRAFT','APPROVED'].includes(result.status) ||
+        !/^[a-f0-9]{64}$/.test(result.proposal_sha256||'')) {
+      throw Error('Creative proposal was not confirmed. Read plan history before retrying.')
+    }
+    return result
+  }
+
   // F2-origin creative proposals are issued ONLY by a verified service and
   // exposed read-only through same-shop PostgREST RLS. A user cannot insert
   // or invent a proposal in this client, even to approve their own content.
@@ -793,7 +857,7 @@ export function createRetailClient({
     listShops, createShop, getShopSubscription, getShopMetrics, getShopUsage,
     isPlatformAdmin, getPlatformSummary, listPlatformShops, setPlatformSubscription,
     listPlatformNotifications, setPlatformNotificationRead, listPlatformSubscriptionWatch,
-    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listFeature4CreativePlans, reviewFeature4CreativePlan, revokeFeature4CreativePlan, listMediaAssets, listMediaAssetsPage, listMediaAssetsKeysetPage, listRetailerInbox, setRetailerInboxRead, downloadPrivateImage, uploadImageAsset, uploadModelOriginal,
+    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listFeature4SourceDays, issueFeature4CreativePlan, listFeature4CreativePlans, reviewFeature4CreativePlan, revokeFeature4CreativePlan, listMediaAssets, listMediaAssetsPage, listMediaAssetsKeysetPage, listRetailerInbox, setRetailerInboxRead, downloadPrivateImage, uploadImageAsset, uploadModelOriginal,
   }
 }
 
