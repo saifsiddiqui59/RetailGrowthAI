@@ -1286,3 +1286,6 @@ Old #879 and stacked #944 closed unmerged once their unique source, tests, enabl
 
 ## 2026-11-22 — Issue #249 Y1 publisher trial proposal (NOT Azure authorization)
 The owner-protected Linux Y1 remote build #44629301025 used Azure CLI config-zip with --build-remote true; CLI unexpectedly removed ENABLE_ORYX_BUILD and only two functions indexed. The proposed alternative is Microsoft Azure/functions-action pinned to c5060b3b8bb1ebbcb531abd00c822ecbaa8ea656, both Linux Oryx flags, read-only postpublisher invariant, and the existing exact original-URI rollback. Protected DEV, exact reviewed main SHA and independent release/security review still required. This source change authorizes no new Azure storage role, PROD, WineShopPOS, GPU or customer data writes; keep #249 open and private Blob OAuth guard intact.
+
+## 2026-11-22 — #249 GitHub-only protected DEV release dispatch proposal
+Owner explicitly requested self-review and five-GET Y1 deployment. The existing GitHub connector has no workflow-dispatch action. Prefer one-shot reviewed push-main bridge with exact action/source pins, exact current-main 4/4 CI and deduplication; bridge does NOT access Azure or grant roles, and target remains independently environment-protected with signed original-package recovery. No automatic release approval or issue closure is implied by source/CI completion.
