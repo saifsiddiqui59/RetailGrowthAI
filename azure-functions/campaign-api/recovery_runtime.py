@@ -108,3 +108,18 @@ def reconcile_feature4_cpu(admin, cpu_queue):
         "recovered": recovered,
         "dispatched": dispatch_feature4_cpu_outbox(admin, cpu_queue),
     }
+
+
+def record_feature4_cpu_poison(admin, raw_body):
+    """Persist v2 poison fingerprint before Azure poison queue ACK."""
+    if type(raw_body) is not bytes:
+        raise ValueError("CPU poison body must be bytes")
+    fingerprint = sha256(raw_body).hexdigest()
+    job_id = None
+    if len(raw_body) == 36:
+        try:
+            job_id = canonical_uuid(raw_body.decode("ascii", "strict"))
+        except (UnicodeError, ValueError, TypeError):
+            pass
+    admin.feature4_record_poison(fingerprint, job_id)
+    return job_id
