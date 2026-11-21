@@ -173,13 +173,17 @@ begin
     raise exception 'FAIL: completion accepted a foreign object path'; end if;
  if public.feature4_fail_cpu_render(render_id,gen_random_uuid(),'RENDER_FAILED') then
     raise exception 'FAIL: stale failure overwrote current claim'; end if;
- if not public.feature4_record_cpu_poison(repeat('b',64),render_id)
-    or (select count(*) from retail_private.feature4_cpu_poison_receipts
-        where fingerprint=repeat('b',64))<>1 then
+ -- A volatile insert and its verification MUST be separate SQL
+ -- statements; PostgreSQL does not guarantee boolean OR evaluation order.
+ if public.feature4_record_cpu_poison(repeat('b',64),render_id) is not true then
+   raise exception 'FAIL: F4 poison recording rejected'; end if;
+ if (select count(*) from retail_private.feature4_cpu_poison_receipts
+     where fingerprint=repeat('b',64))<>1 then
    raise exception 'FAIL: durable F4 CPU poison receipt absent'; end if;
- if not public.feature4_record_cpu_poison(repeat('b',64),render_id)
-    or (select count(*) from retail_private.feature4_cpu_poison_receipts
-        where fingerprint=repeat('b',64))<>1 then
+ if public.feature4_record_cpu_poison(repeat('b',64),render_id) is not true then
+   raise exception 'FAIL: F4 poison replay rejected'; end if;
+ if (select count(*) from retail_private.feature4_cpu_poison_receipts
+     where fingerprint=repeat('b',64))<>1 then
    raise exception 'FAIL: F4 poison replay was not idempotent'; end if;
  if not public.feature4_fail_cpu_render(render_id,token,'RENDER_FAILED') then
     raise exception 'FAIL: current worker failed to release lease for retry'; end if;
