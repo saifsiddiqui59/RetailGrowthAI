@@ -128,7 +128,7 @@ begin
   if result is null or result->>'status' <> 'APPROVED'
       or result->>'review_hash' <> 
          'c59b66bf6402afb634fc383f1b8254f7e19de5a4bafcb14d8cc21b175969e138' then
-    raise exception 'FAIL: reviewed F2 direction SHA did not match Python'; end if;
+    raise exception 'FAIL: reviewed F2 direction SHA did not match Python: actual=%, expected=%', result->>'review_hash', 'c59b66bf6402afb634fc383f1b8254f7e19de5a4bafcb14d8cc21b175969e138'; end if;
   if not exists(select 1 from public.feature4_creative_plans
     where id='f4300000-0000-4000-8000-000000000001'
       and state='APPROVED' and reviewed_by=auth.uid()
