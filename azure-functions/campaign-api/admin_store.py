@@ -68,6 +68,7 @@ class AdminStore:
                         "rpc/feature4_reconcile_cpu_render", "rpc/feature4_claim_cpu_render",
                         "rpc/feature4_cpu_claim_current", "rpc/feature4_fail_cpu_render",
                         "rpc/feature4_complete_cpu_render",
+                        "rpc/feature4_record_cpu_poison",
                         "rpc/feature2_reserve_ai_budget", "rpc/feature2_settle_ai_budget",
                         "rpc/feature3_reserve_gpu_job", "rpc/feature3_claim_gpu_job",
                         "rpc/feature3_finish_gpu_job", "feature3_gpu_jobs",
@@ -448,3 +449,14 @@ class AdminStore:
                   "p_code": code, "p_permanent": bool(permanent)})
         if result is not True:
             raise StorageUnavailable("cannot release stale CPU claim")
+
+
+    def feature4_record_poison(self, fingerprint, job_id=None):
+        if (not isinstance(fingerprint, str) or len(fingerprint) != 64 or
+                any(ch not in "0123456789abcdef" for ch in fingerprint)):
+            raise ValueError("invalid private CPU poison fingerprint")
+        result = self.request("rpc/feature4_record_cpu_poison", method="POST",
+            data={"p_fingerprint": fingerprint,
+                  "p_job_id": canonical_uuid(job_id) if job_id else None})
+        if result is not True:
+            raise StorageUnavailable("feature4 CPU poison receipt not durable")
