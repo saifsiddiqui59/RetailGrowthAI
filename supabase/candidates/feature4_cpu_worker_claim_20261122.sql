@@ -81,8 +81,7 @@ returns jsonb language plpgsql volatile security definer set search_path=''
 as $f$
 declare j public.feature4_cpu_render_jobs%rowtype;
 begin
- if current_user<>'service_role' or p_id is null
- then raise exception 'worker role required' using errcode='42501'; end if;
+ if p_id is null then return null; end if;
  select * into j from public.feature4_cpu_render_jobs where id=p_id for update;
  if not found or j.status in ('SUCCEEDED','FAILED')
    or (j.status='RUNNING' and j.render_lease_until>now())
@@ -113,7 +112,7 @@ grant execute on function public.feature4_claim_cpu_render(uuid) to service_role
 create function public.feature4_cpu_claim_current(p_id uuid,p_token uuid)
 returns boolean language sql stable security definer set search_path=''
 as $f$
- select current_user='service_role' and exists(
+ select exists(
    select 1 from public.feature4_cpu_render_jobs j where j.id=p_id
      and j.status='RUNNING' and j.render_claim_token=p_token
      and j.render_lease_until>now()
