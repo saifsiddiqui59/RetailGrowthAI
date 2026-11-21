@@ -172,3 +172,74 @@ def test_queue_worker_never_indexes_on_default_off_and_never_reuses_v1():
     assert "def feature4_cpu_dispatch_timer(" in scoped
     assert "def feature4_cpu_poison_message(" in scoped
     assert "retail-reel-render" not in scoped
+
+
+# Live storage is NOT accessed: these fakes enforce the service-role
+# read sequence that the SQL claim has already authorized.
+from admin_store import AdminStore  # noqa: E402
+
+PLAN = "99999999-9999-4999-8999-999999999999"
+CAMPAIGN = "22222222-2222-4222-8222-222222222222"
+MEDIA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+RIGHTS = {
+    "id": MEDIA, "shop_id": SHOP,
+    "path": SHOP + "/uploads/" + MEDIA + ".png",
+    "mime": "image/png", "source": "UPLOAD", "license": "owned",
+}
+
+
+class SourceReader:
+    feature4_load_bundle = AdminStore.feature4_load_bundle
+
+    def __init__(self):
+        self.current = True
+        self.media = {
+            "id": MEDIA, "shop_id": SHOP, "storage_bucket": "retailgrowth-media",
+            "object_path": RIGHTS["path"], "mime_type": "image/png",
+            "source": "UPLOAD", "license_name": "owned",
+            "license_url": None, "attribution": None,
+        }
+
+    def feature4_claim_current(self, claim):
+        return self.current
+
+    def request(self, table, *, query=None):
+        if table == "feature4_creative_plans":
+            return [{
+                "id": PLAN, "shop_id": SHOP, "campaign_id": CAMPAIGN,
+                "state": "APPROVED", "review_sha256": "a"*64,
+                "approved_direction": {
+                    "script": {"approved": True, "source_feature": "feature2"}},
+                "media_snapshot": [RIGHTS.copy()], "media_asset_ids": [MEDIA],
+            }]
+        if table == "media_assets":
+            return [self.media.copy()]
+        if table == "shops":
+            return [{"name": "Synthetic Private Retailer"}]
+        raise AssertionError("Unreviewed table requested: " + table)
+
+
+def test_feature4_authoritative_bundle_accepts_owned_upload_without_fake_license_url():
+    reader = SourceReader()
+    claim = {
+        "id": JOB, "shop_id": SHOP, "campaign_id": CAMPAIGN,
+        "plan_id": PLAN, "approved_review_sha256": "a"*64,
+        "idempotency_key": "b"*64,
+    }
+    source = reader.feature4_load_bundle(claim)
+    assert set(source) == {"direction", "snapshot", "reviewed_hash"}
+    assert source["snapshot"]["shop_id"] == SHOP
+    assert source["snapshot"]["video_job_id"] == JOB
+    assert source["snapshot"]["assets"][MEDIA]["rights_source"] == "retailer-owned-upload"
+    assert source["snapshot"]["assets"][MEDIA]["rights_evidence"].startswith(
+        "Retailer-declared ownership")
+    reader.media["license_name"] = "unlicensed"
+    with pytest.raises(StorageUnavailable):
+        reader.feature4_load_bundle(claim)
+    reader.media["license_name"] = "owned"
+    reader.media["shop_id"] = "44444444-4444-4444-8444-444444444444"
+    with pytest.raises(StorageUnavailable):
+        reader.feature4_load_bundle(claim)
+    reader.current = False
+    with pytest.raises(StorageUnavailable):
+        reader.feature4_load_bundle(claim)
