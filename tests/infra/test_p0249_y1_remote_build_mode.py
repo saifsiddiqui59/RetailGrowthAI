@@ -157,6 +157,16 @@ class Y1RemoteBuildModeTests(unittest.TestCase):
                     y1.prepare()
                 self.assertEqual(self.cloud.mutations, [])
 
+    def test_foreign_account_even_with_matching_legacy_backup_is_denied(self):
+        self.cloud = FakeAzure()
+        bad = "https://other.blob.core.windows.net/pkg.zip?sig=SENSITIVE"
+        self.cloud.settings["WEBSITE_RUN_FROM_PACKAGE"] = bad
+        self.cloud.settings[y1.BACKUP] = bad
+        self.cloud.settings[y1.OWNER] = y1.LEGACY_FAILED_RUN
+        with self.assertRaises(RuntimeError):
+            y1.prepare()
+        self.assertEqual(self.cloud.mutations, [])
+
     def test_legacy_rollback_denies_modified_package_or_build_settings(self):
         self.cloud.settings[y1.BACKUP] = self.cloud.secret
         self.cloud.settings[y1.OWNER] = y1.LEGACY_FAILED_RUN
