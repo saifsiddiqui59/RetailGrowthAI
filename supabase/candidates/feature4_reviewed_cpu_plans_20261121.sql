@@ -1,6 +1,7 @@
 -- Feature2 -> Feature4: persist an actual per-shop creative approval instead of
 -- treating a browser boolean, replayed token or synthetic fixture as approval.
--- SOURCE-ONLY. Tested in disposable Supabase CI; NOT applied to hosted DEV/PROD.
+-- CANDIDATE ONLY outside canonical migrations; tested in isolated Supabase CI.
+-- Cannot be deployed or promoted until independently reviewed shared-schema gate.
 -- This is the approved-plan gate, NOT the F4 quota/outbox/lease worker release.
 begin;
 

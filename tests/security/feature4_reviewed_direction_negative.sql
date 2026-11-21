@@ -2,6 +2,9 @@
 -- persisted immutable plan, shop-RLS, frozen digest and owner revocation.
 -- Always rolled back. NEVER run on hosted DEV/PROD.
 \set ON_ERROR_STOP on
+-- Only disposable isolated CI loads this candidate; the main migration inventory
+-- and protected Feature3/DEV migration gates must NOT change.
+\i supabase/candidates/feature4_reviewed_cpu_plans_20261121.sql
 begin;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
 values
