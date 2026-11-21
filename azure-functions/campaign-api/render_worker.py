@@ -178,13 +178,3 @@ class _VerifiedFeature4Media:
         return key
 
 
-def process_feature4_cpu_render(job_id, admin, media):
-    """Dedicated reviewed F2→F4 CPU queue; never route IDs to legacy render."""
-    from feature4_worker_handoff import (
-        process_feature4_render, Feature4ClaimBusy)
-    try:
-        return process_feature4_render(
-            job_id, _Feature4CpuAdmin(admin), _VerifiedFeature4Media(media))
-    except Feature4ClaimBusy:
-        # Another worker owns the lease. The fenced timer requeues expiry.
-        return "CLAIMED_ELSEWHERE"
