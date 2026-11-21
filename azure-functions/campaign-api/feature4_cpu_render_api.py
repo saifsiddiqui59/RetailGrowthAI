@@ -109,7 +109,7 @@ class Feature4CpuRenderAPI:
             if type(item) is not dict or item.get("shop_id") != sid:
                 return 404, {"error": "SOURCE_RIGHTS_REVOKED"}
             asset_id = canonical_uuid(item.get("id"))
-            source = self.users.asset(token, sid, asset_id)
+            source = self.users.feature4_media(token, sid, asset_id)
             if (type(source) is not dict
                     or source.get("shop_id") != sid
                     or source.get("storage_bucket") != "retailgrowth-media"
@@ -119,7 +119,7 @@ class Feature4CpuRenderAPI:
                     or source.get("license_name") != item.get("license")
                     or str(source.get("license_name") or "").lower() != "owned"):
                 return 404, {"error": "SOURCE_RIGHTS_REVOKED"}
-        asset = self.users.asset(token, sid, row["output_asset_id"])
+        asset = self.users.feature4_media(token, sid, row["output_asset_id"])
         if (type(asset) is not dict or asset.get("shop_id") != sid
                 or asset.get("storage_bucket") != "retailgrowth-media"
                 or asset.get("mime_type") != "video/mp4"
