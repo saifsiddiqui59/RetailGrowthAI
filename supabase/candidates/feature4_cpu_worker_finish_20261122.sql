@@ -25,7 +25,7 @@ begin
    where id=p_id;
  update retail_private.feature4_cpu_outbox set
    state=case when terminal or attempts>=8 then 'DEAD' else 'PENDING' end,
-   retry_after=now()+(pg_catalog.power(2,pg_catalog.least(j.attempts,3))
+   retry_after=now()+(pg_catalog.power(2,least(j.attempts,3))
        * interval '1 minute'),
    lease_token=null,lease_until=null where job_id=p_id;
  return true;
