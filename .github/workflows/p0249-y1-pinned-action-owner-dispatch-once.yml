@@ -1,5 +1,5 @@
 name: "RetailGrowthAI #249 one-shot owner-authorized Y1 pinned Action launch"
-# Created only on explicit 2026-11-20 owner authorization. This bridge makes
+# Created on explicit 2026-11-22 owner request to self-review and deploy Y1. This bridge makes
 # no cloud call; the protected DEV workflow alone can modify the exact Y1.
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
   actions: write
 concurrency:
-  group: rgai-p0249-owner-delegated-remote-build-once
+  group: rgai-p0249-owner-delegated-pinned-action-once
   cancel-in-progress: false
 jobs:
   dispatch:
