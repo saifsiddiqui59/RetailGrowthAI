@@ -68,19 +68,25 @@ begin
     raise exception 'invalid reconciliation batch' using errcode='22023'; end if;
  -- Lost queue ACK or crashed workers: reset expired claims.
  with picked as (
-   select j.id,j.attempts from public.feature4_cpu_render_jobs j
-   where j.status='RUNNING' and j.render_lease_until<now()
-   order by j.render_lease_until limit p_limit for update skip locked
+   select j.id,j.attempts,o.attempts as sends
+   from public.feature4_cpu_render_jobs j
+   join retail_private.feature4_cpu_outbox o on o.job_id=j.id
+   where (j.status='RUNNING' and j.render_lease_until<now())
+      or (j.status='QUEUED' and o.state='SENT'
+          and o.delivered_at<now()-interval '5 minutes')
+   order by j.created_at,j.id limit p_limit for update of j,o skip locked
  ), changed as (
    update public.feature4_cpu_render_jobs j set
-     status=case when picked.attempts>=3 then 'FAILED' else 'QUEUED' end,
-     error_code=case when picked.attempts>=3 then 'RETRY_EXHAUSTED'
-          else 'LEASE_EXPIRED' end,
+     status=case when picked.attempts>=3 or picked.sends>=8
+         then 'FAILED' else 'QUEUED' end,
+     error_code=case when picked.attempts>=3 or picked.sends>=8
+         then 'RETRY_EXHAUSTED' else 'LEASE_EXPIRED' end,
      render_claim_token=null,render_lease_until=null
    from picked where j.id=picked.id returning j.id,j.status
  ), reset as (
    update retail_private.feature4_cpu_outbox o set
-     state=case when c.status='FAILED' then 'DEAD' else 'PENDING' end,
+     state=case when c.status='FAILED' or o.attempts>=8
+         then 'DEAD' else 'PENDING' end,
      retry_after=now(),lease_token=null,lease_until=null
    from changed c where o.job_id=c.id returning o.id
  )
