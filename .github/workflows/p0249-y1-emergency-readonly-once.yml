@@ -1,5 +1,7 @@
 name: "RetailGrowthAI #249 emergency Y1 original-package status (read only)"
 # One-time owner-requested 2026-11-20 incident inspection. No Azure writes.
+# Re-dispatched after protected #44962137246 refused stale ownership pre-publish;
+# verify existing backup/owner identity and real 20/20 Y1 health, NO Azure writes.
 on:
   push:
     branches: [main]
