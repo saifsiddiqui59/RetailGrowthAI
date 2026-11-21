@@ -328,3 +328,18 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
     except Exception:
         admin.render_failure(claim, "RENDER_FAILED")
         raise
+
+
+def process_feature4_cpu_render(job_id, admin, media):
+    """Isolated Feature4 native worker entrypoint, not in legacy Functions ZIP.
+
+    Dedicated worker package must ship the reviewed Python/Node/FFmpeg runtime
+    and execute this with service-only credentials. All flags remain OFF until
+    that independently reviewed package and private queue are deployed.
+    """
+    from render_worker import _Feature4CpuAdmin, _VerifiedFeature4Media
+    try:
+        return process_feature4_render(
+            job_id, _Feature4CpuAdmin(admin), _VerifiedFeature4Media(media))
+    except Feature4ClaimBusy:
+        return "CLAIMED_ELSEWHERE"
