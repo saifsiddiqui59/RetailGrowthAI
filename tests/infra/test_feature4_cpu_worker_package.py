@@ -1,10 +1,9 @@
-"""Feature4 isolated worker packaging guard. Never builds/deploys cloud assets."""
+"""F4 separate worker release guard, compatible with pytest AND unittest discovery."""
 import importlib.util
 import subprocess
 import sys
+import unittest
 from pathlib import Path
-
-import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 PACKAGE = ROOT / "scripts" / "deploy" / "package_feature4_cpu.py"
@@ -13,41 +12,38 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
 
-def test_worker_has_its_own_source_manifest_and_no_v1_api():
-    entries = module.sources()
-    assert "function_app.py" in entries
-    assert "cpu_backend.py" in entries
-    assert "admin_store.py" in entries
-    assert "feature4_worker_handoff.py" in entries
-    assert "render_adapter.py" in entries
-    assert "hyperframes/render.mjs" in entries
-    assert "host.json" in entries
-    assert "render_worker.py" not in entries
-    assert "http_api.py" not in entries
-    assert len(entries) == len(set(entries))
-    for entry in entries:
-        assert entry not in ("", "..") and ".." not in Path(entry).parts
+class Feature4CpuWorkerPackageTests(unittest.TestCase):
+    def test_source_manifest_preserves_v1_boundary(self):
+        entries = module.sources()
+        required = {"function_app.py", "cpu_backend.py", "admin_store.py",
+                    "feature4_worker_handoff.py", "render_adapter.py",
+                    "hyperframes/render.mjs", "host.json"}
+        self.assertLessEqual(required, set(entries))
+        self.assertNotIn("render_worker.py", entries)
+        self.assertNotIn("http_api.py", entries)
+        self.assertEqual(len(entries), len(set(entries)))
+        for member in entries:
+            self.assertTrue(member and ".." not in Path(member).parts)
 
+    def test_source_only_preflight_requires_no_hosted_credentials(self):
+        run = subprocess.run([sys.executable, str(PACKAGE), "--check"],
+                             capture_output=True, text=True, timeout=20)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("PASS Feature4 isolated worker sources", run.stdout)
 
-def test_cold_source_check_runs_with_no_hosted_credentials_or_binaries():
-    result = subprocess.run([sys.executable, str(PACKAGE), "--check"],
-                            capture_output=True, text=True, timeout=20)
-    assert result.returncode == 0, result.stderr
-    assert "PASS Feature4 isolated worker sources" in result.stdout
+    def test_build_without_pinned_native_dependencies_must_refuse(self):
+        class Args:
+            node = ffmpeg = ffprobe = python_site_packages = puppeteer_cache = output = None
+        with self.assertRaises((TypeError, ValueError)):
+            module.build(Args())
 
-
-def test_zip_build_requires_pinned_binaries_and_native_python_minor():
-    class Args:
-        node = ffmpeg = ffprobe = python_site_packages = puppeteer_cache = output = None
-    with pytest.raises((TypeError, ValueError)):
-        module.build(Args())
-
-
-def test_native_worker_does_not_change_v1_release_manifest():
-    v1 = (ROOT / "scripts" / "deploy" / "package.py").read_text(encoding="utf-8")
-    assert 'RUNTIME_VIDEO_MODULES = frozenset({"render", "probe", "asset_preflight"})' in v1
-    isolated = (ROOT / "azure-functions" / "feature4-cpu-worker" /
-                "function_app.py").read_text(encoding="utf-8")
-    assert "retail-reel-render" not in isolated
-    assert "PUPPETEER_EXECUTABLE_PATH" in isolated
-    assert "_DenyRedirects" in isolated
+    def test_native_worker_not_silently_added_to_protected_v1_zip(self):
+        old = (ROOT / "scripts" / "deploy" / "package.py").read_text(encoding="utf-8")
+        self.assertIn(
+            'RUNTIME_VIDEO_MODULES = frozenset({"render", "probe", "asset_preflight"})',
+            old)
+        isolated = (ROOT / "azure-functions" / "feature4-cpu-worker" /
+                    "function_app.py").read_text(encoding="utf-8")
+        self.assertNotIn("retail-reel-render", isolated)
+        self.assertIn("PUPPETEER_EXECUTABLE_PATH", isolated)
+        self.assertIn("_DenyRedirects", isolated)
