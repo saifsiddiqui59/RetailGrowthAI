@@ -127,8 +127,7 @@ begin
       where plan_id='f5300000-0000-4000-8000-000000000001')<>1
     or (select count(*) from public.shop_usage_reservations
       where operation='render' and job_id=(answer->>'job_id')::uuid)<>1
-    or (select count(*) from retail_private.feature4_cpu_outbox
-      where job_id=(answer->>'job_id')::uuid and state='PENDING')<>1
+
   then raise exception 'FAIL: job, quota and private outbox not atomic'; end if;
   if public.feature4_submit_cpu_render(plan_id,'0'::text) is not null then
     raise exception 'FAIL: stale digest accepted'; end if;
@@ -183,6 +182,16 @@ begin
 end $test$;
 
 reset role;
+-- Private outbox is service-only: inspect it as DB owner, never through a
+-- browser JWT. Verify it is the exact single transactionally created record.
+do $test$
+begin
+  if (select count(*) from retail_private.feature4_cpu_outbox o
+    join public.feature4_cpu_render_jobs j on j.id=o.job_id
+    where j.plan_id='f5300000-0000-4000-8000-000000000001'
+      and o.state='PENDING')<>1 then
+    raise exception 'FAIL: private outbox not inserted atomically'; end if;
+end $test$;
 -- After an owned-media license has changed, EVEN idempotent readback fails.
 update public.media_assets set license_name='unverified'
 where id='f5200000-0000-4000-8000-000000000001';
