@@ -166,13 +166,19 @@ end $$;
 reset role;
 set local role anon;
 select set_config('request.jwt.claims','{"role":"anon"}',true);
-do $$
+do $
+declare denied boolean := false;
 begin
-  if public.feature4_review_cpu_plan(
-      'f4300000-0000-4000-8000-000000000001',
-      '63aa02ddf00c76b7d0e65068dc14176f302d733802731cc7867051b54180b5c4')
-    is not null then raise exception 'FAIL: anonymous approved creative plan'; end if;
-end $$;
+  begin
+    if public.feature4_review_cpu_plan(
+        'f4300000-0000-4000-8000-000000000001',
+        '63aa02ddf00c76b7d0e65068dc14176f302d733802731cc7867051b54180b5c4')
+      is not null then raise exception 'FAIL: anonymous approved creative plan'; end if;
+  exception when insufficient_privilege then denied:=true; end;
+  if not denied then
+    raise exception 'FAIL: anonymous function EXECUTE was unexpectedly granted';
+  end if;
+end $;
 reset role;
 rollback;
 \echo 'PASS: F2→F4 persisted SHA, real owner review/revoke, foreign and viewer denial, RLS revocation'
