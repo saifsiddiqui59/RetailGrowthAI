@@ -2,6 +2,9 @@
 -- Runs ONLY in disposable Supabase CI; never hosted DEV/PROD.
 \set ON_ERROR_STOP on
 \i supabase/candidates/feature4_cpu_render_jobs_20261121.sql
+\i supabase/candidates/feature4_cpu_worker_claim_20261122.sql
+\i supabase/candidates/feature4_cpu_worker_outbox_20261122.sql
+\i supabase/candidates/feature4_cpu_worker_finish_20261122.sql
 begin;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
 values
@@ -132,6 +135,53 @@ begin
   if public.feature4_submit_cpu_render(plan_id,'0'::text) is not null then
     raise exception 'FAIL: stale digest accepted'; end if;
 end $test$;
+
+-- Worker service role may claim exactly one dedicated outbox event; stale
+-- ACK/lease may not finalize or steal any other worker's claim.
+reset role;
+set local role service_role;
+do $worker$
+declare evt jsonb; item jsonb; job jsonb; token uuid;
+        jid uuid := 'f5300000-0000-4000-8000-000000000001';
+        render_id uuid;
+begin
+ evt:=public.feature4_claim_cpu_outbox(10);
+ if pg_catalog.jsonb_array_length(evt)<>1 then
+    raise exception 'FAIL: F4 independent outbox missing'; end if;
+ item:=evt->0;
+ if public.feature4_confirm_cpu_outbox(
+      (item->>'id')::uuid,gen_random_uuid(),true) then
+    raise exception 'FAIL: stale outbox ACK succeeded'; end if;
+ if not public.feature4_confirm_cpu_outbox(
+      (item->>'id')::uuid,(item->>'lease_token')::uuid,true) then
+    raise exception 'FAIL: rightful outbox ACK was denied'; end if;
+ select id into render_id from public.feature4_cpu_render_jobs where plan_id=jid;
+ job:=public.feature4_claim_cpu_render(render_id);
+ if job is null or job->>'preset'<>'feature4_reel_v1'
+      or job->>'status'<>'RUNNING'
+      or public.feature4_claim_cpu_render(render_id) is not null then
+    raise exception 'FAIL: lease is not exclusive'; end if;
+ token:=(job->>'render_claim_token')::uuid;
+ if not public.feature4_cpu_claim_current(render_id,token)
+      or public.feature4_cpu_claim_current(render_id,gen_random_uuid())
+      or public.feature4_complete_cpu_render(
+           render_id,gen_random_uuid(),'wrong','0'::text) then
+    raise exception 'FAIL: forged or live worker lease validation'; end if;
+ if public.feature4_complete_cpu_render(
+       render_id,token,'/foreign/key.mp4',repeat('a',64)) then
+    raise exception 'FAIL: completion accepted a foreign object path'; end if;
+ if public.feature4_fail_cpu_render(render_id,gen_random_uuid(),'RENDER_FAILED') then
+    raise exception 'FAIL: stale failure overwrote current claim'; end if;
+ if not public.feature4_fail_cpu_render(render_id,token,'RENDER_FAILED') then
+    raise exception 'FAIL: current worker failed to release lease for retry'; end if;
+ if (select status from public.feature4_cpu_render_jobs where id=render_id)<>'QUEUED'
+   or (select state from retail_private.feature4_cpu_outbox where job_id=render_id)<>'PENDING'
+ then raise exception 'FAIL: bounded retry not persisted'; end if;
+end $worker$;
+reset role;
+set local role authenticated;
+select set_config('request.jwt.claims',
+ '{"role":"authenticated","sub":"f5010000-0000-4000-8000-000000000001","is_anonymous":false}',true);
 
 -- Browser can see only same-shop job status, cannot directly create jobs.
 do $test$
