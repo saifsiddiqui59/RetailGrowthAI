@@ -8,6 +8,7 @@ import { Badge } from '../../components/ui/badge.jsx'
 import { Button } from '../../components/ui/button.jsx'
 import { Card } from '../../components/ui/card.jsx'
 import { Skeleton } from '../../components/ui/skeleton.jsx'
+import CreativePlanReview from '../video/CreativePlanReview.jsx'
 
 const STAGES = [
   { step: '01', title: 'Discover a trend', description: 'Review trend evidence and save a content idea for your business.',
@@ -100,6 +101,9 @@ export default function CreativeLaunchpad() {
         </ol>
       </Card>
     </div>
+    {configured && user && <CreativePlanReview key={shopId || 'none'}
+      client={client} user={user} shopId={shopId}
+      role={shops.find(item => item.id === shopId)?.membership?.role || null} />}
     <Card className="panel rg-creative-notice">
       <strong>Publishing is a separate step.</strong>
       <p>Opening these tools does not schedule or publish anything. Poster/video cloud rendering, AI content generation, social connections and delivery receipts depend on their own validated backend workflows. No credits are spent by this page.</p>

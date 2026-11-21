@@ -722,6 +722,63 @@ export function createRetailClient({
       nextOffset: rows.length === 101 ? offset + 100 : null,
     }
   }
+  // F2-origin creative proposals are issued ONLY by a verified service and
+  // exposed read-only through same-shop PostgREST RLS. A user cannot insert
+  // or invent a proposal in this client, even to approve their own content.
+  async function listFeature4CreativePlans(shopId) {
+    if (!UUID_V4.test(shopId || '')) throw Error('Verified business required')
+    const rows = await send('/rest/v1/feature4_creative_plans', {
+      query: {
+        select: 'id,shop_id,campaign_id,proposal,proposal_sha256,state,review_sha256,approved_direction,created_at',
+        shop_id: 'eq.' + shopId, order: 'created_at.desc,id.desc', limit: '21',
+      }, token: await accessToken(),
+    })
+    if (!Array.isArray(rows) || rows.length > 21 || rows.some(item =>
+      !item || !UUID_V4.test(item.id || '') || item.shop_id !== shopId ||
+      !UUID_V4.test(item.campaign_id || '') ||
+      !['DRAFT', 'APPROVED', 'REVOKED'].includes(item.state) ||
+      typeof item.proposal_sha256 !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(item.proposal_sha256) ||
+      !item.proposal || typeof item.proposal !== 'object' ||
+      item.proposal.approved !== false || item.proposal.shop_id !== shopId)) {
+      throw Error('Creative proposal RLS response failed business validation')
+    }
+    return rows.slice(0, 20)
+  }
+
+  async function reviewFeature4CreativePlan(shopId, planId, sourceSha256) {
+    if (!UUID_V4.test(shopId || '') || !UUID_V4.test(planId || '') ||
+        !/^[a-f0-9]{64}$/.test(sourceSha256 || '')) {
+      throw Error('Current verified creative source revision required')
+    }
+    // One-off explicit retailer action: NEVER replay POST after uncertainty.
+    // SQL itself re-locks actor+current source, media rights, and approval SHA.
+    const output = await send('/rest/v1/rpc/feature4_review_cpu_plan', {
+      method: 'POST', token: await accessToken(),
+      body: { p_plan_id: planId, p_expected_source_sha256: sourceSha256 },
+    })
+    if (!output || output.shop_id !== shopId || output.approval_id !== planId ||
+        output.status !== 'APPROVED' ||
+        !UUID_V4.test(output.campaign_id || '') ||
+        !/^[a-f0-9]{64}$/.test(output.review_hash || '')) {
+      throw Error('Approval not acknowledged. Recheck private plan history before retrying.')
+    }
+    return output
+  }
+
+  async function revokeFeature4CreativePlan(shopId, planId) {
+    if (!UUID_V4.test(shopId || '') || !UUID_V4.test(planId || '')) {
+      throw Error('Current business and creative review required')
+    }
+    const result = await send('/rest/v1/rpc/feature4_revoke_cpu_plan', {
+      method: 'POST', token: await accessToken(), body: { p_plan_id: planId },
+    })
+    if (result !== true) {
+      throw Error('Revocation was not acknowledged. Recheck current authorization.')
+    }
+    return { shop_id: shopId, plan_id: planId, status: 'REVOKED' }
+  }
+
   async function listMediaAssets(shopId) {
     if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/.test(shopId || '')) throw new Error('Invalid shop ID')
     const rows = await table('media_assets', {
@@ -736,7 +793,7 @@ export function createRetailClient({
     listShops, createShop, getShopSubscription, getShopMetrics, getShopUsage,
     isPlatformAdmin, getPlatformSummary, listPlatformShops, setPlatformSubscription,
     listPlatformNotifications, setPlatformNotificationRead, listPlatformSubscriptionWatch,
-    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listMediaAssets, listMediaAssetsPage, listMediaAssetsKeysetPage, listRetailerInbox, setRetailerInboxRead, downloadPrivateImage, uploadImageAsset, uploadModelOriginal,
+    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listFeature4CreativePlans, reviewFeature4CreativePlan, revokeFeature4CreativePlan, listMediaAssets, listMediaAssetsPage, listMediaAssetsKeysetPage, listRetailerInbox, setRetailerInboxRead, downloadPrivateImage, uploadImageAsset, uploadModelOriginal,
   }
 }
 
