@@ -665,6 +665,15 @@ if os.environ.get("RETAIL_FEATURE4_CPU_WORKER_ENABLED") == "true":
         # A malformed queue message is never interpreted as a worker grant.
         process_feature4_cpu_render(job_id, admin, media)
 
+    @app.queue_trigger(
+        arg_name="message", queue_name="retail-feature4-cpu-render-poison",
+        connection="RETAIL_STORAGE")
+    def feature4_cpu_poison_message(message: func.QueueMessage):
+        from recovery_runtime import record_feature4_cpu_poison
+        admin, _, _ = _feature4_cpu_dependencies()
+        # No job status or credit mutation from a possibly malformed payload.
+        record_feature4_cpu_poison(admin, message.get_body())
+
     @app.timer_trigger(
         schedule="0 */2 * * * *", arg_name="timer", run_on_startup=False)
     def feature4_cpu_dispatch_timer(timer: func.TimerRequest):
