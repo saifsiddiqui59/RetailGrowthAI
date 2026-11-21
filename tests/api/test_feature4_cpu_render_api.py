@@ -9,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "azure-functions" / "campaign-api"))
 sys.path.insert(0, str(ROOT / "video-engine"))
-from feature4_cpu_render_api import Feature4CpuRenderAPI  # noqa: E402
+from feature4_plan_review_api import Feature4CpuRenderAPI  # noqa: E402
 from http_api import HTTPAPI  # noqa: E402
 from security import AuthenticationError  # noqa: E402
 from tenant_store import StorageUnavailable, SubscriptionDenied  # noqa: E402

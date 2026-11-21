@@ -22,9 +22,8 @@ from feature3_v2_api import Feature3V2API
 from feature3_v2_store import Feature3V2Store
 from poster_admin import PosterAdmin
 from poster_queue import AzurePosterQueue
-from feature4_plan_review_api import Feature4PlanReviewAPI
+from feature4_plan_review_api import Feature4PlanReviewAPI, Feature4CpuRenderAPI
 from feature4_plan_issue_api import Feature4PlanIssueAPI
-from feature4_cpu_render_api import Feature4CpuRenderAPI
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
