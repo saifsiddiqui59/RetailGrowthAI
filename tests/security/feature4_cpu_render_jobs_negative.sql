@@ -5,6 +5,7 @@
 \i supabase/candidates/feature4_cpu_worker_claim_20261122.sql
 \i supabase/candidates/feature4_cpu_worker_outbox_20261122.sql
 \i supabase/candidates/feature4_cpu_worker_finish_20261122.sql
+\i supabase/candidates/feature4_cpu_worker_poison_20261122.sql
 begin;
 insert into auth.users(id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
 values
@@ -172,6 +173,14 @@ begin
     raise exception 'FAIL: completion accepted a foreign object path'; end if;
  if public.feature4_fail_cpu_render(render_id,gen_random_uuid(),'RENDER_FAILED') then
     raise exception 'FAIL: stale failure overwrote current claim'; end if;
+ if not public.feature4_record_cpu_poison(repeat('b',64),render_id)
+    or (select count(*) from retail_private.feature4_cpu_poison_receipts
+        where fingerprint=repeat('b',64))<>1 then
+   raise exception 'FAIL: durable F4 CPU poison receipt absent'; end if;
+ if not public.feature4_record_cpu_poison(repeat('b',64),render_id)
+    or (select count(*) from retail_private.feature4_cpu_poison_receipts
+        where fingerprint=repeat('b',64))<>1 then
+   raise exception 'FAIL: F4 poison replay was not idempotent'; end if;
  if not public.feature4_fail_cpu_render(render_id,token,'RENDER_FAILED') then
     raise exception 'FAIL: current worker failed to release lease for retry'; end if;
  if (select status from public.feature4_cpu_render_jobs where id=render_id)<>'QUEUED'
