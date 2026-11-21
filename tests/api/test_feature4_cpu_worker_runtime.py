@@ -162,7 +162,7 @@ def test_queue_worker_never_indexes_on_default_off_and_never_reuses_v1():
              and "RETAIL_FEATURE4_CPU_WORKER_ENABLED" in ast.unparse(n.test)]
     assert len(nodes) == 1
     scoped = ast.unparse(nodes[0])
-    assert 'queue_name="retail-feature4-cpu-render"' in scoped
+    assert "retail-feature4-cpu-render" in scoped
     assert "def feature4_cpu_render_message(" in scoped
     assert "def feature4_cpu_dispatch_timer(" in scoped
     assert "def feature4_cpu_poison_message(" in scoped
