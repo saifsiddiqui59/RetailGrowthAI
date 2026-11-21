@@ -156,7 +156,11 @@ def test_feature4_worker_adapter_does_not_use_v1_render_status_or_claim():
 
 
 def test_queue_worker_never_indexes_on_default_off_and_never_reuses_v1():
-    app = (ROOT / "azure-functions" / "campaign-api" / "function_app.py")
+    legacy = (ROOT / "azure-functions" / "campaign-api" / "function_app.py")
+    text = legacy.read_text(encoding="utf-8")
+    assert "def feature4_cpu_render_message(" not in text
+    assert "def feature4_cpu_dispatch_timer(" not in text
+    app = (ROOT / "azure-functions" / "feature4-cpu-worker" / "function_app.py")
     tree = ast.parse(app.read_text(encoding="utf-8"))
     nodes = [n for n in tree.body if isinstance(n, ast.If)
              and "RETAIL_FEATURE4_CPU_WORKER_ENABLED" in ast.unparse(n.test)]
