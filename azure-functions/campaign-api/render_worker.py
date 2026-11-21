@@ -173,7 +173,8 @@ class _VerifiedFeature4Media:
             for block in iter(lambda: fd.read(1024 * 1024), b""):
                 h.update(block)
         key = self.media.upload(shop_id, job_id, path, lease_token=lease_token)
-        self.media.verify_uploaded_mp4(shop_id, key, h.hexdigest())
+        if self.media.verify_uploaded_mp4(shop_id, key, h.hexdigest()) is not True:
+            raise StorageUnavailable("private output was not SHA verified")
         return key
 
 
