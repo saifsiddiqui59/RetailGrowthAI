@@ -186,10 +186,13 @@ begin
     then raise exception 'FAIL: revoked approval became active again'; end if;
 end $$;
 
--- Revoked membership immediately stops reads and any future authority.
+-- A backend role performs the test-only revocation; an authenticated
+-- browser must NOT have direct membership UPDATE privilege.
+reset role;
 update public.shop_memberships set active=false
  where shop_id='f4000000-0000-4000-8000-000000000001'
    and user_id='f4010000-0000-4000-8000-000000000003';
+set local role authenticated;
 select set_config('request.jwt.claims','{"role":"authenticated","sub":"f4010000-0000-4000-8000-000000000003","is_anonymous":false}',true);
 do $$
 begin
