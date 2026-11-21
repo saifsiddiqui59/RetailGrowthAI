@@ -348,8 +348,6 @@ class AdminStore:
 
     def feature4_load_bundle(self, claim):
         """Build a CPU-only manifest from actual service-role DB reads, never queue bytes."""
-        from feature2_feature4_bridge import compile_feature2_direction
-
         jid, sid = canonical_uuid(claim["id"]), canonical_uuid(claim["shop_id"])
         pid = canonical_uuid(claim["plan_id"])
         if not self.feature4_claim_current(claim):
@@ -409,11 +407,12 @@ class AdminStore:
                       "primary_color": "#202020", "logo_asset_id": None},
             "assets": media,
         }
-        compiled = compile_feature2_direction(
-            source, snapshot, reviewed_hash=p["review_sha256"])
         if not self.feature4_claim_current(claim):
             raise StorageUnavailable("render claim expired while loading bundle")
-        return compiled["bundle"]
+        # Native F2-to-F4 compiler is deliberately NOT in the existing v1
+        # Functions ZIP. Return trusted rows to the isolated F4 worker runtime.
+        return {"direction": source, "snapshot": snapshot,
+                "reviewed_hash": p["review_sha256"]}
 
     def feature4_outbox_claim(self, limit=10):
         result = self.request("rpc/feature4_claim_cpu_outbox", method="POST",
