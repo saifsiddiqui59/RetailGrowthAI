@@ -1710,3 +1710,8 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 1. Complete the protected Y1 read-only original-package/owner/20-of-20 audit via #1068. Do not repeat a package or setting write unless current active package, saved baseline, old run owner, Oryx flags, exact two index and no customer settings are proven.
 2. Review/test the exact-legacy-only recovery source candidate and its negative tests, obtain exact-head 4/4 and merge/main 4/4 before any second protected bounded attempt. Deny any unknown owner, changed package, foreign storage account or failed health.
 3. Only after a safe source and an exact main/owner protected release, require hosted 5/5 and two idle negative-auth windows, real signed two-shop RLS, original write/media/queue/billing and p95/p99 before traffic cutover or Issue #249 closure.
+
+## 2026-11-22 — #249 owner-directed protected retry after confirmed legacy package
+1. Fresh main CI 4/4 on #1069 `c7ff1e4d`; verify one-shot dispatch bridge source pins to exact legacy adoption test/code and its own exact-head 4/4. Then approve only scoped DEV Y1 target via existing protected workflow and original URI rollback; do not bypass storage OAuth restrictions on separate private Blob path.
+2. Inspect actual attempt: mode transition must record ownership correctly before official pinned Azure Functions Action; require postpublisher Oryx flags, exactly 5 indexed, 20/20 two real HTTP windows with 240s idle and four handler-marked negative JWT GETs; independent restore if failure.
+3. Need signed own/foreign/revoked shop RLS and original POST/PATCH/private media/queue/billing and p95/p99 parity before any traffic migration or #249 closure. Original Flex, PROD/WineShopPOS/GPU unchanged.
