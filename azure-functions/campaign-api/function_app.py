@@ -23,6 +23,7 @@ from feature3_v2_store import Feature3V2Store
 from poster_admin import PosterAdmin
 from poster_queue import AzurePosterQueue
 from feature4_plan_review_api import Feature4PlanReviewAPI
+from feature4_plan_issue_api import Feature4PlanIssueAPI
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
@@ -56,6 +57,10 @@ def build_api():
                    feature3_api=feature3_api,
                    feature4_review_api=(Feature4PlanReviewAPI(store)
                      if os.environ.get("RETAIL_FEATURE4_PLAN_REVIEW_ENABLED") == "true"
+                     else None),
+                   feature4_issue_api=(Feature4PlanIssueAPI(store,admin)
+                     if admin is not None and
+                     os.environ.get("RETAIL_FEATURE4_PLAN_ISSUE_ENABLED") == "true"
                      else None))
 
 
@@ -289,6 +294,12 @@ def download_feature4_render(req: func.HttpRequest) -> func.HttpResponse:
 # The review UI must be signed-in and deliberately confirm an exact
 # service-issued F2 proposal SHA. Disabled until the reviewed SQL migration
 # is deployed to a suitably isolated DEV environment.
+@app.route(route="campaigns/{campaign_id}/feature4-plans", methods=["POST"])
+def issue_feature4_creative_plan(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/campaigns/" + req.route_params["campaign_id"]
+                    + "/feature4-plans")
+
+
 @app.route(route="feature4-creative-plans/{plan_id}", methods=["GET"])
 def read_feature4_creative_plan(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch(req, "/feature4-creative-plans/" + req.route_params["plan_id"])
