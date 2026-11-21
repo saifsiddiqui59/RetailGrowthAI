@@ -164,3 +164,5 @@ rollback;
 -- The ordered Feature #2 migration is automatically applied by local Supabase;
 -- exercise its tenant-RLS and service-only invariants after foundational tests.
 \i tests/security/feature2_trends_negative.sql
+-- Verify actual F4 source review SQL via the already-mandatory disposable DB CI.
+\i tests/security/feature4_reviewed_direction_negative.sql
