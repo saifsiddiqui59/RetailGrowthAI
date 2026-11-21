@@ -67,3 +67,42 @@ class PrivateMedia:
         except (URLError, OSError) as exc:
             raise StorageUnavailable("private media upload unavailable") from exc
         return key
+
+
+    def verify_uploaded_mp4(self, shop_id, key, expected_sha256):
+        """Read back the private remote object before registering output SHA.
+
+        A successful POST alone does not attest that cloud bytes match the
+        verified local H264/AAC result. Never follow a privileged HTTP redirect.
+        """
+        import hashlib
+        import re
+        from admin_store import _DenyRedirects
+        from urllib.request import build_opener
+        if (not isinstance(expected_sha256, str) or
+                re.fullmatch(r"[0-9a-f]{64}", expected_sha256) is None):
+            raise StorageUnavailable("invalid private output checksum")
+        path = self._path(shop_id, key)
+        client = build_opener(_DenyRedirects()).open if self.transport is urlopen else self.transport
+        request = Request(
+            self.origin + "/storage/v1/object/" + BUCKET + "/" + path,
+            headers=backend_headers(self.secret))
+        digest = hashlib.sha256()
+        total = 0
+        try:
+            with client(request, timeout=60) as response:
+                if response.status != 200:
+                    raise StorageUnavailable("private output readback rejected")
+                while True:
+                    block = response.read(min(1024 * 1024, MAX_OUTPUT + 1 - total))
+                    if not block:
+                        break
+                    total += len(block)
+                    if total > MAX_OUTPUT:
+                        raise StorageUnavailable("private output readback exceeded limit")
+                    digest.update(block)
+        except (HTTPError, URLError, OSError) as exc:
+            raise StorageUnavailable("private output readback unavailable") from exc
+        if total < 1024 or digest.hexdigest() != expected_sha256:
+            raise StorageUnavailable("uploaded private MP4 checksum mismatch")
+        return True
