@@ -591,7 +591,7 @@ class TenantStore:
         """Current RLS-scoped v2 job; a foreign shop must read no row."""
         jid = canonical_uuid(job_id)
         rows = self._request("feature4_cpu_render_jobs", token, query={
-            "select": "id,shop_id,campaign_id,plan_id,status,output_asset_id,error_code",
+            "select": "id,shop_id,campaign_id,plan_id,approved_review_sha256,status,output_asset_id,error_code",
             "id": "eq." + jid, "limit": "1",
         })
         if type(rows) is not list or len(rows) > 1:
