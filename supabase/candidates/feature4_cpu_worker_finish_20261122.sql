@@ -6,7 +6,8 @@ create function public.feature4_fail_cpu_render(
  p_id uuid,p_token uuid,p_code text,p_permanent boolean default false)
 returns boolean language plpgsql volatile security definer set search_path=''
 as $f$
-declare j public.feature4_cpu_render_jobs%rowtype; terminal boolean;
+declare j public.feature4_cpu_render_jobs%rowtype;
+        terminal boolean; sends integer;
 begin
  if p_id is null or p_token is null or p_code is null or
     p_code !~ '^[A-Z_]{3,64}$' or p_permanent is null
@@ -15,7 +16,9 @@ begin
  if not found or j.status<>'RUNNING' or
    j.render_claim_token is distinct from p_token or
    j.render_lease_until<=now() then return false; end if;
- terminal:=p_permanent or j.attempts>=3;
+ select attempts into sends from retail_private.feature4_cpu_outbox
+   where job_id=p_id for update;
+ terminal:=p_permanent or j.attempts>=3 or coalesce(sends,8)>=8;
  update public.feature4_cpu_render_jobs set
    status=case when terminal then 'FAILED' else 'QUEUED' end,
    error_code=p_code,render_claim_token=null,render_lease_until=null
