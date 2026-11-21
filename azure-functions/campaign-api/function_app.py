@@ -261,6 +261,27 @@ def create_render(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch(req, "/campaigns/" + req.route_params["campaign_id"] + "/renders")
 
 
+# Additive v2 F2→F4 entry points. Registration alone never enables a render:
+# HTTPAPI.feature4_api is None by default, and only a reviewed atomic store
+# may later be injected. All calls flow through the same JWT verifier.
+# Do not reroute legacy /campaigns/{id}/renders or start a GPU/provider.
+@app.route(route="campaigns/{campaign_id}/feature4-renders", methods=["POST"])
+def create_feature4_render(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/campaigns/" + req.route_params["campaign_id"]
+                    + "/feature4-renders")
+
+
+@app.route(route="feature4-render-jobs/{job_id}", methods=["GET"])
+def get_feature4_render(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/feature4-render-jobs/" + req.route_params["job_id"])
+
+
+@app.route(route="feature4-render-jobs/{job_id}/download", methods=["GET"])
+def download_feature4_render(req: func.HttpRequest) -> func.HttpResponse:
+    return dispatch(req, "/feature4-render-jobs/" + req.route_params["job_id"]
+                    + "/download")
+
+
 @app.route(route="render-jobs/{job_id}", methods=["GET"])
 def get_render(req: func.HttpRequest) -> func.HttpResponse:
     return dispatch(req, "/render-jobs/" + req.route_params["job_id"])
