@@ -603,3 +603,23 @@ class TenantStore:
                 not self.member(token, user_id, row["shop_id"], write=False)):
             return None
         return row
+
+    def feature4_media(self, token, shop_id, asset_id):
+        """Complete JWT/RLS media identity for current v2 rights and output."""
+        sid, aid = canonical_uuid(shop_id), canonical_uuid(asset_id)
+        rows = self._request("media_assets", token, query={
+            "select": "id,shop_id,storage_bucket,object_path,mime_type,source,license_name",
+            "shop_id": "eq." + sid, "id": "eq." + aid, "limit": "1",
+        })
+        if type(rows) is not list or len(rows) > 1:
+            raise StorageUnavailable("ambiguous Feature4 media")
+        if not rows:
+            return None
+        item = rows[0]
+        if (type(item) is not dict or item.get("id") != aid
+                or item.get("shop_id") != sid
+                or item.get("storage_bucket") != "retailgrowth-media"
+                or not isinstance(item.get("object_path"), str)
+                or not item["object_path"].startswith(sid + "/")):
+            return None
+        return item
