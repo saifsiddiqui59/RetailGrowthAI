@@ -35,6 +35,8 @@ create table public.feature4_creative_plans (
   reviewed_at timestamptz,
   revoked_at timestamptz,
   created_at timestamptz not null default now(),
+  -- Prevent ambiguous or double-issued plan revisions across HTTP ACK loss.
+  unique(shop_id,proposal_sha256),
   foreign key(shop_id,campaign_id) references public.campaigns(shop_id,id),
   check (
     (state='DRAFT' and approved_direction is null and review_sha256 is null
