@@ -27,6 +27,26 @@ class F4CpuWhatifTypeTests(unittest.TestCase):
         for secret in ("private-secret", "retailprivate", "password", "internal"):
             self.assertNotIn(secret, typ)
 
+    def test_protected_workflow_summary_is_type_only_and_still_denies_unknowns(self):
+        from pathlib import Path
+        repo = Path(__file__).resolve().parents[2]
+        workflow = (repo / ".github/workflows/retail-dev-feature4-cpu-host-once.yml").read_text()
+        for required in (
+            "environment: dev",
+            "if len(changes) > 50:",
+            "from collections import Counter",
+            "classify_resource_type(c.get('resourceId'))",
+            "ARM what-if TYPE=",
+            "ACTION=",
+            "COUNT=",
+            "raise SystemExit('BLOCKED: unexpected resource in F4 what-if')",
+            "if action not in ('Create','NoChange','Ignore')",
+        ):
+            self.assertIn(required, workflow)
+        self.assertNotIn("print(rid)", workflow)
+        self.assertNotIn("print(c.get('resourceId'))", workflow)
+        self.assertNotIn("az role assignment create", workflow)
+
     def test_unexpected_microsoft_provider_type_is_safe_metadata_only(self):
         resource = ("/subscriptions/sensitive-id/resourceGroups/private-rg/providers/"
                     "Microsoft.Resources/deployments/customer-deploy")
