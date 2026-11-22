@@ -20,6 +20,7 @@ def observation():
             "host": m.Y1_ORIGIN, "state": "Running",
             "app_setting_names": sorted(m.CONNECTIONS),
             "same_retailgrowth_dev_connections_as_flex": True,
+            "cors":{"allowedOrigins":[m.FRONTEND],"supportCredentials":False},
             "indexed_functions": sorted(
                 m.CORE_FUNCTIONS | m.QUEUE_FUNCTIONS | m.TIMER_FUNCTIONS),
             "unauthenticated_protected_endpoints_denied": True,
@@ -92,6 +93,17 @@ class Y1NoPrematureFlexStop(unittest.TestCase):
         state["render_worker"]["private_media_and_ffmpeg_verified"] = False
         self.assertIn("long_render_worker_incompatible_with_classic_y1_600s_limit",
                       m.evaluate(state))
+
+    def test_public_api_exact_development_cors_required(self):
+        state=observation()
+        state["y1"]["cors"]["allowedOrigins"]=["*"]
+        self.assertIn("y1_exact_dev_frontend_cors",m.evaluate(state))
+        state=observation()
+        state["y1"]["cors"]["allowedOrigins"]=["https://foreign.example"]
+        self.assertIn("y1_exact_dev_frontend_cors",m.evaluate(state))
+        state=observation()
+        state["y1"]["cors"]["supportCredentials"]=True
+        self.assertIn("y1_exact_dev_frontend_cors",m.evaluate(state))
 
     def test_untransferred_customer_traffic_blocks(self):
         state = observation()
