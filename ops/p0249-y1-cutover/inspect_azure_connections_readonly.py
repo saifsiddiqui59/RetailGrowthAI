@@ -109,9 +109,25 @@ def inspect(runner=subprocess.run):
                        "functions":names}
     original = result[FLEX]
     target = result[Y1]
-    matching = all(original["settings"].get(name) and
-                   target["settings"].get(name) == original["settings"][name]
-                   for name in CONNECTIONS)
+    # Only RetailGrowthAI application data/queue backends should match.
+    # AzureWebJobsStorage is host-internal state and may correctly differ
+    # between separately managed Functions apps; do not couple its host locks.
+    shared = frozenset({
+        "RETAIL_SUPABASE_URL", "RETAIL_SUPABASE_PUBLISHABLE_KEY",
+        "RETAIL_SUPABASE_SERVICE_ROLE_KEY", "RETAIL_STORAGE",
+    })
+    matching = (
+        CONNECTIONS.issubset(set(target["settings"]))
+        and original["settings"].get("RETAIL_SUPABASE_URL")
+            == "https://jeearzffnjbvghwjjjrf.supabase.co"
+        and target["settings"].get("RETAIL_SUPABASE_URL")
+            == "https://jeearzffnjbvghwjjjrf.supabase.co"
+        and all(original["settings"].get(name) and
+                target["settings"].get(name) == original["settings"][name]
+                for name in shared)
+        and target["settings"].get("FUNCTIONS_WORKER_RUNTIME") == "python"
+        and bool(target["settings"].get("AzureWebJobsStorage"))
+    )
     report = {
         "y1_running": target["state"] == "Running",
         "flex_running": original["state"] == "Running",
