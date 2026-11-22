@@ -17,6 +17,7 @@ on:
         options:
           - auth-login-only
           - browser-upload
+          - browser-upload-synthetic
           - poster
           - feature2
           - feature2-prompt
@@ -38,7 +39,8 @@ jobs:
     env:
       RGAI_DEV_CANARY_APPROVAL: AUTHORIZED_RETAILGROWTHAI_DEV_ONLY
       RGAI_DEV_LOGIN_ONLY: ${{ inputs.mode == 'auth-login-only' && '1' || '0' }}
-      RGAI_DEV_PLAYWRIGHT_UPLOAD: ${{ (inputs.mode == 'browser-upload' || inputs.mode == 'node-browser-reel') && '1' || '0' }}
+      RGAI_DEV_SYNTHETIC_SHOP_FIXTURE: ${{ inputs.mode == 'browser-upload-synthetic' && '1' || '0' }}
+      RGAI_DEV_PLAYWRIGHT_UPLOAD: ${{ (inputs.mode == 'browser-upload' || inputs.mode == 'browser-upload-synthetic' || inputs.mode == 'node-browser-reel') && '1' || '0' }}
       RGAI_DEV_FEATURE2_CANARY: ${{ inputs.mode == 'feature2' && '1' || '0' }}
       RGAI_DEV_FEATURE2_PROMPT_CANARY: ${{ inputs.mode == 'feature2-prompt' && '1' || '0' }}
       RGAI_DEV_VIDEO_ARTIFACT_DIR: output/video-acceptance
@@ -50,12 +52,12 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Node for approved browser-upload mode
-        if: inputs.mode == 'auth-login-only' || inputs.mode == 'browser-upload' || inputs.mode == 'node-browser-reel'
+        if: inputs.mode == 'auth-login-only' || inputs.mode == 'browser-upload' || inputs.mode == 'browser-upload-synthetic' || inputs.mode == 'node-browser-reel'
         uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Install Chromium only for approved browser-upload mode
-        if: inputs.mode == 'auth-login-only' || inputs.mode == 'browser-upload' || inputs.mode == 'node-browser-reel'
+        if: inputs.mode == 'auth-login-only' || inputs.mode == 'browser-upload' || inputs.mode == 'browser-upload-synthetic' || inputs.mode == 'node-browser-reel'
         shell: bash
         run: |
           set -euo pipefail
@@ -105,7 +107,7 @@ jobs:
             python3 tests/e2e/retail_dev_canary_once.py
           fi
       - name: Upload only FFprobe-verified synthetic cloud Reel media after cleanup
-        if: always() && inputs.mode == 'browser-upload'
+        if: always() && (inputs.mode == 'browser-upload' || inputs.mode == 'browser-upload-synthetic')
         uses: actions/upload-artifact@v4
         with:
           name: retailgrowthai-dev-live-cloud-30s-reel
