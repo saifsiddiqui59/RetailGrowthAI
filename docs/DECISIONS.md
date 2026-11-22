@@ -1377,3 +1377,7 @@ The first F2→F4 JWT reviewer must refuse missing proposal/script approval flag
 
 ## 2026-11-22 — Worker upload uses captured regular-file descriptor bytes
 Private rendered MP4 upload must read from one `O_NOFOLLOW`/`O_NONBLOCK` descriptor and compare `fstat` before/after to final `lstat`, rejecting symlink swaps and non-regular sources before making any privileged storage HTTP POST. Do not trust prior `Path.stat` followed by a second open/read. This offline guard does not replace remote SHA-256 readback, SQL claim fencing, actual media rights or independent release approval.
+
+## 2026-11-22 — #249 Y1 staged HTTP transport and independent long CPU worker
+- Build Y1's first **full HTTP** package from canonical original backend source rather than recoding JWT/RLS, outbox, rights or feature handlers. Require original release ZIP verification, exact 37 registered HTTP functions (including newest reviewed F2→F4), exactly nine removed queue/timer functions, and original Y1 health; use classic Consumption-compatible HTTP-only host settings. Keep original Flex as sole background worker during this intermediate stage.
+- Classic Y1 Consumption 600s limit is incompatible with the current 780s CPU FFmpeg cap; require verified separate >=780s worker execution and single-lease handoff, not a silent timeout reduction or duplicate queue registration. All customer routing and protected stop must wait for independent end-to-end acceptance. Source CI/JSON cannot authorize destructive Flex operations or close #249.
