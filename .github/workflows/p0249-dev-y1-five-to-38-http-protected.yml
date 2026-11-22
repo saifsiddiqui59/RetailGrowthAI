@@ -160,8 +160,11 @@ jobs:
         with:
           app-name: rgai-dev-y1-p0249-d4e5ddbd
           package: ${{ runner.temp }}/release/y1-38-http-only.zip
-          scm-do-build-during-deployment: 'false'
-          enable-oryx-build: 'false'
+          # The sealed source ZIP includes requirements.txt but intentionally
+          # does NOT vendor .python_packages. Linux Y1 must let Oryx install
+          # pinned Python dependencies before host indexing.
+          scm-do-build-during-deployment: 'true'
+          enable-oryx-build: 'true'
       - name: Require exact hosted 38 HTTP-only index and five-route rollback URI
         shell: bash
         run: |
