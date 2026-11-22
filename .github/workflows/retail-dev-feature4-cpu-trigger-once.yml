@@ -1,0 +1,186 @@
+name: RetailGrowthAI F4 DEV private worker triggers (protected one-time)
+# Stage only an already sealed F4 CPU worker's 3 private triggers.
+# ORIGINAL customer API remains OFF; never activate rendering or GPU.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-feature4-cpu-trigger-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-f4cpu-private-worker-enable-once
+  cancel-in-progress: false
+jobs:
+  enable-private-worker:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      DEV_REF: jeearzffnjbvghwjjjrf
+      RG: rg-retailgrowth-dev
+      APP: rgai-dev-f4cpu-d4e5ddbd
+      ORIGINAL: rgai-dev-functions-d4e5ddbd
+      STORAGE: rgaid4e5ddbdf0d21d96
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RETAIL_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify actual DEV SQL/service identity and zero queued CPU jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/deploy/feature4_cpu_rest_schema_guard.py
+          python3 - <<'PY'
+          import os,urllib.request,urllib.error
+          from sys import path
+          path.insert(0,'scripts/deploy')
+          from feature4_cpu_rest_schema_guard import ROOT,_headers,NoRedirects
+          k=os.environ.get('RETAIL_SUPABASE_SERVICE_ROLE_KEY','')
+          h=_headers(k)
+          opener=urllib.request.build_opener(NoRedirects()).open
+          req=urllib.request.Request(ROOT+'/rest/v1/feature4_cpu_render_jobs?select=id&limit=1',
+                  headers=h,method='GET')
+          try:
+              with opener(req,timeout=20) as r:
+                  if r.status != 200 or r.read(2048) != b'[]':
+                      raise ValueError('CPU jobs exist or role denied')
+          except (ValueError,urllib.error.URLError, OSError):
+              raise SystemExit('BLOCKED: F4 DEV render job inventory is not empty/verified')
+          print('PASS: actual F4 service role, DB RPC and zero CPU jobs')
+          PY
+      - name: Login using preconfigured protected DEV Azure OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify separate native package host and original customer API still OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AZURE_SUBSCRIPTION_ID" && test "$(az account show --query id -o tsv)" = "$AZURE_SUBSCRIPTION_ID"
+          az resource show -g "$RG" --resource-type Microsoft.Web/sites --name "$APP" \
+             --api-version 2024-11-01 -o json > "$RUNNER_TEMP/f4cpu-private-app.json"
+          az functionapp config appsettings list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/f4cpu-private-settings.json"
+          az functionapp config appsettings list -g "$RG" -n "$ORIGINAL" -o json > "$RUNNER_TEMP/f4cpu-original-settings.json"
+          python3 - <<'PY'
+          import os,json,pathlib
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])
+          app=json.loads((p/'f4cpu-private-app.json').read_text())
+          settings={x.get('name'):x.get('value') for x in json.loads((p/'f4cpu-private-settings.json').read_text())}
+          original={x.get('name'):x.get('value') for x in json.loads((p/'f4cpu-original-settings.json').read_text())}
+          tags={str(k).lower():str(v).lower() for k,v in (app.get('tags') or {}).items()}
+          scale=((app.get('properties') or {}).get('functionAppConfig') or {}).get('scaleAndConcurrency') or {}
+          if (app.get('name')!='rgai-dev-f4cpu-d4e5ddbd' or
+              tags.get('purpose')!='feature4-cpu-private-worker' or
+              tags.get('app')!='retailgrowthai' or tags.get('environment')!='dev' or
+              scale.get('maximumInstanceCount') != 1 or scale.get('instanceMemoryMB') != 2048):
+              raise SystemExit('BLOCKED: foreign or unsafe F4 worker host')
+          if (str(settings.get('RETAIL_FEATURE4_CPU_WORKER_ENABLED','')).lower()!='false'
+              or str(settings.get('RETAIL_FEATURE4_CPU_RENDER_ENABLED','')).lower()!='false'
+              or 'RETAIL_SUPABASE_SERVICE_ROLE_KEY' in settings):
+              raise SystemExit('BLOCKED: F4 worker not in freshly staged, uncredentialed OFF state')
+          if (str(original.get('RETAIL_FEATURE4_CPU_RENDER_ENABLED','')).lower()=='true'
+              or str(original.get('RETAIL_FEATURE4_CPU_WORKER_ENABLED','')).lower()=='true'):
+              raise SystemExit('BLOCKED: original customer API has already been enabled')
+          print('PASS: isolated 2 GiB worker is OFF and original customer API is OFF')
+          PY
+          for queue in retail-feature4-cpu-render retail-feature4-cpu-render-poison; do
+            az storage queue exists --name "$queue" --account-name "$STORAGE" --auth-mode login \
+              -o json > "$RUNNER_TEMP/f4cpu-private-queue.json"
+            python3 - <<'PY'
+          import os,json,pathlib
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'f4cpu-private-queue.json'
+          if json.loads(p.read_text()).get('exists') is not True:
+              raise SystemExit('BLOCKED: required F4 CPU private queue missing')
+          PY
+          done
+      - name: Install protected service identity and index only 3 private worker triggers
+        shell: bash
+        run: |
+          set -euo pipefail
+          settings_file="$RUNNER_TEMP/f4cpu-private-runtime-settings.json"
+          # This server-side secret never goes into source/runner logs/ZIP.
+          python3 - <<'PY'
+          import json,os,pathlib
+          key=os.environ.get('RETAIL_SUPABASE_SERVICE_ROLE_KEY','')
+          if not (key.startswith('sb_secret_') or (key.startswith('eyJ') and key.count('.')==2)) or len(key)<32:
+              raise SystemExit('BLOCKED: protected DEV service identity missing')
+          payload={
+              'RETAIL_SUPABASE_URL': 'https://jeearzffnjbvghwjjjrf.supabase.co',
+              'RETAIL_SUPABASE_SERVICE_ROLE_KEY': key,
+              'RETAIL_FEATURE4_CPU_WORKER_ENABLED': 'true',
+              'RETAIL_FEATURE4_CPU_RENDER_ENABLED': 'false',
+          }
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'f4cpu-private-runtime-settings.json'
+          fd=os.open(p,os.O_CREAT|os.O_EXCL|os.O_WRONLY|getattr(os,'O_NOFOLLOW',0),0o600)
+          with os.fdopen(fd,'w') as stream:
+              json.dump(payload,stream)
+          print('PASS: protected isolated runtime payload safely staged without value logging')
+          PY
+          rollback() {
+            rc=$?
+            trap - EXIT
+            if [ "$rc" -ne 0 ]; then
+              echo 'F4 private worker trigger acceptance failed; restoring worker flags OFF'
+              az functionapp config appsettings set -g "$RG" -n "$APP" \
+                --settings RETAIL_FEATURE4_CPU_WORKER_ENABLED=false RETAIL_FEATURE4_CPU_RENDER_ENABLED=false \
+                -o none || echo 'BLOCKED: independent DEV worker OFF restore needed'
+              az functionapp config appsettings delete -g "$RG" -n "$APP" \
+                --setting-names RETAIL_SUPABASE_SERVICE_ROLE_KEY -o none || \
+                echo 'BLOCKED: independent DEV worker credential cleanup needed'
+            fi
+            rm -f "$settings_file"
+            exit "$rc"
+          }
+          trap rollback EXIT
+          az functionapp config appsettings set -g "$RG" -n "$APP" \
+            --settings "@$settings_file" -o none
+          rm -f "$settings_file"
+          # Inspect only function *names*: never fetch customer bodies or secrets.
+          for attempt in 1 2 3 4 5 6 7 8; do
+            if az functionapp function list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/f4cpu-private-index.json" 2>/dev/null; then
+              if python3 - <<'PY'
+          import os,json,pathlib
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'f4cpu-private-index.json'
+          functions=json.loads(p.read_text())
+          expected={'feature4_cpu_render_message','feature4_cpu_poison_message',
+                    'feature4_cpu_dispatch_timer'}
+          names={str(x.get('name','')).rsplit('/',1)[-1] for x in functions}
+          if names!=expected:
+              raise SystemExit(1)
+          print('PASS: exactly three indexed private F4 queue/timer functions')
+          PY
+              then
+                echo 'PASS: F4 DEV CPU worker indexed without any customer API activation'
+                break
+              fi
+            fi
+            if [ "$attempt" -eq 8 ]; then
+              echo 'BLOCKED: three protected F4 worker triggers did not index'; exit 3
+            fi
+            sleep 15
+          done
+          az functionapp config appsettings list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/f4cpu-private-post.json"
+          python3 - <<'PY'
+          import os,json,pathlib
+          s={x.get('name'):x.get('value') for x in json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'f4cpu-private-post.json').read_text())}
+          if (str(s.get('RETAIL_FEATURE4_CPU_WORKER_ENABLED','')).lower()!='true'
+              or str(s.get('RETAIL_FEATURE4_CPU_RENDER_ENABLED','')).lower()!='false'
+              or not s.get('RETAIL_SUPABASE_SERVICE_ROLE_KEY')):
+              raise SystemExit('BLOCKED: private worker runtime flags/credentials unexpected')
+          print('PASS: private worker ON, customer CPU render remains OFF')
+          PY
+          trap - EXIT
+          rm -f "$settings_file"
+      - name: Safe checkpoint
+        shell: bash
+        run: |
+          echo 'DEV F4 native private worker indexed and isolated. Original customer API, retailer render and frontend remain OFF pending signed tenant/media/MP4 tests.' >> "$GITHUB_STEP_SUMMARY"
