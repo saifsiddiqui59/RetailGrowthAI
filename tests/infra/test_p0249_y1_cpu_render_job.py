@@ -230,14 +230,16 @@ class Y1CpuQueueSafety(unittest.TestCase):
                     endpoint = (
                         self.origin if self.mode != "foreign" else
                         "https://foreign-storage.example")
+                    object_name = (job_id + ".unexpected.mp4"
+                                   if self.mode == "wrong-object" else job_id + ".mp4")
                     request = Request(
                         endpoint + "/storage/v1/object/retailgrowth-media/"
-                                   + shop_id + "/renders/" + job_id + ".mp4",
+                                   + shop_id + "/renders/" + object_name,
                         data=b"synthetic-video" * 200, method="POST")
                     self.transport(request, timeout=60)
                     if self.mode == "duplicate":
                         self.transport(request, timeout=60)
-                return "shop/renders/private.mp4"
+                return shop_id + "/renders/" + job_id + ".mp4"
             def verify_uploaded_mp4(self, *args):
                 self.checks += 1
                 return self.mode != "readback-failed"
@@ -246,6 +248,7 @@ class Y1CpuQueueSafety(unittest.TestCase):
             ("no-post", "No actual private media"),
             ("foreign", "Unsafe or duplicate"),
             ("duplicate", "Unsafe or duplicate"),
+            ("wrong-object", "Private video upload key differs"),
             ("readback-failed", "Private video readback failed"),
         ):
             with self.subTest(mode=mode):
