@@ -171,6 +171,32 @@ class Feature4CpuWorkerPackageTests(unittest.TestCase):
                             module._write_member(archive, "deps/oversized.bin", payload)
                 self.assertEqual(archive.namelist(), [])
 
+    @unittest.skipUnless(hasattr(__import__("os"), "O_NOFOLLOW"), "POSIX no-follow required")
+    def test_archive_source_swapped_to_symlink_at_open_is_rejected(self):
+        import os
+        import tempfile
+        from unittest.mock import patch
+        from zipfile import ZipFile
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.txt"
+            source.write_bytes(b"reviewed")
+            foreign = root / "foreign.txt"
+            foreign.write_bytes(b"unreviewed")
+            actual_open = os.open
+
+            def swap_before_open(path, flags, *args, **kwargs):
+                if Path(path) == source:
+                    source.unlink()
+                    source.symlink_to(foreign)
+                return actual_open(path, flags, *args, **kwargs)
+
+            with ZipFile(root / "artifact.zip", "w") as archive:
+                with patch.object(module.os, "open", side_effect=swap_before_open):
+                    with self.assertRaises(OSError):
+                        module._write_member(archive, "deps/source.txt", source)
+                self.assertEqual(archive.namelist(), [])
+
     def test_archive_member_streams_and_matches_sha256(self):
         import hashlib
         import tempfile
