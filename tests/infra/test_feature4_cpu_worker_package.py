@@ -37,6 +37,24 @@ class Feature4CpuWorkerPackageTests(unittest.TestCase):
         with self.assertRaises((TypeError, ValueError)):
             module.build(Args())
 
+    def test_native_binary_symlink_is_rejected_before_version_execution(self):
+        import tempfile
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "real-node"
+            target.write_text("not executable", encoding="utf-8")
+            link = root / "node"
+            link.symlink_to(target)
+            args = SimpleNamespace(node=str(link), ffmpeg=str(target),
+                                   ffprobe=str(target),
+                                   python_site_packages=str(root),
+                                   puppeteer_cache=str(root),
+                                   output=str(root / "worker.zip"))
+            with self.assertRaisesRegex(ValueError, "linked native dependency"):
+                module.build(args)
+            self.assertFalse((root / "worker.zip").exists())
+
     def test_native_worker_not_silently_added_to_protected_v1_zip(self):
         old = (ROOT / "scripts" / "deploy" / "package.py").read_text(encoding="utf-8")
         self.assertIn(
