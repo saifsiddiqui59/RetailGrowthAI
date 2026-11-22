@@ -1821,3 +1821,9 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 ## 2026-11-22 — PR #1059 reviewer hardening next
 1. Inspect all exact final-HEAD four mandatory jobs and native CPU render; verify two re-hashed missing-flag JWT-negative SQL tests, repair source failure if any.
 2. Independent rights/security approval is required for sensitive SQL/worker and protected DEV-only migration/deploy; no owner manual GitHub review needed, but no bypass. Keep live two-shop signed browser acceptance, #249/Y1, GPU, PROD and WineShopPOS separate.
+
+
+## 2026-11-22 — PR #1059 upload race guard next checks
+1. Inspect exact current PR-head four Part1 CI jobs including worker upload race test and genuine native F2→F4 CPU render; do not count earlier-green SHA.
+2. Independent affected-lead review of private byte upload identity, licensed media, service-role SQL, F4 outbox/poison and worker ZIP; no manual customer/owner approval bypass.
+3. Protected DEV-only additive SQL and queue/worker deployment with rollback, then real two-shop signed JWT/Playwright, only after reviewer/release gates. Keep #249/Y1 and WineShopPOS/PROD/GPU unchanged.

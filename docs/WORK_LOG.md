@@ -1208,3 +1208,6 @@ Work completed: #859 merged & postmerge 4/4, #866 merged (postmerge running), #8
 
 
 - 2026-11-22 PR #1059: identified SQL NULL-fail-open risk in earliest F2 plan-review stage, not only F4 CPU claim/submit. Fixed mandatory original unapproved flags, scene/source and no-audio predicates and added two real JWT reviewer negative SQL test fixtures removing and re-hashing missing flags, each restored via SAVEPOINT. Previous head `898a6c78` Python/Supabase CI jobs passed when checked, further exact-head 4/4 + native proof required. Independent review/hosted DEV/real two-shop tests remain pending; paid/GPU, PROD, WineShopPOS and Issue249 untouched.
+
+
+- 2026-11-22 PR #1059: source audit identified post-render local path replacement between `PrivateMedia.upload` Path.stat and Path.read_bytes, potentially uploading bytes from an unexpected file before remote SHA mismatch was detected. Prepared no-follow stable-FD bounded upload and fake transport regression for symlinked input and post-open path swap. New exact-head CI/native evidence pending; no DEV migration, queue creation, worker release, approvals bypass, billable renders, #249/Y1, PROD/WineShopPOS or GPU/paid models.

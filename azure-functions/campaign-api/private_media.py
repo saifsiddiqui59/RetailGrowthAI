@@ -1,5 +1,7 @@
 """Worker-only private Supabase Storage I/O with tenant path and size limits."""
 import json
+import os
+import stat
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote
@@ -49,11 +51,34 @@ class PrivateMedia:
         key = sid + "/renders/" + jid + ("/" + token if token else "") + ".mp4"
         path = self._path(sid, key)
         media_file = Path(media_file)
-        if media_file.stat().st_size > MAX_OUTPUT or media_file.stat().st_size < 100:
-            raise StorageUnavailable("encoded media exceeds output limit")
+        # Open one non-following descriptor and upload ONLY those captured bytes.
+        # A native renderer can race the path after an initial Path.stat();
+        # the old stat()->read_bytes() sequence could disclose swapped content
+        # before a later upload checksum caught the race.
+        try:
+            fd = os.open(media_file, os.O_RDONLY |
+                         getattr(os, "O_NOFOLLOW", 0) |
+                         getattr(os, "O_NONBLOCK", 0))
+            with os.fdopen(fd, "rb") as reader:
+                before = os.fstat(reader.fileno())
+                if (not stat.S_ISREG(before.st_mode) or
+                        not 100 <= before.st_size <= MAX_OUTPUT):
+                    raise StorageUnavailable("encoded media must be bounded regular file")
+                data = reader.read(MAX_OUTPUT + 1)
+                after = os.fstat(reader.fileno())
+                current = os.lstat(media_file)
+                identity = lambda s: (
+                    s.st_dev, s.st_ino, s.st_size, s.st_mtime_ns)
+                if (not stat.S_ISREG(current.st_mode) or
+                        len(data) != before.st_size or
+                        identity(before) != identity(after) or
+                        identity(after) != identity(current)):
+                    raise StorageUnavailable("encoded media file changed during upload staging")
+        except (OSError, ValueError) as exc:
+            raise StorageUnavailable("unsafe encoded media source") from exc
         req = Request(
             self.origin + "/storage/v1/object/" + BUCKET + "/" + path,
-            data=media_file.read_bytes(), method="POST",
+            data=data, method="POST",
             headers={**backend_headers(self.secret),
                      "Content-Type": "video/mp4", "x-upsert": "false"},
         )

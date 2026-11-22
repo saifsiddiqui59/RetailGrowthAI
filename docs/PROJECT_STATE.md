@@ -1774,3 +1774,8 @@ Manual integration chat C reviewed original PRs #979/#972/#970/#964/#944/#880/#8
 
 ## 2026-11-22 — PR #1059 initial reviewer JSON NULL hardening
 - Required original F2 unapproved proposal/script flags, scene/shot fields, source/version and no-audio marker now use SQL `IS DISTINCT FROM` or positive `IS NOT TRUE`, rejecting missing JSON keys before reviewer approval. Actual JWT reviewer disposable SQL regression re-seals each missing approval key and verifies denial with savepoint rollback. Preceding `898a6c78` Python/Supabase CI passed at inspection; newer head requires all exact-head CI/native proof. Source only; draft PR, independent security gate/hosted release remain pending. No #249/Y1, DEV SQL, GPU, PROD/WineShopPOS changes.
+
+
+## 2026-11-22 — PR #1059 sealed private MP4 upload read (source only)
+- Replaced the shared worker `PrivateMedia.upload` stat-then-read path with one non-symlinked, bounded regular-file descriptor, stable inode/size/mtime check and captured bytes for upload. Adds F4-only fake transport tests for positive upload, symlink input and post-open local path replacement. Never sends unverified substituted file bytes to the private storage endpoint.
+- Source-only branch code; CI pending, protected DEV release still blocked on independent security approval, isolated worker deployment, signed nonprivileged two-shop JWT/browser and rights tests. No hosted DB, billable queue, paid AI/GPU, PROD/WineShopPOS or Issue #249/Y1 changes.

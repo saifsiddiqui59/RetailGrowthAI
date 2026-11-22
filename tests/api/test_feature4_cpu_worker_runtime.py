@@ -243,3 +243,57 @@ def test_feature4_authoritative_bundle_accepts_owned_upload_without_fake_license
     reader.current = False
     with pytest.raises(StorageUnavailable):
         reader.feature4_load_bundle(claim)
+
+
+def test_private_media_upload_uses_single_nofollow_fd_and_blocks_path_swap(tmp_path, monkeypatch):
+    """No network POST if a renderer replaces the file after open."""
+    import os
+    from private_media import PrivateMedia
+    original = tmp_path / "render.mp4"
+    other = tmp_path / "untrusted.mp4"
+    original.write_bytes(b"original h264 synthetic bytes" * 80)
+    other.write_bytes(b"do-not-upload-secret-bytes" * 80)
+    posted = []
+
+    class Response:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    def transport(request, timeout):
+        posted.append(request.data)
+        return Response()
+
+    media = PrivateMedia("https://storage.example.invalid", "dummy-service-key",
+                         transport=transport)
+    assert media.upload(SHOP, JOB, original, lease_token=LEASE) == (
+        f"{SHOP}/renders/{JOB}/{LEASE}.mp4")
+    assert posted == [b"original h264 synthetic bytes" * 80]
+    posted.clear()
+
+    original.unlink()
+    original.symlink_to(other)
+    with pytest.raises(StorageUnavailable):
+        media.upload(SHOP, JOB, original, lease_token=LEASE)
+    assert posted == []
+
+    original.unlink()
+    original.write_bytes(b"original h264 synthetic bytes" * 80)
+    real_open = os.open
+
+    def swap_after_open(path, flags, *args, **kwargs):
+        fd = real_open(path, flags, *args, **kwargs)
+        if Path(path) == original:
+            original.unlink()
+            original.symlink_to(other)
+        return fd
+
+    monkeypatch.setattr("private_media.os.open", swap_after_open)
+    with pytest.raises(StorageUnavailable):
+        media.upload(SHOP, JOB, original, lease_token=LEASE)
+    assert posted == []
+

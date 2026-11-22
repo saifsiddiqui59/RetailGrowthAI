@@ -1373,3 +1373,7 @@ Do not call a VOLATILE mutating PostgreSQL function inside the same boolean pred
 
 ## 2026-11-22 — Required source proposal fields must reject SQL UNKNOWN
 The first F2→F4 JWT reviewer must refuse missing proposal/script approval flags and typed direction fields even when proposal SHA is recomputed. PostgreSQL `CHECK` can accept UNKNOWN, so procedural `IF` must explicitly require positive predicates or `IS DISTINCT FROM`; no silent approval on JSON NULL. Disposable auth-JWT regression re-seals and denies both missing-field variants. No real commercial rights approval implied.
+
+
+## 2026-11-22 — Worker upload uses captured regular-file descriptor bytes
+Private rendered MP4 upload must read from one `O_NOFOLLOW`/`O_NONBLOCK` descriptor and compare `fstat` before/after to final `lstat`, rejecting symlink swaps and non-regular sources before making any privileged storage HTTP POST. Do not trust prior `Path.stat` followed by a second open/read. This offline guard does not replace remote SHA-256 readback, SQL claim fencing, actual media rights or independent release approval.
