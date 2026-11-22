@@ -1839,6 +1839,21 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 2. Protected DEV release remains separate: review all six SQL candidates, worker/queue, tenant rights, outbox, lease, exact private MP4 SHA; prepare rollback and independently authorize hosted modifications. Main source CI and a self-audit are not hosted E2E.
 3. Genuine nonprivileged two-shop Auth/Playwright and test media approval require approved test identities; do not forge ROOT/retailer approval or charge a customer. No PROD, GPU/paid, WineShopPOS, or Issue #249/Y1 changes.
 
+## 2026-11-22 — DEV F4 CPU inventory next
+1. Verify fresh main exact-merge CI after #1079 at `6269e167`. Review new isolated pre-migration 22-check read-only SQL and static test; obtain its own exact-head 4/4 and safely source-integrate with main compatibility.
+2. Before any actual DEV SQL, obtain separate affected-feature security/release review, backup/rollback and approved exact source inventory. Six additive F4 candidate files remain unapplied; isolated worker/queues/flags remain off. The inventory must run against verified RetailGrowthAI DEV project ref, never PROD.
+3. Prepare authorized nonprivileged two-shop identities through Auth Admin, then real signed JWT/RLS, private MP4, quota/queue/poison and browser tests; never fabricate editorial/ROOT approvals. No WineShopPOS, GPU/paid, or Issue #249/Y1 modifications.
+
+## 2026-11-22 — After F2→F4 PR #1059 source-only merge
+1. Verify postmerge main exact SHA `6c376c3aba21f05d507243e358f28d4b528e7382` four Part1 CI jobs from run #45049693038. If red, repair without bypassing tests; do not count merged source as hosted completion.
+2. Audit and stage an isolated protected Feature4 CPU DEV release plan. Supabase DEV base tables/serializer exist; six additive reviewed-plan/job/outbox/claim/finish/poison SQL candidates and isolated native CPU queue/worker are NOT installed/deployed. No protected release or user approval bypass; keep feature flags off and secure rollback.
+3. Execute real signed two-shop owner/editor/foreign/revoked RLS and private output/download/queue/quota acceptance only with authorized test accounts and hosted worker. No artificial owner or customer editorial click. No PROD, WineShopPOS, GPU/paid model or Issue #249/Y1 changes. The owner's no-manual-GitHub-approval instruction is already documented as a source merge exception, NOT as a hosted release approval.
+
+## 2026-11-22 — F4 CPU NULL lease regression next
+1. Run exact-head four-job isolated PR CI for `fix/f4-cpu-null-lease-fail-closed-20261122`, including SQL NULL lease negative. Fix CI failures without bypassing cases; require current main compatibility before source-only merge.
+2. Protected DEV release remains separate: review all six SQL candidates, worker/queue, tenant rights, outbox, lease, exact private MP4 SHA; prepare rollback and independently authorize hosted modifications. Main source CI and a self-audit are not hosted E2E.
+3. Genuine nonprivileged two-shop Auth/Playwright and test media approval require approved test identities; do not forge ROOT/retailer approval or charge a customer. No PROD, GPU/paid, WineShopPOS, or Issue #249/Y1 changes.
+
 ## 2026-11-22 — #249 full Y1 migration after exact index-inventory hardening
 1. Obtain exact PR #1077 HEAD four-job CI (including tests/infra/test_p0249_y1_connection_inspector.py and test_p0249_y1_retirement_gate.py), fix code if red, and obtain required independent affected-lead review before integration; check fresh main 4/4 after merge.
 2. In separate protected DEV Azure release, use verified original Flex package to deploy Y1 HTTP-only 38 functions without concurrent workers. Verify read-only inspector's y1_exact_http_only_index=true, signed shop authorization, POST/PATCH, media/rights, and independent rollback before routing any Free SWA customers.

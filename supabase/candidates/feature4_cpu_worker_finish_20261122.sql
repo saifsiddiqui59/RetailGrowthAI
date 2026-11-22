@@ -1,4 +1,5 @@
 -- Feature4 v2 worker completion/failure SOURCE CANDIDATE, isolated SQL only.
+-- Fail closed on NULL lease expiry: SQL UNKNOWN is not a valid claim.
 -- Never infer output bytes from renderer testimony alone. Service worker must
 -- first re-download uploaded object and check exact SHA-256.
 begin;
@@ -15,7 +16,7 @@ begin
  select * into j from public.feature4_cpu_render_jobs where id=p_id for update;
  if not found or j.status<>'RUNNING' or
    j.render_claim_token is distinct from p_token or
-   j.render_lease_until<=now() then return false; end if;
+   (j.render_lease_until is null or j.render_lease_until<=now()) then return false; end if;
  select attempts into sends from retail_private.feature4_cpu_outbox
    where job_id=p_id for update;
  terminal:=p_permanent or j.attempts>=3 or coalesce(sends,8)>=8;
@@ -48,7 +49,7 @@ begin
  select * into j from public.feature4_cpu_render_jobs where id=p_id for update;
  if not found or j.status<>'RUNNING' or
     j.render_claim_token is distinct from p_token or
-    j.render_lease_until<=now() or
+    (j.render_lease_until is null or j.render_lease_until<=now()) or
     p_path is distinct from (j.shop_id::text||'/renders/'||
        j.id::text||'/'||p_token::text||'.mp4') or
     not retail_private.feature4_cpu_authorized(j.id)
