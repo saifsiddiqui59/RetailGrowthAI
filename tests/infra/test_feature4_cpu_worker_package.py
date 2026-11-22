@@ -140,6 +140,19 @@ class Feature4CpuWorkerPackageTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "linked offline build dependency"):
                 module._collect_tree(alias, "deps")
 
+    def test_dependency_root_with_linked_ancestor_is_rejected(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            actual = root / "real"
+            dependencies = actual / "node_modules"
+            dependencies.mkdir(parents=True)
+            (dependencies / "payload.js").write_text("synthetic", encoding="utf-8")
+            alias = root / "linked"
+            alias.symlink_to(actual, target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, "linked offline build dependency"):
+                module._collect_tree(alias / "node_modules", "deps")
+
     def test_linked_source_directory_rejected(self):
         import tempfile
         import shutil
