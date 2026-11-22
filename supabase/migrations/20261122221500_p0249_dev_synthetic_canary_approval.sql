@@ -5,6 +5,19 @@
 -- example.invalid accounts; Auth Admin app_metadata is trusted, user_metadata is not.
 begin;
 
+-- Disabled in every database after migration. A separately verified DEV-only
+-- deployment may turn on this private flag for its bounded test window.
+-- PROD never gains test fixture authorization merely by applying migrations.
+create table retail_private.p0249_synthetic_canary_gate (
+    singleton boolean primary key default true check (singleton),
+    enabled boolean not null default false
+);
+insert into retail_private.p0249_synthetic_canary_gate (singleton, enabled)
+values (true, false);
+revoke all on retail_private.p0249_synthetic_canary_gate
+  from public, anon, authenticated;
+grant select on retail_private.p0249_synthetic_canary_gate to service_role;
+
 create function retail_private.p0249_authorize_disposable_shop_fixture(
     p_user_id uuid, p_run_id text, p_attempt text)
 returns jsonb language plpgsql security definer set search_path = ''
@@ -12,7 +25,6 @@ as $$
 declare
     v_user auth.users%rowtype;
     v_status text;
-    v_allowed boolean;
 begin
     -- The caller JWT is SERVICE_ROLE only. Do not grant browser/authenticated
     -- roles EXECUTE, and never accept arbitrary email/user-supplied metadata.
@@ -23,6 +35,10 @@ begin
         raise exception 'DEV_FIXTURE_FORBIDDEN' using errcode = '42501';
     end if;
 
+    if not coalesce((select enabled from retail_private.p0249_synthetic_canary_gate
+                     where singleton), false) then
+        raise exception 'DEV_FIXTURE_DISABLED' using errcode = '42501';
+    end if;
     select * into v_user from auth.users where id = p_user_id;
     if not found
         or v_user.email !~ '^rgai-canary-[0-9a-f]{12}-[ab]@example[.]invalid$'
