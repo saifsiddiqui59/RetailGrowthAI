@@ -166,17 +166,22 @@ def build(args):
     checksums = {}
     if out.exists():
         raise FileExistsError("Refusing to replace existing release artifact")
-    with ZipFile(out, "x") as z:
-        for name, file in sorted(mapping.items()):
-            checksums[name] = _write_member(z, name, file)
-            if out.stat().st_size > MAX_ARCHIVE:
-                raise ValueError("F4 worker ZIP exceeds Azure 1GB package limit")
-        manifest = json.dumps({
-            "schema": "retailgrowth-f4-native-worker-zip-v1",
-            "cpu_only": True, "gpu_allowed": False,
-            "contains_secrets": False, "file_sha256": checksums,
-        }, sort_keys=True, separators=(",", ":")).encode()
-        z.writestr("package_manifest.json", manifest)
+    try:
+        with ZipFile(out, "x") as z:
+            for name, file in sorted(mapping.items()):
+                checksums[name] = _write_member(z, name, file)
+                if out.stat().st_size > MAX_ARCHIVE:
+                    raise ValueError("F4 worker ZIP exceeds Azure 1GB package limit")
+            manifest = json.dumps({
+                "schema": "retailgrowth-f4-native-worker-zip-v1",
+                "cpu_only": True, "gpu_allowed": False,
+                "contains_secrets": False, "file_sha256": checksums,
+            }, sort_keys=True, separators=(",", ":")).encode()
+            z.writestr("package_manifest.json", manifest)
+    except BaseException:
+        # A failed package must never be mistaken for a deployable release ZIP.
+        out.unlink(missing_ok=True)
+        raise
     if out.stat().st_size > MAX_ARCHIVE:
         out.unlink(missing_ok=True)
         raise ValueError("F4 worker ZIP exceeds Azure 1GB package limit")
