@@ -225,6 +225,65 @@ class Y1RemoteBuildModeTests(unittest.TestCase):
             y1.verify_build_mode()
         self.assertEqual(self.cloud.mutations, [])
 
+    def test_action_new_signed_blob_pointer_requires_real_five_index(self):
+        y1.prepare()
+        new = ("https://" + y1.guard.STORAGE +
+               ".blob.core.windows.net/sitepackages/new-release.zip?sig=NEW")
+        self.cloud.settings["WEBSITE_RUN_FROM_PACKAGE"] = new
+        self.cloud.mutations.clear()
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            y1.verify_build_mode()
+        self.assertIn('"new_pinned_package_url": true', out.getvalue())
+        self.assertIn('"old_package_still_active": false', out.getvalue())
+        self.assertNotIn(new, out.getvalue())
+        with self.assertRaisesRegex(RuntimeError, "not actually indexed"):
+            y1.verify_five()
+        self.cloud.names = sorted(y1.FIVE)
+        with contextlib.redirect_stdout(io.StringIO()) as ok:
+            y1.verify_five()
+        self.assertIn("FIVE_INDEXES=PASS", ok.getvalue())
+        self.assertEqual(self.cloud.mutations, [])
+
+    def test_new_blob_pointer_rejects_old_foreign_malformed_and_local(self):
+        y1.prepare()
+        old = self.cloud.settings[y1.BACKUP]
+        candidates = (
+            old, "1", "0", "http://" + y1.guard.STORAGE + ".blob.core.windows.net/pkg.zip",
+            "https://other.blob.core.windows.net/sitepackages/forged.zip",
+            "https://" + y1.guard.STORAGE + ".blob.core.windows.net.evil.test/pkg.zip",
+            "https://user:pass@" + y1.guard.STORAGE + ".blob.core.windows.net/pkg.zip",
+            "https://" + y1.guard.STORAGE + ".blob.core.windows.net/pkg.zip#fragment",
+        )
+        self.cloud.mutations.clear()
+        for candidate in candidates:
+            with self.subTest(candidate_index=candidates.index(candidate)):
+                self.cloud.settings["WEBSITE_RUN_FROM_PACKAGE"] = candidate
+                with self.assertRaisesRegex(RuntimeError, "settings or owner drifted"):
+                    y1.verify_build_mode()
+        self.assertEqual(self.cloud.mutations, [])
+
+    def test_new_pointer_never_bypasses_owner_or_oryx_or_shadow(self):
+        y1.prepare()
+        self.cloud.settings["WEBSITE_RUN_FROM_PACKAGE"] = (
+            "https://" + y1.guard.STORAGE +
+            ".blob.core.windows.net/sitepackages/new-release.zip")
+        self.cloud.names = sorted(y1.FIVE)
+        for key, bad in (
+            (y1.OWNER, "stranger"),
+            ("ENABLE_ORYX_BUILD", "false"),
+            ("SCM_DO_BUILD_DURING_DEPLOYMENT", "false"),
+            ("RETAIL_SUPABASE_URL", "unapproved"),
+        ):
+            old = self.cloud.settings.get(key)
+            self.cloud.settings[key] = bad
+            with self.subTest(key=key):
+                with self.assertRaises(RuntimeError):
+                    y1.verify_five()
+            if old is None:
+                self.cloud.settings.pop(key)
+            else:
+                self.cloud.settings[key] = old
+
     def test_verify_five_requires_actual_routes_remote_mode_and_owner(self):
         y1.prepare()
         with self.assertRaisesRegex(RuntimeError, "not actually indexed"):
