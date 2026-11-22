@@ -268,7 +268,7 @@ def test_private_media_upload_uses_single_nofollow_fd_and_blocks_path_swap(tmp_p
         posted.append(request.data)
         return Response()
 
-    media = PrivateMedia("https://storage.example.invalid", "dummy-service-key",
+    media = PrivateMedia("https://storage.example.invalid", "sb_secret_synthetic_only_no_real_credentials",
                          transport=transport)
     assert media.upload(SHOP, JOB, original, lease_token=LEASE) == (
         f"{SHOP}/renders/{JOB}/{LEASE}.mp4")
