@@ -21,6 +21,56 @@ SUCCESS = frozenset({"SUCCEEDED", "ALREADY_FINAL", "DENIED"})
 EXPECTED_SUPABASE = "https://jeearzffnjbvghwjjjrf.supabase.co"
 
 
+class VerifiedPrivateMedia:
+    """Guarantee cloud SHA-256 readback before legacy DB completion.
+
+    The original render_worker.process_render() calls media.upload() and then
+    commits its claim. Capture the exact HTTP POST bytes actually handed to the
+    existing private storage client; hashing the path *after* upload would be
+    vulnerable to a changed local file. This wrapper only runs in the new CPU
+    job, leaving the original Flex worker behavior unchanged.
+    """
+
+    def __init__(self, backing):
+        self.backing = backing
+
+    def download(self, *args, **kwargs):
+        return self.backing.download(*args, **kwargs)
+
+    def upload(self, shop_id, job_id, media_file, *, lease_token=None):
+        import hashlib
+        old_transport = self.backing.transport
+        expected_sha = None
+
+        def capture_exact_uploaded_bytes(request, timeout):
+            nonlocal expected_sha
+            endpoint = (self.backing.origin
+                        + "/storage/v1/object/retailgrowth-media/")
+            payload = getattr(request, "data", None)
+            if (request.get_method() != "POST"
+                or not isinstance(request.full_url, str)
+                or not request.full_url.startswith(endpoint)
+                or type(payload) is not bytes or len(payload) < 1024
+                or expected_sha is not None):
+                raise RuntimeError("Unsafe or duplicate private video upload")
+            expected_sha = hashlib.sha256(payload).hexdigest()
+            return old_transport(request, timeout=timeout)
+
+        # process_one handles only a single job, so this scoped interception is
+        # not shared with other threads or requests.
+        try:
+            self.backing.transport = capture_exact_uploaded_bytes
+            key = self.backing.upload(shop_id, job_id, media_file,
+                                      lease_token=lease_token)
+        finally:
+            self.backing.transport = old_transport
+        if expected_sha is None:
+            raise RuntimeError("No actual private media upload was observed")
+        if self.backing.verify_uploaded_mp4(shop_id, key, expected_sha) is not True:
+            raise RuntimeError("Private video readback failed")
+        return key
+
+
 def canonical_job_id(value):
     if not isinstance(value, str) or len(value) != 36:
         raise ValueError("Unsafe queue message format")
@@ -105,7 +155,8 @@ def main():
     url = os.environ["RETAIL_SUPABASE_URL"]
     secret = os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]
     result = process_one(queue, AdminStore(url, secret),
-                         PrivateMedia(url, secret), process_render, poison)
+                         VerifiedPrivateMedia(PrivateMedia(url, secret)),
+                         process_render, poison)
     print("P0249_CPU_QUEUE_RESULT=" + result, flush=True)
 
 
