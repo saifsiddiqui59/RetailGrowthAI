@@ -8,6 +8,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
+import re
 import secrets
 import struct
 import subprocess
@@ -427,6 +428,18 @@ def main():
         # Guarded live source evidence check occurs BEFORE creating either user.
         from feature2_dev_live_canary import preflight_live_source
         preflight_live_source(call, SUPABASE, admins, dt.datetime.now(dt.timezone.utc))
+    fixture_mode=os.environ.get("RGAI_DEV_SYNTHETIC_SHOP_FIXTURE") == "1"
+    run_id=os.environ.get("GITHUB_RUN_ID","")
+    run_attempt=os.environ.get("GITHUB_RUN_ATTEMPT","")
+    if fixture_mode and not (
+            os.environ.get("GITHUB_ACTIONS")=="true"
+            and os.environ.get("GITHUB_REPOSITORY")=="saifsiddiqui59/RetailGrowthAI"
+            and os.environ.get("GITHUB_REF")=="refs/heads/main"
+            and os.environ.get("RGAI_DEV_PLAYWRIGHT_UPLOAD")=="1"
+            and os.environ.get("RGAI_DEV_NODE_PREVIEW_MODE")=="disabled"
+            and re.fullmatch(r"[0-9]{9,20}",run_id)
+            and re.fullmatch(r"[0-9]{1,6}",run_attempt)):
+        raise RuntimeError("DEV_SYNTHETIC_FIXTURE_GUARD")
     marker=uuid.uuid4().hex[:12]
     accounts=[]
     shops=[]
@@ -439,24 +452,43 @@ def main():
             password=secrets.token_urlsafe(30)
             if label == "a":
                 account_password_a = password
+            attributes={"email":email,"password":password,"email_confirm":True}
+            if fixture_mode:
+                # Auth Admin app_metadata is server-controlled; user_metadata is
+                # editable by normal users and must never authorize fixtures.
+                attributes["app_metadata"]={
+                    "rgai_dev_fixture_mode":"browser-upload-synthetic",
+                    "rgai_dev_run_id":run_id,
+                    "rgai_dev_run_attempt":run_attempt,
+                }
             _,item=call(SUPABASE+"/auth/v1/admin/users",method="POST",
-                payload={"email":email,"password":password,"email_confirm":True},
-                headers=admins,expect=(200,201))
+                payload=attributes, headers=admins,expect=(200,201))
             uid=item["id"]
             accounts.append(uid)
+            if fixture_mode:
+                # Trusted service-role RPC approves ONLY a fresh, app-metadata
+                # signed disposable canary. Normal onboarding remains enforced.
+                _,fixture=call(SUPABASE+"/rest/v1/rpc/p0249_dev_authorize_synthetic_retailer",
+                    method="POST",payload={
+                        "p_user_id":uid,"p_run_id":run_id,"p_attempt":run_attempt,
+                    },headers=admins,expect=(200,))
+                if fixture!={"status":"APPROVED","synthetic_fixture":True}:
+                    raise RuntimeError("DEV_SYNTHETIC_FIXTURE_RLS_APPROVAL_MISMATCH")
+                print("CANARY_TEST_ONLY_FIXTURE_APPROVED=true",flush=True)
             _,auth=call(SUPABASE+"/auth/v1/token?grant_type=password",
                 method="POST",payload={"email":email,"password":password},
                 headers={"apikey":pub},expect=(200,))
             bearer={"apikey":pub,"Authorization":"Bearer "+auth["access_token"]}
-            # RetailGrowthAI requires SaaS ROOT approval before a retailer may
-            # create a shop. The connected DEV operator explicitly approves
-            # ONLY the two newly created example.invalid canary requests.
-            # No test-only auth bypass, privileged browser secret or gate flip.
+            # Normal retailers require ROOT approval. In explicit protected
+            # fixture mode, only fresh synthetic accounts receive a strictly
+            # restricted service-role test approval; all shop/campaign writes
+            # still use real signed JWTs and standard DB RLS.
             for approval_attempt in range(75):
                 _,onboarding=call(SUPABASE+"/rest/v1/rpc/retail_onboarding_status",
                     method="POST",payload={},headers=bearer,expect=(200,))
                 if onboarding.get("status")=="APPROVED":
-                    print("CANARY_OPERATOR_APPROVAL_VERIFIED=true",flush=True)
+                    print("CANARY_SIGNED_TEST_APPROVAL_VERIFIED=true" if fixture_mode
+                          else "CANARY_OPERATOR_APPROVAL_VERIFIED=true",flush=True)
                     break
                 if onboarding.get("status")!="PENDING":
                     raise RuntimeError("Temporary retailer onboarding was rejected")
