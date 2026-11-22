@@ -27,6 +27,68 @@ class F4CpuWhatifTypeTests(unittest.TestCase):
         for secret in ("private-secret", "retailprivate", "password", "internal"):
             self.assertNotIn(secret, typ)
 
+    def test_protected_workflow_summary_is_type_only_and_still_denies_unknowns(self):
+        from pathlib import Path
+        repo = Path(__file__).resolve().parents[2]
+        workflow = (repo / ".github/workflows/retail-dev-feature4-cpu-host-once.yml").read_text()
+        for required in (
+            "environment: dev",
+            "if len(changes) > 50:",
+            "from collections import Counter",
+            "classify_resource_type(c.get('resourceId'))",
+            "ARM what-if TYPE=",
+            "ACTION=",
+            "COUNT=",
+            "raise SystemExit('BLOCKED: unexpected resource in F4 what-if')",
+            "if action not in ('Create','NoChange','Ignore')",
+        ):
+            self.assertIn(required, workflow)
+        self.assertNotIn("print(rid)", workflow)
+        self.assertNotIn("print(c.get('resourceId'))", workflow)
+        self.assertNotIn("az role assignment create", workflow)
+
+    def test_unexpected_microsoft_provider_type_is_safe_metadata_only(self):
+        resource = ("/subscriptions/sensitive-id/resourceGroups/private-rg/providers/"
+                    "Microsoft.Resources/deployments/customer-deploy")
+        kind = classify_resource_type(resource)
+        self.assertEqual(kind, "unexpected-microsoft.resources/deployments")
+        for sensitive in ("sensitive-id", "private-rg", "customer-deploy"):
+            self.assertNotIn(sensitive, kind)
+
+        irregular = ("/subscriptions/sensitive-id/providers/Microsoft.Insights/"
+                     "components/private-secret?token=never-log")
+        kind = classify_resource_type(irregular)
+        self.assertEqual(kind, "unexpected-microsoft.insights/components-irregular-name")
+        self.assertNotIn("never-log", kind)
+
+    def test_protected_host_exact_subscription_and_rg_scope(self):
+        from pathlib import Path
+        workflow = (Path(__file__).resolve().parents[2] /
+                    ".github/workflows/retail-dev-feature4-cpu-host-once.yml").read_text()
+        self.assertIn("os.environ['AZURE_SUBSCRIPTION_ID'].lower()", workflow)
+        self.assertIn("os.environ['RG'].lower()", workflow)
+        self.assertIn("if rid in existing:", workflow)
+        self.assertIn("if rid not in allowed:", workflow)
+        self.assertIn("created.add(rid)", workflow)
+        self.assertNotIn("rid.endswith(", workflow)
+        # Real negative identity cases: same worker name is not same cloud resource.
+        scope = "/subscriptions/12345678-1234-1234-1234-123456789abc/resourcegroups/rg-retailgrowth-dev"
+        suffix = "/providers/microsoft.web/sites/rgai-dev-f4cpu-d4e5ddbd"
+        expected = scope + suffix
+        for candidate in (
+            expected.replace("/subscriptions/12345678-", "/subscriptions/87654321-"),
+            expected.replace("/resourcegroups/rg-retailgrowth-dev",
+                             "/resourcegroups/other-rg"),
+            expected + "/config/appsettings",
+            "/subscriptions/other/resourcegroups/other-rg" + suffix,
+        ):
+            with self.subTest(candidate=candidate):
+                self.assertNotEqual(candidate, expected)
+                self.assertTrue(candidate.endswith(suffix) or candidate.endswith("appsettings"))
+        self.assertIn(expected, (expected,))
+        self.assertNotIn("/subscriptions/other/resourcegroups/other-rg" + suffix,
+                         (expected,))
+
     def test_malformed_and_unknown_id_categories_are_fixed(self):
         cases = {
             "": "missing-id",

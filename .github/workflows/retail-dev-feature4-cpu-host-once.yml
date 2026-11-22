@@ -107,30 +107,50 @@ jobs:
                    '/providers/microsoft.web/sites/rgai-dev-f4cpu-d4e5ddbd/config/web')
           existing=('/providers/microsoft.storage/storageaccounts/rgaid4e5ddbdf0d21d96',
                     '/providers/microsoft.storage/storageaccounts/rgaid4e5ddbdf0d21d96/blobservices/default')
+          # Resource names alone are not authorization. Anchor every resource
+          # ID to the OIDC-validated exact subscription and DEV resource group.
+          # A foreign subscription/RG using identical suffixes must BLOCK.
+          scope=('/subscriptions/' + os.environ['AZURE_SUBSCRIPTION_ID'].lower()
+                 + '/resourcegroups/' + os.environ['RG'].lower())
+          allowed=tuple(scope + suffix for suffix in allowed)
+          existing=tuple(scope + suffix for suffix in existing)
           if not changes:
               raise SystemExit('BLOCKED: empty/unreadable ARM what-if')
+          if len(changes) > 50:
+              raise SystemExit('BLOCKED: unbounded ARM what-if change inventory')
+          # Print a bounded TYPE/ACTION/COUNT summary only, NEVER IDs/names.
+          # This is diagnosis, not an authorization or a weaker allowlist.
+          from collections import Counter
+          safe_actions={'Create','NoChange','Ignore','Modify','Delete','Deploy'}
+          categories=Counter((
+              classify_resource_type(c.get('resourceId')),
+              c.get('changeType') if c.get('changeType') in safe_actions else 'Other'
+          ) for c in changes)
+          for (kind, action), count in sorted(categories.items()):
+              print('ARM what-if TYPE=' + kind + ' ACTION=' + action + ' COUNT=' + str(count))
           created=set()
           for c in changes:
               action=c.get('changeType')
               rid=str(c.get('resourceId') or '').lower()
-              if any(rid.endswith(v) for v in existing):
+              if rid in existing:
                   if action not in ('NoChange','Ignore'):
                       raise SystemExit('BLOCKED: existing DEV storage would be changed')
                   continue
-              if not any(rid.endswith(v) for v in allowed):
+              if rid not in allowed:
                   # Never print full ARM resource IDs: extract only provider
                   # namespace and child resource TYPES (not names/tokens).
                   # Never return names from untrusted ARM IDs; shape-only
                   # categorization still blocks unknowns, including Ignore.
                   kind=classify_resource_type(c.get('resourceId'))
-                  # IRREGULAR-NAME is type-only diagnostics, never an exception
-                  # to the exact resource-id allowlist; Ignore still BLOCKS.
+                  # Even unrecognized Microsoft provider TYPE metadata is
+                  # diagnostic ONLY; exact resource ID and Ignore denial remain.
+                  # The resource name itself is never written to runner logs.
                   print('BLOCKED: unexpected ARM resource TYPE=' + kind + ' action=' + str(action)[:24])
                   raise SystemExit('BLOCKED: unexpected resource in F4 what-if')
               if action not in ('Create','NoChange','Ignore'):
                   raise SystemExit('BLOCKED: F4 what-if would modify or delete an existing resource')
               if action=='Create':
-                  created.add(next(v for v in allowed if rid.endswith(v)))
+                  created.add(rid)
           if allowed[0] not in created or allowed[1] not in created:
               raise SystemExit('BLOCKED: no new isolated F4 app and plan in ARM what-if')
           print('PASS: ARM what-if allows only isolated worker plan/app and private container; zero destructive changes')

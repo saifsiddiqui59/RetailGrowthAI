@@ -1,4 +1,4 @@
-"""Return only allowlisted ARM resource *type* descriptions, never IDs or names.
+"""Return only sanitized ARM provider/type descriptions, never IDs or names.
 
 For diagnostics after a fail-closed ARM what-if. This does NOT decide whether
 a change is permitted. Unknown/missing resource IDs must still BLOCK release.
@@ -44,5 +44,11 @@ def classify_resource_type(value) -> str:
     irregular_name = not all(_RESOURCE_NAME.fullmatch(name) for name in chunks[2::2])
     typ = "/".join((chunks[0], *chunks[1::2]))
     if typ not in _ALLOWED:
+        # Provider/type metadata is not a resource *name*. Restrict this
+        # diagnostic to syntactically valid Microsoft provider type segments;
+        # it is informational only and NEVER authorizes an ARM change.
+        if (chunks[0].startswith("microsoft.") and len(typ) <= 140
+                and len(chunks) <= 11):
+            return "unexpected-" + typ + ("-irregular-name" if irregular_name else "")
         return "unrecognized-resource-type"
     return typ + "-irregular-name" if irregular_name else typ

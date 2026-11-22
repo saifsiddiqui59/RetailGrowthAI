@@ -1411,3 +1411,9 @@ Azure ARM what-if emits an `Ignore` entry that earlier F4 host allowlists could 
 
 ## 2026-11-23 IST — Irregular ARM names are not resource authorization
 An ARM what-if `Ignore` with an irregular resource name remains an UNKNOWN and must block deployment. A diagnostic can emit only a fixed known provider/type with suffix `-irregular-name` without exposing any target resource names. Neither its known type nor its `Ignore` action is evidence of a safe write: only the independent exact resource-ID allowlist and created app/plan identity checks can authorize a protected DEV create.
+
+## 2026-11-23 IST — Microsoft provider/type is diagnostic, not a cloud permission
+A protected ARM `Ignore` entry can have an unknown provider/type even when its name is malformed. Permit reporting only a bounded, syntax-validated `Microsoft.*` **provider/type** string, never resource ID/name/query/token, to enable targeted investigation. Keep the independently exact resource-ID allowlist and create/no-change policy unchanged; a diagnostic label, even for a legitimate provider, cannot authorize a deployment.
+
+## 2026-11-23 IST — Never authorize ARM deployment by resource-ID suffix alone
+Accept ARM what-if entries only when their complete, case-normalized resource ID matches an expected ID under the already authenticated exact DEV subscription and resource group. Names shared across subscriptions or resource groups cannot authorize foreign resources. Retain the existing fail-closed action whitelist; no new resource types/actions are allowed by this change.
