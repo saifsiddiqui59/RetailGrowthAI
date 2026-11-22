@@ -73,6 +73,12 @@ class Y1NoPrematureFlexStop(unittest.TestCase):
         self.assertIn("protected_original_connection_value_comparison",
                       m.evaluate(state))
 
+    def test_classic_y1_must_never_index_original_780s_video_queue_worker(self):
+        state=observation()
+        state["y1"]["indexed_functions"].append("render_campaign_reel")
+        self.assertIn("classic_y1_must_not_index_780s_render_consumer",
+                      m.evaluate(state))
+
     def test_unmodified_classic_y1_cannot_claim_780_second_render_worker(self):
         self.assertEqual(m.CLASSIC_CONSUMPTION_MAX_SECONDS, 600)
         self.assertEqual(m.ORIGINAL_RENDER_HARD_CAP_SECONDS, 780)
