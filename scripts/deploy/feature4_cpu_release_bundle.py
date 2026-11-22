@@ -87,7 +87,24 @@ def _source(root: Path, name: str):
         raise ReleaseGuardError("Missing or linked source file: " + name)
     if not stat.S_ISREG(target.lstat().st_mode):
         raise ReleaseGuardError("Non-regular source file: " + name)
-    raw = target.read_bytes()
+    # Read one stable regular-file descriptor. A post-preflight symlink swap
+    # must never make an unreviewed SQL file part of a protected release.
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    try:
+        fd = os.open(target, flags)
+    except OSError as exc:
+        raise ReleaseGuardError("SQL source changed before opening: " + name) from exc
+    with os.fdopen(fd, "rb") as reader:
+        first = os.fstat(reader.fileno())
+        if not stat.S_ISREG(first.st_mode) or first.st_size > MAX_SOURCE_BYTES:
+            raise ReleaseGuardError("Invalid or oversized SQL candidate: " + name)
+        raw = reader.read(MAX_SOURCE_BYTES + 1)
+        final = os.fstat(reader.fileno())
+    pathname = target.lstat()
+    fence = lambda s: (s.st_dev, s.st_ino, s.st_size, s.st_mtime_ns)
+    if (not stat.S_ISREG(pathname.st_mode) or fence(first) != fence(final)
+            or fence(first) != fence(pathname)):
+        raise ReleaseGuardError("SQL source changed while reading: " + name)
     if not raw or len(raw) > MAX_SOURCE_BYTES or b"\0" in raw:
         raise ReleaseGuardError("Invalid or oversized SQL candidate: " + name)
     try:

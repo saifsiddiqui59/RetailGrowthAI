@@ -74,6 +74,26 @@ class Feature4CpuReleaseBundleTest(unittest.TestCase):
             with self.assertRaisesRegex(bundle.ReleaseGuardError, "Missing or linked"):
                 bundle.build_bundle(root)
 
+
+    def test_source_swap_after_open_is_rejected(self):
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            copy_candidates(root)
+            candidate = root / bundle.CANDIDATES[0]
+            secret = root / "unreviewed.sql"
+            secret.write_text("begin;\nselect true;\ncommit;\n")
+            original_open = bundle.os.open
+            def swap_after_open(path, flags, *args, **kwargs):
+                fd = original_open(path, flags, *args, **kwargs)
+                if Path(path) == candidate:
+                    candidate.unlink()
+                    candidate.symlink_to(secret)
+                return fd
+            with patch.object(bundle.os, "open", side_effect=swap_after_open):
+                with self.assertRaisesRegex(bundle.ReleaseGuardError, "SQL source changed"):
+                    bundle.build_bundle(root)
+
     def test_offline_build_has_no_write_side_effects(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
