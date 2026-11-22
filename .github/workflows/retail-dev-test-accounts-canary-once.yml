@@ -82,7 +82,11 @@ jobs:
           fi
           ffprobe -version | head -n 1
           else
-            echo 'PROMPT_OR_AUTH_ONLY=NO_FFMPEG_INSTALL_NO_VIDEO'
+            if [ "$RGAI_DEV_LOGIN_ONLY" = "1" ]; then
+            echo 'P0249_AUTH_ONLY=NO_FFMPEG_INSTALL_NO_VIDEO'
+          else
+            echo 'FEATURE2_PROMPT_ONLY=NO_FFMPEG_INSTALL_NO_VIDEO'
+          fi
           fi
           python3 -m py_compile tests/e2e/p0249_dev_playwright_login_only_once.py
           python3 -m py_compile tests/e2e/retail_dev_canary_once.py
