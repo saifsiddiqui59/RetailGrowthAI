@@ -14,9 +14,9 @@ import subprocess
 import sys
 
 try:
-    from retirement_gate import RG, Y1, FLEX, CONNECTIONS, CORE_FUNCTIONS
+    from retirement_gate import RG, Y1, FLEX, CONNECTIONS, CORE_FUNCTIONS, SUPABASE
 except ImportError:
-    from ops.p0249_y1_cutover.retirement_gate import RG, Y1, FLEX, CONNECTIONS, CORE_FUNCTIONS
+    from ops.p0249_y1_cutover.retirement_gate import RG, Y1, FLEX, CONNECTIONS, CORE_FUNCTIONS, SUPABASE
 
 
 def read_azure(*argv, runner=subprocess.run):
@@ -119,9 +119,9 @@ def inspect(runner=subprocess.run):
     matching = (
         CONNECTIONS.issubset(set(target["settings"]))
         and original["settings"].get("RETAIL_SUPABASE_URL")
-            == "https://jeearzffnjbvghwjjjrf.supabase.co"
+            == SUPABASE
         and target["settings"].get("RETAIL_SUPABASE_URL")
-            == "https://jeearzffnjbvghwjjjrf.supabase.co"
+            == SUPABASE
         and all(original["settings"].get(name) and
                 target["settings"].get(name) == original["settings"][name]
                 for name in shared)
