@@ -42,7 +42,7 @@ class ProtectedReleaseSourceTests(unittest.TestCase):
         self.assertIn("sleep 240", FLOW)
         self.assertGreaterEqual(FLOW.count("guard.probe()"), 3)
         self.assertGreaterEqual(FLOW.count("P0249_Y1_HTTP_MISSING_JWT=3_OF_3_MARKED_401"), 2)
-        self.assertIn("return True", SCRIPT)
+        self.assertIn("P0249_Y1_FIVE_TO_38_PREFLIGHT=FIVE_PINNED_NO_WRITE", SCRIPT)
 
     def test_restore_is_real_five_not_historical_two(self):
         self.assertIn("FIVE = legacy.FIVE", SCRIPT)
