@@ -1813,3 +1813,6 @@ Manual integration chat C reviewed original PRs #979/#972/#970/#964/#944/#880/#8
 
 ## 2026-11-22 — #249 protected CPU Event scaler source candidate (NOT deployed)
 - Added a separate source-only Azure Container Apps Event scaler Bicep candidate to transition the same existing disabled Manual job to a single parallel consumer of the existing `retail-reel-render` queue, with min 0/max 1 executions, 60s polling, secure storage auth and explicit protected activation parameter. New tests keep the default Manual template OFF and require 2100s queue invisibility > 1800s job timeout. This is NOT an active queue scaler, built immutable image, Azure deployment, full Y1 host parity or accepted cloud render. Flex remains active and Issue #249 remains open.
+
+## 2026-11-22 — #249 CPU queue visibility corrected (source only)
+- The separate Container Apps CPU render adapter now requests a 2100s Azure queue invisibility window, greater than the proposed 1800s job timeout and 780s FFmpeg cap. The previous 1500s invisibility window was shorter than the replica lifetime and could allow another receiver to see an unfinished message. Offline contract now asserts the corrected bounds. No Azure deployment, Y1 worker activation, Flex stop or #249 closure.
