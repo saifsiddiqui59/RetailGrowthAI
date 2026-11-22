@@ -138,7 +138,13 @@ def _write_member(z, archive_path, origin):
     # regular, locally verified file and retain executable permissions.
     if not stat.S_ISREG(origin.lstat().st_mode) or origin.is_symlink():
         raise ValueError("Unsafe non-regular F4 archive source: " + archive_path)
+    # Bound each input before allocating its bytes; a single oversized file
+    # must not exhaust CI/worker memory before the ZIP-size guard runs.
+    if origin.stat().st_size > MAX_ARCHIVE:
+        raise ValueError("F4 archive source exceeds 1GB limit: " + archive_path)
     raw = origin.read_bytes()
+    if len(raw) > MAX_ARCHIVE:
+        raise ValueError("F4 archive source exceeds 1GB limit: " + archive_path)
     perms = stat.S_IMODE(origin.stat().st_mode)
     info = ZipInfo(archive_path, date_time=(2026, 1, 1, 0, 0, 0))
     info.create_system = 3
