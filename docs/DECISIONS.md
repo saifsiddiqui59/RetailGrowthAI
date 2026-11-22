@@ -1408,3 +1408,6 @@ Manual, no-scaler CPU template remains default/inert. An explicit, separate Even
 
 ## 2026-11-22 — CPU job message visibility must exceed replica runtime
 For the isolated Y1 replacement CPU reel job, the queue invisibility timeout must be greater than the entire Container Apps replica timeout, not merely the 780-second FFmpeg cap. Pin 2100-second Azure queue visibility against an 1800-second replica budget, retain database claim fencing and only single-owner protected handoff. This reduces premature redelivery but never replaces receipt/lease/poison verification; source-only, not a live release.
+
+## 2026-11-22 — CPU private output must bind wire upload to committed object key
+The isolated Y1 ACA CPU worker must verify **both** the actual bytes submitted to a single original private storage POST and that POST's complete URL matches the encoded key the legacy upload client returns, then perform private cloud SHA-256 readback under the same tenant scope before DB completion. Uploading identical bytes to an unrelated object or changing the returned key must never count as successful receipt. This source-only fence is not proof of hosted media acceptance, user authorization, independent release review or Azure cutover.
