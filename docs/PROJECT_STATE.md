@@ -1823,3 +1823,6 @@ Manual integration chat C reviewed original PRs #979/#972/#970/#964/#944/#880/#8
 
 ## 2026-11-23 IST — Third protected F4 host ARM what-if remains blocked
 - Protected Azure host run [#45060259835](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/45060259835) again passed exact DEV Azure identity, RG/storage and both private F4 queue checks, then failed **BEFORE** provisioning worker app/plan/container. The bounded what-if diagnostic classified the unallowlisted `Ignore` entry as `unrecognized-resource-type`. Source-only follow-up reports only syntax-validated Microsoft provider/**type** metadata, never actual ARM IDs/resource names, and leaves all unknown and Ignore actions blocked. No CPU worker exists or customer flags activated.
+
+## 2026-11-23 IST — F4 host what-if must compare full scoped ARM IDs
+The host what-if review found suffix-only ID comparisons in the pending PR #1101. The source now constructs full expected IDs from the OIDC-confirmed exact DEV subscription and resource group, rejects lookalike IDs from other groups/subscriptions, and retains denial of unrecognized Ignore/Modify/Delete actions. New static/negative scope tests; PR exact-head CI and protected DEV run remain pending. No infrastructure was created by this fix.

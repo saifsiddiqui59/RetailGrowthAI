@@ -61,6 +61,34 @@ class F4CpuWhatifTypeTests(unittest.TestCase):
         self.assertEqual(kind, "unexpected-microsoft.insights/components-irregular-name")
         self.assertNotIn("never-log", kind)
 
+    def test_protected_host_exact_subscription_and_rg_scope(self):
+        from pathlib import Path
+        workflow = (Path(__file__).resolve().parents[2] /
+                    ".github/workflows/retail-dev-feature4-cpu-host-once.yml").read_text()
+        self.assertIn("os.environ['AZURE_SUBSCRIPTION_ID'].lower()", workflow)
+        self.assertIn("os.environ['RG'].lower()", workflow)
+        self.assertIn("if rid in existing:", workflow)
+        self.assertIn("if rid not in allowed:", workflow)
+        self.assertIn("created.add(rid)", workflow)
+        self.assertNotIn("rid.endswith(", workflow)
+        # Real negative identity cases: same worker name is not same cloud resource.
+        scope = "/subscriptions/12345678-1234-1234-1234-123456789abc/resourcegroups/rg-retailgrowth-dev"
+        suffix = "/providers/microsoft.web/sites/rgai-dev-f4cpu-d4e5ddbd"
+        expected = scope + suffix
+        for candidate in (
+            expected.replace("/subscriptions/12345678-", "/subscriptions/87654321-"),
+            expected.replace("/resourcegroups/rg-retailgrowth-dev",
+                             "/resourcegroups/other-rg"),
+            expected + "/config/appsettings",
+            "/subscriptions/other/resourcegroups/other-rg" + suffix,
+        ):
+            with self.subTest(candidate=candidate):
+                self.assertNotEqual(candidate, expected)
+                self.assertTrue(candidate.endswith(suffix) or candidate.endswith("appsettings"))
+        self.assertIn(expected, (expected,))
+        self.assertNotIn("/subscriptions/other/resourcegroups/other-rg" + suffix,
+                         (expected,))
+
     def test_malformed_and_unknown_id_categories_are_fixed(self):
         cases = {
             "": "missing-id",

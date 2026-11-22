@@ -1879,3 +1879,6 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 
 ## 2026-11-23 IST — Classify exact unknown ARM type; no broad allowlist
 - Third host attempt #45060259835 denied an unknown ARM what-if resource `Ignore`. Inspect a subsequent fixed type-only diagnostic with exact-head 4/4 CI, and accept a host create ONLY when every actual ARM resource ID is narrowly proven against the DEV app/plan/container allowlist. Never allow unknown providers/actions or change other apps; existing F4 schema and both private queues are already deployed. Stage ZIP/worker triggers/E2E only after host creation passes.
+
+## 2026-11-23 IST — Next: scoped ARM full-ID verification
+- Verify PR #1101 exact final-head four CI checks including new foreign-subscription/foreign-RG negative tests; ensure no release approval bypass. Merge only under current main integration/review policy, then inspect protected DEV what-if. Unknown `Ignore` or any unexpected resource still BLOCKS. Do not reapply six DEV migrations or recreate two existing queues. Worker ZIP #1096, private-trigger #1098, flags and signed two-shop E2E remain in order AFTER hosted worker creation.
