@@ -99,9 +99,13 @@ def _collect_tree(root, prefix, *, omit_bin_shims=False):
         if omit_bin_shims and ".bin" in file.relative_to(root).parts:
             continue
         rel = file.relative_to(root)
+        # Reject links before resolution: internal links can otherwise hide
+        # duplicate or mutable payloads inside a supposedly reviewed ZIP.
+        if file.is_symlink() or any(parent.is_symlink() for parent in file.parents if parent != root and root in parent.parents):
+            raise ValueError("Symlink in F4 package: " + str(rel))
         target = file.resolve(strict=True)
         if not target.is_file() or not target.is_relative_to(root.resolve(strict=True)):
-            raise ValueError("External symlink / non-file in F4 package: " + str(rel))
+            raise ValueError("External path / non-file in F4 package: " + str(rel))
         name = prefix + "/" + rel.as_posix()
         if name in listing:
             raise ValueError("Duplicate F4 runtime member: " + name)
