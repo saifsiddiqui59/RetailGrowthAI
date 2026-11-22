@@ -24,15 +24,15 @@
       "pr": 1059,
       "title": "Issue249 integration PR (live title not verified)",
       "feature": "issue249",
-      "head_sha": "3cce2a42513a3963ad352e3c845a8cf778a575c9",
+      "head_sha": "eb4f92a0da43373a80ee0f2d721961aa01c659ea",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P1",
       "phase": "in-progress",
       "checkpoint": {
         "owner": "manual-issue249",
-        "ci": "Exact-head #44981814680 FAILED 3/4: Python 3.13 pinned 3.11 runtime guard precedes symlink rejection test (1 failed, 2730 passed). Separate native CPU #44981814668 FAILED: HyperFrames node_modules/.bin/acorn symlink rejected by packaging guard.",
-        "next_action": "Manual Issue249 owner: repair Python 3.13 test/runtime ordering and native CPU packaging symlink handling safely; rerun both exact-head workflows and independent review; do not weaken symlink safety or auto-merge.",
+        "ci": "Exact-head #44986016683 FAILED 3/4 (Python/uv job #137096639109); native CPU #44986016727 FAILED 0/1 (job #137096642227). Earlier green runs apply only to older heads.",
+        "next_action": "Manual Issue249 owner: inspect current Python and native CPU failing logs, fix without weakening safety checks; rerun exact-head CI and independent review.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1059"
@@ -72,5 +72,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1065"
     }
   ],
-  "last_inventory_checked_at": "2026-11-22T03:42:52Z"
+  "last_inventory_checked_at": "2026-11-22T04:39:33Z"
 }
