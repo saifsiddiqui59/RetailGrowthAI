@@ -2,9 +2,9 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-22T15:55:00Z",
-  "last_inventory_count": 3,
-  "last_inventory_checked_at": "2026-11-22T15:55:00Z",
+  "last_written_at": "2026-11-22T16:55:46.618Z",
+  "last_inventory_count": 4,
+  "last_inventory_checked_at": "2026-11-22T16:55:46.618Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
@@ -108,30 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 44990887575,
-      "head_sha": "292a441264466d9ea564138eae6da484fa2f64bd",
-      "status": "FAIL native CPU 0/1",
-      "evidence": "One native CPU job independently checked; failed"
-    },
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 44995121136,
-      "head_sha": "2255312c18d8ce0326ab0cd5b220572e204ae9c1",
-      "status": "FAIL 3/4",
-      "evidence": "Four mandatory jobs independently checked: Python/uv failure, other three success"
-    },
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 44995121126,
-      "head_sha": "2255312c18d8ce0326ab0cd5b220572e204ae9c1",
-      "status": "FAIL native CPU 0/1",
-      "evidence": "One native CPU job independently checked: failed"
-    },
     {
       "event": "exact_head_ci",
       "pr": 1059,
@@ -299,6 +275,30 @@
       "head_sha": "91a933f78e9d9958cea529a1a8eb7923da1681cb",
       "status": "IN_PROGRESS native CPU",
       "evidence": "One job inspected in_progress; do not infer PASS"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 45046055130,
+      "head_sha": "9b8399b6be5428bddc54adf261cc3723283d0d92",
+      "status": "PASS 4/4 latest mandatory",
+      "evidence": "Four jobs individually checked SUCCESS; earlier same-head #45046050108 also PASS 4/4"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 45046050075,
+      "head_sha": "9b8399b6be5428bddc54adf261cc3723283d0d92",
+      "status": "IN_PROGRESS native CPU",
+      "evidence": "One native CPU job inspected in_progress; not PASS"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1076,
+      "run_id": 45046436986,
+      "head_sha": "7be4b85385f1fc819f5ce6adda1f08a99ce1461e",
+      "status": "IN_PROGRESS 0/4 complete",
+      "evidence": "Four jobs individually inspected in_progress"
     }
   ],
   "current_review_gates": {
@@ -450,10 +450,9 @@
     "docs_postmerge_main_ci": {
       "run_id": 44377599370,
       "head_sha": "a65bb1503dd83af68de342329db45314aaa654cb",
-      "status": "COMPLETED SUCCESS",
-      "jobs_passed": 4,
-      "jobs_total": 4,
-      "verified_at_utc": "2026-11-22T14:04:51.608Z"
+      "status": "COMPLETED SUCCESS 4/4",
+      "verified_at_utc": "2026-11-22T16:55:46.618Z",
+      "evidence": "All four mandatory jobs individually inspected success"
     },
     "docs_files_updated": [
       "docs/PROJECT_STATE.md",
@@ -598,5 +597,34 @@
     "previous_head_failures_not_current": true
   },
   "current_automation_controls": "UNVERIFIED: automation get returned 404; no F4/F7 changes",
-  "current_executor_status": "EXECUTOR_NOT_PROVISIONED (last verified); environment details currently UNVERIFIED"
+  "current_executor_status": "EXECUTOR_NOT_PROVISIONED (last verified); environment details currently UNVERIFIED",
+  "current_live_ci": {
+    "verified_at_utc": "2026-11-22T16:55:46.618Z",
+    "prs": {
+      "1059": {
+        "head_sha": "9b8399b6be5428bddc54adf261cc3723283d0d92",
+        "latest_mandatory_run": 45046055130,
+        "mandatory": "PASS 4/4",
+        "native_cpu_run": 45046050075,
+        "native_cpu": "IN_PROGRESS"
+      },
+      "1064": {
+        "head_sha": "bd6693e97af56014ea985f7ef3301e07a8ad107f",
+        "latest_mandatory_run": 44804945219,
+        "mandatory": "PASS 4/4"
+      },
+      "1065": {
+        "head_sha": "d8c2c12a87ffd0c43a15d21897aace549efa5e65",
+        "latest_mandatory_run": 44808654931,
+        "mandatory": "PASS 4/4"
+      },
+      "1076": {
+        "head_sha": "7be4b85385f1fc819f5ce6adda1f08a99ce1461e",
+        "latest_mandatory_run": 45046436986,
+        "mandatory": "IN_PROGRESS 0/4"
+      }
+    }
+  },
+  "automation_controls_current": "UNVERIFIED: all four Automations get calls returned 404; retain last verified run durations and enabled states, do not infer current",
+  "active_leases_current": "UNVERIFIED: no lease field in current queue entries; no foreign ownership modified"
 }
