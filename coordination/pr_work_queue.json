@@ -92,14 +92,14 @@
       "pr": 1085,
       "title": "Live title not verified",
       "feature": "unclassified",
-      "head_sha": "4458711046323c6972ee0dffc4a48ae7307cfcf3",
+      "head_sha": "d5fd310e43205b3d8a74c37a94dab0291a78c042",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P1",
       "phase": "review",
       "checkpoint": {
         "owner": "manual-integration",
-        "ci": "CURRENT UNKNOWN until exact-head CI review",
+        "ci": "CURRENT UNKNOWN: no exact-head Actions runs returned",
         "next_action": "Owner-scoped review; no automatic merge or deployment",
         "feature_done": false
       },
