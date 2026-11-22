@@ -1827,3 +1827,9 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 1. Inspect exact current PR-head four Part1 CI jobs including worker upload race test and genuine native F2→F4 CPU render; do not count earlier-green SHA.
 2. Independent affected-lead review of private byte upload identity, licensed media, service-role SQL, F4 outbox/poison and worker ZIP; no manual customer/owner approval bypass.
 3. Protected DEV-only additive SQL and queue/worker deployment with rollback, then real two-shop signed JWT/Playwright, only after reviewer/release gates. Keep #249/Y1 and WineShopPOS/PROD/GPU unchanged.
+
+
+## 2026-11-22 — After F2→F4 PR #1059 source-only merge
+1. Verify postmerge main exact SHA `6c376c3aba21f05d507243e358f28d4b528e7382` four Part1 CI jobs from run #45049693038. If red, repair without bypassing tests; do not count merged source as hosted completion.
+2. Audit and stage an isolated protected Feature4 CPU DEV release plan. Supabase DEV base tables/serializer exist; six additive reviewed-plan/job/outbox/claim/finish/poison SQL candidates and isolated native CPU queue/worker are NOT installed/deployed. No protected release or user approval bypass; keep feature flags off and secure rollback.
+3. Execute real signed two-shop owner/editor/foreign/revoked RLS and private output/download/queue/quota acceptance only with authorized test accounts and hosted worker. No artificial owner or customer editorial click. No PROD, WineShopPOS, GPU/paid model or Issue #249/Y1 changes. The owner's no-manual-GitHub-approval instruction is already documented as a source merge exception, NOT as a hosted release approval.
