@@ -110,7 +110,7 @@ class Feature4CpuWorkerPackageTests(unittest.TestCase):
             pipe = root / "blocking.pipe"
             os.mkfifo(pipe)
             with ZipFile(root / "artifact.zip", "w") as archive:
-                with self.assertRaisesRegex(ValueError, "Unsafe non-regular F4 archive source"):
+                with self.assertRaisesRegex(ValueError, "Unsafe non-regular or linked F4 archive source"):
                     module._write_member(archive, "deps/blocking.pipe", pipe)
 
     def test_archive_source_with_linked_parent_is_rejected(self):
