@@ -123,6 +123,12 @@ def _collect_tree(root, prefix, *, omit_bin_shims=False):
 
 
 def _write_member(z, archive_path, origin):
+    # Reject archive traversal and Windows separators even if a caller supplies
+    # a member outside the reviewed source mapping. ZIP names are POSIX paths.
+    parts = archive_path.split("/")
+    if (not archive_path or archive_path.startswith("/") or "\\\\" in archive_path
+            or any(part in ("", ".", "..") for part in parts)):
+        raise ValueError("Unsafe F4 archive member: " + archive_path)
     # Zip deploy does not require source-tree symlink semantics. Copy a
     # regular, locally verified file and retain executable permissions.
     if not stat.S_ISREG(origin.lstat().st_mode) or origin.is_symlink():
