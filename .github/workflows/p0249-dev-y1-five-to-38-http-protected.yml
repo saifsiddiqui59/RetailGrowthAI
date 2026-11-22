@@ -270,7 +270,7 @@ jobs:
           python3 ops/p0249-y1-cutover/five_to_38_release.py rollback
 
   independent-restore:
-    if: ${{ always() && needs.release.result == 'failure' && needs.release.outputs.attempted == 'true' }}
+    if: ${{ always() && (needs.release.result == 'failure' || needs.release.result == 'cancelled') && needs.release.outputs.attempted == 'true' }}
     needs: release
     environment: dev
     runs-on: ubuntu-24.04
