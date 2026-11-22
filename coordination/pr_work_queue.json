@@ -21,10 +21,10 @@
   },
   "entries": [
     {
-      "pr": 1097,
+      "pr": 1101,
       "title": "Live title not verified",
       "feature": "unclassified",
-      "head_sha": "79b359afe97e31081ca0cdb76b533c1e9c499965",
+      "head_sha": "953b0ae34a215d2d0f2c8c340ed5f18ce8f4bf38",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P1",
@@ -35,7 +35,24 @@
         "next_action": "Owner-scoped review; no automatic merge or deployment",
         "feature_done": false
       },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1097"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1101"
+    },
+    {
+      "pr": 1098,
+      "title": "Live title not verified",
+      "feature": "unclassified",
+      "head_sha": "e759dc259908773255e6751f33b2178761294610",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P1",
+      "phase": "review",
+      "checkpoint": {
+        "owner": "manual-integration",
+        "ci": "CURRENT UNKNOWN until exact-head CI review",
+        "next_action": "Owner-scoped review; no automatic merge or deployment",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1098"
     },
     {
       "pr": 1096,
@@ -53,23 +70,6 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1096"
-    },
-    {
-      "pr": 1095,
-      "title": "Live title not verified",
-      "feature": "unclassified",
-      "head_sha": "cbd1a9a0eca11ab0de1c70b896be136d70cde528",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P1",
-      "phase": "review",
-      "checkpoint": {
-        "owner": "manual-integration",
-        "ci": "CURRENT UNKNOWN until exact-head CI review",
-        "next_action": "Owner-scoped review; no automatic merge or deployment",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1095"
     },
     {
       "pr": 1088,
@@ -174,5 +174,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
     }
   ],
-  "last_inventory_checked_at": "2026-11-22T19:03:30Z"
+  "last_inventory_checked_at": "2026-11-22T19:55:25Z"
 }
