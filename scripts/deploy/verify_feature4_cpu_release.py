@@ -102,8 +102,11 @@ def verify_release(path: Path) -> dict:
                         digest.update(chunk)
                 if seen != member.file_size or digest.hexdigest() != expected:
                     raise ReleaseIntegrityError("Feature4 ZIP bytes do not match sealed SHA-256")
+            # Never read a potentially 1 GiB native ZIP wholly into RAM.
+            with path.open("rb") as artifact:
+                whole_digest = hashlib.file_digest(artifact, "sha256").hexdigest()
             return {"files": len(entries) - 1, "bytes": path.stat().st_size,
-                    "verified_sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+                    "verified_sha256": whole_digest}
     except (BadZipFile, OSError, EOFError, RuntimeError) as exc:
         raise ReleaseIntegrityError("Invalid or truncated Feature4 release ZIP") from exc
 
