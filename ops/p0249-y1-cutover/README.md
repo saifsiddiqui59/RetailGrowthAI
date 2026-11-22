@@ -24,3 +24,9 @@ Protected Y1 run [#45021333842](https://github.com/saifsiddiqui59/RetailGrowthAI
 Do NOT disable `rgai-dev-functions-d4e5ddbd` or delete `rgai-dev-flex` now. The live Y1 package is GET-only and would cause an outage. Do NOT close #249 until hosted Y1 fully replaces the original connection paths, its workers are proven, old Flex is no longer routing traffic, and independent post-cutover health/rollback/latency acceptance passes. The user's other chat owns campaign test execution: this branch only prepares Y1 host packaging and connection ownership, not duplicate shop fixtures.
 
 No PROD, GPU, paid provider, WineShopPOS or global auth approval mutation.
+
+## Source-only retirement evidence checker
+
+`ops/p0249-y1-cutover/retirement_gate.py --diagnostic-json <path>` checks the exact dedicated Y1/Flex/Free-SWA/Supabase scope, backend appsetting NAMES, protected comparison of secret VALUES in the trusted runner, original HTTP+queue+timer indexing, observed browser routing, single-worker ownership, queue reconciliation, and hosted two-shop RLS/write/private-download/billing/p95/p99/rollback receipts. It emits only missing gate names, never a secret or shop identifier. The existing live five-GET Y1 deployment correctly reports **BLOCKED_DO_NOT_STOP**. Even fully asserted JSON produces **BLOCKED_PENDING_PROTECTED_AZURE_ACCEPTANCE**: real Azure protected runner provenance cannot be established by JSON, and this script has no Azure stop/delete/issue-close operation.
+
+After real Y1 worker transfer, Azure Functions supports per-function disable app settings `AzureWebJobs.<FunctionName>.Disabled=true` (see [Microsoft guidance](https://learn.microsoft.com/azure/azure-functions/disable-function)). The handoff must verify these are effective on the real hosts with index/queue observations, never assume setting-name presence means disabled. Do not apply worker-disable settings, stop Flex, or switch frontend until all independent evidence gates are accepted.
