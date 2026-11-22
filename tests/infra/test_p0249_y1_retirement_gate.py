@@ -22,7 +22,7 @@ def observation():
             "same_retailgrowth_dev_connections_as_flex": True,
             "cors":{"allowedOrigins":[m.FRONTEND],"supportCredentials":False},
             "indexed_functions": sorted(
-                m.CORE_FUNCTIONS | m.QUEUE_FUNCTIONS | m.TIMER_FUNCTIONS),
+                m.ALL_HTTP_FUNCTIONS | m.QUEUE_FUNCTIONS | m.TIMER_FUNCTIONS),
             "unauthenticated_protected_endpoints_denied": True,
             "customer_traffic_origin": m.Y1_ORIGIN,
             "background_workers_enabled": True, "queue_backlog_reconciled": True,
@@ -99,6 +99,25 @@ class Y1NoPrematureFlexStop(unittest.TestCase):
         state["render_worker"]["private_media_and_ffmpeg_verified"] = False
         self.assertIn("long_render_worker_incompatible_with_classic_y1_600s_limit",
                       m.evaluate(state))
+
+    def test_all_38_original_http_routes_required_not_just_core(self):
+        import importlib.util
+        converter = ROOT / "ops/p0249-y1-cutover/prepare_http_only.py"
+        spec = importlib.util.spec_from_file_location("p0249_full_y1_parity", converter)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.assertEqual(m.ALL_HTTP_FUNCTIONS, module.HTTP | {"p0249_health"})
+        self.assertEqual(len(m.ALL_HTTP_FUNCTIONS), 38)
+        self.assertEqual(len(m.EXPECTED_FULL_Y1_INDEX), 46)
+        state = observation()
+        state["y1"]["indexed_functions"].remove("create_private_voicestudio_job")
+        self.assertIn("all_original_http_routes", m.evaluate(state))
+        state = observation()
+        state["y1"]["indexed_functions"].append("unknown_experimental_route")
+        self.assertIn("unreviewed_or_duplicate_y1_function_index", m.evaluate(state))
+        state = observation()
+        state["y1"]["indexed_functions"].append("read_campaign")
+        self.assertIn("unreviewed_or_duplicate_y1_function_index", m.evaluate(state))
 
     def test_public_api_exact_development_cors_required(self):
         state=observation()
