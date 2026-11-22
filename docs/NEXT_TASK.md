@@ -1872,3 +1872,8 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 ## 2026-11-22 — next Y1 CPU Event-source handoff
 1. Verify the new event-scaled Bicep source/static tests and exact PR #1077 HEAD four-job CI. Independently compile/inspect Bicep, verify image digest and future Azure storage account scope; do not deploy Event source before protected DEV handoff.
 2. First establish 38/38 hosted Y1 HTTP, genuine signed writes/reads/media/rollback, then independently disable and observe Flex's render consumer before protected same-job Manual→Event transition. Test one synthetic real FFmpeg queue job, SHA readback, 2100s invisibility, lease, retries/poison, billing and one active owner. Migrate the eight short Y1 consumers only after controlled deactivation on Flex. Do not close #249/stop Flex until full hosted 46-index and served SWA cutover acceptance.
+
+## 2026-11-22 — #249 next after CPU queue invisibility fix
+1. Verify exact latest PR #1077 four-job CI including CPU queue timing contract, complete HTTP 38-route and final 46-function indexing negative tests. Respect independent release/security review.
+2. Only through protected DEV release: verify actual 2100s queue visibility/1800s worker timeout, same-shop lease fencing, private 1080x1920 MP4, no duplicate consumption, rollback; no classic Y1 long FFmpeg.
+3. Keep Flex and #249 open until complete hosted signed GET/POST/PATCH, eight short-worker handoff, served SWA migration and 503/p95/p99/240s-idle validation. No PROD/WineShopPOS/GPU.
