@@ -92,3 +92,25 @@ class Feature4ReleaseIntegrityTests(unittest.TestCase):
             link.symlink_to(output)
             with self.assertRaisesRegex(release.ReleaseIntegrityError, "linked"):
                 release.verify_release(link)
+
+
+    def test_release_path_swap_into_symlink_at_open_is_rejected(self):
+        # A file may be safe at Path.is_symlink() and malicious a moment later.
+        import os
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as root:
+            output = Path(root) / "worker.zip"
+            backup = Path(root) / "original.zip"
+            _sample(output)
+            actual_open = os.open
+
+            def replace_at_open(path, flags, *args, **kwargs):
+                if Path(path) == output:
+                    output.rename(backup)
+                    output.symlink_to(backup)
+                return actual_open(path, flags, *args, **kwargs)
+
+            with patch.object(release.os, "open", side_effect=replace_at_open):
+                with self.assertRaises(release.ReleaseIntegrityError):
+                    release.verify_release(output)
+            self.assertTrue(output.is_symlink())
