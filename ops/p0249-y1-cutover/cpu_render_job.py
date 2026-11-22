@@ -9,11 +9,12 @@ may set the single-owner activation flag after stopping the Flex renderer.
 from __future__ import annotations
 
 import os
-import re
 import sys
 from uuid import UUID
 
 QUEUE = "retail-reel-render"
+POISON_QUEUE = "retail-reel-render-poison"
+MAX_DEQUEUE_COUNT = 3
 VISIBILITY_SECONDS = 1500
 CONTAINER_REPLICA_TIMEOUT_SECONDS = 1800
 SUCCESS = frozenset({"SUCCEEDED", "ALREADY_FINAL", "DENIED"})
@@ -29,12 +30,12 @@ def canonical_job_id(value):
     return job
 
 
-def process_one(queue, admin, media, process):
-    """One queue visibility lease, one idempotent DB claim; ACK only on success.
+def process_one(queue, admin, media, process, poison=None):
+    """One lease and fenced render claim; ACK only on final result or poison ACK.
 
-    KEDA might start more than one job while a queue item is invisible. The
-    PostgreSQL fenced claim remains authoritative. Do NOT delete on unknown
-    render outcome, exception, timeout, invalid payload or contested claim.
+    An old poison has its *exact canonical job UUID* forwarded to the same
+    deduplicating poison ledger as the Azure Functions Queue extension. Never
+    delete the original on an uncertain poison write/ACK or on an invalid job.
     """
     messages = queue.receive_messages(
         messages_per_page=1, visibility_timeout=VISIBILITY_SECONDS)
@@ -42,6 +43,25 @@ def process_one(queue, admin, media, process):
     if item is None:
         return "EMPTY"
     jid = canonical_job_id(item.content)
+    attempts = getattr(item, "dequeue_count", 1)
+    if type(attempts) is not int or not 1 <= attempts <= 1000:
+        raise RuntimeError("Untrusted queue attempt counter")
+    if attempts > MAX_DEQUEUE_COUNT:
+        # A retry may have lost the queue ACK after the previous DB commit.
+        # Do not poison an already-final result or charge its owner again.
+        terminal = admin.render_status(jid)
+        if terminal in ("SUCCEEDED", "FAILED"):
+            queue.delete_message(item.id, item.pop_receipt)
+            return "ALREADY_FINAL"
+        if poison is None:
+            raise RuntimeError("Poison queue connection not configured")
+        receipt = poison.send_message(jid)
+        if not isinstance(getattr(receipt, "id", None), str) or not receipt.id:
+            raise RuntimeError("Poison queue send has no confirmed ACK")
+        # The original poison worker records SHA256-based deduplicated
+        # evidence; repeated uncertain sends are idempotent at the database.
+        queue.delete_message(item.id, item.pop_receipt)
+        return "POISONED"
     result = process(jid, admin, media)
     if result not in SUCCESS:
         raise RuntimeError("Render status was not committed; keep queue message")
@@ -80,10 +100,12 @@ def main():
 
     queue = QueueClient.from_connection_string(
         os.environ["RETAIL_STORAGE"], queue_name=QUEUE)
+    poison = QueueClient.from_connection_string(
+        os.environ["RETAIL_STORAGE"], queue_name=POISON_QUEUE)
     url = os.environ["RETAIL_SUPABASE_URL"]
     secret = os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"]
     result = process_one(queue, AdminStore(url, secret),
-                         PrivateMedia(url, secret), process_render)
+                         PrivateMedia(url, secret), process_render, poison)
     print("P0249_CPU_QUEUE_RESULT=" + result, flush=True)
 
 
