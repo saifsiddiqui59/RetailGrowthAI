@@ -43,6 +43,24 @@ class Feature4PsqlRedactedDiagnosticsTests(unittest.TestCase):
             self.assertNotIn("DO_NOT_PRINT", out.getvalue())
             self.assertFalse(path.exists())
 
+    def test_protected_workflow_keeps_preconditions_and_private_error_handling(self):
+        script = Path(__file__).resolve().parents[2] / (
+            ".github/workflows/retail-dev-feature4-cpu-queues-once.yml")
+        workflow = script.read_text(encoding="utf-8")
+        for required in (
+            "environment: dev",
+            "github.ref == 'refs/heads/main'",
+            "uses: azure/login@v3",
+            "feature4_cpu_db_uri_guard.py",
+            "feature4_cpu_psql_diagnostic.py",
+            "f4cpu-psql-stderr",
+            "umask 077",
+            "has_function_privilege('service_role'",
+            "RETAIL_FEATURE4_CPU_RENDER_ENABLED: 'false'",
+        ):
+            self.assertIn(required, workflow)
+        self.assertNotIn("az role assignment create", workflow)
+
     def test_missing_diagnostic_is_bounded(self):
         with tempfile.TemporaryDirectory() as d:
             out = io.StringIO()
