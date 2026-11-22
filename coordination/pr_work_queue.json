@@ -58,19 +58,19 @@
       "pr": 1059,
       "title": "feat(F2→F4): approved-plan CPU reel handoff + real synthetic MP4 proof",
       "feature": "issue249",
-      "head_sha": "d64017c9a4f13a1d65f7c108d85081d7c104c821",
+      "head_sha": "2f46bad8497c257cb61cda6496a8d7ab5367d5a3",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P1",
       "phase": "in-progress",
       "checkpoint": {
         "owner": "manual-issue249",
-        "ci": "Exact-head mandatory #45030511656 and #45030506382 IN_PROGRESS (Python and Supabase PASS, frontend/FFmpeg pending); native CPU #45030506333 IN_PROGRESS; prior failed head does not describe current head",
-        "next_action": "Wait for exact-head four-job and native CPU completion; manual Issue249 owner investigates any failure; independent review remains required",
+        "ci": "Exact-head latest Part1 #45034372073 FAIL 3/4 (Python/uv); second Part1 #45034367450 FAIL 3/4; native CPU #45034367436 SUCCESS 1/1; all jobs independently checked",
+        "next_action": "Manual Issue249 owner diagnoses Python/uv failing exact-head job; rerun four mandatory jobs; independent review required; native CPU already green",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1059"
     }
   ],
-  "last_inventory_checked_at": "2026-11-22T14:04:43.148Z"
+  "last_inventory_checked_at": "2026-11-22T15:03:20Z"
 }
