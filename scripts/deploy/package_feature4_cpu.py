@@ -102,6 +102,9 @@ def _collect_tree(root, prefix, *, omit_bin_shims=False):
             raise ValueError("Symlink in F4 package: " + str(file.relative_to(root)))
         if file.is_dir():
             continue
+        # FIFOs/devices/sockets can block read_bytes or inject non-file data.
+        if not stat.S_ISREG(file.lstat().st_mode):
+            raise ValueError("Non-regular F4 package dependency: " + str(file.relative_to(root)))
         if omit_bin_shims and ".bin" in file.relative_to(root).parts:
             continue
         rel = file.relative_to(root)
@@ -122,6 +125,8 @@ def _collect_tree(root, prefix, *, omit_bin_shims=False):
 def _write_member(z, archive_path, origin):
     # Zip deploy does not require source-tree symlink semantics. Copy a
     # regular, locally verified file and retain executable permissions.
+    if not stat.S_ISREG(origin.lstat().st_mode) or origin.is_symlink():
+        raise ValueError("Unsafe non-regular F4 archive source: " + archive_path)
     raw = origin.read_bytes()
     perms = stat.S_IMODE(origin.stat().st_mode)
     info = ZipInfo(archive_path, date_time=(2026, 1, 1, 0, 0, 0))
