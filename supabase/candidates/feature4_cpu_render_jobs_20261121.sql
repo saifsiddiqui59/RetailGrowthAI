@@ -3,6 +3,7 @@
 -- Depends on the separately reviewed feature4_creative_plans candidate.
 -- Never deploy to hosted DEV or PROD without security/schema review.
 -- No GPU, providers, model credits or client-issued approvals.
+-- Required JSON approval predicates reject SQL NULL from absent keys.
 begin;
 
 create table public.feature4_cpu_render_jobs (
@@ -94,15 +95,15 @@ begin
       and p.review_sha256=p_expected_review_hash for update;
   if not found or source.reviewed_by is null
      or source.approved_direction->>'approval_id' is distinct from source.id::text
-     or source.approved_direction->'approved' <> 'true'::jsonb
+     or source.approved_direction->'approved' is distinct from 'true'::jsonb
      or source.approved_direction->>'campaign_id' is distinct from source.campaign_id::text
      or source.approved_direction->>'shop_id' is distinct from source.shop_id::text
-     or source.approved_direction->>'version' <> 'creative_direction_v1'
-     or source.approved_direction->'script'->'approved' <> 'true'::jsonb
+     or source.approved_direction->>'version' is distinct from 'creative_direction_v1'
+     or source.approved_direction->'script'->'approved' is distinct from 'true'::jsonb
      or source.approved_direction->>'review_hash' is distinct from source.review_sha256
-     or pg_catalog.jsonb_typeof(source.media_snapshot) <> 'array'
+     or pg_catalog.jsonb_typeof(source.media_snapshot) is distinct from 'array'
      or pg_catalog.jsonb_array_length(source.media_snapshot)
-          <> cardinality(source.media_asset_ids)
+          is distinct from cardinality(source.media_asset_ids)
   then return null; end if;
 
   computed := pg_catalog.encode(extensions.digest(

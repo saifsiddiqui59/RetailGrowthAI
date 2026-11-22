@@ -1,6 +1,7 @@
 -- Feature4 service-only CPU worker claim/authorization SOURCE CANDIDATE.
 -- Depends on reviewed_cpu_plans and cpu_render_jobs; disposable CI only.
 -- Never apply to hosted DEV/PROD or change legacy v1 render claims.
+-- Required JSON fields must be null-safe: a missing approval is never allowed.
 begin;
 create function retail_private.feature4_cpu_authorized(p_id uuid)
 returns boolean language plpgsql stable security definer set search_path=''
@@ -15,16 +16,16 @@ begin
    and shop_id=j.shop_id and campaign_id=j.campaign_id;
  if not found or p.state<>'APPROVED' or p.revoked_at is not null
    or p.review_sha256 is distinct from j.approved_review_sha256
-   or p.reviewed_by is null or p.approved_direction->>'review_hash' <> p.review_sha256
-   or p.approved_direction->>'approval_id' <> p.id::text
-   or p.approved_direction->>'shop_id' <> j.shop_id::text
-   or p.approved_direction->>'campaign_id' <> j.campaign_id::text
-   or p.approved_direction->>'version' <> 'creative_direction_v1'
-   or p.approved_direction->'approved' <> 'true'::jsonb
-   or p.approved_direction->'script'->'approved' <> 'true'::jsonb
-   or pg_catalog.jsonb_typeof(p.media_snapshot)<>'array'
+   or p.reviewed_by is null or p.approved_direction->>'review_hash' is distinct from p.review_sha256
+   or p.approved_direction->>'approval_id' is distinct from p.id::text
+   or p.approved_direction->>'shop_id' is distinct from j.shop_id::text
+   or p.approved_direction->>'campaign_id' is distinct from j.campaign_id::text
+   or p.approved_direction->>'version' is distinct from 'creative_direction_v1'
+   or p.approved_direction->'approved' is distinct from 'true'::jsonb
+   or p.approved_direction->'script'->'approved' is distinct from 'true'::jsonb
+   or pg_catalog.jsonb_typeof(p.media_snapshot) is distinct from 'array'
    or pg_catalog.jsonb_array_length(p.media_snapshot) not between 1 and 12
-   or pg_catalog.jsonb_array_length(p.media_snapshot) <> cardinality(p.media_asset_ids)
+   or pg_catalog.jsonb_array_length(p.media_snapshot) is distinct from cardinality(p.media_asset_ids)
  then return false; end if;
  digest:=pg_catalog.encode(extensions.digest(
    pg_catalog.convert_to('rgai-f2-f4-approved-v1','UTF8')||

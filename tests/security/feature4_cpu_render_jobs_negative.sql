@@ -137,6 +137,47 @@ begin
     raise exception 'FAIL: stale digest accepted'; end if;
 end $test$;
 
+-- Prove a *re-sealed* synthetic approved direction with a missing required
+-- top-level approval flag cannot bypass SQL's three-valued OR guard.
+-- Savepoint rollback preserves the valid fixture for normal worker coverage.
+reset role;
+savepoint feature4_null_approval_guard;
+with stripped as (
+  select id,approved_direction - 'approved' - 'review_hash' as direction
+  from public.feature4_creative_plans
+  where id='f5300000-0000-4000-8000-000000000001'
+), sealed as (
+  select id,direction,pg_catalog.encode(extensions.digest(
+    pg_catalog.convert_to('rgai-f2-f4-approved-v1','UTF8') ||
+    pg_catalog.decode('00','hex') ||
+    pg_catalog.convert_to(retail_private.python_json_v1(direction),'UTF8'),
+    'sha256'),'hex') as digest
+  from stripped
+)
+update public.feature4_creative_plans p set
+  approved_direction=sealed.direction ||
+    pg_catalog.jsonb_build_object('review_hash',sealed.digest),
+  review_sha256=sealed.digest
+from sealed where p.id=sealed.id;
+update public.feature4_cpu_render_jobs j
+  set approved_review_sha256=p.review_sha256
+from public.feature4_creative_plans p where j.plan_id=p.id
+  and p.id='f5300000-0000-4000-8000-000000000001';
+set local role service_role;
+do $missing_approval$
+declare jid uuid;
+begin
+  select id into jid from public.feature4_cpu_render_jobs
+  where plan_id='f5300000-0000-4000-8000-000000000001';
+  if (select retail_private.feature4_cpu_authorized(jid)) is not false
+    or public.feature4_claim_cpu_render(jid) is not null
+  then raise exception
+    'FAIL: missing approval flag authorized a re-sealed CPU plan';
+  end if;
+end $missing_approval$;
+reset role;
+rollback to savepoint feature4_null_approval_guard;
+
 -- Worker service role may claim exactly one dedicated outbox event; stale
 -- ACK/lease may not finalize or steal any other worker's claim.
 reset role;

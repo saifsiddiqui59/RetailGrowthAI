@@ -1357,3 +1357,7 @@ The fourth owner-protected reviewed exact-main Y1 run #45021333842 passed source
 
 ## 2026-11-22 — F4 isolated release must carry complete SHA-sealed CPU artifact
 An isolated CPU worker package must be verified offline before any Azure release against exact manifest SHA-256 values of every member, complete expected Python/Node/FFmpeg/Chromium dependency tree and executable permissions; reject traversal, duplicate members, undeclared legacy HTTP modules, symlink archive sources, and non-CPU runtime declarations. The verifier is source-only and cannot grant review, deploy a worker or enable billable rendering. Independent affected-lead/security approval is separate from the account owner's preference not to do manual approvals. Existing v1 ZIP, DEV uninstalled candidate tables and #249/Y1 traffic untouched.
+
+
+## 2026-11-22 — Require NULL-safe JSON validation for approved F4 plans
+All required reviewed-plan approval, version, identity and media snapshot predicates in F4 CPU issue/claim source candidates use `IS DISTINCT FROM`, not `<>`, to reject missing JSON keys. PostgreSQL NULL in `IF` with compound `OR` may otherwise fail open. A disposable test deliberately re-seals a synthetic invalid direction and checks worker denial, without claiming a real-world exploit. No rights, billing, service-role permissions, legacy v1 or hosting changes authorized by this source rule.
