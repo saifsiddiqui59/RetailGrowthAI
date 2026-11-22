@@ -34,7 +34,10 @@ def fake_runner(overrides=None):
                          "id":"/subscriptions/trusted-subscription/resourceGroups/"
                                +tool.RG+"/providers/Microsoft.Web/sites/"+app}
             elif op[:3]==("functionapp","config","appsettings"):
-                payload=[{"name":key,"value":"synthetic-unsafe-secret-never-log"}
+                payload=[{"name":key,
+                          "value":("python" if key=="FUNCTIONS_WORKER_RUNTIME"
+                                   else tool.EXPECTED_SUPABASE if key=="RETAIL_SUPABASE_URL"
+                                   else "synthetic-unsafe-secret-never-log")}
                          for key in sorted(tool.CONNECTIONS)]
             elif op[:3]==("functionapp","function","list"):
                 names=tool.CORE_FUNCTIONS if app==tool.Y1 else {"plan_campaign"}
@@ -69,6 +72,16 @@ class ReadonlyY1ConnectionInspection(unittest.TestCase):
                             for x in calls))
         self.assertFalse(any(x in {"stop","delete","set"}
                              for cmd in calls for x in cmd))
+
+    def test_separate_y1_webjobs_host_storage_does_not_false_block_shared_queue(self):
+        def changed(op,payload):
+            if op[:3]==("functionapp","config","appsettings") and op[-1]==tool.Y1:
+                for item in payload:
+                    if item["name"]=="AzureWebJobsStorage":
+                        item["value"]="dedicated-y1-internal-host-storage"
+            return payload
+        report=tool.inspect(fake_runner(changed)[0])
+        self.assertTrue(report["y1_same_core_connection_values"])
 
     def test_changed_service_role_key_prevents_false_connection_parity(self):
         def changed(op, payload):
