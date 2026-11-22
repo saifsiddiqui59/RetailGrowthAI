@@ -61,8 +61,9 @@ jobs:
               raise SystemExit('BLOCKED: unsafe CPU worker scale')
           if str(settings.get('RETAIL_FEATURE4_CPU_WORKER_ENABLED','')).lower()!='false' or str(settings.get('RETAIL_FEATURE4_CPU_RENDER_ENABLED','')).lower()!='false':
               raise SystemExit('BLOCKED: existing worker is already enabled')
-          if settings.get('FUNCTIONS_WORKER_RUNTIME')!='python':
-              raise SystemExit('BLOCKED: unexpected F4 runtime')
+          runtime=config.get('runtime') or {}
+          if runtime.get('name')!='python' or runtime.get('version')!='3.11':
+              raise SystemExit('BLOCKED: unexpected F4 Flex runtime')
           print('PASS: exact protected DEV F4 CPU app verified OFF at 1x2048MiB')
           PY
           for queue in retail-feature4-cpu-render retail-feature4-cpu-render-poison; do

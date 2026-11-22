@@ -32,7 +32,7 @@ class F4CpuZipStageWorkflowContract(unittest.TestCase):
             "RETAIL_FEATURE4_CPU_RENDER_ENABLED",
             "scale.get('maximumInstanceCount') != 1",
             "scale.get('instanceMemoryMB') != 2048",
-            "settings.get('FUNCTIONS_WORKER_RUNTIME')!='python'",
+            "runtime.get('name')!='python' or runtime.get('version')!='3.11'",
             "Azure/functions-action@c5060b3b8bb1ebbcb531abd00c822ecbaa8ea656",
         ):
             self.assertIn(token,src)
