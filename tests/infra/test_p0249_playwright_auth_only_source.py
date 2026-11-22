@@ -41,6 +41,8 @@ class ProtectedLoginOnlySourceTests(unittest.TestCase):
         self.assertIn('tests/e2e/p0249_dev_playwright_login_only_once.py', code)
         self.assertIn('RGAI_DEV_LOGIN_ONLY:', code)
         self.assertIn('RGAI_DEV_SERVICE_KEY:', code)
+        before_canary = code.split('      - name: Run protected DEV acceptance path')[0]
+        self.assertNotIn('RGAI_DEV_SERVICE_KEY:', before_canary)
 
 
 if __name__ == '__main__':
