@@ -142,16 +142,23 @@ def _write_member(z, archive_path, origin):
     # must not exhaust CI/worker memory before the ZIP-size guard runs.
     if origin.stat().st_size > MAX_ARCHIVE:
         raise ValueError("F4 archive source exceeds 1GB limit: " + archive_path)
-    raw = origin.read_bytes()
-    if len(raw) > MAX_ARCHIVE:
-        raise ValueError("F4 archive source exceeds 1GB limit: " + archive_path)
+    # Stream bounded chunks instead of allocating a whole native binary in RAM.
+    # Re-check the count while copying to catch growth after the initial stat.
     perms = stat.S_IMODE(origin.stat().st_mode)
     info = ZipInfo(archive_path, date_time=(2026, 1, 1, 0, 0, 0))
     info.create_system = 3
     info.external_attr = (stat.S_IFREG | (perms or 0o644)) << 16
     info.compress_type = ZIP_DEFLATED
-    z.writestr(info, raw, compresslevel=6)
-    return hashlib.sha256(raw).hexdigest()
+    digest = hashlib.sha256()
+    count = 0
+    with origin.open("rb") as source, z.open(info, "w", force_zip64=True) as target:
+        while chunk := source.read(1024 * 1024):
+            count += len(chunk)
+            if count > MAX_ARCHIVE:
+                raise ValueError("F4 archive source exceeds 1GB limit: " + archive_path)
+            digest.update(chunk)
+            target.write(chunk)
+    return digest.hexdigest()
 
 
 def build(args):
