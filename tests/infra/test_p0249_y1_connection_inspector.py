@@ -36,7 +36,7 @@ def fake_runner(overrides=None):
             elif op[:3]==("functionapp","config","appsettings"):
                 payload=[{"name":key,
                           "value":("python" if key=="FUNCTIONS_WORKER_RUNTIME"
-                                   else tool.EXPECTED_SUPABASE if key=="RETAIL_SUPABASE_URL"
+                                   else tool.SUPABASE if key=="RETAIL_SUPABASE_URL"
                                    else "synthetic-unsafe-secret-never-log")}
                          for key in sorted(tool.CONNECTIONS)]
             elif op[:3]==("functionapp","function","list"):
