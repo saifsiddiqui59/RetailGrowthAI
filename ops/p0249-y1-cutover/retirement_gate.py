@@ -101,6 +101,14 @@ def evaluate(observed: dict) -> tuple[str, ...]:
         missing.append("server_side_y1_supabase_storage_connections")
     if y1.get("same_retailgrowth_dev_connections_as_flex") is not True:
         missing.append("protected_original_connection_value_comparison")
+    # Browser-origin CORS is a separate live connection from the signed
+    # Supabase/queue credentials; no wildcard or credentials on public APIs.
+    cors = y1.get("cors")
+    if (not isinstance(cors, dict)
+        or not isinstance(cors.get("allowedOrigins"), list)
+        or cors.get("allowedOrigins") != [FRONTEND]
+        or cors.get("supportCredentials") is not False):
+        missing.append("y1_exact_dev_frontend_cors")
     names = y1.get("indexed_functions")
     if not isinstance(names, list) or not all(isinstance(v, str) for v in names):
         names = []
