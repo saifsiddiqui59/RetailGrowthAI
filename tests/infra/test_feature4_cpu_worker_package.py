@@ -88,12 +88,14 @@ class Feature4CpuWorkerPackageTests(unittest.TestCase):
 
     def test_linked_source_directory_rejected(self):
         import tempfile
+        import shutil
         from unittest.mock import patch
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             actual = root / "actual"
             actual.mkdir()
-            (actual / "host.json").write_text("{}", encoding="utf-8")
+            for name in ("host.json", "requirements.txt", *module.SERVICE_MODULES):
+                shutil.copy2(module.SERVICE / name, actual / name)
             alias = root / "linked"
             alias.symlink_to(actual, target_is_directory=True)
             with patch.object(module, "SERVICE", alias):
