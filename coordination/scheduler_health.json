@@ -2,9 +2,9 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-22T12:56:52.173Z",
+  "last_written_at": "2026-11-22T14:04:51.608Z",
   "last_inventory_count": 3,
-  "last_inventory_checked_at": "2026-11-22T12:56:52.173Z",
+  "last_inventory_checked_at": "2026-11-22T14:04:51.608Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
@@ -108,30 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 44972604365,
-      "head_sha": "2ceee89a51085a25e1ec58128b49d0857c5059a5",
-      "status": "SUCCESS native CPU 1/1",
-      "evidence": "Exact-head GitHub Actions jobs independently inspected; independent Issue249 review still required"
-    },
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 44977502801,
-      "head_sha": "ae75ff63ff50cf08b76afc5cf174a8f80bd57eec",
-      "status": "FAIL 3/4",
-      "evidence": "Python/uv job #137070581478 failed: 1 failed, 2729 passed; Python 3.13 guard before symlink rejection assertion; manual Issue249 owner repair required"
-    },
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 44977502909,
-      "head_sha": "ae75ff63ff50cf08b76afc5cf174a8f80bd57eec",
-      "status": "SUCCESS native CPU 1/1",
-      "evidence": "Job #137070592644 independently checked"
-    },
     {
       "event": "exact_head_ci",
       "pr": 1059,
@@ -299,6 +275,30 @@
       "head_sha": "345498813b27a61e93f2f5b6612ba826e3d9bfb9",
       "status": "FAIL native CPU 0/1",
       "evidence": "Native F2-to-F4 30s CPU job inspected; failed"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 45030511656,
+      "head_sha": "d64017c9a4f13a1d65f7c108d85081d7c104c821",
+      "status": "IN_PROGRESS 2/4 PASS, 2 running",
+      "evidence": "Exact-head GitHub Actions jobs independently inspected; current outcome pending; manual Issue249 ownership retained"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 45030506382,
+      "head_sha": "d64017c9a4f13a1d65f7c108d85081d7c104c821",
+      "status": "IN_PROGRESS 3/4 PASS, 1 running",
+      "evidence": "Exact-head GitHub Actions jobs independently inspected; current outcome pending; manual Issue249 ownership retained"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 45030506333,
+      "head_sha": "d64017c9a4f13a1d65f7c108d85081d7c104c821",
+      "status": "IN_PROGRESS native CPU 0/1 completed",
+      "evidence": "Exact-head GitHub Actions jobs independently inspected; current outcome pending; manual Issue249 ownership retained"
     }
   ],
   "current_review_gates": {
@@ -450,10 +450,10 @@
     "docs_postmerge_main_ci": {
       "run_id": 44377599370,
       "head_sha": "a65bb1503dd83af68de342329db45314aaa654cb",
-      "status": "SUCCESS",
-      "mandatory_jobs_passed": 4,
-      "mandatory_jobs_total": 4,
-      "verified_at_utc": "2026-11-22T12:56:52.173Z"
+      "status": "COMPLETED SUCCESS",
+      "jobs_passed": 4,
+      "jobs_total": 4,
+      "verified_at_utc": "2026-11-22T14:04:51.608Z"
     },
     "docs_files_updated": [
       "docs/PROJECT_STATE.md",
@@ -583,5 +583,20 @@
     "native_cpu_run_id": 45008824022,
     "native_cpu": "FAIL 0/1",
     "verified_at_utc": "2026-11-22T10:00:43Z"
-  }
+  },
+  "current_exact_head_ci": {
+    "pr": 1059,
+    "head_sha": "d64017c9a4f13a1d65f7c108d85081d7c104c821",
+    "checked_at_utc": "2026-11-22T14:04:51.608Z",
+    "latest_mandatory_run_id": 45030511656,
+    "latest_mandatory_status": "IN_PROGRESS 2/4 PASS, 2 running",
+    "parallel_mandatory_run_id": 45030506382,
+    "parallel_mandatory_status": "IN_PROGRESS 3/4 PASS, 1 running",
+    "native_cpu_run_id": 45030506333,
+    "native_cpu_status": "IN_PROGRESS",
+    "last_verified_green_on_current_head": null,
+    "previous_head_failures_not_current": true
+  },
+  "current_automation_controls": "UNVERIFIED: automation get returned 404; no F4/F7 changes",
+  "current_executor_status": "EXECUTOR_NOT_PROVISIONED (last verified); environment details currently UNVERIFIED"
 }
