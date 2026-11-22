@@ -1,0 +1,172 @@
+name: RetailGrowthAI F4 DEV sealed native CPU ZIP (protected stage only)
+# One-shot deployment of a validated, separate F4 worker package to the
+# *already present*, isolated and still disabled DEV Functions app.
+# No worker trigger indexing, customer rendering, new IAM or Y1/Flex changes.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-feature4-cpu-zip-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-f4cpu-native-zip-staging-once
+  cancel-in-progress: false
+jobs:
+  stage-native-cpu-zip:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_RG: rg-retailgrowth-dev
+      RGAI_F4_APP: rgai-dev-f4cpu-d4e5ddbd
+      RGAI_F4_STORAGE: rgaid4e5ddbdf0d21d96
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Login using exact protected DEV Azure OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify pre-created isolated CPU worker stays OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AZURE_SUBSCRIPTION_ID"
+          test "$(az account show --query id -o tsv)" = "$AZURE_SUBSCRIPTION_ID"
+          az resource show -g "$RGAI_DEV_RG" --resource-type Microsoft.Web/sites \
+              --name "$RGAI_F4_APP" --api-version 2024-11-01 \
+              -o json > "$RUNNER_TEMP/f4cpu-pre-app.json"
+          az functionapp config appsettings list -g "$RGAI_DEV_RG" \
+              -n "$RGAI_F4_APP" -o json > "$RUNNER_TEMP/f4cpu-pre-settings.json"
+          python3 - <<'PY'
+          import os,json,pathlib
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          app=json.loads((root/'f4cpu-pre-app.json').read_text())
+          settings={x.get('name'):x.get('value') for x in json.loads((root/'f4cpu-pre-settings.json').read_text())}
+          tags={str(k).lower():str(v).lower() for k,v in (app.get('tags') or {}).items()}
+          config=(app.get('properties') or {}).get('functionAppConfig') or {}
+          scale=config.get('scaleAndConcurrency') or {}
+          if app.get('name')!='rgai-dev-f4cpu-d4e5ddbd' or tags.get('app')!='retailgrowthai' or tags.get('environment')!='dev' or tags.get('purpose')!='feature4-cpu-private-worker':
+              raise SystemExit('BLOCKED: foreign or untagged F4 DEV host')
+          if scale.get('maximumInstanceCount') != 1 or scale.get('instanceMemoryMB') != 2048:
+              raise SystemExit('BLOCKED: unsafe CPU worker scale')
+          if str(settings.get('RETAIL_FEATURE4_CPU_WORKER_ENABLED','')).lower()!='false' or str(settings.get('RETAIL_FEATURE4_CPU_RENDER_ENABLED','')).lower()!='false':
+              raise SystemExit('BLOCKED: existing worker is already enabled')
+          if settings.get('FUNCTIONS_WORKER_RUNTIME')!='python':
+              raise SystemExit('BLOCKED: unexpected F4 runtime')
+          print('PASS: exact protected DEV F4 CPU app verified OFF at 1x2048MiB')
+          PY
+          for queue in retail-feature4-cpu-render retail-feature4-cpu-render-poison; do
+            if ! az storage queue exists --name "$queue" --account-name "$RGAI_F4_STORAGE" --auth-mode login -o json > "$RUNNER_TEMP/f4cpu-queue-check.json" 2>/dev/null; then
+              echo 'BLOCKED: private queue unreadable; no ZIP deployment'; exit 3
+            fi
+            python3 - <<'PY'
+          import json,os,pathlib
+          d=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'f4cpu-queue-check.json').read_text())
+          if d.get('exists') is not True:
+              raise SystemExit('BLOCKED: required dedicated DEV F4 queue missing')
+          PY
+          done
+      - name: Install pinned Node 22 and uv Python 3.11
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884
+        with:
+          version: '0.13.1'
+          enable-cache: false
+      - name: Install SHA256-pinned F4 FFmpeg x264/AAC/drawtext build
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = x86_64
+          tag=autobuild-2026-11-18-12-39
+          archive=ffmpeg-n8.1.3-36-ge22a4510c9-linux64-gpl-8.1.tar.xz
+          digest=fce424851b0a982bdd4ac4e96f0e7b32cf29de999e54500676d41ad175ed0c79
+          asset="$RUNNER_TEMP/$archive"
+          timeout --signal=TERM --kill-after=10s 320s curl \
+            --fail --location --silent --show-error --retry 2 --retry-delay 2 \
+            --connect-timeout 15 --max-time 300 \
+            "https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/$tag/$archive" \
+            --output "$asset"
+          printf '%s  %s\n' "$digest" "$asset" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/f4cpu-media-extract" "$RUNNER_TEMP/f4cpu-media-bin"
+          tar --extract --xz --file "$asset" --directory "$RUNNER_TEMP/f4cpu-media-extract" \
+            --no-same-owner --no-same-permissions
+          mapfile -t ffmpegs < <(find "$RUNNER_TEMP/f4cpu-media-extract" -type f -path '*/bin/ffmpeg')
+          mapfile -t ffprobes < <(find "$RUNNER_TEMP/f4cpu-media-extract" -type f -path '*/bin/ffprobe')
+          test "${#ffmpegs[@]}" -eq 1 && test "${#ffprobes[@]}" -eq 1
+          install -m 0755 "${ffmpegs[0]}" "$RUNNER_TEMP/f4cpu-media-bin/ffmpeg"
+          install -m 0755 "${ffprobes[0]}" "$RUNNER_TEMP/f4cpu-media-bin/ffprobe"
+          echo "$RUNNER_TEMP/f4cpu-media-bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/f4cpu-media-bin/ffmpeg" -hide_banner -encoders | grep -Eq 'libx264([[:space:]]|$)'
+          "$RUNNER_TEMP/f4cpu-media-bin/ffmpeg" -hide_banner -encoders | grep -Eq '[[:space:]]aac([[:space:]]|$)'
+          "$RUNNER_TEMP/f4cpu-media-bin/ffmpeg" -hide_banner -filters | grep -Eq '[[:space:]]drawtext[[:space:]]'
+      - name: Build exact sealed F4 CPU artifact with pinned dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/deploy/package_feature4_cpu.py --check
+          python3 video-engine/hyperframes/lock_guard.py \
+            --lock video-engine/hyperframes/package-lock.json \
+            --report "$RUNNER_TEMP/f4cpu-lock.json"
+          timeout --signal=TERM --kill-after=10s 180s \
+            npm ci --prefix video-engine/hyperframes --no-audit --no-fund
+          timeout --signal=TERM --kill-after=10s 180s \
+            video-engine/hyperframes/node_modules/.bin/puppeteer browsers install chrome-headless-shell
+          uv python install 3.11
+          uv venv "$RUNNER_TEMP/f4cpu-venv" --python 3.11
+          uv pip install --python "$RUNNER_TEMP/f4cpu-venv/bin/python" \
+            --requirement azure-functions/campaign-api/requirements.txt
+          py="$RUNNER_TEMP/f4cpu-venv/bin/python"
+          deps="$RUNNER_TEMP/f4cpu-venv/lib/python3.11/site-packages"
+          "$py" scripts/deploy/package_feature4_cpu.py --build \
+            --node "$(command -v node)" \
+            --ffmpeg "$(command -v ffmpeg)" \
+            --ffprobe "$(command -v ffprobe)" \
+            --python-site-packages "$deps" \
+            --puppeteer-cache "$HOME/.cache/puppeteer" \
+            --output "$RUNNER_TEMP/rgai-f4cpu-sealed-private-worker.zip"
+          "$py" scripts/deploy/verify_feature4_cpu_release.py \
+            --zip "$RUNNER_TEMP/rgai-f4cpu-sealed-private-worker.zip" \
+            > "$RUNNER_TEMP/f4cpu-zip-verification.json"
+          # No archive artifact uploads or public/private source copying.
+          echo 'PASS: private F4 CPU ZIP sealed and validated on exact runner' >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish only to already-disabled isolated F4 DEV app
+        uses: Azure/functions-action@c5060b3b8bb1ebbcb531abd00c822ecbaa8ea656
+        with:
+          app-name: rgai-dev-f4cpu-d4e5ddbd
+          package: ${{ runner.temp }}/rgai-f4cpu-sealed-private-worker.zip
+      - name: Verify app identity and CPU worker stays disabled after ZIP publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          az resource show -g "$RGAI_DEV_RG" --resource-type Microsoft.Web/sites \
+            --name "$RGAI_F4_APP" --api-version 2024-11-01 -o json > "$RUNNER_TEMP/f4cpu-post-app.json"
+          az functionapp config appsettings list -g "$RGAI_DEV_RG" \
+            -n "$RGAI_F4_APP" -o json > "$RUNNER_TEMP/f4cpu-post-settings.json"
+          python3 - <<'PY'
+          import os,json,pathlib
+          root=pathlib.Path(os.environ['RUNNER_TEMP'])
+          app=json.loads((root/'f4cpu-post-app.json').read_text())
+          settings={x.get('name'):x.get('value') for x in json.loads((root/'f4cpu-post-settings.json').read_text())}
+          tags={str(k).lower():str(v).lower() for k,v in (app.get('tags') or {}).items()}
+          if (app.get('name')!='rgai-dev-f4cpu-d4e5ddbd'
+              or tags.get('purpose')!='feature4-cpu-private-worker'
+              or str(settings.get('RETAIL_FEATURE4_CPU_WORKER_ENABLED','')).lower()!='false'
+              or str(settings.get('RETAIL_FEATURE4_CPU_RENDER_ENABLED','')).lower()!='false'):
+              raise SystemExit('BLOCKED: post-package F4 worker identity or OFF flags mismatch')
+          print('PASS: isolated CPU artifact staged with F4 triggers and customer render still OFF')
+          PY
+          rm -f "$RUNNER_TEMP/rgai-f4cpu-sealed-private-worker.zip"
+          echo 'Sealed native ZIP staged; service-role runtime settings, three trigger indexing, private MP4 and two-shop E2E still NOT completed.' >> "$GITHUB_STEP_SUMMARY"
