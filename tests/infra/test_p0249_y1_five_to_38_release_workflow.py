@@ -30,6 +30,12 @@ class ProtectedReleaseSourceTests(unittest.TestCase):
         self.assertNotIn("az functionapp config appsettings set", FLOW)
         self.assertNotIn("AzureWebJobs.render_campaign_reel.Disabled=true", FLOW)
         self.assertIn("rgai-dev-y1-p0249-d4e5ddbd", FLOW)
+        # The source ZIP has requirements.txt but no vendored .python_packages;
+        # disabling both build flags would make Azure unable to import Python deps.
+        self.assertIn("scm-do-build-during-deployment: 'true'", FLOW)
+        self.assertIn("enable-oryx-build: 'true'", FLOW)
+        self.assertNotIn("scm-do-build-during-deployment: 'false'", FLOW)
+        self.assertNotIn("enable-oryx-build: 'false'", FLOW)
         self.assertNotIn("app-name: rgai-dev-functions-d4e5ddbd", FLOW)
 
     def test_prewrite_guard_and_two_real_windows(self):
