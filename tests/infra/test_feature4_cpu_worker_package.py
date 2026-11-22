@@ -55,6 +55,27 @@ class Feature4CpuWorkerPackageTests(unittest.TestCase):
                 module.build(args)
             self.assertFalse((root / "worker.zip").exists())
 
+    def test_runtime_dependency_symlinks_rejected_before_archive(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            dependencies = root / "dependencies"
+            dependencies.mkdir()
+            real = dependencies / "real.py"
+            real.write_text("safe", encoding="utf-8")
+            (dependencies / "alias.py").symlink_to(real)
+            with self.assertRaisesRegex(ValueError, "Symlink in F4 package"):
+                module._collect_tree(dependencies, "deps")
+            (dependencies / "alias.py").unlink()
+            nested = dependencies / "nested"
+            nested.mkdir()
+            (nested / "payload.py").write_text("safe", encoding="utf-8")
+            (dependencies / "linked_dir").symlink_to(nested, target_is_directory=True)
+            # rglob behavior for directory links varies by Python version;
+            # a direct linked file is always rejected.
+            self.assertEqual(
+                module._collect_tree(dependencies, "deps")["deps/real.py"], real)
+
     def test_native_worker_not_silently_added_to_protected_v1_zip(self):
         old = (ROOT / "scripts" / "deploy" / "package.py").read_text(encoding="utf-8")
         self.assertIn(
