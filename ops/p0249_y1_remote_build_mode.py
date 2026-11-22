@@ -247,14 +247,32 @@ def rollback():
     print("P0249_Y1_ORIGINAL_EXTERNAL_PACKAGE_ROLLBACK=PASS", flush=True)
 
 
+def _postpublisher_oryx_allowed(s):
+    """Official Functions Action Oryx input is temporary, not a persistent flag.
+
+    Permit only true or ABSENT; the next gated index/HTTP checks must still
+    prove the code actually launched. Never allow a false/unknown Oryx value.
+    """
+    return ("ENABLE_ORYX_BUILD" not in s or
+            str(s.get("ENABLE_ORYX_BUILD", "")).lower() == "true")
+
+
 def verify_build_mode():
-    """Fail closed when an external publisher removes required Oryx settings."""
+    """Verify persistent ownership/package state, not ephemeral Action flags."""
     guard.verify()
     s = _settings()
+    # Fixed booleans only; never print credential-bearing URL, token or keys.
+    print("P0249_Y1_POSTPUBLISH_FLAGS=" + json.dumps({
+        "scm_true": str(s.get("SCM_DO_BUILD_DURING_DEPLOYMENT", "")).lower() == "true",
+        "oryx_absent": "ENABLE_ORYX_BUILD" not in s,
+        "oryx_true": str(s.get("ENABLE_ORYX_BUILD", "")).lower() == "true",
+        "runfrompackage_absent": "WEBSITE_RUN_FROM_PACKAGE" not in s,
+        "backup_url_valid": _package_url(s.get(BACKUP)),
+        "owner_matches_current_run": s.get(OWNER) == _run_id(),
+    }, sort_keys=True), flush=True)
     _assert_settings(s)
     if (s.get(OWNER) != _run_id() or not _package_url(s.get(BACKUP))
-            or "WEBSITE_RUN_FROM_PACKAGE" in s
-            or str(s.get("ENABLE_ORYX_BUILD", "")).lower() != "true"):
+            or "WEBSITE_RUN_FROM_PACKAGE" in s or not _postpublisher_oryx_allowed(s)):
         raise RuntimeError("Y1 remote build settings or owner drifted")
     print("P0249_Y1_REMOTE_BUILD_POSTPUBLISH_SETTINGS=PASS", flush=True)
 
@@ -265,7 +283,8 @@ def verify_five():
     _assert_settings(value)
     if (value.get(OWNER) != _run_id() or
             not _package_url(value.get(BACKUP)) or
-            str(value.get("ENABLE_ORYX_BUILD", "")).lower() != "true"):
+            "WEBSITE_RUN_FROM_PACKAGE" in value or
+            not _postpublisher_oryx_allowed(value)):
         raise RuntimeError("Protected Y1 remote-build owner/mode drifted")
     if _index() != FIVE:
         raise RuntimeError("Five Y1 functions not actually indexed")
