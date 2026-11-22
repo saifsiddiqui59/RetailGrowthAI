@@ -2,9 +2,9 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-22T21:00:06Z",
+  "last_written_at": "2026-11-22T23:03:07Z",
   "last_inventory_count": 9,
-  "last_inventory_checked_at": "2026-11-22T19:03:30Z",
+  "last_inventory_checked_at": "2026-11-22T23:03:07Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
@@ -108,14 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 45023905629,
-      "head_sha": "345498813b27a61e93f2f5b6612ba826e3d9bfb9",
-      "status": "FAIL 3/4 (Python/uv)",
-      "evidence": "Four mandatory jobs inspected; Python/uv failed, other three succeeded"
-    },
     {
       "event": "exact_head_ci",
       "pr": 1059,
@@ -302,6 +294,14 @@
       "status": "PASS 1/1 special workflow; earlier mandatory 4/4 PASS",
       "run_id": 45056269139,
       "evidence": "Exact SHA workflow and jobs inspected 2026-11-22"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1077,
+      "run_id": 45075576388,
+      "head_sha": "84a00902ea5593925acadc1de60a5aa6efd177e3",
+      "status": "PASS 4/4 latest mandatory",
+      "evidence": "Four jobs independently verified SUCCESS on exact head 2026-11-22"
     }
   ],
   "current_review_gates": {
@@ -493,7 +493,7 @@
     "chatgpt_scheduler_runtime_increased": false
   },
   "current_automation_inspection": {
-    "checked_at_utc": "2026-11-22T19:55:25Z",
+    "checked_at_utc": "2026-11-22T23:03:07Z",
     "controls": "F3/F4/F7 VERIFIED disabled; F2 UNVERIFIED inaccessible",
     "f2_enabled": null,
     "f3_enabled": false,
@@ -506,7 +506,7 @@
       "f7": 39.969
     },
     "verified_new_source_test_commits": null,
-    "commit_evidence": "No new run since last verified for F3/F4/F7; F2 inaccessible, source/test commit count CURRENT UNKNOWN",
+    "commit_evidence": "No new run since last verified F3/F4/F7; F2 inaccessible; current source/test commits UNKNOWN",
     "environment_selection": "inherited",
     "environments": null,
     "executor": "GITHUB_CONNECTOR_ONLY",
@@ -622,7 +622,7 @@
   },
   "current_executor_status": "EXECUTOR_NOT_PROVISIONED: all four inherited environments null; GITHUB_CONNECTOR_ONLY last verified",
   "current_live_ci": {
-    "checked_at_utc": "2026-11-22T19:55:25Z",
+    "checked_at_utc": "2026-11-22T23:03:07Z",
     "verified": [
       {
         "pr": 1101,
@@ -654,7 +654,7 @@
       "1064": "last verified 4/4 PASS",
       "1065": "last verified 4/4 PASS",
       "1076": "last verified 4/4 PASS",
-      "1077": "earlier same-head 4/4 PASS; latest CANCELLED"
+      "1077": "latest exact-head #45075576388 PASS 4/4"
     },
     "docs_postmerge": "PASS 4/4 (previously verified)"
   },
@@ -664,7 +664,7 @@
   "current_lease_verification": "UNKNOWN: no live lease claim verified",
   "last_queue_delta": {
     "head_changes": [
-      1085
+      1077
     ],
     "added": [],
     "removed": []
