@@ -96,7 +96,9 @@ class FiveTo38ReleaseTests(unittest.TestCase):
         release.prepare()
         self.assertEqual(self.settings[release.BACKUP], FIVE_URL)
         self.assertEqual(self.settings[release.OWNER], "45099900001")
-        self.assertEqual(self.settings["WEBSITE_RUN_FROM_PACKAGE"], FIVE_URL)
+        self.assertEqual(self.settings[release.ORYX_BASELINE], "absent")
+        self.assertNotIn("WEBSITE_RUN_FROM_PACKAGE", self.settings)
+        self.assertEqual(self.settings["ENABLE_ORYX_BUILD"], "true")
         self.assertEqual(self.index, set(release.FIVE))
         with self.assertRaises(RuntimeError):
             release.prepare()  # no accidental overwrite / double release
@@ -150,9 +152,48 @@ class FiveTo38ReleaseTests(unittest.TestCase):
         self.assertEqual(self.settings["WEBSITE_RUN_FROM_PACKAGE"], FIVE_URL)
         self.assertNotIn(release.BACKUP, self.settings)
         self.assertNotIn(release.OWNER, self.settings)
+        self.assertNotIn(release.ORYX_BASELINE, self.settings)
+        self.assertNotIn("ENABLE_ORYX_BUILD", self.settings)
         self.assertEqual(self.index, set(release.FIVE))
         self.assertEqual(self.probe_calls, 2)
         self.assertIn("trigger-sync", self.azure_mutations)
+
+    def test_legacy_true_oryx_baseline_is_restored_exactly(self):
+        self.settings["ENABLE_ORYX_BUILD"] = "true"
+        release.prepare()
+        self.assertEqual(self.settings[release.ORYX_BASELINE], "true")
+        self.settings["WEBSITE_RUN_FROM_PACKAGE"] = NEW_URL
+        self.index = set(release.THIRTY_EIGHT)
+        release.rollback()
+        self.assertEqual(self.settings["WEBSITE_RUN_FROM_PACKAGE"], FIVE_URL)
+        self.assertEqual(self.settings["ENABLE_ORYX_BUILD"], "true")
+        self.assertNotIn(release.ORYX_BASELINE, self.settings)
+
+    def test_legacy_false_oryx_baseline_is_restored_exactly(self):
+        self.settings["ENABLE_ORYX_BUILD"] = "false"
+        release.prepare()
+        self.assertEqual(self.settings["ENABLE_ORYX_BUILD"], "true")
+        release.rollback()
+        self.assertEqual(self.settings["WEBSITE_RUN_FROM_PACKAGE"], FIVE_URL)
+        self.assertEqual(self.settings["ENABLE_ORYX_BUILD"], "false")
+
+    def test_partial_oryx_backup_fails_closed(self):
+        self.settings[release.ORYX_BASELINE] = "absent"
+        with self.assertRaises(RuntimeError):
+            release.rollback()
+        self.assertEqual(self.azure_mutations, [])
+
+    def test_remote_build_mode_must_have_absent_old_zip_and_enabled_oryx(self):
+        release.prepare()
+        self.assertNotIn("WEBSITE_RUN_FROM_PACKAGE", self.settings)
+        self.assertEqual(self.settings["ENABLE_ORYX_BUILD"], "true")
+        self.assertEqual(self.settings["SCM_DO_BUILD_DURING_DEPLOYMENT"], "true")
+        self.assertIn("appsettings-delete", self.azure_mutations)
+        self.settings["WEBSITE_RUN_FROM_PACKAGE"] = NEW_URL
+        self.index = set(release.THIRTY_EIGHT)
+        self.settings["ENABLE_ORYX_BUILD"] = "false"
+        with self.assertRaises(RuntimeError):
+            release.verify()
 
     def test_unknown_worker_denies_rollback_before_appsettings_write(self):
         release.prepare()
