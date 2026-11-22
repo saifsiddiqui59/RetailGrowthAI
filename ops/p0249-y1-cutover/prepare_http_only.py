@@ -22,6 +22,7 @@ ROOT = Path(__file__).resolve().parents[2]
 ORIGINAL = ROOT / "azure-functions/campaign-api/function_app.py"
 MEMBER = "azure-functions/campaign-api/function_app.py"
 HOST = ROOT / "ops/p0249-y1-v1-canary/host.json"
+SHORT_HOST = ROOT / "ops/p0249-y1-cutover/host-short-workers.json"
 
 # Explicitly pin the functions actually registered in the original Flex
 # source. Any newly added worker or HTTP route demands a new affected review.
@@ -131,6 +132,44 @@ def p0249_health(req: func.HttpRequest) -> func.HttpResponse:
     return result
 
 
+def strip_only_long_render_trigger(source: bytes) -> bytes:
+    """Stage only short bounded background consumers after Flex handoff.
+
+    The 780-second FFmpeg queue MUST move to the separate 1800-second CPU
+    job; classic Consumption Y1 cannot run it safely under its 600s cap.
+    This variant MUST NOT be deployed while any Flex consumers are active.
+    """
+    original, spans = registrations(source)
+    if (set(original) != HTTP | WORKERS
+            or {name for name in HTTP if original[name] != "route"}
+            or any(original[name] not in ("queue_trigger", "timer_trigger")
+                   for name in WORKERS)
+            or original["render_campaign_reel"] != "queue_trigger"):
+        raise ValueError("Unreviewed original worker registration drift")
+    text = source.decode("utf-8").splitlines(keepends=True)
+    start, end = spans["render_campaign_reel"]
+    if not 0 <= start < end <= len(text):
+        raise ValueError("Unreviewed original render worker source span")
+    # Pure source surgery; no worker code is evaluated or queue subscribed.
+    base = "".join(line for i, line in enumerate(text)
+                   if not start <= i < end).encode()
+    # The appended Y1 health route is identical in both stage modes; take
+    # it from the verified HTTP-only stage and never fork security logic.
+    only_http = strip_only_background_triggers(source)
+    health_start = only_http.rfind(b'\n@app.route(route="p0249/health"')
+    if health_start < 0:
+        raise ValueError("Y1 health handler source missing")
+    converted = base + only_http[health_start:]
+    staged, _ = registrations(converted)
+    expected = {name: "route" for name in HTTP | {"p0249_health"}}
+    expected.update({name: original[name] for name in WORKERS
+                     if name != "render_campaign_reel"})
+    if staged != expected:
+        raise ValueError("Y1 classic worker-stage trigger mismatch")
+    compile(converted, str(ORIGINAL), "exec")
+    return converted
+
+
 def check_source():
     transformed = strip_only_background_triggers(ORIGINAL.read_bytes())
     if b"@app.queue_trigger" in transformed or b"@app.timer_trigger" in transformed:
@@ -138,9 +177,18 @@ def check_source():
     print("P0249_Y1_FULL_HTTP_ROUTES=" + str(len(HTTP) + 1))
     print("P0249_Y1_BACKGROUND_TRIGGER_REGISTRATIONS=0")
     print("P0249_Y1_HTTP_SOURCE_CHECK=PASS_SOURCE_ONLY_NOT_DEPLOYED")
+    short = strip_only_long_render_trigger(ORIGINAL.read_bytes())
+    short_methods, _ = registrations(short)
+    if ("render_campaign_reel" in short_methods
+            or sum(k != "route" for k in short_methods.values()) != len(WORKERS) - 1):
+        raise ValueError("Y1 classic long render worker was not removed")
+    print("P0249_Y1_SHORT_WORKER_REGISTRATIONS=" + str(len(WORKERS) - 1))
+    print("P0249_Y1_SHORT_WORKER_SOURCE_CHECK=PASS_NOT_DEPLOYED")
 
 
-def convert_zip(source: Path, destination: Path):
+def convert_zip(source: Path, destination: Path, *, mode: str = "http-only"):
+    if mode not in ("http-only", "http-with-short-workers"):
+        raise ValueError("Unreviewed Y1 classic package mode")
     # Source ZIP must pass the ORIGINAL release packager's immutable inventory,
     # ELF/FFprobe, licensing, compression and path safety gates.
     from importlib.util import module_from_spec, spec_from_file_location
@@ -157,16 +205,31 @@ def convert_zip(source: Path, destination: Path):
     if ROOT in destination.resolve().parents:
         raise ValueError("No generated production ZIP inside the repository")
     expected_source = ORIGINAL.read_bytes()
-    transformed = strip_only_background_triggers(expected_source)
-    # The Flex worker's 20-minute functionTimeout would be invalid on
-    # classic Consumption (10-minute maximum). HTTP-only Y1 uses the already
-    # reviewed five-GET host.json with no background/long-running timeout.
-    y1_host = HOST.read_bytes()
+    transformed = (strip_only_background_triggers(expected_source)
+                   if mode == "http-only"
+                   else strip_only_long_render_trigger(expected_source))
+    # The original Flex's 1200s timeout is invalid on legacy Consumption.
+    # HTTP-only uses the already-approved five-GET Y1 host. The separately
+    # guarded short-worker stage uses an exact <=600s host with queue bounds.
+    y1_host = (HOST if mode == "http-only" else SHORT_HOST).read_bytes()
     host = json.loads(y1_host)
-    if (host.get("version") != "2.0" or "functionTimeout" in host
-            or "extensions" in host or "extensionBundle" in host
-            or host.get("logging", {}).get("logLevel", {}).get("default") != "Warning"):
-        raise ValueError("Unreviewed Y1 HTTP-only host configuration")
+    if (host.get("version") != "2.0"
+        or host.get("logging", {}).get("logLevel", {}).get("default") != "Warning"):
+        raise ValueError("Unreviewed Y1 host configuration")
+    if mode == "http-only":
+        if ("functionTimeout" in host or "extensions" in host
+                or "extensionBundle" in host):
+            raise ValueError("Unreviewed Y1 HTTP-only host configuration")
+    else:
+        queue = host.get("extensions", {}).get("queues", {})
+        if (host.get("functionTimeout") != "00:09:00"
+            or queue.get("batchSize") != 1
+            or queue.get("newBatchThreshold") != 0
+            or queue.get("maxDequeueCount") != 3
+            or queue.get("messageEncoding") != "none"
+            or host.get("extensionBundle", {}).get("id")
+                != "Microsoft.Azure.Functions.ExtensionBundle"):
+            raise ValueError("Unreviewed Y1 short-worker host configuration")
     try:
         with ZipFile(source) as original, ZipFile(destination, "x", ZIP_DEFLATED) as y1:
             listing = original.infolist()
@@ -210,8 +273,15 @@ def convert_zip(source: Path, destination: Path):
                         raise ValueError("Y1 Consumption host.json mismatch")
                 elif actual != original.read(old):
                     raise ValueError("Non-HTTP source or worker package byte drift")
-            if any(kind != "route" for kind in registrations(staged.read(MEMBER))[0].values()):
-                raise ValueError("Generated Y1 ZIP contains an unexpected trigger")
+            actual_methods, _ = registrations(staged.read(MEMBER))
+            if mode == "http-only":
+                if any(kind != "route" for kind in actual_methods.values()):
+                    raise ValueError("Generated Y1 ZIP contains an unexpected trigger")
+            else:
+                if ("render_campaign_reel" in actual_methods
+                    or set(actual_methods) != HTTP | (WORKERS - {"render_campaign_reel"}) | {"p0249_health"}):
+                    raise ValueError("Generated Y1 ZIP contains an unexpected long renderer")
+        print("P0249_Y1_PACKAGE_MODE=" + mode)
         print("P0249_Y1_FULL_HTTP_ZIP=STAGED_NOT_DEPLOYED")
         print("P0249_Y1_HTTP_HOST_CLASSIC_CONSUMPTION_SAFE=PASS")
         print("P0249_Y1_WORKER_MIGRATION_REQUIRED=true")
@@ -225,11 +295,13 @@ def main():
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--source-zip", type=Path)
     parser.add_argument("--output-zip", type=Path)
+    parser.add_argument("--mode", choices=("http-only", "http-with-short-workers"),
+                        default="http-only")
     args = parser.parse_args()
     if args.check and args.source_zip is None and args.output_zip is None:
         check_source()
     elif not args.check and args.source_zip and args.output_zip:
-        convert_zip(args.source_zip, args.output_zip)
+        convert_zip(args.source_zip, args.output_zip, mode=args.mode)
     else:
         parser.error("Choose --check OR both --source-zip and --output-zip")
 
