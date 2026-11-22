@@ -45,7 +45,11 @@ class Feature4DevQueuesOneShotWorkflowTests(unittest.TestCase):
         self.assertIn("id-token: write", source)
         self.assertIn("secrets.AZURE_SUBSCRIPTION_ID", source)
         self.assertIn("secrets.RETAIL_SUPABASE_DB_URL", source)
-        self.assertIn("2>/dev/null", source)
+        # Private stderr is classified to a fixed code and deleted: no raw leak.
+        self.assertIn("umask 077", source)
+        self.assertIn('2>"$RUNNER_TEMP/f4cpu-psql-stderr"', source)
+        self.assertIn("python3 scripts/deploy/feature4_cpu_psql_diagnostic.py", source)
+        self.assertNotIn("2>/dev/null", source)
         for banned in (
             "az role assignment create", "--auth-mode key", "az storage queue delete",
             "az functionapp config appsettings set", "RETAIL_FEATURE4_CPU_RENDER_ENABLED: 'true'",
