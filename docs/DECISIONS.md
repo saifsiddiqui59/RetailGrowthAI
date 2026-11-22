@@ -1381,3 +1381,6 @@ Private rendered MP4 upload must read from one `O_NOFOLLOW`/`O_NONBLOCK` descrip
 
 ## 2026-11-22 — #1059 owner-directed self-review exception is limited to source merge
 The user repeatedly declined to perform manual independent GitHub approval. Since the source PR had exact-head Part1 4/4 and native CPU success, GitHub main had no enforced branch-review rule/ruleset, and runtime F4 flags were OFF with SQL confined to candidates, the manual integration chat merged only source as a documented owner-directed exception at `6c376c3a`. No third-party security reviewer approved it, and none is claimed. This does NOT waive protected GitHub environment/SQL release gates, real retailer creative approval, DEV signed two-shop acceptance, media rights/lease and private bytes validation, or permission/billing controls. Keep separate F4 worker and quota OFF until verified deployment.
+
+## 2026-11-22 — Worker lease validation rejects SQL UNKNOWN
+Never use only `lease_until<=now()` as a PL/pgSQL IF denial condition: NULL produces UNKNOWN, possibly allowing a stale token to act. Both F4 CPU service-role finish and fail functions explicitly treat a missing lease expiry as invalid before writing terminal/queued state. Rollback-only SQL fixture tests failure denial for NULL expiry; hosted release remains behind separately authorized DEV gates.
