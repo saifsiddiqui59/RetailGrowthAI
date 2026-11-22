@@ -76,6 +76,44 @@ class ReadonlyY1ConnectionInspection(unittest.TestCase):
         self.assertFalse(any(x in {"stop","delete","set"}
                              for cmd in calls for x in cmd))
 
+    def test_original_full_http_index_requires_all_38_routes(self):
+        run, _ = fake_runner()
+        report = tool.inspect(run)
+        self.assertFalse(report["y1_all_original_http_indexed"])
+        self.assertFalse(report["y1_exact_http_only_index"])
+        self.assertFalse(report["y1_exact_full_short_worker_index"])
+        def all_http(op, payload):
+            if op[:3] == ("functionapp", "function", "list") and op[-1] == tool.Y1:
+                return [{"name":tool.Y1 + "/" + n}
+                        for n in sorted(tool.ALL_HTTP_FUNCTIONS)]
+            return payload
+        report = tool.inspect(fake_runner(all_http)[0])
+        self.assertEqual(report["y1_indexed_count"], 38)
+        self.assertTrue(report["y1_all_original_http_indexed"])
+        self.assertTrue(report["y1_exact_http_only_index"])
+        self.assertFalse(report["y1_exact_full_short_worker_index"])
+        self.assertFalse(report["y1_any_background_triggers"])
+
+    def test_short_workers_and_all_background_triggers_are_accounted_for(self):
+        def full_index(op, payload):
+            if op[:3] == ("functionapp", "function", "list") and op[-1] == tool.Y1:
+                return [{"name":tool.Y1 + "/" + n}
+                        for n in sorted(tool.EXPECTED_FULL_Y1_INDEX)]
+            return payload
+        report = tool.inspect(fake_runner(full_index)[0])
+        self.assertEqual(report["y1_indexed_count"], 46)
+        self.assertTrue(report["y1_exact_full_short_worker_index"])
+        self.assertTrue(report["y1_any_background_triggers"])
+        for only_background in ("feature2_collect_india_trends",
+                                "dispatch_onboarding_emails", "render_campaign_reel"):
+            def one_trigger(op, payload):
+                if op[:3] == ("functionapp", "function", "list") and op[-1] == tool.Y1:
+                    return [{"name":tool.Y1 + "/" + only_background}]
+                return payload
+            with self.subTest(only_background=only_background):
+                self.assertTrue(tool.inspect(fake_runner(one_trigger)[0])[
+                    "y1_any_background_triggers"])
+
     def test_separate_y1_webjobs_host_storage_does_not_false_block_shared_queue(self):
         def changed(op,payload):
             if op[:3]==("functionapp","config","appsettings") and op[-1]==tool.Y1:
