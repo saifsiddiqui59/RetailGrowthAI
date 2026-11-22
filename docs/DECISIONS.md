@@ -1405,3 +1405,6 @@ The separate scale-to-zero Y1 CPU render job has a 1800-second maximum replica l
 
 ## 2026-11-22 — #249 event-driven CPU rendering only after single-owner transition
 Manual, no-scaler CPU template remains default/inert. An explicit, separate Event candidate updates that same job, polls existing queue at 60s with minExecutions 0/maxExecutions 1 and secure scaler credentials. The protected release must independently verify original Flex renderer shutdown, supplied activation parameter and immutable image/Storage scope; a Bicep parameter cannot itself attest to a real single-owner cloud cutover. Keep 1800s max replica, 2100s invisibility and fenced job/poison semantics; never deploy the Event variant from ordinary source CI.
+
+## 2026-11-22 — CPU job message visibility must exceed replica runtime
+For the isolated Y1 replacement CPU reel job, the queue invisibility timeout must be greater than the entire Container Apps replica timeout, not merely the 780-second FFmpeg cap. Pin 2100-second Azure queue visibility against an 1800-second replica budget, retain database claim fencing and only single-owner protected handoff. This reduces premature redelivery but never replaces receipt/lease/poison verification; source-only, not a live release.
