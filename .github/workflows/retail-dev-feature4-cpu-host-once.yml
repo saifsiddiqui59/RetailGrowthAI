@@ -85,6 +85,27 @@ jobs:
               raise SystemExit('BLOCKED: deployment container already exists or state ambiguous')
           print('PASS: distinct host, plan and private package container are absent')
           PY
+      - name: Snapshot exact existing DEV resources for bounded ARM Ignore checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Read-only ARM resource inventory; never echo IDs or write to Azure.
+          az resource list --resource-group "$RG" --subscription "$AZURE_SUBSCRIPTION_ID" \
+            --query "[].id" -o json > "$RUNNER_TEMP/f4cpu-existing-resource-ids.json"
+          python3 - <<'PY'
+          import json,os,pathlib
+          path=pathlib.Path(os.environ['RUNNER_TEMP'])/'f4cpu-existing-resource-ids.json'
+          entries=json.loads(path.read_text())
+          scope=('/subscriptions/' + os.environ['AZURE_SUBSCRIPTION_ID'].lower()
+                 + '/resourcegroups/' + os.environ['RG'].lower())
+          if not isinstance(entries,list) or not 1 <= len(entries) <= 128:
+              raise SystemExit('BLOCKED: missing/unbounded DEV resource baseline')
+          if (any(not isinstance(x,str) or not x.lower().startswith(scope+'/providers/')
+                  for x in entries)
+              or len({x.lower() for x in entries}) != len(entries)):
+              raise SystemExit('BLOCKED: foreign/ambiguous DEV resource baseline')
+          print('PASS: bounded exact-scope read-only existing resource inventory')
+          PY
       - name: Compile fixed disabled-by-default Bicep and inspect ARM what-if
         shell: bash
         run: |
@@ -94,10 +115,10 @@ jobs:
             --template-file infra/azure/feature4-cpu-worker-dev.bicep \
             --parameters location=centralindia environmentName=dev \
               storageAccountName="$STORAGE" functionAppName="$HOST" functionPlanName="$PLAN" \
-            --no-pretty-print -o json > "$RUNNER_TEMP/f4cpu-whatif.json"
+            --mode Incremental --no-pretty-print -o json > "$RUNNER_TEMP/f4cpu-whatif.json"
           python3 - <<'PY'
           import os,json,pathlib
-          from scripts.deploy.feature4_cpu_whatif_type import classify_resource_type
+          from scripts.deploy.feature4_cpu_whatif_type import classify_resource_type, is_verified_ignored_existing_resource
           payload=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'f4cpu-whatif.json').read_text())
           changes=payload.get('changes') or (payload.get('properties') or {}).get('changes') or []
           allowed=('/providers/microsoft.web/sites/rgai-dev-f4cpu-d4e5ddbd',
@@ -114,6 +135,14 @@ jobs:
                  + '/resourcegroups/' + os.environ['RG'].lower())
           allowed=tuple(scope + suffix for suffix in allowed)
           existing=tuple(scope + suffix for suffix in existing)
+          snapshot_file=pathlib.Path(os.environ['RUNNER_TEMP'])/'f4cpu-existing-resource-ids.json'
+          known=json.loads(snapshot_file.read_text())
+          if (not isinstance(known,list) or not 1 <= len(known) <= 128
+              or any(not isinstance(x,str) or not x.lower().startswith(scope+'/providers/')
+                     for x in known)
+              or len({x.lower() for x in known}) != len(known)):
+              raise SystemExit('BLOCKED: invalid prior DEV resource inventory')
+          existing_inventory=frozenset(x.lower() for x in known)
           if not changes:
               raise SystemExit('BLOCKED: empty/unreadable ARM what-if')
           if len(changes) > 50:
@@ -135,6 +164,12 @@ jobs:
               if rid in existing:
                   if action not in ('NoChange','Ignore'):
                       raise SystemExit('BLOCKED: existing DEV storage would be changed')
+                  continue
+              # Azure incremental What-If emits Ignore for pre-existing
+              # resources omitted by this tiny template. Permit ONLY the
+              # exact IDs inventoried read-only in this DEV RG earlier.
+              # Unknown/foreign Ignore and every Modify/Delete still BLOCK.
+              if is_verified_ignored_existing_resource(rid,action,existing_inventory,scope):
                   continue
               if rid not in allowed:
                   # Never print full ARM resource IDs: extract only provider

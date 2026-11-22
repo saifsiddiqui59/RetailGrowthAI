@@ -52,3 +52,18 @@ def classify_resource_type(value) -> str:
             return "unexpected-" + typ + ("-irregular-name" if irregular_name else "")
         return "unrecognized-resource-type"
     return typ + "-irregular-name" if irregular_name else typ
+
+
+def is_verified_ignored_existing_resource(resource_id, action, inventory_ids, scope: str) -> bool:
+    """Only skip Azure's non-mutating Ignore when the exact existing DEV ID was
+    inventoried *before* what-if. All inputs must already be bound to the trusted
+    subscription/RG; the inventory is a lower-cased set, never a wildcard.
+    This function grants no permission to Create, Modify, Delete or Deploy.
+    """
+    if (action != "Ignore" or not isinstance(resource_id, str)
+            or not isinstance(scope, str)
+            or not isinstance(inventory_ids, (set, frozenset))):
+        return False
+    rid = resource_id.lower()
+    prefix = scope.lower().rstrip("/") + "/providers/"
+    return rid.startswith(prefix) and rid in inventory_ids

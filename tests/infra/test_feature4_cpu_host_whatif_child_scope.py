@@ -22,6 +22,18 @@ class F4HostWhatifExplicitResourceScopeTests(unittest.TestCase):
         self.assertNotIn("if 'microsoft.web' in rid:",text)
         self.assertNotIn("if 'storageaccounts' in rid:",text)
 
+    def test_existing_ignore_requires_readonly_exact_dev_inventory(self):
+        text=WORKFLOW.read_text()
+        self.assertIn('az resource list --resource-group "$RG" --subscription "$AZURE_SUBSCRIPTION_ID"',text)
+        self.assertIn("1 <= len(known) <= 128",text)
+        self.assertIn("existing_inventory=frozenset(x.lower() for x in known)",text)
+        self.assertIn("is_verified_ignored_existing_resource(rid,action,existing_inventory,scope)",text)
+        self.assertIn("--mode Incremental --no-pretty-print",text)
+        self.assertIn("if rid not in allowed:",text)
+        self.assertIn("if action not in ('Create','NoChange','Ignore')",text)
+        self.assertNotIn("if action == 'Ignore':\\n                  continue",text)
+        self.assertNotIn("rid.endswith(",text)
+
     def test_whatif_diagnostic_keeps_names_out_of_logs(self):
         text=WORKFLOW.read_text()
         self.assertIn("from scripts.deploy.feature4_cpu_whatif_type import classify_resource_type",text)

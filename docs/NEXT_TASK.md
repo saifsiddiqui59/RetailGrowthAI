@@ -1882,3 +1882,6 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 
 ## 2026-11-23 IST — Next: scoped ARM full-ID verification
 - Verify PR #1101 exact final-head four CI checks including new foreign-subscription/foreign-RG negative tests; ensure no release approval bypass. Merge only under current main integration/review policy, then inspect protected DEV what-if. Unknown `Ignore` or any unexpected resource still BLOCKS. Do not reapply six DEV migrations or recreate two existing queues. Worker ZIP #1096, private-trigger #1098, flags and signed two-shop E2E remain in order AFTER hosted worker creation.
+
+## 2026-11-23 IST — Next: inventory-backed Ignore evidence
+- Protected host run #45084635172 denied unrelated resource `Ignore` after proving target Create identities; no host exists. Review the pending exact-inventory source fix: read-only list of existing exact subscription/RG IDs (capped at 128), allow only `Ignore` for the *same* inventoried ID in incremental mode; block unknown/foreign/Modify/Delete. Verify exact-head four CI and protected DEV run before asserting host creation. If any unusual alert-rule ID is not in ARM list, preserve fail-closed and diagnose only type/boolean match, never log names. Then host ZIP #1096, private triggers #1098, nonprivileged signed E2E in order; queues/migrations must not be recreated.

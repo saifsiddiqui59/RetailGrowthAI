@@ -89,6 +89,30 @@ class F4CpuWhatifTypeTests(unittest.TestCase):
         self.assertNotIn("/subscriptions/other/resourcegroups/other-rg" + suffix,
                          (expected,))
 
+    def test_exact_inventory_backed_ignore_only(self):
+        from scripts.deploy.feature4_cpu_whatif_type import is_verified_ignored_existing_resource
+        scope = "/subscriptions/11111111-2222-3333-4444-555555555555/resourcegroups/rg-retailgrowth-dev"
+        suffix = "/providers/microsoft.web/sites/existing-nontarget-app"
+        existing = scope + suffix
+        inventory = frozenset({existing})
+        self.assertTrue(is_verified_ignored_existing_resource(existing, "Ignore", inventory, scope))
+        for action in ("Create", "Modify", "Delete", "Deploy", "NoChange", "Unsupported", None):
+            with self.subTest(action=action):
+                self.assertFalse(is_verified_ignored_existing_resource(existing, action, inventory, scope))
+        for foreign in (
+            existing.replace("/subscriptions/11111111-", "/subscriptions/99999999-"),
+            existing.replace("/resourcegroups/rg-retailgrowth-dev", "/resourcegroups/other"),
+            scope + "/providers/microsoft.web/sites/not-in-inventory",
+            existing + "/config/web",
+            "nonsense",
+            None,
+        ):
+            with self.subTest(foreign=str(foreign)[:30]):
+                self.assertFalse(is_verified_ignored_existing_resource(foreign, "Ignore", inventory, scope))
+        self.assertFalse(is_verified_ignored_existing_resource(existing, "Ignore", inventory,
+                         "/subscriptions/other/resourcegroups/rg-retailgrowth-dev"))
+        self.assertFalse(is_verified_ignored_existing_resource(existing, "Ignore", {existing}, None))
+
     def test_malformed_and_unknown_id_categories_are_fixed(self):
         cases = {
             "": "missing-id",
