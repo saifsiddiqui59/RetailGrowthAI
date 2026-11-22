@@ -101,7 +101,9 @@ jobs:
           changes=payload.get('changes') or (payload.get('properties') or {}).get('changes') or []
           allowed=('/providers/microsoft.web/sites/rgai-dev-f4cpu-d4e5ddbd',
                    '/providers/microsoft.web/serverfarms/rgai-dev-f4cpu-plan',
-                   '/providers/microsoft.storage/storageaccounts/rgaid4e5ddbdf0d21d96/blobservices/default/containers/retailgrowth-f4cpu-packages')
+                   '/providers/microsoft.storage/storageaccounts/rgaid4e5ddbdf0d21d96/blobservices/default/containers/retailgrowth-f4cpu-packages',
+                   # Azure may materialize nested web config for this exact NEW worker app.
+                   '/providers/microsoft.web/sites/rgai-dev-f4cpu-d4e5ddbd/config/web')
           existing=('/providers/microsoft.storage/storageaccounts/rgaid4e5ddbdf0d21d96',
                     '/providers/microsoft.storage/storageaccounts/rgaid4e5ddbdf0d21d96/blobservices/default')
           if not changes:
@@ -115,6 +117,13 @@ jobs:
                       raise SystemExit('BLOCKED: existing DEV storage would be changed')
                   continue
               if not any(rid.endswith(v) for v in allowed):
+                  # Never print full ARM resource IDs: extract only provider
+                  # namespace and child resource TYPES (not names/tokens).
+                  raw=rid.rsplit('/providers/',1)[-1].split('/')
+                  kind='/'.join(raw[0::2])
+                  if not kind or len(kind)>160 or any(ch not in 'abcdefghijklmnopqrstuvwxyz0123456789./-' for ch in kind):
+                      kind='unclassified'
+                  print('BLOCKED: unexpected ARM resource TYPE=' + kind + ' action=' + str(action)[:24])
                   raise SystemExit('BLOCKED: unexpected resource in F4 what-if')
               if action not in ('Create','NoChange','Ignore'):
                   raise SystemExit('BLOCKED: F4 what-if would modify or delete an existing resource')
