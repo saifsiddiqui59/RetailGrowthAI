@@ -27,6 +27,20 @@ class F4CpuWhatifTypeTests(unittest.TestCase):
         for secret in ("private-secret", "retailprivate", "password", "internal"):
             self.assertNotIn(secret, typ)
 
+    def test_unexpected_microsoft_provider_type_is_safe_metadata_only(self):
+        resource = ("/subscriptions/sensitive-id/resourceGroups/private-rg/providers/"
+                    "Microsoft.Resources/deployments/customer-deploy")
+        kind = classify_resource_type(resource)
+        self.assertEqual(kind, "unexpected-microsoft.resources/deployments")
+        for sensitive in ("sensitive-id", "private-rg", "customer-deploy"):
+            self.assertNotIn(sensitive, kind)
+
+        irregular = ("/subscriptions/sensitive-id/providers/Microsoft.Insights/"
+                     "components/private-secret?token=never-log")
+        kind = classify_resource_type(irregular)
+        self.assertEqual(kind, "unexpected-microsoft.insights/components-irregular-name")
+        self.assertNotIn("never-log", kind)
+
     def test_malformed_and_unknown_id_categories_are_fixed(self):
         cases = {
             "": "missing-id",
