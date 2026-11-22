@@ -172,6 +172,23 @@ class Feature4CpuWorkerPackageTests(unittest.TestCase):
             with ZipFile(archive_path) as archive:
                 self.assertEqual(archive.read("deps/payload.bin"), data)
 
+    def test_npm_bin_shims_excluded_but_runtime_links_rejected(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / ".bin").mkdir()
+            (root / "lib").mkdir()
+            runtime = root / "lib" / "module.js"
+            runtime.write_text("synthetic", encoding="utf-8")
+            (root / ".bin" / "module").symlink_to(runtime)
+            listing = module._collect_tree(root, "node_modules", omit_bin_shims=True)
+            self.assertEqual(set(listing), {"node_modules/lib/module.js"})
+            with self.assertRaisesRegex(ValueError, "Symlink in F4 package"):
+                module._collect_tree(root, "node_modules")
+            (root / "lib" / "alias.js").symlink_to(runtime)
+            with self.assertRaisesRegex(ValueError, "Symlink in F4 package"):
+                module._collect_tree(root, "node_modules", omit_bin_shims=True)
+
     def test_dependency_root_symlink_is_rejected(self):
         import tempfile
         with tempfile.TemporaryDirectory() as directory:
