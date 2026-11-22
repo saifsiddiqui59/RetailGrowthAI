@@ -237,6 +237,44 @@ set local role authenticated;
 select set_config('request.jwt.claims',
  '{"role":"authenticated","sub":"f5010000-0000-4000-8000-000000000001","is_anonymous":false}',true);
 
+
+-- A NULL lease expiry is never a valid worker authorization. PostgreSQL
+-- IF ... OR (lease <= now()) otherwise produces SQL UNKNOWN, which can skip
+-- the rejection entirely. Keep this rollback-only corruption fixture isolated.
+reset role;
+savepoint feature4_null_render_lease_guard;
+update public.feature4_cpu_render_jobs set
+ status='RUNNING',
+ render_claim_token='f5400000-0000-4000-8000-000000000001',
+ render_lease_until=null
+where plan_id='f5300000-0000-4000-8000-000000000001';
+set local role service_role;
+do $null_lease$
+declare
+  jid uuid;
+  tok uuid := 'f5400000-0000-4000-8000-000000000001';
+begin
+  select id into jid from public.feature4_cpu_render_jobs
+   where plan_id='f5300000-0000-4000-8000-000000000001';
+  if public.feature4_cpu_claim_current(jid,tok) is not false then
+    raise exception 'FAIL: NULL lease passed current-worker authorization';
+  end if;
+  if public.feature4_fail_cpu_render(jid,tok,'RENDER_FAILED') is not false then
+    raise exception 'FAIL: NULL lease allowed stale worker failure';
+  end if;
+  if (select status from public.feature4_cpu_render_jobs where id=jid)
+        is distinct from 'RUNNING' then
+    raise exception 'FAIL: NULL lease mutated job after stale worker denial';
+  end if;
+end $null_lease$;
+reset role;
+rollback to savepoint feature4_null_render_lease_guard;
+-- Restore the original owner JWT and authenticated SQL role for the
+-- pre-existing browser grant-denial assertion below.
+set local role authenticated;
+select set_config('request.jwt.claims',
+ '{"role":"authenticated","sub":"f5010000-0000-4000-8000-000000000001","is_anonymous":false}',true);
+
 -- Browser can see only same-shop job status, cannot directly create jobs.
 do $test$
 declare denied boolean := false;
