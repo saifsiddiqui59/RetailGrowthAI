@@ -21,7 +21,8 @@ class F4HostWhatifExplicitResourceScopeTests(unittest.TestCase):
 
     def test_whatif_diagnostic_keeps_names_out_of_logs(self):
         text=WORKFLOW.read_text()
-        self.assertIn("kind='/'.join(raw[0::2])",text)
+        self.assertIn("from scripts.deploy.feature4_cpu_whatif_type import classify_resource_type",text)
+        self.assertIn("kind=classify_resource_type(c.get('resourceId'))",text)
         self.assertIn("TYPE=' + kind + ' action='",text)
         self.assertNotIn("'BLOCKED: unexpected resource ' + rid",text)
         self.assertIn("raise SystemExit('BLOCKED: unexpected resource in F4 what-if')",text)
