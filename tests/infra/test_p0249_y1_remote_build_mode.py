@@ -192,19 +192,36 @@ class Y1RemoteBuildModeTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "No Y1 backup"):
             y1.rollback()
 
-    def test_postpublish_build_settings_fail_closed_on_removed_oryx(self):
+    def test_postpublisher_temporary_oryx_cleanup_requires_real_five_indexes(self):
         y1.prepare()
+        self.cloud.settings.pop("ENABLE_ORYX_BUILD")
+        self.cloud.mutations.clear()
         with contextlib.redirect_stdout(io.StringIO()) as b:
             y1.verify_build_mode()
         self.assertIn("POSTPUBLISH_SETTINGS=PASS", b.getvalue())
-        self.cloud.settings.pop("ENABLE_ORYX_BUILD")
+        self.assertIn('"oryx_absent": true', b.getvalue())
+        self.assertNotIn("SENSITIVE", b.getvalue())
+        with self.assertRaisesRegex(RuntimeError, "not actually indexed"):
+            y1.verify_five()
+        self.cloud.names = sorted(y1.FIVE)
+        with contextlib.redirect_stdout(io.StringIO()) as good:
+            y1.verify_five()
+        self.assertIn("FIVE_INDEXES=PASS", good.getvalue())
+        self.assertEqual(self.cloud.mutations, [])
+
+    def test_postpublisher_misaligned_flags_or_package_ref_are_denied(self):
+        y1.prepare()
         self.cloud.mutations.clear()
+        self.cloud.settings["ENABLE_ORYX_BUILD"] = "false"
         with self.assertRaisesRegex(RuntimeError, "settings or owner drifted"):
             y1.verify_build_mode()
-        self.assertEqual(self.cloud.mutations, [])
-        self.cloud.settings["ENABLE_ORYX_BUILD"] = "true"
+        self.cloud.settings.pop("ENABLE_ORYX_BUILD")
         self.cloud.settings["WEBSITE_RUN_FROM_PACKAGE"] = self.cloud.secret
         with self.assertRaisesRegex(RuntimeError, "settings or owner drifted"):
+            y1.verify_build_mode()
+        self.cloud.settings.pop("WEBSITE_RUN_FROM_PACKAGE")
+        self.cloud.settings["SCM_DO_BUILD_DURING_DEPLOYMENT"] = "false"
+        with self.assertRaises(RuntimeError):
             y1.verify_build_mode()
         self.assertEqual(self.cloud.mutations, [])
 
