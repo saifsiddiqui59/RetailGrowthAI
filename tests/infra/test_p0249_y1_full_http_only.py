@@ -31,7 +31,7 @@ class Y1FullHttpOnlySourceTests(unittest.TestCase):
         self.assertEqual(set(after), MODULE.HTTP | {"p0249_health"})
         self.assertEqual(set(after.values()), {"route"})
         self.assertEqual(len(MODULE.WORKERS), 9)
-        self.assertGreaterEqual(len(MODULE.HTTP), 30)
+        self.assertEqual(len(MODULE.HTTP), 37)
         self.assertIn(b'json.dumps({"status":"ok","canary":"classic-y1-v1-p0249"})', prepared)
         self.assertNotIn(b"@app.queue_trigger", prepared)
         self.assertNotIn(b"@app.timer_trigger", prepared)
@@ -50,6 +50,14 @@ class Y1FullHttpOnlySourceTests(unittest.TestCase):
             self.assertIn(sentinel, source)
         for name in MODULE.CORE_HTTP:
             self.assertIn(name, MODULE.HTTP)
+        for route in (
+            "create_feature4_render", "get_feature4_render",
+            "download_feature4_render", "issue_feature4_creative_plan",
+            "read_feature4_creative_plan", "review_feature4_creative_plan",
+            "revoke_feature4_creative_plan",
+        ):
+            self.assertIn(route, MODULE.HTTP)
+            self.assertIn(route, MODULE.CORE_HTTP)
 
     def test_unknown_worker_added_to_original_requires_new_review(self):
         source = MODULE.ORIGINAL.read_bytes()
