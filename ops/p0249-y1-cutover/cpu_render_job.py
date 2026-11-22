@@ -21,6 +21,20 @@ SUCCESS = frozenset({"SUCCEEDED", "ALREADY_FINAL", "DENIED"})
 EXPECTED_SUPABASE = "https://jeearzffnjbvghwjjjrf.supabase.co"
 
 
+class _DenyPrivateStorageRedirects:
+    """Install a urllib redirect handler that never forwards service credentials."""
+
+    @staticmethod
+    def build_opener():
+        from urllib.request import HTTPRedirectHandler, build_opener
+
+        class NoRedirects(HTTPRedirectHandler):
+            def redirect_request(self, req, fp, code, msg, headers, newurl):
+                return None
+
+        return build_opener(NoRedirects())
+
+
 class VerifiedPrivateMedia:
     """Guarantee cloud SHA-256 readback before legacy DB completion.
 
@@ -32,6 +46,13 @@ class VerifiedPrivateMedia:
     """
 
     def __init__(self, backing):
+        from urllib.request import urlopen
+        # The legacy private Storage client uses urllib's redirect-following
+        # default. Its requests include a server-only service-role credential;
+        # a 302 from Storage must not forward that credential to another host.
+        # Restrict only the new CPU adapter; the original Flex is untouched.
+        if backing.transport is urlopen:
+            backing.transport = _DenyPrivateStorageRedirects.build_opener().open
         self.backing = backing
 
     def download(self, *args, **kwargs):
