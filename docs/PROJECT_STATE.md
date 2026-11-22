@@ -1816,3 +1816,6 @@ Manual integration chat C reviewed original PRs #979/#972/#970/#964/#944/#880/#8
 
 ## 2026-11-22 — #249 CPU queue visibility corrected (source only)
 - The separate Container Apps CPU render adapter now requests a 2100s Azure queue invisibility window, greater than the proposed 1800s job timeout and 780s FFmpeg cap. The previous 1500s invisibility window was shorter than the replica lifetime and could allow another receiver to see an unfinished message. Offline contract now asserts the corrected bounds. No Azure deployment, Y1 worker activation, Flex stop or #249 closure.
+
+## 2026-11-22 — #249 CPU private MP4 exact-key fence (source only)
+- Draft PR #1077 now checks the actual observed private upload HTTP POST URL against the URL derived from the returned object key **before** private SHA-256 cloud readback and DB completion. A POST to an unrelated object inside the same bucket no longer qualifies as proof of the committed output key. Source commits `264793f2` + `d356a949` added denial fixture. All hosted Azure Y1 write routes/worker/SWA cutover remain unverified; original DEV Flex stays running, issue #249 OPEN. Exact-head four-job CI and protected deployment pending.
