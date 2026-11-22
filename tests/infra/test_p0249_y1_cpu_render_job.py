@@ -166,6 +166,96 @@ class Y1CpuQueueSafety(unittest.TestCase):
             with self.subTest(missing=key), self.assertRaises(RuntimeError):
                 job.preflight({k:v for k,v in env.items() if k!=key})
 
+    def test_exact_uploaded_post_bytes_verified_before_returning_private_key(self):
+        import hashlib
+        from urllib.request import Request
+
+        class Storage:
+            origin = "https://dev-storage.example"
+            body = b"mp4-synthetic-fixture-" * 150
+            def __init__(self):
+                self.posts = []
+                self.checks = []
+                self.transport = self.send
+                self.calls = []
+            def send(self, req, timeout):
+                self.posts.append((req.get_method(), req.full_url,
+                                   req.data, timeout))
+                return SimpleNamespace(status=200)
+            def download(self, *args, **kwargs):
+                self.calls.append(("download", args))
+                return "downloaded"
+            def upload(self, shop_id, job_id, media_file, *, lease_token):
+                self.calls.append(("upload", lease_token))
+                req = Request(
+                    self.origin + "/storage/v1/object/retailgrowth-media/"
+                                + shop_id + "/renders/" + job_id + ".mp4",
+                    data=self.body, method="POST")
+                self.transport(req, timeout=60)
+                return shop_id + "/renders/" + job_id + ".mp4"
+            def verify_uploaded_mp4(self, shop_id, key, expected_sha256):
+                self.checks.append((shop_id, key, expected_sha256))
+                return True
+
+        storage = Storage()
+        wrapper = job.VerifiedPrivateMedia(storage)
+        self.assertEqual(wrapper.download("shop", "private", "/tmp/mock"),
+                         "downloaded")
+        key = wrapper.upload("shop", GOOD_ID, "/not-opened",
+                             lease_token="fenced")
+        self.assertEqual(storage.transport, storage.send)
+        self.assertEqual(storage.calls[-1], ("upload", "fenced"))
+        self.assertEqual(storage.posts[0][0], "POST")
+        self.assertEqual(storage.posts[0][2], storage.body)
+        self.assertEqual(storage.checks, [
+            ("shop", key, hashlib.sha256(storage.body).hexdigest())])
+
+    def test_private_cpu_upload_missing_remote_confirmation_blocks_success(self):
+        from urllib.request import Request
+
+        class Storage:
+            origin = "https://dev-storage.example"
+            def __init__(self, mode):
+                self.mode = mode
+                self.transport = self.send
+                self.checks = 0
+                self.posts = 0
+            def send(self, req, timeout):
+                self.posts += 1
+                return SimpleNamespace(status=200)
+            def upload(self, shop_id, job_id, media_file, *, lease_token):
+                if self.mode != "no-post":
+                    endpoint = (
+                        self.origin if self.mode != "foreign" else
+                        "https://foreign-storage.example")
+                    request = Request(
+                        endpoint + "/storage/v1/object/retailgrowth-media/"
+                                   + shop_id + "/renders/" + job_id + ".mp4",
+                        data=b"synthetic-video" * 200, method="POST")
+                    self.transport(request, timeout=60)
+                    if self.mode == "duplicate":
+                        self.transport(request, timeout=60)
+                return "shop/renders/private.mp4"
+            def verify_uploaded_mp4(self, *args):
+                self.checks += 1
+                return self.mode != "readback-failed"
+
+        for mode, text in (
+            ("no-post", "No actual private media"),
+            ("foreign", "Unsafe or duplicate"),
+            ("duplicate", "Unsafe or duplicate"),
+            ("readback-failed", "Private video readback failed"),
+        ):
+            with self.subTest(mode=mode):
+                storage = Storage(mode)
+                old_transport = storage.transport
+                with self.assertRaisesRegex(RuntimeError, text):
+                    job.VerifiedPrivateMedia(storage).upload(
+                        "shop", GOOD_ID, "/not-opened", lease_token=None)
+                self.assertEqual(storage.transport, old_transport)
+                self.assertEqual(storage.checks,
+                                 1 if mode == "readback-failed" else 0)
+
     def test_source_has_no_loop_or_resource_provisioning(self):
         code=SOURCE.read_text()
         self.assertNotIn("create_queue", code)
