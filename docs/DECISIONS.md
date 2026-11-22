@@ -1408,3 +1408,6 @@ Dedicated F4 private queues are **actually present** in DEV after protected work
 
 ## 2026-11-23 IST — Classify ARM what-if without leaking resource names
 Azure ARM what-if emits an `Ignore` entry that earlier F4 host allowlists could not classify. Never treat an unclassified `Ignore` as safe by default or broaden Microsoft.Web/Storage modification rights. A source-only diagnostic derives only a known resource **type** from alternating ARM provider/type/name path components, never a full resource ID/name, and returns a finite fixed error label for absent or invalid paths. Unknowns still abort before resource writes; new typed evidence is needed to decide the minimum safe fix.
+
+## 2026-11-23 IST — Irregular ARM names are not resource authorization
+An ARM what-if `Ignore` with an irregular resource name remains an UNKNOWN and must block deployment. A diagnostic can emit only a fixed known provider/type with suffix `-irregular-name` without exposing any target resource names. Neither its known type nor its `Ignore` action is evidence of a safe write: only the independent exact resource-ID allowlist and created app/plan identity checks can authorize a protected DEV create.
