@@ -1723,3 +1723,8 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 
 ## 2026-11-22 — #249 third bounded exact-source protected Y1 release
 - Require source PR #1071 postmerge four-job CI and repinned GitHub-only one-shot 4/4; then protected manual DEV target must pass exact Y1 identity, original backup/owner, publisher, postpublisher fixed-Boolean mode, five Azure-indexed functions, 2 x 20/20 and four marked 401 GETs after 240s. If any fail, preserve old URI/two-index rollback and stop blind retry; diagnose fresh fixed labels. Original Flex, production, WineShopPOS and GPU untouched.
+
+## 2026-11-22 — #249 action-produced new Y1 package pointer
+1. Exact-head four-job CI + review of pinned/new `WEBSITE_RUN_FROM_PACKAGE` URL guard on source branch; do not repeat guard rejecting any run-from-package pointer because protected #44965786526 proved the official publisher restores one. Never log a SAS or accept unpinned host, original URL, local `1`, foreign owner or customer shadow settings.
+2. After separately reviewed merge and fresh main CI 4/4, one bounded protected DEV release must *actually* show all five indexed GETs and two HTTP windows separated by 240s, 20/20 each, with four marked missing-JWT 401 GETs. If failed, restore original signed package, verify two indexes and original HTTP and retain #249 OPEN.
+3. Only then test genuine signed own/foreign/revoked two-shop JWT/RLS and original POST/PATCH/media/queue/billing + p95/p99, cut over frontend traffic, close #249 after accepted evidence. No WineShopPOS/PROD/GPU or broad IAM.

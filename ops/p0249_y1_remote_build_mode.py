@@ -257,6 +257,33 @@ def _postpublisher_oryx_allowed(s):
             str(s.get("ENABLE_ORYX_BUILD", "")).lower() == "true")
 
 
+def _pinned_package_on_storage(value):
+    """Require a package URL hosted on exact existing RetailGrowthAI DEV storage."""
+    if not _package_url(value):
+        return False
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return False
+    return parsed.hostname == guard.STORAGE + ".blob.core.windows.net"
+
+
+def _postpublisher_package_allowed(settings):
+    """Linux Consumption publisher may install a NEW run-from-package Blob URL.
+
+    Refuse the old baseline pointer, foreign domain/account, local-package
+    marker or malformed URL.  Five hosted indexes and real GET/401 checks
+    remain required separately.
+    """
+    original = settings.get(BACKUP)
+    if not _pinned_package_on_storage(original):
+        return False
+    installed = settings.get("WEBSITE_RUN_FROM_PACKAGE")
+    if installed is None:
+        return True  # remote-build mode; hosted evidence still required
+    return _pinned_package_on_storage(installed) and installed != original
+
+
 def verify_build_mode():
     """Verify persistent ownership/package state, not ephemeral Action flags."""
     guard.verify()
@@ -267,12 +294,18 @@ def verify_build_mode():
         "oryx_absent": "ENABLE_ORYX_BUILD" not in s,
         "oryx_true": str(s.get("ENABLE_ORYX_BUILD", "")).lower() == "true",
         "runfrompackage_absent": "WEBSITE_RUN_FROM_PACKAGE" not in s,
-        "backup_url_valid": _package_url(s.get(BACKUP)),
+        "new_pinned_package_url": (
+            _pinned_package_on_storage(s.get("WEBSITE_RUN_FROM_PACKAGE"))
+            and s.get("WEBSITE_RUN_FROM_PACKAGE") != s.get(BACKUP)),
+        "old_package_still_active": (
+            s.get("WEBSITE_RUN_FROM_PACKAGE") == s.get(BACKUP)),
+        "backup_url_valid": _pinned_package_on_storage(s.get(BACKUP)),
         "owner_matches_current_run": s.get(OWNER) == _run_id(),
     }, sort_keys=True), flush=True)
     _assert_settings(s)
-    if (s.get(OWNER) != _run_id() or not _package_url(s.get(BACKUP))
-            or "WEBSITE_RUN_FROM_PACKAGE" in s or not _postpublisher_oryx_allowed(s)):
+    if (s.get(OWNER) != _run_id() or
+            not _postpublisher_package_allowed(s) or
+            not _postpublisher_oryx_allowed(s)):
         raise RuntimeError("Y1 remote build settings or owner drifted")
     print("P0249_Y1_REMOTE_BUILD_POSTPUBLISH_SETTINGS=PASS", flush=True)
 
@@ -282,8 +315,7 @@ def verify_five():
     value = _settings()
     _assert_settings(value)
     if (value.get(OWNER) != _run_id() or
-            not _package_url(value.get(BACKUP)) or
-            "WEBSITE_RUN_FROM_PACKAGE" in value or
+            not _postpublisher_package_allowed(value) or
             not _postpublisher_oryx_allowed(value)):
         raise RuntimeError("Protected Y1 remote-build owner/mode drifted")
     if _index() != FIVE:
