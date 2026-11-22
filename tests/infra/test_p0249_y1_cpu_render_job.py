@@ -45,7 +45,7 @@ class Y1CpuQueueSafety(unittest.TestCase):
                 self.assertEqual(calls, [(GOOD_ID, "admin", "media")])
                 self.assertEqual(queue.acks, [("private-mid", "private-receipt")])
                 self.assertEqual(queue.reads, [
-                    {"messages_per_page": 1, "visibility_timeout": 1500}])
+                    {"messages_per_page": 1, "visibility_timeout": 2100}])
 
     def test_no_message_never_renders_or_acks(self):
         queue = FakeQueue([])
@@ -148,7 +148,9 @@ class Y1CpuQueueSafety(unittest.TestCase):
         job.preflight(env)
         self.assertEqual(job.CONTAINER_REPLICA_TIMEOUT_SECONDS, 1800)
         self.assertGreater(job.CONTAINER_REPLICA_TIMEOUT_SECONDS, 780)
-        self.assertEqual(job.VISIBILITY_SECONDS, 1500)
+        self.assertEqual(job.VISIBILITY_SECONDS, 2100)
+        self.assertGreater(job.VISIBILITY_SECONDS,
+                           job.CONTAINER_REPLICA_TIMEOUT_SECONDS)
         self.assertGreater(job.VISIBILITY_SECONDS, 780)
         for name, wrong in (
             ("RGAI_CPU_RENDER_SINGLE_OWNER_ACTIVATED", "false"),
