@@ -14,16 +14,16 @@ import subprocess
 import sys
 
 try:
-    from retirement_gate import RG, Y1, FLEX, CONNECTIONS, CORE_FUNCTIONS, SUPABASE
+    from retirement_gate import RG, Y1, FLEX, CONNECTIONS, CORE_FUNCTIONS, SUPABASE, FRONTEND
 except ImportError:
-    from ops.p0249_y1_cutover.retirement_gate import RG, Y1, FLEX, CONNECTIONS, CORE_FUNCTIONS, SUPABASE
+    from ops.p0249_y1_cutover.retirement_gate import RG, Y1, FLEX, CONNECTIONS, CORE_FUNCTIONS, SUPABASE, FRONTEND
 
 
 def read_azure(*argv, runner=subprocess.run):
     if argv[0:2] not in (
             ("account", "show"), ("group", "show"),
             ("functionapp", "show"), ("functionapp", "function"),
-            ("functionapp", "config")):
+            ("functionapp", "config"), ("functionapp", "cors")):
         raise ValueError("UNAPPROVED_AZURE_READ_COMMAND")
     if argv[0:2] == ("functionapp", "function"):
         if argv[2:3] != ("list",):
@@ -31,6 +31,9 @@ def read_azure(*argv, runner=subprocess.run):
     if argv[0:2] == ("functionapp", "config"):
         if argv[2:5] != ("appsettings", "list", "-g"):
             raise ValueError("UNAPPROVED_AZURE_APPSETTING_COMMAND")
+    if argv[0:2] == ("functionapp", "cors"):
+        if argv[2:3] != ("show",):
+            raise ValueError("UNAPPROVED_AZURE_CORS_COMMAND")
     cmd = ("az",) + argv + ("--output", "json")
     response = runner(cmd, text=True, capture_output=True, timeout=35, check=False)
     if response.returncode != 0 or len(response.stdout) > 2_000_000:
@@ -105,8 +108,14 @@ def inspect(runner=subprocess.run):
                                        "list", "-g", RG, "-n", app))
         names = function_names(az("functionapp", "function", "list",
                                    "-g", RG, "-n", app), app)
+        cors = az("functionapp", "cors", "show", "-g", RG, "-n", app)
+        if (not isinstance(cors, dict)
+            or not isinstance(cors.get("allowedOrigins"), list)
+            or any(not isinstance(v,str) for v in cors["allowedOrigins"])
+            or type(cors.get("supportCredentials")) is not bool):
+            raise RuntimeError("AZURE_CORS_SHAPE_INVALID")
         result[app] = {"state":site.get("state"),"settings":settings,
-                       "functions":names}
+                       "functions":names,"cors":cors}
     original = result[FLEX]
     target = result[Y1]
     # Only RetailGrowthAI application data/queue backends should match.
@@ -134,6 +143,10 @@ def inspect(runner=subprocess.run):
         "y1_indexed_count": len(target["functions"]),
         "y1_core_http_complete": CORE_FUNCTIONS.issubset(set(target["functions"])),
         "y1_same_core_connection_values": bool(matching),
+        "y1_frontend_cors_allowed": (
+            FRONTEND in target["cors"]["allowedOrigins"]
+            and target["cors"]["supportCredentials"] is False
+        ),
         "y1_any_background_triggers": any(
            name in set(target["functions"]) for name in (
             "render_campaign_reel","plan_campaign","recover_stale_jobs",
