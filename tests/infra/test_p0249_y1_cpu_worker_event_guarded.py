@@ -4,6 +4,7 @@ Never runs Bicep deployment or touches Azure; protected review and live handoff
 are REQUIRED before activating this candidate on the existing disabled job.
 """
 from pathlib import Path
+import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -46,6 +47,32 @@ class EventWorkerCutoverContract(unittest.TestCase):
         self.assertIn("VISIBILITY_SECONDS = 2100", runtime)
         self.assertIn("CONTAINER_REPLICA_TIMEOUT_SECONDS = 1380", runtime)
         self.assertIn("VISIBILITY_SECONDS <= CONTAINER_REPLICA_TIMEOUT_SECONDS", runtime)
+
+    def test_both_templates_match_runtime_and_db_claim_ordering(self):
+        """Prevent unsafe future replica/visibility edits in either IaC variant."""
+        runtime = RUNTIME.read_text()
+        def runtime_seconds(name):
+            match = re.search(r"^" + name + r"\\s*=\\s*(.+)$", runtime, re.M)
+            self.assertIsNotNone(match, name)
+            expression = match.group(1).strip()
+            if expression.isdecimal():
+                return int(expression)
+            self.assertRegex(expression, r"^\\d+\\s*\\*\\s*\\d+$")
+            a, b = re.split(r"\\s*\\*\\s*", expression)
+            return int(a) * int(b)
+
+        replica = runtime_seconds("CONTAINER_REPLICA_TIMEOUT_SECONDS")
+        claim = runtime_seconds("DB_RENDER_CLAIM_LEASE_SECONDS")
+        visibility = runtime_seconds("VISIBILITY_SECONDS")
+        self.assertTrue(780 < replica < claim < visibility)
+        for template in (DISABLED, EVENT):
+            source = template.read_text()
+            match = re.search(r"\\breplicaTimeout:\\s*(\\d+)", source)
+            self.assertIsNotNone(match, template.name)
+            self.assertEqual(int(match.group(1)), replica, template.name)
+            self.assertIn("replicaRetryLimit: 0", source)
+        self.assertIn("VISIBILITY_SECONDS <= CONTAINER_REPLICA_TIMEOUT_SECONDS", runtime)
+        self.assertIn("CONTAINER_REPLICA_TIMEOUT_SECONDS < DB_RENDER_CLAIM_LEASE_SECONDS", runtime)
 
 if __name__ == "__main__":
     unittest.main()
