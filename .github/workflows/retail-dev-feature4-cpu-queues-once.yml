@@ -1,0 +1,89 @@
+name: RetailGrowthAI F4 DEV two private CPU queues (protected one-time)
+# Runs only when this exact source workflow is first merged/updated on main.
+# Existing environment reviewers, OIDC grants and DB access still apply.
+# Never touch the original v1 render queue, Y1, GPU, PROD or WineShopPOS.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-feature4-cpu-queues-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-feature4-cpu-queues-once
+  cancel-in-progress: false
+jobs:
+  provision-f4-queues:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RGAI_DEV_PROJECT_REF: jeearzffnjbvghwjjjrf
+      RETAIL_FEATURE4_CPU_RENDER_ENABLED: 'false'
+      RETAIL_FEATURE4_CPU_QUEUE_APPLY: 'YES'
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RETAIL_SUPABASE_DB_URL: ${{ secrets.RETAIL_SUPABASE_DB_URL }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Confirm pinned F4 DEV migration and locked service role grants
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$RETAIL_SUPABASE_DB_URL" || { echo 'BLOCKED: DEV database connection secret absent'; exit 3; }
+          python3 - <<'PY'
+          import os, pathlib, urllib.parse
+          raw = os.environ['RETAIL_SUPABASE_DB_URL']
+          u = urllib.parse.urlsplit(raw)
+          project = 'jeearzffnjbvghwjjjrf'
+          pooler = 'aws-0-ap-northeast-1.pooler.supabase.com'
+          if not (u.scheme in ('postgresql', 'postgres')
+                  and u.hostname in ('db.' + project + '.supabase.co', pooler)
+                  and u.path == '/postgres' and u.port in (5432, 6543)
+                  and u.username == ('postgres.' + project if u.hostname == pooler else 'postgres')):
+              raise SystemExit('BLOCKED: database URL is not the exact RetailGrowthAI DEV project')
+          file = pathlib.Path(os.environ['RUNNER_TEMP']) / 'f4cpu-private-dev-db-uri'
+          file.write_text(raw)
+          file.chmod(0o600)
+          print('PASS: exact DEV project connection target; no password disclosed')
+          PY
+          # No database writes; suppress error output which might contain connection details.
+          if ! result="$(timeout 35s psql -X -qAt -w -v ON_ERROR_STOP=1               -d "$(cat "$RUNNER_TEMP/f4cpu-private-dev-db-uri")"               -c "SELECT (
+                  (SELECT count(*) FROM supabase_migrations.schema_migrations
+                    WHERE name='feature4_cpu_six_candidate_atomic_dev_20261123') = 1
+                  AND to_regclass('public.feature4_creative_plans') IS NOT NULL
+                  AND to_regclass('public.feature4_cpu_render_jobs') IS NOT NULL
+                  AND to_regclass('retail_private.feature4_cpu_outbox') IS NOT NULL
+                  AND to_regclass('retail_private.feature4_cpu_poison_receipts') IS NOT NULL
+                  AND to_regprocedure('public.feature4_claim_cpu_render(uuid)') IS NOT NULL
+                  AND has_function_privilege('service_role','public.feature4_claim_cpu_render(uuid)','EXECUTE')
+                  AND NOT has_function_privilege('anon','public.feature4_claim_cpu_render(uuid)','EXECUTE')
+                  AND NOT has_function_privilege('authenticated','public.feature4_claim_cpu_render(uuid)','EXECUTE')
+                )" 2>/dev/null)"; then
+            echo 'BLOCKED: cannot verify hosted F4 DEV migration and grants'; exit 3
+          fi
+          test "$result" = t || { echo 'BLOCKED: F4 DEV schema or grant gate failed'; exit 3; }
+          echo 'PASS: six-candidate F4 DEV migration installed, four tables and worker grants verified'
+      - name: Login using already configured protected DEV Azure OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Create only two isolated F4 CPU queues (one bounded attempt)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AZURE_SUBSCRIPTION_ID" || { echo 'BLOCKED: DEV Azure subscription absent'; exit 3; }
+          # Existing source guard re-checks exact account/RG/tags/subscription
+          # and refuses either queue already existing; never delete/replay queues.
+          python3 scripts/deploy/feature4_cpu_dev_queues.py --apply
+      - name: Record only safe staging status
+        shell: bash
+        run: |
+          echo 'F4 DEV: dedicated render and poison queues provisioned; CPU worker/app/API/frontend remain disabled.' >> "$GITHUB_STEP_SUMMARY"
