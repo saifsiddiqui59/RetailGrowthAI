@@ -64,7 +64,7 @@ def sources():
             raise ValueError("Missing/unsafe Feature4 package source: " + rel)
         # A source directory link can redirect a reviewed path to mutable code.
         # Check every ancestor inside the checkout before reading or packaging.
-        if any(parent.is_symlink() for parent in file.parents if parent == ROOT or ROOT in parent.parents):
+        if any(parent.is_symlink() for parent in file.parents):
             raise ValueError("Linked Feature4 package source directory: " + rel)
         if not rel or rel.startswith("/") or ".." in Path(rel).parts:
             raise ValueError("Unsafe archive member: " + rel)
@@ -81,13 +81,16 @@ def sources():
     return mapping
 
 
-def _version(binary, argv, expected):
-    # Reject linked parent directories as well as the executable itself: a
-    # reviewed-looking /tools/current/bin/node may otherwise resolve through
-    # a mutable /tools/current symlink after preflight.
+def _assert_native_binary(binary):
+    # Verify the original path before resolve(), even when the test runner
+    # uses a different Python minor than the Azure 3.11 build image.
     if (not binary.is_file() or binary.is_symlink()
             or any(parent.is_symlink() for parent in binary.parents)):
         raise ValueError("Missing or linked native dependency: " + binary.name)
+
+
+def _version(binary, argv, expected):
+    _assert_native_binary(binary)
     try:
         message = subprocess.check_output([str(binary), *argv],
                                           text=True, stderr=subprocess.STDOUT, timeout=20)
@@ -170,12 +173,14 @@ def _write_member(z, archive_path, origin):
 
 def build(args):
     mapping = sources()
-    if sys.version_info[:2] != (3, 11):
-        raise ValueError("Only Python 3.11 supports this pinned isolated runtime build")
-    # Validate the supplied paths before resolving them: resolving first
-    # hides symlinks and defeats _version's release-artifact link guard.
+    # Link/source integrity is platform-independent and must fail closed
+    # BEFORE the Python-minor guard, including in the Python 3.13 test suite.
     node, ffmpeg, ffprobe = (Path(x) for x in
                            (args.node, args.ffmpeg, args.ffprobe))
+    for binary in (node, ffmpeg, ffprobe):
+        _assert_native_binary(binary)
+    if sys.version_info[:2] != (3, 11):
+        raise ValueError("Only Python 3.11 supports this pinned isolated runtime build")
     _version(node, ["--version"], r"^v22\.")
     _version(ffmpeg, ["-version"], r"^ffmpeg version")
     _version(ffprobe, ["-version"], r"^ffprobe version")
