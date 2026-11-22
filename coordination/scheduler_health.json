@@ -2,9 +2,9 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-22T10:00:43Z",
+  "last_written_at": "2026-11-22T10:43:36Z",
   "last_inventory_count": 3,
-  "last_inventory_checked_at": "2026-11-22T10:00:43Z",
+  "last_inventory_checked_at": "2026-11-22T10:43:36Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
@@ -108,22 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 44913217191,
-      "head_sha": "d638763c433231d7a94992bec4cb08a7e31448f1",
-      "status": "SUCCESS 4/4",
-      "evidence": "Latest mandatory run; four jobs independently checked"
-    },
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 44963405190,
-      "head_sha": "2179142549c6beecad6036399618364a72cb0b4b",
-      "status": "SUCCESS native CPU workflow",
-      "evidence": "Native F2-to-F4 CPU job independently verified"
-    },
     {
       "event": "exact_head_ci",
       "pr": 1059,
@@ -299,6 +283,22 @@
       "head_sha": "d765eff3982bcd2258a4f53759d528a9cd7179e0",
       "status": "FAIL native CPU 0/1",
       "evidence": "Native CPU job independently inspected; failed"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 45013826803,
+      "head_sha": "12ad7633d898a83a71c2ea3e2f3f927872b03d0e",
+      "status": "FAIL 3/4 (Python/uv)",
+      "evidence": "Four jobs checked; Python/uv failed; other three succeeded"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 45013826802,
+      "head_sha": "12ad7633d898a83a71c2ea3e2f3f927872b03d0e",
+      "status": "FAIL native CPU 0/1",
+      "evidence": "Native CPU job checked; failed"
     }
   ],
   "current_review_gates": {
@@ -499,7 +499,12 @@
     "last_checked_at": "2026-11-22T01:02:04.025Z",
     "summary": "F2/F3/F4/F7 all confirmed disabled; inherited environment_selection, environments null; no new run IDs; no new verified coding commits; F4/F7 review blocked",
     "status": "CURRENT_UNKNOWN",
-    "reason": "All four automation lookups returned 404; last verified durations retained; no automation changes"
+    "reason": "All four automation lookups returned 404; last verified durations retained; no automation changes",
+    "f2": "UNVERIFIED (not accessible)",
+    "f3": "UNVERIFIED (get 404; peek available)",
+    "f4": "UNVERIFIED (get 404; peek available)",
+    "f7": "UNVERIFIED (get 404; peek available)",
+    "no_automation_changes": true
   },
   "issue249_ci_watch": {
     "checked_at_utc": "2026-11-20T04:55:41Z",
@@ -572,14 +577,17 @@
   },
   "latest_issue249_ci": {
     "pr": 1059,
-    "head_sha": "292a441264466d9ea564138eae6da484fa2f64bd",
-    "mandatory_run_id": 44990887544,
-    "mandatory_status": "FAILED 3/4",
+    "head_sha": "12ad7633d898a83a71c2ea3e2f3f927872b03d0e",
+    "mandatory_run_id": 45013826803,
+    "mandatory_status": "FAIL 3/4",
     "native_run_id": 44990887575,
     "native_status": "FAILED 0/1",
     "verified_at_utc": "2026-11-22T05:47:08Z",
     "reason": "Current head: Python/uv job #137112493019 failed; native CPU job #137111470855 failed; logs not inspected",
-    "owner": "manual-issue249"
+    "owner": "manual-issue249",
+    "native_cpu_run_id": 45013826802,
+    "native_cpu_status": "FAIL 0/1",
+    "current_verified": true
   },
   "current_ci_status": {
     "pr": 1059,
