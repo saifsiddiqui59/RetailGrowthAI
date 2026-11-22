@@ -128,6 +128,19 @@ class Feature4CpuWorkerPackageTests(unittest.TestCase):
                             module._write_member(archive, unsafe, payload)
                 self.assertEqual(archive.namelist(), [])
 
+    def test_duplicate_archive_member_rejected_without_overwriting(self):
+        import tempfile
+        from zipfile import ZipFile
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = root / "payload.txt"
+            payload.write_text("synthetic", encoding="utf-8")
+            with ZipFile(root / "artifact.zip", "w") as archive:
+                module._write_member(archive, "deps/payload.txt", payload)
+                with self.assertRaisesRegex(ValueError, "Duplicate F4 archive member"):
+                    module._write_member(archive, "deps/payload.txt", payload)
+                self.assertEqual(archive.namelist(), ["deps/payload.txt"])
+
     def test_oversized_member_refused_before_read_or_zip_write(self):
         import tempfile
         from unittest.mock import patch
