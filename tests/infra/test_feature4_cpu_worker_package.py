@@ -55,6 +55,22 @@ class Feature4CpuWorkerPackageTests(unittest.TestCase):
                 module.build(args)
             self.assertFalse((root / "worker.zip").exists())
 
+    def test_native_binary_linked_parent_is_rejected_before_execution(self):
+        import tempfile
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            real = root / "real"
+            real.mkdir()
+            binary = real / "node"
+            binary.write_text("not executable", encoding="utf-8")
+            alias = root / "current"
+            alias.symlink_to(real, target_is_directory=True)
+            with patch.object(module.subprocess, "check_output") as execute:
+                with self.assertRaisesRegex(ValueError, "linked native dependency"):
+                    module._version(alias / "node", ["--version"], r"^v22\\.")
+                execute.assert_not_called()
+
     def test_runtime_dependency_symlinks_rejected_before_archive(self):
         import tempfile
         with tempfile.TemporaryDirectory() as directory:
