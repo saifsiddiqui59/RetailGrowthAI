@@ -1844,44 +1844,6 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 2. Before any actual DEV SQL, obtain separate affected-feature security/release review, backup/rollback and approved exact source inventory. Six additive F4 candidate files remain unapplied; isolated worker/queues/flags remain off. The inventory must run against verified RetailGrowthAI DEV project ref, never PROD.
 3. Prepare authorized nonprivileged two-shop identities through Auth Admin, then real signed JWT/RLS, private MP4, quota/queue/poison and browser tests; never fabricate editorial/ROOT approvals. No WineShopPOS, GPU/paid, or Issue #249/Y1 modifications.
 
-## 2026-11-22 — After F2→F4 PR #1059 source-only merge
-1. Verify postmerge main exact SHA `6c376c3aba21f05d507243e358f28d4b528e7382` four Part1 CI jobs from run #45049693038. If red, repair without bypassing tests; do not count merged source as hosted completion.
-2. Audit and stage an isolated protected Feature4 CPU DEV release plan. Supabase DEV base tables/serializer exist; six additive reviewed-plan/job/outbox/claim/finish/poison SQL candidates and isolated native CPU queue/worker are NOT installed/deployed. No protected release or user approval bypass; keep feature flags off and secure rollback.
-3. Execute real signed two-shop owner/editor/foreign/revoked RLS and private output/download/queue/quota acceptance only with authorized test accounts and hosted worker. No artificial owner or customer editorial click. No PROD, WineShopPOS, GPU/paid model or Issue #249/Y1 changes. The owner's no-manual-GitHub-approval instruction is already documented as a source merge exception, NOT as a hosted release approval.
-
-## 2026-11-22 — F4 CPU NULL lease regression next
-1. Run exact-head four-job isolated PR CI for `fix/f4-cpu-null-lease-fail-closed-20261122`, including SQL NULL lease negative. Fix CI failures without bypassing cases; require current main compatibility before source-only merge.
-2. Protected DEV release remains separate: review all six SQL candidates, worker/queue, tenant rights, outbox, lease, exact private MP4 SHA; prepare rollback and independently authorize hosted modifications. Main source CI and a self-audit are not hosted E2E.
-3. Genuine nonprivileged two-shop Auth/Playwright and test media approval require approved test identities; do not forge ROOT/retailer approval or charge a customer. No PROD, GPU/paid, WineShopPOS, or Issue #249/Y1 changes.
-
-## 2026-11-22 — #249 full Y1 migration after exact index-inventory hardening
-1. Obtain exact PR #1077 HEAD four-job CI (including tests/infra/test_p0249_y1_connection_inspector.py and test_p0249_y1_retirement_gate.py), fix code if red, and obtain required independent affected-lead review before integration; check fresh main 4/4 after merge.
-2. In separate protected DEV Azure release, use verified original Flex package to deploy Y1 HTTP-only 38 functions without concurrent workers. Verify read-only inspector's y1_exact_http_only_index=true, signed shop authorization, POST/PATCH, media/rights, and independent rollback before routing any Free SWA customers.
-3. Transfer eight short queues/timers one owner at a time only after disabling original Flex consumers and observing zero duplicates. Transfer long 780s-cap CPU FFmpeg to independently proved and authorized 1800s Container Apps Job, never classic Y1's 600s host. Confirm full 46 registrations, private MP4, poison/lease/outbox/quota, hosted 503/p95/p99 and served SWA host; preserve original rollback, then and only then consider Flex stop/#249 closure. No manual ROOT onboarding bypass, PROD/GPU/WineShopPOS.
-
-## 2026-11-22 — #249 isolated CPU SHA verification follow-up
-1. Verify exact final PR #1077 four-job CI after adding VerifiedPrivateMedia and negative tests. Repair any red code/test, do not bypass. Obtain independent release/security review before source integration and protected Azure changes.
-2. For the separate 1800s Container Apps CPU Job, independently demonstrate real immutable image/FFmpeg codec, exact private uploaded-byte SHA-256 readback, denied redirects, original queue ACK/poison/lease idempotency and single-consumer handoff before ever disabling Flex render consumer. Legacy Y1 classic Consumption must not host 780s renders.
-3. Only after signed tested full 38-route HTTP and 46-indexed short-worker Y1, live SWA routing, two-shop and latency/rollback acceptance may old Flex be stopped and #249 closed; source CI is not deployment.
-
-## 2026-11-22 — #249 next after CPU message invisibility correction
-1. Verify exact latest PR #1077 head mandatory four CI jobs including new exact-index and 2100s > 1800s timeout assertions; repair source failure without test bypass and require appropriate independent review before integration.
-2. Run protected Y1 full HTTP-only release from verified original ZIP and confirm 38/38 indexed plus JWT negative/positive auth, original POST/PATCH/media parity and independent rollback. Keep Flex workers as sole queue consumers until the later owner-verified transition.
-3. Build/verify immutable CPU image, single-owner handoff to separate 1800s CPU Container Apps worker with 2100s queue visibility, private MP4 SHA readback and queue/poison/lease/rights acceptance, then switch short workers one-by-one and verify 46/46 final indexing, served SWA routing, p95/p99, 240s idle and no 503 before stopping Flex/closing #249. No PROD/GPU/WineShopPOS.
-
-## 2026-11-22 — next Y1 CPU Event-source handoff
-1. Verify the new event-scaled Bicep source/static tests and exact PR #1077 HEAD four-job CI. Independently compile/inspect Bicep, verify image digest and future Azure storage account scope; do not deploy Event source before protected DEV handoff.
-2. First establish 38/38 hosted Y1 HTTP, genuine signed writes/reads/media/rollback, then independently disable and observe Flex's render consumer before protected same-job Manual→Event transition. Test one synthetic real FFmpeg queue job, SHA readback, 2100s invisibility, lease, retries/poison, billing and one active owner. Migrate the eight short Y1 consumers only after controlled deactivation on Flex. Do not close #249/stop Flex until full hosted 46-index and served SWA cutover acceptance.
-
-## 2026-11-22 — #249 next after CPU queue invisibility fix
-1. Verify exact latest PR #1077 four-job CI including CPU queue timing contract, complete HTTP 38-route and final 46-function indexing negative tests. Respect independent release/security review.
-2. Only through protected DEV release: verify actual 2100s queue visibility/1800s worker timeout, same-shop lease fencing, private 1080x1920 MP4, no duplicate consumption, rollback; no classic Y1 long FFmpeg.
-3. Keep Flex and #249 open until complete hosted signed GET/POST/PATCH, eight short-worker handoff, served SWA migration and 503/p95/p99/240s-idle validation. No PROD/WineShopPOS/GPU.
-
-## 2026-11-22 — #249 private MP4 exact-object proof next
-1. Inspect exact latest PR #1077 four-job Actions run after `d356a949`, including new wrong-object denial test; repair any failing tests without reducing checks.
-2. Reconcile branch against current main without losing newer F4 code; preserve independent security/release review and protected hosted DEV release. Verify 38/38 live Y1 HTTP, signed tenant writes, all 46 indexed after single-owner worker handoff, private MP4 exact-key/SHA proof, queues/leases/billing, real served SWA routing, 240s idle and rollback before Flex stop. Do not claim source-only work deployed.
-
 ## 2026-11-22 — F4 atomic DEV release next steps
 1. Verify exact-head 4/4 and protected review of new `scripts/deploy/feature4_cpu_release_bundle.py` and regression tests; merge source only after accepted CI. Use `--project-ref jeearzffnjbvghwjjjrf` for an offline SHA256 manifest; optional `--output` writes one atomic SQL transaction outside repo.
 2. Before any actual DEV migration/worker provision, verify independent SECURITY DEFINER/RLS, media rights, JWT, quota, lease, outbox and protected Azure environment/cost/rollback gate. Explicit owner request alone does not demonstrate independent review or authenticated retailer consent.
