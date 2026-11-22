@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import json
 from collections import Counter
 from pathlib import Path
 from zipfile import ZipFile, ZIP_DEFLATED
@@ -20,6 +21,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 ROOT = Path(__file__).resolve().parents[2]
 ORIGINAL = ROOT / "azure-functions/campaign-api/function_app.py"
 MEMBER = "azure-functions/campaign-api/function_app.py"
+HOST = ROOT / "ops/p0249-y1-v1-canary/host.json"
 
 # Explicitly pin the functions actually registered in the original Flex
 # source. Any newly added worker or HTTP route demands a new affected review.
@@ -148,26 +150,62 @@ def convert_zip(source: Path, destination: Path):
         raise ValueError("No generated production ZIP inside the repository")
     expected_source = ORIGINAL.read_bytes()
     transformed = strip_only_background_triggers(expected_source)
-    with ZipFile(source) as original, ZipFile(destination, "x", ZIP_DEFLATED) as y1:
-        listing = original.infolist()
-        names = [item.filename for item in listing]
-        if Counter(names)[MEMBER] != 1:
-            raise ValueError("Original ZIP does not contain one canonical entrypoint")
-        for entry in listing:
-            data = original.read(entry)
-            if entry.filename == MEMBER:
-                if data != expected_source:
-                    raise ValueError("Source ZIP does not match the checked-out original")
-                data = transformed
-            y1.writestr(entry, data)
+    # The Flex worker's 20-minute functionTimeout would be invalid on
+    # classic Consumption (10-minute maximum). HTTP-only Y1 uses the already
+    # reviewed five-GET host.json with no background/long-running timeout.
+    y1_host = HOST.read_bytes()
+    host = json.loads(y1_host)
+    if (host.get("version") != "2.0" or "functionTimeout" in host
+            or "extensions" in host or "extensionBundle" in host
+            or host.get("logging", {}).get("logLevel", {}).get("default") != "Warning"):
+        raise ValueError("Unreviewed Y1 HTTP-only host configuration")
     try:
-        original_packager.verify_zip(destination)
-        with ZipFile(destination) as staged:
-            actual = staged.read(MEMBER)
-            if actual != transformed or any(
-                    kind != "route" for kind in registrations(actual)[0].values()):
+        with ZipFile(source) as original, ZipFile(destination, "x", ZIP_DEFLATED) as y1:
+            listing = original.infolist()
+            names = [item.filename for item in listing]
+            if Counter(names)[MEMBER] != 1 or Counter(names)["host.json"] != 1:
+                raise ValueError("Original ZIP lacks reviewed root members")
+            for entry in listing:
+                data = original.read(entry)
+                if entry.filename == MEMBER:
+                    if data != expected_source:
+                        raise ValueError("Source ZIP does not match the checked-out original")
+                    data = transformed
+                elif entry.filename == "host.json":
+                    data = y1_host
+                y1.writestr(entry, data)
+        # Full original package was checked by its exact existing verifier.
+        # The new Consumption-compatible host intentionally cannot pass the
+        # *Flex-only* 20-minute verifier. Compare every other original byte
+        # with the independent original; verify archive/metadata/safety again.
+        with ZipFile(source) as original, ZipFile(destination) as staged:
+            source_members = original.infolist()
+            staged_members = staged.infolist()
+            if (len(source_members) != len(staged_members)
+                or len(source_members) > 120
+                or staged.testzip() is not None):
+                raise ValueError("Y1 staged ZIP integrity failed")
+            if sum(e.file_size for e in staged_members) > original_packager.MAX_UNPACKED_BYTES:
+                raise ValueError("Y1 staged ZIP unpacked budget exceeded")
+            for old, new in zip(source_members, staged_members):
+                if (old.filename != new.filename or
+                    old.external_attr != new.external_attr or
+                    old.compress_type != new.compress_type or
+                    old.date_time != new.date_time):
+                    raise ValueError("Unexpected Y1 ZIP member or metadata drift")
+                actual = staged.read(new)
+                if new.filename == MEMBER:
+                    if actual != transformed:
+                        raise ValueError("Modified Y1 HTTP source mismatch")
+                elif new.filename == "host.json":
+                    if actual != y1_host:
+                        raise ValueError("Y1 Consumption host.json mismatch")
+                elif actual != original.read(old):
+                    raise ValueError("Non-HTTP source or worker package byte drift")
+            if any(kind != "route" for kind in registrations(staged.read(MEMBER))[0].values()):
                 raise ValueError("Generated Y1 ZIP contains an unexpected trigger")
         print("P0249_Y1_FULL_HTTP_ZIP=STAGED_NOT_DEPLOYED")
+        print("P0249_Y1_HTTP_HOST_CLASSIC_CONSUMPTION_SAFE=PASS")
         print("P0249_Y1_WORKER_MIGRATION_REQUIRED=true")
     except Exception:
         destination.unlink(missing_ok=True)
