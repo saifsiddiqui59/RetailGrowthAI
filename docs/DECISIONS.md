@@ -1393,3 +1393,6 @@ A protected DEV release may build six additive SQL candidates into one transacti
 
 ## 2026-11-22 — F4 queue creation is deny-by-default with exact DEV scope
 Only exact existing DEV storage and two names may be created by the queue stage CLI. No subscription-wide role grant, account-key retrieval, queue message read, auto-retry of ambiguous creation, implicit adoption of existing queues or customer-facing runtime activation. Dry-run performs zero cloud calls; applying requires explicit protected environment guards and scoped Azure identity verification. F4 worker remains disabled until SQL/rights/rollback acceptance.
+
+## 2026-11-22 — Distinguish F4 worker indexing from API readiness attestation
+`RETAIL_FEATURE4_CPU_WORKER_ENABLED` has two bounded usages: in the isolated F4 worker it indexes three private queue/timer triggers, whereas in the original API it is a required readiness condition for render routes (not a worker registration). Keep false in original API while staging; require verified dedicated host, rights, DB, queue, and original URI rollback before marking true. Enable CPU_RENDER last; never infer real hosted readiness from a source merge.

@@ -51,8 +51,11 @@ key in client JavaScript or publish unreviewed SQL functions to anon/JWT users.
    site packages, \`hyperframes/node_modules\`, executable bins and the
    \`package_manifest.json\`. It must be less than 1 GiB with no secrets.
 3. Deploy the isolated worker to its **own tagged, identity-audited DEV app**.
-   Keep \`RETAIL_FEATURE4_CPU_WORKER_ENABLED=false\` in original API app. In
-   worker app, use only protected server-side \`RETAIL_SUPABASE_URL\`,
+   Keep \`RETAIL_FEATURE4_CPU_WORKER_ENABLED=false\` in the original API during initial deployment. In the original API
+   this is a worker-readiness attestation; leave it false until the separate
+   dedicated worker has verified queue and trigger indexing. The isolated
+   worker app uses the same flag separately to index its private triggers.
+   In the worker app, use only protected server-side \`RETAIL_SUPABASE_URL\`,
    \`RETAIL_SUPABASE_SERVICE_ROLE_KEY\`, \`RETAIL_STORAGE\` and
    \`AzureWebJobsStorage\`. Verify app environment and role scope before
    writing settings; never print secret values.
@@ -61,10 +64,17 @@ key in client JavaScript or publish unreviewed SQL functions to anon/JWT users.
    \`feature4_cpu_render_message\`, \`feature4_cpu_poison_message\`,
    \`feature4_cpu_dispatch_timer\`. No public worker HTTP endpoint.
    Verify queue is draining/recoverable without accepting customer jobs.
-5. Enable API feature flags and frontend review/submit UI **only after**
-   verified protected JWT/RLS RPCs, live consuming worker, rights and quota
-   safeguards. Submit no synthetic billable job without a separately authorized
-   DEV fixture; two-shop real acceptance is deferred to 2026-11-23.
+5. Verify the original API hosted ZIP actually contains Feature4 plan issue,
+   review, render and download routes, with its old URI rollback pinned. Only
+   after protected JWT/RLS RPCs, dedicated worker and queue proof, media rights
+   and quota safeguards may the ORIGINAL API set
+   `RETAIL_FEATURE4_PLAN_ISSUE_ENABLED=true`,
+   `RETAIL_FEATURE4_PLAN_REVIEW_ENABLED=true` and
+   `RETAIL_FEATURE4_CPU_WORKER_ENABLED=true` (API readiness attestation,
+   NOT in-app trigger indexing), then `RETAIL_FEATURE4_CPU_RENDER_ENABLED=true`
+   LAST. Enable frontend controls only after authenticated API verification.
+   Never create synthetic billable jobs without a separately authorized DEV
+   fixture; genuine signed two-shop E2E remains mandatory.
 
 ## Release gates and rollback
 - Service-role-only mutation RPCs, unique plan/job/credit/outbox, exact review
@@ -77,8 +87,8 @@ key in client JavaScript or publish unreviewed SQL functions to anon/JWT users.
   SQL finalizes only matching exact \`shop/renders/job/lease.mp4\` and current
   authority. No unreviewed soundtrack, paid model or GPU calls.
 - On any index/rights/worker failure: disable
-  \`RETAIL_FEATURE4_CPU_RENDER_ENABLED\` in the existing API, disable frontend
-  F4 render flags, then disable the isolated worker if necessary. Leave new
+  \`RETAIL_FEATURE4_CPU_RENDER_ENABLED\` in the existing API first; then disable worker-readiness, plan issue/review
+  flags and frontend F4 controls. Disable the isolated worker if necessary. Leave new
   outbox/job/credit rows intact for fenced recovery; do **not** delete private
   user assets or mutate v1 render queues. Restore the original Azure app
   package/URI if backend deployment was touched. Do not mark released.
