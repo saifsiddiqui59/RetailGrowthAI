@@ -48,6 +48,10 @@ CORE_FUNCTIONS = frozenset({
     "create_poster_draft", "list_saved_posters", "get_poster_draft",
     "select_poster_banner", "request_poster_render",
     "read_poster_render", "download_poster_render", "p0249_health",
+    # Current main includes seven approved Feature2→Feature4 HTTP routes.
+    "create_feature4_render", "get_feature4_render", "download_feature4_render",
+    "issue_feature4_creative_plan", "read_feature4_creative_plan",
+    "review_feature4_creative_plan", "revoke_feature4_creative_plan",
 })
 PROOF = frozenset({
     "signed_two_shop_current_rls",
