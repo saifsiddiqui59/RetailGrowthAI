@@ -113,6 +113,21 @@ class Feature4CpuWorkerPackageTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "Unsafe non-regular F4 archive source"):
                     module._write_member(archive, "deps/blocking.pipe", pipe)
 
+    def test_archive_source_with_linked_parent_is_rejected(self):
+        import tempfile
+        from zipfile import ZipFile
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            actual = root / "actual"
+            actual.mkdir()
+            (actual / "payload.txt").write_text("synthetic", encoding="utf-8")
+            alias = root / "linked"
+            alias.symlink_to(actual, target_is_directory=True)
+            with ZipFile(root / "artifact.zip", "w") as archive:
+                with self.assertRaisesRegex(ValueError, "linked F4 archive source"):
+                    module._write_member(archive, "deps/payload.txt", alias / "payload.txt")
+                self.assertEqual(archive.namelist(), [])
+
     def test_archive_member_traversal_rejected_before_read(self):
         import tempfile
         from zipfile import ZipFile
