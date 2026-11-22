@@ -55,6 +55,22 @@ class Y1NoPrematureFlexStop(unittest.TestCase):
         self.assertIn("planning_render_poster_poison_workers", denied)
         self.assertIn("outbox_recovery_email_trend_timers", denied)
 
+    def test_missing_optional_http_or_unknown_function_blocks_retirement(self):
+        state = observation()
+        self.assertEqual(len(m.ALL_HTTP_FUNCTIONS), 38)
+        self.assertEqual(len(m.EXPECTED_FULL_Y1_INDEX), 46)
+        self.assertEqual(m.evaluate(state), ())
+        state["y1"]["indexed_functions"].remove("feature3_designs")
+        self.assertIn("all_original_http_routes", m.evaluate(state))
+        state = observation()
+        state["y1"]["indexed_functions"].append("unreviewed_function")
+        self.assertIn("unreviewed_or_duplicate_y1_function_index",
+                      m.evaluate(state))
+        state = observation()
+        state["y1"]["indexed_functions"].append("create_campaign")
+        self.assertIn("unreviewed_or_duplicate_y1_function_index",
+                      m.evaluate(state))
+
     def test_no_data_also_blocks_retirement(self):
         self.assertIn("exact_dev_scope", m.evaluate({}))
         self.assertEqual(m.evaluate(None), ("untrusted_snapshot",))
