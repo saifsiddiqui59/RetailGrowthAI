@@ -1828,3 +1828,6 @@ Manual integration chat C reviewed original PRs #979/#972/#970/#964/#944/#880/#8
 
 ## 2026-11-22 — Feature4 CPU API release flag ordering correction (source only)
 - Original backend registers F4 CPU render routes only if all four Feature4 env flags are true. The DEV runbook had previously directed keeping CPU_WORKER_ENABLED false in the original API indefinitely, which would block F4 routes even when the isolated worker was live. Corrected two-app semantics: original API worker flag remains false while staging, becomes true only as a verified worker-readiness attestation after dedicated host/queue/RLS proof, and CPU_RENDER becomes true LAST. Original API ZIP/old URI must be protected before any activation. Added source-only contract tests. No flags, queues or customer data changed.
+
+## 2026-11-22 — F4 isolated CPU host serial-queue guard (source-only)
+- Implemented a distinct native F4 worker `host.json` with batchSize=1, newBatchThreshold=0 and dynamicConcurrencyEnabled=false, mapped by isolated ZIP packager instead of legacy API host. Guarded packaging refuses altered concurrency, offline regression checks unchanged original v1. PR #1084 source only; hosted worker, Azure queues, six DEV SQL candidates and real signed two-shop E2E still NOT deployed/verified.
