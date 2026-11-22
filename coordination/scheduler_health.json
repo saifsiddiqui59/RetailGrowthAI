@@ -2,9 +2,9 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-22T05:47:08Z",
+  "last_written_at": "2026-11-22T07:05:07.304Z",
   "last_inventory_count": 3,
-  "last_inventory_checked_at": "2026-11-22T05:47:08Z",
+  "last_inventory_checked_at": "2026-11-22T07:05:07.304Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
@@ -108,22 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 44809597371,
-      "head_sha": "535caefa33b5dbe487e3158442d9fe11bc91acb4",
-      "status": "SUCCESS 4/4",
-      "evidence": "Four mandatory jobs independently checked; manual review remains"
-    },
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 44809597915,
-      "head_sha": "535caefa33b5dbe487e3158442d9fe11bc91acb4",
-      "status": "CPU TEST SUCCESS",
-      "evidence": "Native F2-to-F4 CPU test job independently checked"
-    },
     {
       "event": "exact_head_ci",
       "pr": 1059,
@@ -299,6 +283,22 @@
       "head_sha": "292a441264466d9ea564138eae6da484fa2f64bd",
       "status": "FAIL native CPU 0/1",
       "evidence": "One native CPU job independently checked; failed"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 44995121136,
+      "head_sha": "2255312c18d8ce0326ab0cd5b220572e204ae9c1",
+      "status": "FAIL 3/4",
+      "evidence": "Four mandatory jobs independently checked: Python/uv failure, other three success"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 44995121126,
+      "head_sha": "2255312c18d8ce0326ab0cd5b220572e204ae9c1",
+      "status": "FAIL native CPU 0/1",
+      "evidence": "One native CPU job independently checked: failed"
     }
   ],
   "current_review_gates": {
@@ -582,5 +582,14 @@
     "verified_at_utc": "2026-11-22T05:47:08Z",
     "reason": "Current head: Python/uv job #137112493019 failed; native CPU job #137111470855 failed; logs not inspected",
     "owner": "manual-issue249"
+  },
+  "current_ci_status": {
+    "pr": 1059,
+    "head_sha": "2255312c18d8ce0326ab0cd5b220572e204ae9c1",
+    "mandatory_run_id": 44995121136,
+    "mandatory": "FAIL 3/4",
+    "native_cpu_run_id": 44995121126,
+    "native_cpu": "FAIL 0/1",
+    "verified_at_utc": "2026-11-22T07:05:07.304Z"
   }
 }
