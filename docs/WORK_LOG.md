@@ -1202,3 +1202,6 @@ Work completed: #859 merged & postmerge 4/4, #866 merged (postmerge running), #8
 
 
 - 2026-11-22 PR #1059: audited F4 outbox/reconciler source and found a stranded-quota liveness hole when queue send attempt eight transitions to `DEAD` or final `CLAIMED` expires: `QUEUED` job was never selected for reconciliation. Source fix adds terminal recovery for both under existing row locks and two disposable SQL rollback regression cases; new exact-HEAD four-job and native CPU checks still pending. No hosted migration/queue/worker/app changes, no independent review impersonation, no #249/Y1/PROD/WineShopPOS/GPU/paid change.
+
+
+- 2026-11-22 PR #1059: investigated exact head `97d83cbe` CI [#45047419122](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/45047419122): Python job succeeded; isolated Supabase job failed at rollback-only `feature4_cpu_render_jobs_negative.sql:321`. An outbox reconciliation side-effect was combined with status reads in one boolean expression. Split reconciliation and terminal state assertions into distinct PL/pgSQL statements in both dead-outbox and lost-final-ACK fixtures; full exact-new-head and real native CPU proofs must be rerun and inspected. No security test skipped, no DEV schema/cloud mutation, no independent review claimed.

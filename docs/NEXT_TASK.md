@@ -1811,3 +1811,8 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 1. Confirm exact new-head 4/4 mandatory CI plus native F2→F4 CPU artifact after SQL three-valued approval and terminal outbox regression additions; repair test failures in existing branch.
 2. Independently review eight-send dead/expired ACK fence, quota settlement/credit lifecycle, plan rights, service_role-only SQL and release ZIP before approving integration. Do not mark hosted, reviewed or main-merged from source-only tests.
 3. After protected DEV schema/deployment authorization, verify private queue/worker, signed two-shop real media, positive/revoked/foreign JWT and short-lived private MP4 before release, without user GitHub approval request or bypass of required reviewer. #249/Y1, PROD, GPU/paid, WineShopPOS untouched.
+
+
+## 2026-11-22 — PR #1059 SQL test repair next
+1. Verify the new exact-head four mandatory Part1 jobs, particularly the real disposable Supabase SQL check for both eight-send terminal scenarios; verify native 30s F2→F4 CPU artifact and fix any source failures.
+2. Keep PR draft until independent security/release lead approval, then protected DEV-only migration, worker and two-shop signed acceptance. No false DONE, main merge, deployment, GPU/paid, PROD/WineShopPOS or Issue249/Y1 change.

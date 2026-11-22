@@ -1365,3 +1365,7 @@ All required reviewed-plan approval, version, identity and media snapshot predic
 
 ## 2026-11-22 — Terminally fail undeliverable F4 CPU jobs without unbounded retries
 A service-only F4 CPU outbox may send at most eight times. When a QUEUED job's row is `DEAD`, or its eighth `CLAIMED` send lease has expired without confirmation, the regular reconciler must mark the job `FAILED` with `RETRY_EXHAUSTED`, retain durable `DEAD` evidence and stop dispatching. Keep an actively running unexpired worker claim fenced; no automatic duplicate charge/refund or bypass of separate reviewer/DEV deployment gates. Rollback-only DB fixtures cover both failure modes.
+
+
+## 2026-11-22 — SQL regression side-effects require separate statement snapshots
+Do not call a VOLATILE mutating PostgreSQL function inside the same boolean predicate as its resulting database-state assertions. Test the return value first, then inspect rows in subsequent PL/pgSQL statements; SQL expression evaluation order and statement snapshots are not a valid mutation-verification contract. Preserve all production outbox bounds and reconciliation logic.

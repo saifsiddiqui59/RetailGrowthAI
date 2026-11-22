@@ -307,11 +307,17 @@ where job_id=(select id from public.feature4_cpu_render_jobs
   where plan_id='f5300000-0000-4000-8000-000000000001');
 set local role service_role;
 do $dead_outbox$
-declare jid uuid;
+declare jid uuid; reconciled integer;
 begin
   select id into jid from public.feature4_cpu_render_jobs
   where plan_id='f5300000-0000-4000-8000-000000000001';
-  if public.feature4_reconcile_cpu_render(20)<>1 or not exists(
+  -- Invoke the VOLATILE SQL mutation in a distinct SPI statement. Reading
+  -- statuses in the same OR expression can observe an old statement snapshot.
+  reconciled := public.feature4_reconcile_cpu_render(20);
+  if reconciled is distinct from 1 then
+    raise exception 'FAIL: dead outbox stranded queued CPU job (reconciler did not select exactly one row)';
+  end if;
+  if not exists(
        select 1 from public.feature4_cpu_render_jobs
        where id=jid and status='FAILED' and error_code='RETRY_EXHAUSTED')
      or not exists(
@@ -331,11 +337,17 @@ where job_id=(select id from public.feature4_cpu_render_jobs
   where plan_id='f5300000-0000-4000-8000-000000000001');
 set local role service_role;
 do $expired_eighth$
-declare jid uuid;
+declare jid uuid; reconciled integer;
 begin
   select id into jid from public.feature4_cpu_render_jobs
   where plan_id='f5300000-0000-4000-8000-000000000001';
-  if public.feature4_reconcile_cpu_render(20)<>1 or not exists(
+  -- Invoke the VOLATILE SQL mutation in a distinct SPI statement. Reading
+  -- statuses in the same OR expression can observe an old statement snapshot.
+  reconciled := public.feature4_reconcile_cpu_render(20);
+  if reconciled is distinct from 1 then
+    raise exception 'FAIL: lost eighth queue ACK stranded CPU job (reconciler did not select exactly one row)';
+  end if;
+  if not exists(
        select 1 from public.feature4_cpu_render_jobs
        where id=jid and status='FAILED' and error_code='RETRY_EXHAUSTED')
      or not exists(
