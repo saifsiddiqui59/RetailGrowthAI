@@ -82,7 +82,11 @@ def sources():
 
 
 def _version(binary, argv, expected):
-    if not binary.is_file() or binary.is_symlink():
+    # Reject linked parent directories as well as the executable itself: a
+    # reviewed-looking /tools/current/bin/node may otherwise resolve through
+    # a mutable /tools/current symlink after preflight.
+    if (not binary.is_file() or binary.is_symlink()
+            or any(parent.is_symlink() for parent in binary.parents)):
         raise ValueError("Missing or linked native dependency: " + binary.name)
     try:
         message = subprocess.check_output([str(binary), *argv],
