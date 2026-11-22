@@ -134,6 +134,8 @@ def _write_member(z, archive_path, origin):
     if (not archive_path or archive_path.startswith("/") or chr(92) in archive_path
             or any(part in ("", ".", "..") for part in parts)):
         raise ValueError("Unsafe F4 archive member: " + archive_path)
+    if archive_path in z.namelist():
+        raise ValueError("Duplicate F4 archive member: " + archive_path)
     # Zip deploy does not require source-tree symlink semantics. Copy a
     # regular, locally verified file and retain executable permissions.
     if not stat.S_ISREG(origin.lstat().st_mode) or origin.is_symlink():
