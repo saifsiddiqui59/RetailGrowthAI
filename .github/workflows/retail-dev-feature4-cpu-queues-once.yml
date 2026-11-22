@@ -27,6 +27,7 @@ jobs:
       RETAIL_FEATURE4_CPU_QUEUE_APPLY: 'YES'
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       RETAIL_SUPABASE_DB_URL: ${{ secrets.RETAIL_SUPABASE_DB_URL }}
+      RETAIL_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -38,22 +39,31 @@ jobs:
           test -n "$RETAIL_SUPABASE_DB_URL" || { echo 'BLOCKED: DEV database connection secret absent'; exit 3; }
           python3 scripts/deploy/feature4_cpu_db_uri_guard.py
           # No database writes; suppress error output which might contain connection details.
-          if ! result="$(timeout 35s psql -X -qAt -w -v ON_ERROR_STOP=1               -d "$(cat "$RUNNER_TEMP/f4cpu-private-dev-db-uri")"               -c "SELECT (
-                  (SELECT count(*) FROM supabase_migrations.schema_migrations
+          result=""
+          if result="$(timeout 35s psql -X -qAt -w -v ON_ERROR_STOP=1 \
+              -d "$(cat "$RUNNER_TEMP/f4cpu-private-dev-db-uri")" \
+              -c "SELECT (
+                (SELECT count(*) FROM supabase_migrations.schema_migrations
                     WHERE name='feature4_cpu_six_candidate_atomic_dev_20261123') = 1
-                  AND to_regclass('public.feature4_creative_plans') IS NOT NULL
-                  AND to_regclass('public.feature4_cpu_render_jobs') IS NOT NULL
-                  AND to_regclass('retail_private.feature4_cpu_outbox') IS NOT NULL
-                  AND to_regclass('retail_private.feature4_cpu_poison_receipts') IS NOT NULL
-                  AND to_regprocedure('public.feature4_claim_cpu_render(uuid)') IS NOT NULL
-                  AND has_function_privilege('service_role','public.feature4_claim_cpu_render(uuid)','EXECUTE')
-                  AND NOT has_function_privilege('anon','public.feature4_claim_cpu_render(uuid)','EXECUTE')
-                  AND NOT has_function_privilege('authenticated','public.feature4_claim_cpu_render(uuid)','EXECUTE')
-                )" 2>/dev/null)"; then
-            echo 'BLOCKED: cannot verify hosted F4 DEV migration and grants'; exit 3
+                AND to_regclass('public.feature4_creative_plans') IS NOT NULL
+                AND to_regclass('public.feature4_cpu_render_jobs') IS NOT NULL
+                AND to_regclass('retail_private.feature4_cpu_outbox') IS NOT NULL
+                AND to_regclass('retail_private.feature4_cpu_poison_receipts') IS NOT NULL
+                AND to_regprocedure('public.feature4_claim_cpu_render(uuid)') IS NOT NULL
+                AND has_function_privilege('service_role','public.feature4_claim_cpu_render(uuid)','EXECUTE')
+                AND NOT has_function_privilege('anon','public.feature4_claim_cpu_render(uuid)','EXECUTE')
+                AND NOT has_function_privilege('authenticated','public.feature4_claim_cpu_render(uuid)','EXECUTE')
+              )" 2>/dev/null)"; then
+            test "$result" = t || { echo 'BLOCKED: DB grants/migration mismatch'; exit 3; }
+            echo 'PASS: hosted F4 DEV schema and worker grants via private DB'
+          else
+            # The GitHub DEV database pooler may be unrouteable or stale while
+            # the *live* Supabase schema is verified independently by connector.
+            # Fallback NEVER bypasses authentication: require actual distinct
+            # protected service_role API identity and negative NULL claim.
+            echo 'DEV DB pooler unavailable; trying protected read-only service API schema proof'
+            python3 scripts/deploy/feature4_cpu_rest_schema_guard.py
           fi
-          test "$result" = t || { echo 'BLOCKED: F4 DEV schema or grant gate failed'; exit 3; }
-          echo 'PASS: six-candidate F4 DEV migration installed, four tables and worker grants verified'
       - name: Login using already configured protected DEV Azure OIDC
         uses: azure/login@v3
         with:
