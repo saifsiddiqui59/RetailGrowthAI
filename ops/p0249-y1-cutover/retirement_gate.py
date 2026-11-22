@@ -55,6 +55,22 @@ CORE_FUNCTIONS = frozenset({
     "issue_feature4_creative_plan", "read_feature4_creative_plan",
     "review_feature4_creative_plan", "revoke_feature4_creative_plan",
 })
+# Require the complete original reviewed HTTP surface, not only core v1.
+# These optional endpoints are still registered even when their own
+# feature-specific execution is disabled. An indexing failure would break
+# source parity and must block retirement rather than hiding behind core GETs.
+OTHER_HTTP_FUNCTIONS = frozenset({
+    "feature3_registered_source", "feature3_private_png_download",
+    "feature3_private_png", "feature3_private_job_history",
+    "feature3_gpu_private_download", "list_feature3_models",
+    "register_feature3_model_original", "import_feature3_pending_model",
+    "review_feature3_model", "revoke_feature3_model", "feature3_designs",
+    "get_retailer_trends", "create_retailer_trend_draft",
+    "improve_retailer_prompt", "improve_retailer_prompt_with_ai",
+    "create_retailer_trend_draft_with_ai", "create_private_voicestudio_job",
+})
+ALL_HTTP_FUNCTIONS = CORE_FUNCTIONS | OTHER_HTTP_FUNCTIONS
+EXPECTED_FULL_Y1_INDEX = ALL_HTTP_FUNCTIONS | QUEUE_FUNCTIONS | TIMER_FUNCTIONS
 PROOF = frozenset({
     "signed_two_shop_current_rls",
     "campaign_post_patch_positive_and_foreign_denied",
@@ -117,11 +133,14 @@ def evaluate(observed: dict) -> tuple[str, ...]:
     indexed = set(names)
     for group, required in (
         ("original_core_http_routes", CORE_FUNCTIONS),
+        ("all_original_http_routes", ALL_HTTP_FUNCTIONS),
         ("planning_render_poster_poison_workers", QUEUE_FUNCTIONS),
         ("outbox_recovery_email_trend_timers", TIMER_FUNCTIONS),
     ):
         if not required.issubset(indexed):
             missing.append(group)
+    if len(indexed) != len(names) or indexed - EXPECTED_FULL_Y1_INDEX:
+        missing.append("unreviewed_or_duplicate_y1_function_index")
     if "render_campaign_reel" in indexed:
         missing.append("classic_y1_must_not_index_780s_render_consumer")
     if y1.get("unauthenticated_protected_endpoints_denied") is not True:
