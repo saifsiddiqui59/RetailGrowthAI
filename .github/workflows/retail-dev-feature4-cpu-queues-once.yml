@@ -55,6 +55,8 @@ jobs:
             python3 scripts/deploy/feature4_cpu_psql_diagnostic.py "$RUNNER_TEMP/f4cpu-psql-stderr"
             exit 3
           fi
+          # Do not retain psql stderr after a successful read either.
+          rm -f -- "$RUNNER_TEMP/f4cpu-psql-stderr"
           test "$result" = t || { echo 'BLOCKED: F4 DEV schema or grant gate failed'; exit 3; }
           echo 'PASS: six-candidate F4 DEV migration installed, four tables and worker grants verified'
       - name: Login using already configured protected DEV Azure OIDC
