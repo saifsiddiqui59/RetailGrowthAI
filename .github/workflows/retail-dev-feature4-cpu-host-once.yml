@@ -123,6 +123,8 @@ jobs:
                   # Never return names from untrusted ARM IDs; shape-only
                   # categorization still blocks unknowns, including Ignore.
                   kind=classify_resource_type(c.get('resourceId'))
+                  # IRREGULAR-NAME is type-only diagnostics, never an exception
+                  # to the exact resource-id allowlist; Ignore still BLOCKS.
                   print('BLOCKED: unexpected ARM resource TYPE=' + kind + ' action=' + str(action)[:24])
                   raise SystemExit('BLOCKED: unexpected resource in F4 what-if')
               if action not in ('Create','NoChange','Ignore'):

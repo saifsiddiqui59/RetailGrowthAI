@@ -18,6 +18,15 @@ class F4CpuWhatifTypeTests(unittest.TestCase):
                 for secret in ("rg-retailgrowth-dev", "sensitive-private-name", "rgai-dev-f4cpu"):
                     self.assertNotIn(secret, classified)
 
+    def test_irregular_arm_names_are_never_returned_or_authorized(self):
+        example = ("/subscriptions/abc/resourceGroups/private-secret/providers/"
+                   "Microsoft.Storage/storageAccounts/retailprivate/blobsErvices/default/"
+                   "containers/internal?password=secret")
+        typ = classify_resource_type(example)
+        self.assertEqual(typ, "microsoft.storage/storageaccounts/blobservices/containers-irregular-name")
+        for secret in ("private-secret", "retailprivate", "password", "internal"):
+            self.assertNotIn(secret, typ)
+
     def test_malformed_and_unknown_id_categories_are_fixed(self):
         cases = {
             "": "missing-id",
@@ -26,7 +35,7 @@ class F4CpuWhatifTypeTests(unittest.TestCase):
             "/providers/Microsoft.Web/sites": "malformed-provider-shape",
             "/providers/Microsoft.Web/sites/customer/config": "malformed-provider-shape",
             "/providers/Microsoft.Web/sites/private-name/config/web/extra": "malformed-provider-shape",
-            "/providers/Microsoft.Web/sites/private-name/config/weird?token=secret": "malformed-resource-name",
+            "/providers/Microsoft.Web/sites/private-name/config/weird?token=secret": "microsoft.web/sites/config-irregular-name",
         }
         for value, expected in cases.items():
             with self.subTest(expected=expected):

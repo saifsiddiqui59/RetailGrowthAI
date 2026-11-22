@@ -38,7 +38,11 @@ def classify_resource_type(value) -> str:
         return "malformed-provider-namespace"
     if not all(_TYPE.fullmatch(t) for t in chunks[1::2]):
         return "malformed-resource-type"
-    if not all(_RESOURCE_NAME.fullmatch(name) for name in chunks[2::2]):
-        return "malformed-resource-name"
+    # An invalid *name* is never printed. The fixed known provider/type
+    # may still be reported to narrow an ARM Ignore diagnostic. The separate
+    # what-if resource-id allowlist MUST continue to reject this change.
+    irregular_name = not all(_RESOURCE_NAME.fullmatch(name) for name in chunks[2::2])
     typ = "/".join((chunks[0], *chunks[1::2]))
-    return typ if typ in _ALLOWED else "unrecognized-resource-type"
+    if typ not in _ALLOWED:
+        return "unrecognized-resource-type"
+    return typ + "-irregular-name" if irregular_name else typ
