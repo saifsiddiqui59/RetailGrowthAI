@@ -1,0 +1,299 @@
+name: "RetailGrowthAI #249 Y1 five-to-38 HTTP DEV release (protected + rollback)"
+# DEV ONLY. Deliberate operator-triggered deployment to an isolated Y1 app.
+# NEVER deploy on push/PR; never activate queue consumers, SWA or stop Flex.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Stage 38 HTTP ONLY on existing five-route isolated DEV Y1"
+        required: true
+        type: choice
+        options: ["NO", "YES-P0249-DEV-Y1-FIVE-TO-38-WITH-FIVE-ROLLBACK"]
+      reviewed_main_sha:
+        description: "Exact independently reviewed current main commit SHA"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  # Same ownership group as prior five-route manual protected releases.
+  group: rgai-p0249-y1-five-get-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'workflow_dispatch' &&
+      inputs.confirm == 'YES-P0249-DEV-Y1-FIVE-TO-38-WITH-FIVE-ROLLBACK'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      attempted: ${{ steps.release_marker.outputs.attempted }}
+    env:
+      REVIEWED_MAIN_SHA: ${{ inputs.reviewed_main_sha }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Exact source review and fail-closed package tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$REVIEWED_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$REVIEWED_MAIN_SHA" = "$GITHUB_SHA" || {
+            echo "::error::Unreviewed main SHA"; exit 2;
+          }
+          python3 ops/p0249-y1-cutover/prepare_http_only.py --check
+          python3 -m unittest discover -s tests/infra -p 'test_p0249_y1_full_http_only.py' -v
+          python3 -m unittest discover -s tests/infra -p 'test_p0249_y1_five_to_38_release*.py' -v
+          python3 scripts/deploy/package.py --check
+      - name: Build locally verified HTTP-only ZIP from original Flex package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/media" "$RUNNER_TEMP/release"
+          IMAGE="mwader/static-ffmpeg@sha256:f5d100184884eb3e82b0eb14bb5ebf98da99826ac824989720297fb9ef21c822"
+          docker pull "$IMAGE"
+          cid="$(docker create "$IMAGE" -version)"
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          docker cp "$cid:/ffmpeg" "$RUNNER_TEMP/media/ffmpeg"
+          docker cp "$cid:/ffprobe" "$RUNNER_TEMP/media/ffprobe"
+          chmod 755 "$RUNNER_TEMP/media/ffmpeg" "$RUNNER_TEMP/media/ffprobe"
+          cat > "$RUNNER_TEMP/media/THIRD_PARTY_NOTICES.txt" <<'NOTICE'
+          FFmpeg and ffprobe: static Linux x86_64 GPL distribution, libx264 and AAC.
+          Corresponding source and build instructions: https://github.com/wader/static-ffmpeg
+          Distribution content digest: sha256:f5d100184884eb3e82b0eb14bb5ebf98da99826ac824989720297fb9ef21c822
+          License and redistribution terms: https://ffmpeg.org/legal.html
+          NOTICE
+          python3 scripts/deploy/package.py --ffmpeg-dir "$RUNNER_TEMP/media" \
+            --output "$RUNNER_TEMP/release/original-verified-flex.zip"
+          python3 scripts/deploy/package.py \
+            --verify-zip "$RUNNER_TEMP/release/original-verified-flex.zip"
+          python3 ops/p0249-y1-cutover/prepare_http_only.py \
+            --source-zip "$RUNNER_TEMP/release/original-verified-flex.zip" \
+            --output-zip "$RUNNER_TEMP/release/y1-38-http-only.zip" \
+            --mode http-only
+          python3 - "$RUNNER_TEMP/release/y1-38-http-only.zip" <<'PY'
+          import importlib.util,sys
+          from zipfile import ZipFile
+          spec=importlib.util.spec_from_file_location(
+              "p0249_source","ops/p0249-y1-cutover/prepare_http_only.py")
+          mod=importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(mod)
+          with ZipFile(sys.argv[1]) as z:
+              assert z.testzip() is None
+              methods,_=mod.registrations(z.read(mod.MEMBER))
+              assert methods == {x:"route" for x in mod.HTTP | {"p0249_health"}}
+              assert len(methods) == 38
+              assert not (set(methods) & mod.WORKERS)
+          print("P0249_Y1_RELEASE_PACKAGE=38_HTTP_ZERO_WORKERS_VERIFIED",flush=True)
+          PY
+      - name: Retain one-day immutable HTTP-only artifact for independent review
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0249-y1-38-http-protected-source-${{ github.run_id }}
+          path: ${{ runner.temp }}/release/y1-38-http-only.zip
+          if-no-files-found: error
+          retention-days: 1
+      - name: Scoped DEV Azure OIDC (no role-grant)
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Independently verify existing five-route package and original Flex
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ops/p0249-y1-cutover/five_to_38_release.py preflight
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0,"ops")
+          import p0249_y1_canary_guard as guard
+          guard.probe()
+          PY
+      - name: Fail closed on missing shared DEV connections BEFORE any Azure write
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import importlib.util,sys
+          sys.path.insert(0,"ops/p0249-y1-cutover")
+          spec=importlib.util.spec_from_file_location(
+              "connections","ops/p0249-y1-cutover/inspect_azure_connections_readonly.py")
+          m=importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(m)
+          proof=m.inspect()
+          required=("y1_running","flex_running","y1_same_core_connection_values",
+                    "y1_frontend_cors_allowed")
+          if (any(proof.get(x) is not True for x in required)
+              or proof.get("y1_any_background_triggers") is not False
+              or proof.get("y1_indexed_count") != 5):
+              print("P0249_Y1_PREWRITE_CORE_CONNECTIONS=BLOCKED")
+              raise SystemExit(2)
+          print("P0249_Y1_PREWRITE_CORE_CONNECTIONS=PASS_FIVE_NO_WORKERS")
+          PY
+      - name: Backup exact five-route active private Blob URL + protected run owner
+        id: release_marker
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Mark attempted BEFORE any settings/ZIP write for recovery on failure.
+          echo "attempted=true" >> "$GITHUB_OUTPUT"
+          python3 ops/p0249-y1-cutover/five_to_38_release.py prepare
+      - name: Publish reviewed HTTP-only 38-route ZIP (no queue/timer workers)
+        id: publish
+        uses: Azure/functions-action@c5060b3b8bb1ebbcb531abd00c822ecbaa8ea656
+        with:
+          app-name: rgai-dev-y1-p0249-d4e5ddbd
+          package: ${{ runner.temp }}/release/y1-38-http-only.zip
+          # The sealed source ZIP includes requirements.txt but intentionally
+          # does NOT vendor .python_packages. Linux Y1 must let Oryx install
+          # pinned Python dependencies before host indexing.
+          scm-do-build-during-deployment: 'true'
+          enable-oryx-build: 'true'
+      - name: Require exact hosted 38 HTTP-only index and five-route rollback URI
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 15); do
+            if python3 ops/p0249-y1-cutover/five_to_38_release.py verify; then
+              echo "P0249_Y1_FULL_HTTP_INDEX_ACCEPTED=38"
+              exit 0
+            fi
+            sleep 12
+          done
+          echo "::error::No exact Y1 38-route hosted index; rollback required"
+          exit 2
+      - name: Assert true original backend connections, CORS, no workers, both hosts running
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import importlib.util,sys
+          sys.path.insert(0,"ops/p0249-y1-cutover")
+          spec=importlib.util.spec_from_file_location(
+              "connections","ops/p0249-y1-cutover/inspect_azure_connections_readonly.py")
+          m=importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(m)
+          proof=m.inspect()
+          required=("y1_running","flex_running","y1_core_http_complete",
+                    "y1_all_original_http_indexed","y1_exact_http_only_index",
+                    "y1_same_core_connection_values","y1_frontend_cors_allowed")
+          missing=[x for x in required if proof.get(x) is not True]
+          if proof.get("y1_any_background_triggers") is not False:
+              missing.append("unsafe_duplicate_background_consumer")
+          if missing:
+              # Redacted allowlisted categories ONLY, no Azure raw output.
+              print("P0249_Y1_HTTP_CONNECTION_PARITY=BLOCKED")
+              raise SystemExit(2)
+          print("P0249_Y1_HTTP_CONNECTION_PARITY=PASS_NO_WORKERS")
+          PY
+      - name: First real 20/20 hosted HTTP and marked negative-JWT probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0,"ops")
+          import p0249_y1_canary_guard as guard
+          guard.probe()
+          PY
+          python3 ops/p0249-y1-cutover/five_to_38_release.py verify
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0,"ops")
+          from p0249_y1_canary_guard import get
+          # No auth token, no customer data and no write. Assert this is the
+          # actual hosted HTTP handler (not a proxy 401/redirect).
+          checks=(
+              "/api/campaigns/00000000-0000-4000-8000-000000000001",
+              "/api/render-jobs/00000000-0000-4000-8000-000000000001",
+              "/api/poster-drafts/00000000-0000-4000-8000-000000000001",
+          )
+          for uri in checks:
+              code,marked,elapsed=get(uri,25)
+              if code != 401 or not marked or elapsed >= 25:
+                  print("P0249_Y1_HTTP_MISSING_JWT=BLOCKED")
+                  raise SystemExit(2)
+          print("P0249_Y1_HTTP_MISSING_JWT=3_OF_3_MARKED_401")
+          PY
+      - name: Real 240-second idle then second 20/20 HTTP acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          sleep 240
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0,"ops")
+          import p0249_y1_canary_guard as guard
+          guard.probe()
+          PY
+          python3 ops/p0249-y1-cutover/five_to_38_release.py verify
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0,"ops")
+          from p0249_y1_canary_guard import get
+          # No auth token, no customer data and no write. Assert this is the
+          # actual hosted HTTP handler (not a proxy 401/redirect).
+          checks=(
+              "/api/campaigns/00000000-0000-4000-8000-000000000001",
+              "/api/render-jobs/00000000-0000-4000-8000-000000000001",
+              "/api/poster-drafts/00000000-0000-4000-8000-000000000001",
+          )
+          for uri in checks:
+              code,marked,elapsed=get(uri,25)
+              if code != 401 or not marked or elapsed >= 25:
+                  print("P0249_Y1_HTTP_MISSING_JWT=BLOCKED")
+                  raise SystemExit(2)
+          print("P0249_Y1_HTTP_MISSING_JWT=3_OF_3_MARKED_401")
+          PY
+          echo "P0249_Y1_38_HTTP_DEPLOYED_NOT_TRAFFIC_CUTOVER=PASS"
+      - name: Same-run five-route restore on ANY failed post-marker step
+        if: ${{ failure() && steps.release_marker.outputs.attempted == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ops/p0249-y1-cutover/five_to_38_release.py rollback
+
+  independent-restore:
+    if: ${{ always() && (needs.release.result == 'failure' || needs.release.result == 'cancelled') && needs.release.outputs.attempted == 'true' }}
+    needs: release
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Protected independent five-package restore and two real 20/20 verifications
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ops/p0249-y1-cutover/five_to_38_release.py rollback
+          python3 ops/p0249-y1-cutover/five_to_38_release.py preflight
+          echo "P0249_Y1_INDEPENDENT_FIVE_BASELINE_RESTORED=PASS"
