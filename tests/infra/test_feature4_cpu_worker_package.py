@@ -128,6 +128,21 @@ class Feature4CpuWorkerPackageTests(unittest.TestCase):
                             module._write_member(archive, unsafe, payload)
                 self.assertEqual(archive.namelist(), [])
 
+    def test_oversized_member_refused_before_read_or_zip_write(self):
+        import tempfile
+        from unittest.mock import patch
+        from zipfile import ZipFile
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = root / "oversized.bin"
+            payload.write_bytes(b"synthetic")
+            with ZipFile(root / "artifact.zip", "w") as archive:
+                with patch.object(module, "MAX_ARCHIVE", 4):
+                    with patch.object(Path, "read_bytes", side_effect=AssertionError("read attempted")):
+                        with self.assertRaisesRegex(ValueError, "exceeds 1GB limit"):
+                            module._write_member(archive, "deps/oversized.bin", payload)
+                self.assertEqual(archive.namelist(), [])
+
     def test_dependency_root_symlink_is_rejected(self):
         import tempfile
         with tempfile.TemporaryDirectory() as directory:
