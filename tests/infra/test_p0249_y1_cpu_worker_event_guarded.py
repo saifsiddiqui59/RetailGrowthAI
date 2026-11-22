@@ -52,13 +52,13 @@ class EventWorkerCutoverContract(unittest.TestCase):
         """Prevent unsafe future replica/visibility edits in either IaC variant."""
         runtime = RUNTIME.read_text()
         def runtime_seconds(name):
-            match = re.search(r"^" + name + r"\\s*=\\s*(.+)$", runtime, re.M)
+            match = re.search(r"^" + name + r"\s*=\s*(.+)$", runtime, re.M)
             self.assertIsNotNone(match, name)
             expression = match.group(1).strip()
             if expression.isdecimal():
                 return int(expression)
-            self.assertRegex(expression, r"^\\d+\\s*\\*\\s*\\d+$")
-            a, b = re.split(r"\\s*\\*\\s*", expression)
+            self.assertRegex(expression, r"^\d+\s*\*\s*\d+$")
+            a, b = re.split(r"\s*\*\s*", expression)
             return int(a) * int(b)
 
         replica = runtime_seconds("CONTAINER_REPLICA_TIMEOUT_SECONDS")
@@ -67,7 +67,7 @@ class EventWorkerCutoverContract(unittest.TestCase):
         self.assertTrue(780 < replica < claim < visibility)
         for template in (DISABLED, EVENT):
             source = template.read_text()
-            match = re.search(r"\\breplicaTimeout:\\s*(\\d+)", source)
+            match = re.search(r"\breplicaTimeout:\s*(\d+)", source)
             self.assertIsNotNone(match, template.name)
             self.assertEqual(int(match.group(1)), replica, template.name)
             self.assertIn("replicaRetryLimit: 0", source)
