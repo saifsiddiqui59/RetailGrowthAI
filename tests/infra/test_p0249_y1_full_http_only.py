@@ -41,6 +41,41 @@ class Y1FullHttpOnlySourceTests(unittest.TestCase):
                      "dispatch_feature2", "build_feature2_voicestudio_api"):
             self.assertEqual(nodes(original)[name], nodes(prepared)[name], name)
 
+    def test_short_worker_variant_preserves_only_bounded_existing_consumers(self):
+        original = MODULE.ORIGINAL.read_bytes()
+        prepared = MODULE.strip_only_long_render_trigger(original)
+        current, _ = MODULE.registrations(original)
+        staged, _ = MODULE.registrations(prepared)
+        self.assertEqual(len(MODULE.WORKERS), 9)
+        self.assertNotIn("render_campaign_reel", staged)
+        self.assertEqual(len(staged), len(MODULE.HTTP) + 9)
+        self.assertEqual(set(staged), MODULE.HTTP |
+                         (MODULE.WORKERS - {"render_campaign_reel"}) |
+                         {"p0249_health"})
+        for name in MODULE.HTTP | (MODULE.WORKERS - {"render_campaign_reel"}):
+            self.assertEqual(nodes(original)[name], nodes(prepared)[name], name)
+            self.assertEqual(current[name], staged[name])
+        for name in ("build_api", "dispatch", "_recovery_dependencies"):
+            self.assertEqual(nodes(original)[name], nodes(prepared)[name])
+        import json
+        host = json.loads(MODULE.SHORT_HOST.read_text())
+        self.assertEqual(host["functionTimeout"], "00:09:00")
+        self.assertEqual(host["extensions"]["queues"]["batchSize"], 1)
+        self.assertEqual(host["extensions"]["queues"]["messageEncoding"], "none")
+        self.assertEqual(host["extensions"]["queues"]["maxDequeueCount"], 3)
+        self.assertNotIn("render_campaign_reel", staged)
+
+    def test_short_worker_mode_fails_for_unknown_queue_or_worker_changes(self):
+        original = MODULE.ORIGINAL.read_bytes()
+        bad = original + b"""
+@app.queue_trigger(arg_name="message", queue_name="foreign",
+                   connection="RETAIL_STORAGE")
+def unknown_worker(message):
+    pass
+"""
+        with self.assertRaisesRegex(ValueError, "registration drift"):
+            MODULE.strip_only_long_render_trigger(bad)
+
     def test_original_auth_queue_outbox_billing_methods_remain_original(self):
         source = MODULE.strip_only_background_triggers(MODULE.ORIGINAL.read_bytes())
         for sentinel in (b"cached_supabase_verifier", b"TenantStore",
