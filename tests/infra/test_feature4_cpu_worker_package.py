@@ -86,6 +86,20 @@ class Feature4CpuWorkerPackageTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "linked offline build dependency"):
                 module._collect_tree(alias, "deps")
 
+    def test_linked_source_directory_rejected(self):
+        import tempfile
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            actual = root / "actual"
+            actual.mkdir()
+            (actual / "host.json").write_text("{}", encoding="utf-8")
+            alias = root / "linked"
+            alias.symlink_to(actual, target_is_directory=True)
+            with patch.object(module, "SERVICE", alias):
+                with self.assertRaisesRegex(ValueError, "Linked Feature4 package source directory"):
+                    module.sources()
+
     def test_native_worker_not_silently_added_to_protected_v1_zip(self):
         old = (ROOT / "scripts" / "deploy" / "package.py").read_text(encoding="utf-8")
         self.assertIn(
