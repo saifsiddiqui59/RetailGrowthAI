@@ -44,7 +44,7 @@ resource cpuRender 'Microsoft.App/jobs@2026-01-01' = {
     environmentId: containerAppsEnvironmentId
     configuration: {
       triggerType: 'Event'
-      replicaTimeout: 1800
+      replicaTimeout: 1380
       replicaRetryLimit: 0
       eventTriggerConfig: {
         parallelism: 1
@@ -93,7 +93,7 @@ resource cpuRender 'Microsoft.App/jobs@2026-01-01' = {
             { name: 'RGAI_CPU_RENDER_HOSTING', value: 'azure-container-apps-job' }
             { name: 'RGAI_CPU_RENDER_RG', value: 'rg-retailgrowth-dev' }
             { name: 'RGAI_CPU_RENDER_QUEUE_NAME', value: 'retail-reel-render' }
-            { name: 'RGAI_CPU_RENDER_REPLICA_TIMEOUT_SECONDS', value: '1800' }
+            { name: 'RGAI_CPU_RENDER_REPLICA_TIMEOUT_SECONDS', value: '1380' }
             { name: 'RGAI_CPU_RENDER_SINGLE_OWNER_ACTIVATED', value: verifiedSingleOwnerHandoff }
           ]
         }

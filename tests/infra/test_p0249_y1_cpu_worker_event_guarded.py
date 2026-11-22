@@ -26,7 +26,7 @@ class EventWorkerCutoverContract(unittest.TestCase):
         self.assertIn("minExecutions: 0", source)
         self.assertIn("pollingInterval: 60", source)
         self.assertIn("parallelism: 1", source)
-        self.assertIn("replicaTimeout: 1800", source)
+        self.assertIn("replicaTimeout: 1380", source)
         self.assertIn("replicaRetryLimit: 0", source)
         self.assertIn("@secure()", source)
         self.assertIn("@allowed(['VERIFIED_FLEX_RENDER_CONSUMER_DISABLED'])", source)
@@ -44,7 +44,7 @@ class EventWorkerCutoverContract(unittest.TestCase):
         self.assertNotIn("eventTriggerConfig:", disabled)
         self.assertNotIn("RGAI_CPU_RENDER_SINGLE_OWNER_ACTIVATED', value:", disabled)
         self.assertIn("VISIBILITY_SECONDS = 2100", runtime)
-        self.assertIn("CONTAINER_REPLICA_TIMEOUT_SECONDS = 1800", runtime)
+        self.assertIn("CONTAINER_REPLICA_TIMEOUT_SECONDS = 1380", runtime)
         self.assertIn("VISIBILITY_SECONDS <= CONTAINER_REPLICA_TIMEOUT_SECONDS", runtime)
 
 if __name__ == "__main__":

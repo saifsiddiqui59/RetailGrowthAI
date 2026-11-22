@@ -141,13 +141,16 @@ class Y1CpuQueueSafety(unittest.TestCase):
             "RGAI_CPU_RENDER_RG": "rg-retailgrowth-dev",
             "RETAIL_SUPABASE_URL": job.EXPECTED_SUPABASE,
             "RGAI_CPU_RENDER_QUEUE_NAME": job.QUEUE,
-            "RGAI_CPU_RENDER_REPLICA_TIMEOUT_SECONDS": "1800",
+            "RGAI_CPU_RENDER_REPLICA_TIMEOUT_SECONDS": "1380",
             "RETAIL_STORAGE": "server-secret-" + "a"*50,
             "RETAIL_SUPABASE_SERVICE_ROLE_KEY": "server-secret-" + "b"*50,
         }
         job.preflight(env)
-        self.assertEqual(job.CONTAINER_REPLICA_TIMEOUT_SECONDS, 1800)
+        self.assertEqual(job.CONTAINER_REPLICA_TIMEOUT_SECONDS, 1380)
         self.assertGreater(job.CONTAINER_REPLICA_TIMEOUT_SECONDS, 780)
+        self.assertEqual(job.DB_RENDER_CLAIM_LEASE_SECONDS, 1500)
+        self.assertLess(job.CONTAINER_REPLICA_TIMEOUT_SECONDS,
+                        job.DB_RENDER_CLAIM_LEASE_SECONDS)
         self.assertEqual(job.VISIBILITY_SECONDS, 2100)
         self.assertGreater(job.VISIBILITY_SECONDS,
                            job.CONTAINER_REPLICA_TIMEOUT_SECONDS)

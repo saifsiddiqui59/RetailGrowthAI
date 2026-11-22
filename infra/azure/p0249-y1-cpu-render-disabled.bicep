@@ -42,7 +42,7 @@ resource cpuRender 'Microsoft.App/jobs@2026-01-01' = {
       // Manual jobs never scale on queue messages; runtime's activation
       // guard is intentionally NOT supplied to this disabled candidate.
       triggerType: 'Manual'
-      replicaTimeout: 1800
+      replicaTimeout: 1380
       replicaRetryLimit: 0
       manualTriggerConfig: {
         parallelism: 1
@@ -69,7 +69,7 @@ resource cpuRender 'Microsoft.App/jobs@2026-01-01' = {
             { name: 'RGAI_CPU_RENDER_HOSTING', value: 'azure-container-apps-job' }
             { name: 'RGAI_CPU_RENDER_RG', value: 'rg-retailgrowth-dev' }
             { name: 'RGAI_CPU_RENDER_QUEUE_NAME', value: 'retail-reel-render' }
-            { name: 'RGAI_CPU_RENDER_REPLICA_TIMEOUT_SECONDS', value: '1800' }
+            { name: 'RGAI_CPU_RENDER_REPLICA_TIMEOUT_SECONDS', value: '1380' }
             // Deliberately OMIT the real activation marker.
             // cpu_render_job.preflight() must FAIL until an independent
             // release proves Flex render consumer actually disabled.

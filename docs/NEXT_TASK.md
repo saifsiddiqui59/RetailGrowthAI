@@ -1862,3 +1862,7 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 1. Verify exact latest PR #1077 HEAD four-job GitHub Actions run including `test_privileged_private_media_default_transport_does_not_follow_redirects`, fix failures without bypass, and get required protected release/security review.
 2. Stage the verified original full Flex artifact into 38-route **HTTP-only** Y1 ZIP for protected DEV deployment; validate real indexed functions, signed JWT authorization, POST/PATCH, tenant/storage and rollback before live SWA routing.
 3. Transition 8 short workers and isolated CPU 1800-second FFmpeg renderer using single-owner queue handoff, authenticated output path/bytes SHA, poison/idempotency/billing receipts, and check 46 total live Y1 indexes. Stop Flex/close #249 ONLY after all hosted, served-site, idle/performance and rollback checks pass. No PROD/WineShopPOS/GPU.
+
+## 2026-11-22 — #249 DB lease-safe CPU deployment gate
+1. Confirm PR #1077 exact-head four-job CI with the revised 1380-second CPU replica < 1500-second original DB claim lease < 2100-second queue invisibility; verify Event and Manual Bicep source values match the runtime contract.
+2. Protected DEV release must verify a real CPU FFmpeg job, DB claim held throughout execution, failed/expired/duplicate handling and actual queue receipt latency; retain independently verified Flex single-owner shutdown, Y1 38 HTTP, 8 short workers, signed two-shop/media and rollback gates before #249 closure.

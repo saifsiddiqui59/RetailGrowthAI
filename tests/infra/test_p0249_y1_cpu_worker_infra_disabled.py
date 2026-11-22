@@ -23,7 +23,7 @@ class Y1DisabledCpuInfraContract(unittest.TestCase):
         self.assertNotIn("scale:", source)
         self.assertIn("replicaRetryLimit: 0", source)
         self.assertIn("parallelism: 1", source)
-        self.assertIn("replicaTimeout: 1800", source)
+        self.assertIn("replicaTimeout: 1380", source)
         self.assertNotIn("RGAI_CPU_RENDER_SINGLE_OWNER_ACTIVATED', value:", source)
         self.assertNotIn("RGAI_CPU_RENDER_SINGLE_OWNER_ACTIVATED', secretRef:", source)
 
@@ -46,7 +46,7 @@ class Y1DisabledCpuInfraContract(unittest.TestCase):
     def test_worker_still_requires_disabled_flex_and_budget(self):
         content = WORKER.read_text()
         for expected in ("VERIFIED_FLEX_RENDER_CONSUMER_DISABLED",
-                         'CONTAINER_REPLICA_TIMEOUT_SECONDS = 1800',
+                         'CONTAINER_REPLICA_TIMEOUT_SECONDS = 1380',
                          'QUEUE = "retail-reel-render"',
                          'POISON_QUEUE = "retail-reel-render-poison"',
                          "preflight(os.environ)", "admin.render_status"):

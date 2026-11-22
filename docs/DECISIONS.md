@@ -1402,3 +1402,6 @@ High-resolution F4 reels are CPU/memory-heavy. Shared legacy queue defaults are 
 
 ## 2026-11-22 — Prevent privileged private media redirects in isolated Y1 CPU job
 Supabase Storage uploads, downloads and remote MP4 readback use server-only service-role credentials. The new isolated CPU adapter must replace the standard urllib redirect-following transport with a redirect-denying opener BEFORE handling media, without altering original Flex behavior. A foreign-origin 302 must never forward privileged headers or body. Keep exact POST object-key binding and SHA-256 cloud readback fences; synthetic transport tests and source CI are not equivalent to live protected acceptance.
+
+## 2026-11-22 — #249 CPU job maximum must be shorter than original render claim
+The original v1 render claim expires after 25 minutes (1500 seconds). An 1800-second ACA replica could remain alive after its DB claim expired and interfere with recovery or produce an uncommittable render. Keep FFmpeg hard cap at 780 seconds, reduce ACA replica timeout to 1380 seconds (23 minutes, leaving a two-minute termination buffer), and retain 2100-second queue invisibility for single-owner retry safety. Assert 780 < replica < original claim < visibility in source and tests. This is a source-only correction, not approval to deploy, disable Flex or close #249.

@@ -16,7 +16,8 @@ QUEUE = "retail-reel-render"
 POISON_QUEUE = "retail-reel-render-poison"
 MAX_DEQUEUE_COUNT = 3
 VISIBILITY_SECONDS = 2100
-CONTAINER_REPLICA_TIMEOUT_SECONDS = 1800
+CONTAINER_REPLICA_TIMEOUT_SECONDS = 1380
+DB_RENDER_CLAIM_LEASE_SECONDS = 25 * 60
 SUCCESS = frozenset({"SUCCEEDED", "ALREADY_FINAL", "DENIED"})
 EXPECTED_SUPABASE = "https://jeearzffnjbvghwjjjrf.supabase.co"
 
@@ -165,6 +166,8 @@ def preflight(env):
         raise RuntimeError("Protected Y1 CPU worker handoff incomplete")
     if VISIBILITY_SECONDS <= CONTAINER_REPLICA_TIMEOUT_SECONDS:
         raise RuntimeError("Queue visibility must exceed complete CPU job lifetime")
+    if not 780 < CONTAINER_REPLICA_TIMEOUT_SECONDS < DB_RENDER_CLAIM_LEASE_SECONDS:
+        raise RuntimeError("CPU replica must end before 25-minute DB claim expires")
     for key in ("RETAIL_STORAGE", "RETAIL_SUPABASE_SERVICE_ROLE_KEY"):
         value = env.get(key)
         if not isinstance(value, str) or len(value) < 40:
