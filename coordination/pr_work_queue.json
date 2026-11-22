@@ -13,13 +13,132 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 4,
+    "open_prs": 9,
     "by_feature": {
-      "issue249": 2,
-      "unclassified": 2
+      "unclassified": 6,
+      "issue249": 3
     }
   },
   "entries": [
+    {
+      "pr": 1097,
+      "title": "Live title not verified",
+      "feature": "unclassified",
+      "head_sha": "79b359afe97e31081ca0cdb76b533c1e9c499965",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P1",
+      "phase": "review",
+      "checkpoint": {
+        "owner": "manual-integration",
+        "ci": "CURRENT UNKNOWN until exact-head CI review",
+        "next_action": "Owner-scoped review; no automatic merge or deployment",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1097"
+    },
+    {
+      "pr": 1096,
+      "title": "Live title not verified",
+      "feature": "unclassified",
+      "head_sha": "e9f533e8a84586a287430b6b37c2c4e2e9afcb73",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P1",
+      "phase": "review",
+      "checkpoint": {
+        "owner": "manual-integration",
+        "ci": "CURRENT UNKNOWN until exact-head CI review",
+        "next_action": "Owner-scoped review; no automatic merge or deployment",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1096"
+    },
+    {
+      "pr": 1095,
+      "title": "Live title not verified",
+      "feature": "unclassified",
+      "head_sha": "cbd1a9a0eca11ab0de1c70b896be136d70cde528",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P1",
+      "phase": "review",
+      "checkpoint": {
+        "owner": "manual-integration",
+        "ci": "CURRENT UNKNOWN until exact-head CI review",
+        "next_action": "Owner-scoped review; no automatic merge or deployment",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1095"
+    },
+    {
+      "pr": 1088,
+      "title": "Live title not verified",
+      "feature": "issue249",
+      "head_sha": "5386f2447aebeba31e7572520473b906babd71b7",
+      "base_branch": "feat/p0249-y1-full-cutover-gate-20261122",
+      "work_owner": "manual-issue249",
+      "priority": "P1",
+      "phase": "review",
+      "checkpoint": {
+        "owner": "manual-issue249",
+        "ci": "CURRENT UNKNOWN until exact-head CI review",
+        "next_action": "Owner-scoped review; no automatic merge or deployment",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1088"
+    },
+    {
+      "pr": 1085,
+      "title": "Live title not verified",
+      "feature": "unclassified",
+      "head_sha": "4458711046323c6972ee0dffc4a48ae7307cfcf3",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P1",
+      "phase": "review",
+      "checkpoint": {
+        "owner": "manual-integration",
+        "ci": "CURRENT UNKNOWN until exact-head CI review",
+        "next_action": "Owner-scoped review; no automatic merge or deployment",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1085"
+    },
+    {
+      "pr": 1077,
+      "title": "feat(#249): stage 38-route Y1 API, eight bounded workers, CPU render handoff and Flex stop gate",
+      "feature": "issue249",
+      "head_sha": "6e54c0ebc789ea0cdda75e1606f13cebb2abd4a9",
+      "base_branch": "main",
+      "work_owner": "manual-issue249",
+      "priority": "P1",
+      "phase": "review",
+      "checkpoint": {
+        "owner": "manual-issue249",
+        "ci": "Exact-head Part1 #45052084305 SUCCESS 4/4, all four jobs individually verified",
+        "next_action": "Issue249 owner to verify security and hosted connections; independent integration review before merge or deployment",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1077"
+    },
+    {
+      "pr": 1076,
+      "title": "test(#249): isolated DEV synthetic shop approval and real Playwright campaign canary",
+      "feature": "unclassified",
+      "head_sha": "b4b9f3f0396a27186f229dc8fe289f28e1e5708b",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P1",
+      "phase": "review",
+      "checkpoint": {
+        "owner": "manual-integration",
+        "ci": "Exact-head Part1 #45048648868 SUCCESS 4/4, all four jobs individually verified",
+        "next_action": "Independent security/integration review; no unattended DEV or main writes",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1076"
+    },
     {
       "pr": 1065,
       "title": "fix(#249): prevent false healthy Flex probes and cross-app telemetry",
@@ -53,41 +172,7 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
-    },
-    {
-      "pr": 1076,
-      "title": "test(#249): isolated DEV synthetic shop approval and real Playwright campaign canary",
-      "feature": "unclassified",
-      "head_sha": "b4b9f3f0396a27186f229dc8fe289f28e1e5708b",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P1",
-      "phase": "review",
-      "checkpoint": {
-        "owner": "manual-integration",
-        "ci": "Exact-head Part1 #45048648868 SUCCESS 4/4, all four jobs individually verified",
-        "next_action": "Independent security/integration review; no unattended DEV or main writes",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1076"
-    },
-    {
-      "pr": 1077,
-      "title": "feat(#249): stage 38-route Y1 API, eight bounded workers, CPU render handoff and Flex stop gate",
-      "feature": "issue249",
-      "head_sha": "a5b0444a4856e4b15b979d99aa2fd2457da2529d",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P1",
-      "phase": "review",
-      "checkpoint": {
-        "owner": "manual-issue249",
-        "ci": "Exact-head Part1 #45052084305 SUCCESS 4/4, all four jobs individually verified",
-        "next_action": "Issue249 owner to verify security and hosted connections; independent integration review before merge or deployment",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1077"
     }
   ],
-  "last_inventory_checked_at": "2026-11-22T17:58:39Z"
+  "last_inventory_checked_at": "2026-11-22T19:03:30Z"
 }
