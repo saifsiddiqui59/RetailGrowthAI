@@ -2,9 +2,9 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-22T14:04:51.608Z",
+  "last_written_at": "2026-11-22T15:03:20Z",
   "last_inventory_count": 3,
-  "last_inventory_checked_at": "2026-11-22T14:04:51.608Z",
+  "last_inventory_checked_at": "2026-11-22T15:03:20Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
@@ -108,30 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 44981814680,
-      "head_sha": "3cce2a42513a3963ad352e3c845a8cf778a575c9",
-      "status": "FAIL 3/4",
-      "evidence": "Python/uv job #137083793969 failed 1 test; 2730 passed; Python 3.13 runtime guard precedes expected symlink rejection"
-    },
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 44981814668,
-      "head_sha": "3cce2a42513a3963ad352e3c845a8cf778a575c9",
-      "status": "FAIL native CPU 0/1",
-      "evidence": "Job #137083778984 failed: package_feature4_cpu.py rejects HyperFrames node_modules/.bin/acorn symlink"
-    },
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 44986016683,
-      "head_sha": "eb4f92a0da43373a80ee0f2d721961aa01c659ea",
-      "status": "FAIL 3/4",
-      "evidence": "Four jobs inspected: Python/uv failed, three passed"
-    },
     {
       "event": "exact_head_ci",
       "pr": 1059,
@@ -299,6 +275,30 @@
       "head_sha": "d64017c9a4f13a1d65f7c108d85081d7c104c821",
       "status": "IN_PROGRESS native CPU 0/1 completed",
       "evidence": "Exact-head GitHub Actions jobs independently inspected; current outcome pending; manual Issue249 ownership retained"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 45034372073,
+      "head_sha": "2f46bad8497c257cb61cda6496a8d7ab5367d5a3",
+      "status": "FAIL 3/4 Python/uv; latest mandatory",
+      "evidence": "All four jobs inspected: Python/uv failure, other three success"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 45034367450,
+      "head_sha": "2f46bad8497c257cb61cda6496a8d7ab5367d5a3",
+      "status": "FAIL 3/4 Python/uv; earlier same-head mandatory",
+      "evidence": "All four jobs inspected: Python/uv failure, other three success"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 45034367436,
+      "head_sha": "2f46bad8497c257cb61cda6496a8d7ab5367d5a3",
+      "status": "PASS native CPU 1/1",
+      "evidence": "Native 30s F2-F4 CPU job independently checked SUCCESS"
     }
   ],
   "current_review_gates": {
