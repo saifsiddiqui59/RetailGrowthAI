@@ -1402,3 +1402,6 @@ Do not register a successful private MP4 from a mere HTTP upload response. The i
 
 ## 2026-11-22 — #249 queue invisibility must outlast CPU replica execution
 The separate scale-to-zero Y1 CPU render job has a 1800-second maximum replica lifetime, so a 1500-second queue invisibility period could expose the same message to another worker while the first job still executes. Increase the single-message lease to 2100 seconds, assert it exceeds the entire replica budget, and continue relying on DB claim fencing, idempotency and final-only ACK. This tradeoff may delay re-delivery after a crashed job; monitor it in DEV acceptance, do not enable dual consumers, and never treat local tests as hosted authorization.
+
+## 2026-11-22 — #249 event-driven CPU rendering only after single-owner transition
+Manual, no-scaler CPU template remains default/inert. An explicit, separate Event candidate updates that same job, polls existing queue at 60s with minExecutions 0/maxExecutions 1 and secure scaler credentials. The protected release must independently verify original Flex renderer shutdown, supplied activation parameter and immutable image/Storage scope; a Bicep parameter cannot itself attest to a real single-owner cloud cutover. Keep 1800s max replica, 2100s invisibility and fenced job/poison semantics; never deploy the Event variant from ordinary source CI.
