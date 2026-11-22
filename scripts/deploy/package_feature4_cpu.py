@@ -98,7 +98,8 @@ def _version(binary, argv, expected):
 
 
 def _collect_tree(root, prefix, *, omit_bin_shims=False):
-    if root.is_symlink() or not root.is_dir():
+    if (root.is_symlink() or any(parent.is_symlink() for parent in root.parents)
+            or not root.is_dir()):
         raise ValueError("Missing or linked offline build dependency directory: " + prefix)
     listing = {}
     for file in sorted(root.rglob("*")):
