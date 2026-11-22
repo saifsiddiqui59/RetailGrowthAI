@@ -1876,3 +1876,6 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 
 ## 2026-11-23 IST — Host ARM Ignore irregular-name diagnostic continuation
 - Read protected run #45059606649: Azure DEV identities/queues pass, but what-if returned irregular-name `Ignore` outside exact resource allowlist. Run exact-head four CI for narrow type-only classification and a single protected bounded retry. Keep untrusted resource ID and token hidden. Never widen what-if allowlist solely from an `Ignore`; require exact host/plan/container identity proof or preserve fail-closed state. Do not recreate existing queues or reapply SQL.
+
+## 2026-11-23 IST — Classify exact unknown ARM type; no broad allowlist
+- Third host attempt #45060259835 denied an unknown ARM what-if resource `Ignore`. Inspect a subsequent fixed type-only diagnostic with exact-head 4/4 CI, and accept a host create ONLY when every actual ARM resource ID is narrowly proven against the DEV app/plan/container allowlist. Never allow unknown providers/actions or change other apps; existing F4 schema and both private queues are already deployed. Stage ZIP/worker triggers/E2E only after host creation passes.
