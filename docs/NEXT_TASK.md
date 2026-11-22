@@ -1881,3 +1881,14 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 ## 2026-11-22 — #249 private MP4 exact-object proof next
 1. Inspect exact latest PR #1077 four-job Actions run after `d356a949`, including new wrong-object denial test; repair any failing tests without reducing checks.
 2. Reconcile branch against current main without losing newer F4 code; preserve independent security/release review and protected hosted DEV release. Verify 38/38 live Y1 HTTP, signed tenant writes, all 46 indexed after single-owner worker handoff, private MP4 exact-key/SHA proof, queues/leases/billing, real served SWA routing, 240s idle and rollback before Flex stop. Do not claim source-only work deployed.
+
+## 2026-11-22 — F4 atomic DEV release next steps
+1. Verify exact-head 4/4 and protected review of new `scripts/deploy/feature4_cpu_release_bundle.py` and regression tests; merge source only after accepted CI. Use `--project-ref jeearzffnjbvghwjjjrf` for an offline SHA256 manifest; optional `--output` writes one atomic SQL transaction outside repo.
+2. Before any actual DEV migration/worker provision, verify independent SECURITY DEFINER/RLS, media rights, JWT, quota, lease, outbox and protected Azure environment/cost/rollback gate. Explicit owner request alone does not demonstrate independent review or authenticated retailer consent.
+3. Provision nonprivileged DEV Auth users using trusted GoTrue Admin only when service-role secret and distinct test passwords are available. ROOT/onboarding and editor approvals cannot be bypassed. Then run real two-shop JWT/Playwright, worker and private MP4 E2E. Leave PROD/WineShopPOS/GPU/paid and Issue #249 untouched.
+
+## 2026-11-22 — F4 queue host source next
+- Verify fresh exact-head CI for `feature4_cpu_dev_queues.py`, and inspect protected DEV Azure OIDC tags/storage/RBAC. On an authorized DEV apply, ensure no existing F4 queues, create only two isolated CPU queue names using login data-plane rights, then independently verify. An existing partial queue state fails closed; do not delete messages or legacy queues. Isolated CPU worker host/artifact and customer activation remain separately gated.
+
+## 2026-11-22 — F4 API activation order after protected worker release
+- Before enabling F4 issue/review/render, verify hosted original API ZIP includes all four routes and original URI rollback is pinned; source-only CI does not prove hosted code. Dedicated worker triggers index only in its separate app. In the original API, CPU_WORKER_ENABLED is a readiness attestation and must stay false during staging, then true ONLY after worker/queue/rights proof. Enable plan issue/review first, CPU_RENDER last, frontend after signed E2E. Do not touch another chat's #249/Y1 release.

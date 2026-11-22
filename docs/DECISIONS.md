@@ -1411,3 +1411,12 @@ For the isolated Y1 replacement CPU reel job, the queue invisibility timeout mus
 
 ## 2026-11-22 — CPU private output must bind wire upload to committed object key
 The isolated Y1 ACA CPU worker must verify **both** the actual bytes submitted to a single original private storage POST and that POST's complete URL matches the encoded key the legacy upload client returns, then perform private cloud SHA-256 readback under the same tenant scope before DB completion. Uploading identical bytes to an unrelated object or changing the returned key must never count as successful receipt. This source-only fence is not proof of hosted media acceptance, user authorization, independent release review or Azure cutover.
+
+## 2026-11-22 — Batch F4 SQL atomically, never partially replay candidates
+A protected DEV release may build six additive SQL candidates into one transaction guarded against an absent foundation or partially installed Feature4 schema. SHA256 receipts bind exact source bytes, and the offline bundle carries no privileges or deployment rights. The generated SQL must never be treated as approved merely because a preflight or a disposable database test passed; validate target project, release grants, DEV worker/queue rollback and real signed two-shop authorization separately. No auto-apply, no customer billing before worker proof.
+
+## 2026-11-22 — F4 queue creation is deny-by-default with exact DEV scope
+Only exact existing DEV storage and two names may be created by the queue stage CLI. No subscription-wide role grant, account-key retrieval, queue message read, auto-retry of ambiguous creation, implicit adoption of existing queues or customer-facing runtime activation. Dry-run performs zero cloud calls; applying requires explicit protected environment guards and scoped Azure identity verification. F4 worker remains disabled until SQL/rights/rollback acceptance.
+
+## 2026-11-22 — Distinguish F4 worker indexing from API readiness attestation
+`RETAIL_FEATURE4_CPU_WORKER_ENABLED` has two bounded usages: in the isolated F4 worker it indexes three private queue/timer triggers, whereas in the original API it is a required readiness condition for render routes (not a worker registration). Keep false in original API while staging; require verified dedicated host, rights, DB, queue, and original URI rollback before marking true. Enable CPU_RENDER last; never infer real hosted readiness from a source merge.
