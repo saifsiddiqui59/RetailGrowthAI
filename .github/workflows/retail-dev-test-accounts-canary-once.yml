@@ -15,7 +15,9 @@ on:
         required: true
         type: choice
         options:
+          - auth-login-only
           - browser-upload
+          - browser-upload-synthetic
           - poster
           - feature2
           - feature2-prompt
@@ -36,25 +38,26 @@ jobs:
       contents: read
     env:
       RGAI_DEV_CANARY_APPROVAL: AUTHORIZED_RETAILGROWTHAI_DEV_ONLY
-      RGAI_DEV_PLAYWRIGHT_UPLOAD: ${{ (inputs.mode == 'browser-upload' || inputs.mode == 'node-browser-reel') && '1' || '0' }}
+      RGAI_DEV_LOGIN_ONLY: ${{ inputs.mode == 'auth-login-only' && '1' || '0' }}
+      RGAI_DEV_SYNTHETIC_SHOP_FIXTURE: ${{ inputs.mode == 'browser-upload-synthetic' && '1' || '0' }}
+      RGAI_DEV_PLAYWRIGHT_UPLOAD: ${{ (inputs.mode == 'browser-upload' || inputs.mode == 'browser-upload-synthetic' || inputs.mode == 'node-browser-reel') && '1' || '0' }}
       RGAI_DEV_FEATURE2_CANARY: ${{ inputs.mode == 'feature2' && '1' || '0' }}
       RGAI_DEV_FEATURE2_PROMPT_CANARY: ${{ inputs.mode == 'feature2-prompt' && '1' || '0' }}
       RGAI_DEV_VIDEO_ARTIFACT_DIR: output/video-acceptance
       RGAI_DEV_NODE_PREVIEW_MODE: ${{ startsWith(inputs.mode, 'node-') && inputs.mode || 'disabled' }}
       RGAI_DEV_POSTER_ARTIFACT_DIR: ${{ inputs.mode == 'node-poster-reel' && 'output/poster-acceptance' || '' }}
-      RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
       RGAI_DEV_PUBLISHABLE_KEY: sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Set up Node for approved browser-upload mode
-        if: inputs.mode == 'browser-upload' || inputs.mode == 'node-browser-reel'
+        if: inputs.mode == 'auth-login-only' || inputs.mode == 'browser-upload' || inputs.mode == 'browser-upload-synthetic' || inputs.mode == 'node-browser-reel'
         uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Install Chromium only for approved browser-upload mode
-        if: inputs.mode == 'browser-upload' || inputs.mode == 'node-browser-reel'
+        if: inputs.mode == 'auth-login-only' || inputs.mode == 'browser-upload' || inputs.mode == 'browser-upload-synthetic' || inputs.mode == 'node-browser-reel'
         shell: bash
         run: |
           set -euo pipefail
@@ -64,10 +67,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$RGAI_DEV_SERVICE_KEY"
+          test "$GITHUB_REPOSITORY" = "saifsiddiqui59/RetailGrowthAI"
           # The Ubuntu hosted runner lacks ffprobe on this image: bounded
           # install from the official Ubuntu archive, never skip MP4 verification.
-          if [ "$RGAI_DEV_FEATURE2_PROMPT_CANARY" != "1" ]; then
+          if [ "$RGAI_DEV_FEATURE2_PROMPT_CANARY" != "1" ] && [ "$RGAI_DEV_LOGIN_ONLY" != "1" ]; then
           if ! command -v ffprobe >/dev/null 2>&1; then
             if [ -f /etc/apt/apt-mirrors.txt ]; then
               printf '%s\n' 'http://archive.ubuntu.com/ubuntu/' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
@@ -80,15 +83,25 @@ jobs:
           fi
           ffprobe -version | head -n 1
           else
+            if [ "$RGAI_DEV_LOGIN_ONLY" = "1" ]; then
+            echo 'P0249_AUTH_ONLY=NO_FFMPEG_INSTALL_NO_VIDEO'
+          else
             echo 'FEATURE2_PROMPT_ONLY=NO_FFMPEG_INSTALL_NO_VIDEO'
           fi
+          fi
+          python3 -m py_compile tests/e2e/p0249_dev_playwright_login_only_once.py
           python3 -m py_compile tests/e2e/retail_dev_canary_once.py
           python3 -m py_compile tests/e2e/p0249_dev_node_full_canary_once.py
-      - name: Run bounded hosted DEV synthetic image + 2 ROOT-approved disposable accounts
+      - name: Run protected DEV acceptance path (Auth-only does not grant shop approval)
+        env:
+          RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "$RGAI_DEV_NODE_PREVIEW_MODE" == node-poster-reel || "$RGAI_DEV_NODE_PREVIEW_MODE" == node-browser-reel ]]; then
+          test -n "$RGAI_DEV_SERVICE_KEY"
+          if [[ "$RGAI_DEV_LOGIN_ONLY" == '1' ]]; then
+            python3 -u tests/e2e/p0249_dev_playwright_login_only_once.py
+          elif [[ "$RGAI_DEV_NODE_PREVIEW_MODE" == node-poster-reel || "$RGAI_DEV_NODE_PREVIEW_MODE" == node-browser-reel ]]; then
             python3 -u tests/e2e/p0249_dev_node_full_canary_once.py
           else
             python3 tests/e2e/retail_dev_canary_once.py
