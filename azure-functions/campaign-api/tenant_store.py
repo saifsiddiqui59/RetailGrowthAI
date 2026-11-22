@@ -69,8 +69,21 @@ class TenantStore:
         self.transport = transport if transport is not None else _NO_REDIRECT_OPENER.open
 
     def _request(self, table, token, *, query=None, method="GET", data=None):
-        if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs", "poster_drafts", "poster_jobs", "business_profiles", "shop_content_drafts", "feature3_gpu_jobs"}:
+        if table not in {"shop_memberships", "media_assets", "campaigns", "campaign_days", "render_jobs", "poster_drafts", "poster_jobs", "business_profiles", "shop_content_drafts", "feature3_gpu_jobs", "feature4_creative_plans",
+                         "rpc/feature4_review_cpu_plan", "rpc/feature4_revoke_cpu_plan",
+                         "feature4_cpu_render_jobs", "rpc/feature4_submit_cpu_render"}:
             raise ValueError("unsupported table")
+        # Feature4 proposals are service-issued and immutable to browsers.
+        # Only current JWT-based narrow review/revoke RPCs can mutate them.
+        if table == "feature4_cpu_render_jobs" and method != "GET":
+            raise ValueError("F4 CPU jobs are always read-only under JWT")
+        if table == "rpc/feature4_submit_cpu_render" and method != "POST":
+            raise ValueError("F4 CPU rendering requires authenticated POST")
+        if table == "feature4_creative_plans" and method != "GET":
+            raise ValueError("Feature4 creative plans are read-only via JWT")
+        if table in ("rpc/feature4_review_cpu_plan",
+                     "rpc/feature4_revoke_cpu_plan") and method != "POST":
+            raise ValueError("Feature4 editorial RPCs require POST")
         # Browser-JWT job history/status is SELECT-only. Claim, finish,
         # financial and private-output writes remain service-role RPCs.
         if table == "feature3_gpu_jobs" and method != "GET":
@@ -510,3 +523,103 @@ class TenantStore:
         if type(value) is not bool:
             raise StorageUnavailable("invalid poster selection response")
         return value
+
+
+    def feature4_creative_plan(self, token, user_id, plan_id):
+        """Read a previously service-issued F2 proposal via user JWT and RLS."""
+        pid = canonical_uuid(plan_id)
+        rows = self._request("feature4_creative_plans", token, query={
+            "select": "id,shop_id,campaign_id,proposal,proposal_sha256,"
+                      "media_asset_ids,state,approved_direction,review_sha256,"
+                      "reviewed_by,reviewed_at,revoked_at",
+            "id": "eq." + pid, "limit": "1",
+        })
+        if not isinstance(rows, list) or len(rows) > 1:
+            raise StorageUnavailable("Feature4 review lookup ambiguous")
+        if not rows:
+            return None
+        plan = rows[0]
+        if (type(plan) is not dict or plan.get("id") != pid
+                or not self.member(token, user_id, plan["shop_id"], write=False)):
+            return None
+        if plan.get("state") not in ("DRAFT", "APPROVED", "REVOKED"):
+            raise StorageUnavailable("invalid creative plan state")
+        return plan
+
+    def feature4_review_cpu_plan(self, token, plan_id, expected_sha256):
+        """Authenticated SQL approval; the DB re-locks media and actor rights."""
+        pid = canonical_uuid(plan_id)
+        if (type(expected_sha256) is not str or
+                re.fullmatch(r"[0-9a-f]{64}", expected_sha256) is None):
+            raise ValueError("immutable source review SHA required")
+        result = self._request("rpc/feature4_review_cpu_plan", token,
+                               method="POST", data={
+                                   "p_plan_id": pid,
+                                   "p_expected_source_sha256": expected_sha256,
+                               })
+        if result is not None and not isinstance(result, dict):
+            raise StorageUnavailable("invalid Feature4 review SQL result")
+        return result
+
+    def feature4_revoke_cpu_plan(self, token, plan_id):
+        """Only SQL-verified current OWNER can revoke an approved revision."""
+        pid = canonical_uuid(plan_id)
+        result = self._request("rpc/feature4_revoke_cpu_plan", token,
+                               method="POST", data={"p_plan_id": pid})
+        if type(result) is not bool:
+            raise StorageUnavailable("invalid Feature4 revocation result")
+        return result
+
+    def feature4_submit_cpu_render(self, token, plan_id, expected_review_hash):
+        """Pure user-JWT PostgREST RPC; DB alone locks editor/revision/quota/outbox.
+
+        Browser must NOT supply its own storyboard, media URLs, job ID or
+        service-role key. Idempotent replay requires fresh membership+rights.
+        """
+        pid = canonical_uuid(plan_id)
+        if (type(expected_review_hash) is not str or
+                re.fullmatch(r"[0-9a-f]{64}", expected_review_hash) is None):
+            raise ValueError("Expected approved F2 revision SHA256")
+        result = self._request("rpc/feature4_submit_cpu_render", token,
+            method="POST", data={"p_plan_id": pid,
+                                 "p_expected_review_hash": expected_review_hash})
+        if result is not None and type(result) is not dict:
+            raise StorageUnavailable("invalid CPU render transaction receipt")
+        return result
+
+    def feature4_job(self, token, user_id, job_id):
+        """Current RLS-scoped v2 job; a foreign shop must read no row."""
+        jid = canonical_uuid(job_id)
+        rows = self._request("feature4_cpu_render_jobs", token, query={
+            "select": "id,shop_id,campaign_id,plan_id,approved_review_sha256,status,output_asset_id,error_code",
+            "id": "eq." + jid, "limit": "1",
+        })
+        if type(rows) is not list or len(rows) > 1:
+            raise StorageUnavailable("ambiguous Feature4 CPU job")
+        if not rows:
+            return None
+        row = rows[0]
+        if (type(row) is not dict or row.get("id") != jid or
+                not self.member(token, user_id, row["shop_id"], write=False)):
+            return None
+        return row
+
+    def feature4_media(self, token, shop_id, asset_id):
+        """Complete JWT/RLS media identity for current v2 rights and output."""
+        sid, aid = canonical_uuid(shop_id), canonical_uuid(asset_id)
+        rows = self._request("media_assets", token, query={
+            "select": "id,shop_id,storage_bucket,object_path,mime_type,source,license_name",
+            "shop_id": "eq." + sid, "id": "eq." + aid, "limit": "1",
+        })
+        if type(rows) is not list or len(rows) > 1:
+            raise StorageUnavailable("ambiguous Feature4 media")
+        if not rows:
+            return None
+        item = rows[0]
+        if (type(item) is not dict or item.get("id") != aid
+                or item.get("shop_id") != sid
+                or item.get("storage_bucket") != "retailgrowth-media"
+                or not isinstance(item.get("object_path"), str)
+                or not item["object_path"].startswith(sid + "/")):
+            return None
+        return item

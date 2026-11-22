@@ -71,3 +71,55 @@ def reconcile_and_dispatch(admin, planning_queue, render_queue):
         raise StorageUnavailable("invalid reconciliation result")
     dispatched = dispatch_outbox(admin, planning_queue, render_queue)
     return {"reconciliation": result, "dispatched": dispatched}
+
+
+def dispatch_feature4_cpu_outbox(admin, cpu_queue, *, limit=10):
+    """Service-only F4 v2 outbox: UUID-only messages and CAS acknowledge.
+
+    A lost queue ACK can lead to duplicate delivery. The SQL job lease token
+    fences every render; never auto-retry a blind billable HTTP submission.
+    """
+    if type(limit) is not int or not 1 <= limit <= 20:
+        raise ValueError("invalid CPU outbox limit")
+    sent = 0
+    for event in admin.feature4_outbox_claim(limit):
+        if type(event) is not dict or set(event) != {
+            "id", "job_id", "lease_token"}:
+            raise StorageUnavailable("untrusted CPU outbox event")
+        canonical_uuid(event["id"])
+        canonical_uuid(event["lease_token"])
+        job_id = canonical_uuid(event["job_id"])
+        try:
+            cpu_queue.enqueue(job_id)
+        except Exception:
+            admin.feature4_outbox_confirm(event, False)
+        else:
+            admin.feature4_outbox_confirm(event, True)
+            sent += 1
+    return sent
+
+
+def reconcile_feature4_cpu(admin, cpu_queue):
+    """Recover bounded stale leases, then dispatch the distinct F4 v2 outbox."""
+    recovered = admin.feature4_reconcile()
+    if type(recovered) is not int or recovered < 0:
+        raise StorageUnavailable("invalid F4 CPU reconciliation result")
+    return {
+        "recovered": recovered,
+        "dispatched": dispatch_feature4_cpu_outbox(admin, cpu_queue),
+    }
+
+
+def record_feature4_cpu_poison(admin, raw_body):
+    """Persist v2 poison fingerprint before Azure poison queue ACK."""
+    if type(raw_body) is not bytes:
+        raise ValueError("CPU poison body must be bytes")
+    fingerprint = sha256(raw_body).hexdigest()
+    job_id = None
+    if len(raw_body) == 36:
+        try:
+            job_id = canonical_uuid(raw_body.decode("ascii", "strict"))
+        except (UnicodeError, ValueError, TypeError):
+            pass
+    admin.feature4_record_poison(fingerprint, job_id)
+    return job_id
