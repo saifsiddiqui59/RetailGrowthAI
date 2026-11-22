@@ -134,6 +134,11 @@ jobs:
               assert z.testzip() is None
           print("PASS: isolated pinned Python+Node+FFmpeg+browser package verified")
           PY
+          # Bind every released byte to the reviewed SHA-256 package manifest;
+          # this verifier also rejects ZIP traversal, duplicate members and
+          # any accidentally packaged legacy authenticated HTTP entrypoints.
+          "$py" scripts/deploy/verify_feature4_cpu_release.py \
+            --zip "$RUNNER_TEMP/rgai-f4cpu-private-worker.zip"
           # Do not upload a potentially costly multi-hundred-MB binary artifact.
           rm -- "$RUNNER_TEMP/rgai-f4cpu-private-worker.zip"
       - name: Render Feature2 approved synthetic test plan through actual F4
