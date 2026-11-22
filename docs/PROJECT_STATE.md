@@ -1875,3 +1875,6 @@ The host what-if review found suffix-only ID comparisons in the pending PR #1101
 
 ## 2026-11-23 IST — Protected F4 host existing-resource Ignore finding
 Protected Azure host run #45084635172 failed before provisioning; an ARM what-if returned Ignore entries for unrelated existing DEV resources while required F4 host/plan/container were Create. The follow-up candidate permits Ignore only for full resource IDs independently inventoried read-only within the exact OIDC-verified DEV RG. Uninventoried, foreign, changed resources remain denied. Worker still not deployed; API/customer flags remain OFF. Existing queues and six F4 SQL migrations must not be recreated.
+
+## 2026-11-23 IST — Flex worker creation rejected obsolete app settings
+Protected run #45085661277 passed exact DEV OIDC, queues, inventory and ARM what-if. The actual Azure deployment failed with BadRequest because Flex Consumption forbids FUNCTIONS_WORKER_RUNTIME in SiteConfig.AppSettings; Microsoft also deprecates FUNCTIONS_EXTENSION_VERSION there. Source correction removes both and preserves Python 3.11 in functionAppConfig.runtime. The failed run may have created partial plan/container resources, so existing preflight remains fail-closed pending read-only proof; no worker activated or signed E2E passed.

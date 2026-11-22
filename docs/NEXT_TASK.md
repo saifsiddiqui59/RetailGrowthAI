@@ -1942,3 +1942,6 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 
 ## 2026-11-23 IST — Next: verify exact Ignore inventory guard
 Verify four-job exact-head CI for the dedicated F4 existing-resource Ignore inventory check, including negative foreign-scope and action tests. Only accept read-only matched existing DEV IDs marked Ignore; maintain strict denial of any new unknown resource and require real Create for isolated F4 host and plan. Retry protected host, then sealed ZIP #1096, private triggers #1098 and genuine signed two-shop end-to-end. Do not replay DEV migrations, queues, Y1/#249 or WineShopPOS.
+
+## 2026-11-23 IST — Flex worker BadRequest recovery
+Verify source PR exact-head four CI and protected DEV retry after removing forbidden FUNCTIONS_WORKER_RUNTIME and obsolete FUNCTIONS_EXTENSION_VERSION from the F4 Bicep site app settings. Inspect partial host/plan/container state before allowing any recovery; fail closed if already present and unverified. Do not delete/recreate resources blindly. Once host proven 1x2GiB and flags OFF, stage #1096 native ZIP then #1098 private triggers and run real signed two-shop E2E.
