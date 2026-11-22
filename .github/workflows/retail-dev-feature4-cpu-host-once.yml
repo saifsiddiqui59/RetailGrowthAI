@@ -109,6 +109,18 @@ jobs:
                     '/providers/microsoft.storage/storageaccounts/rgaid4e5ddbdf0d21d96/blobservices/default')
           if not changes:
               raise SystemExit('BLOCKED: empty/unreadable ARM what-if')
+          if len(changes) > 50:
+              raise SystemExit('BLOCKED: unbounded ARM what-if change inventory')
+          # Print a bounded TYPE/ACTION/COUNT summary only, NEVER IDs/names.
+          # This is diagnosis, not an authorization or a weaker allowlist.
+          from collections import Counter
+          safe_actions={'Create','NoChange','Ignore','Modify','Delete','Deploy'}
+          categories=Counter((
+              classify_resource_type(c.get('resourceId')),
+              c.get('changeType') if c.get('changeType') in safe_actions else 'Other'
+          ) for c in changes)
+          for (kind, action), count in sorted(categories.items()):
+              print('ARM what-if TYPE=' + kind + ' ACTION=' + action + ' COUNT=' + str(count))
           created=set()
           for c in changes:
               action=c.get('changeType')
