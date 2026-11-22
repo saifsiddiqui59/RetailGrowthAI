@@ -13,29 +13,46 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 3,
+    "open_prs": 4,
     "by_feature": {
       "issue249": 2,
-      "unclassified": 1
+      "unclassified": 2
     }
   },
   "entries": [
     {
-      "pr": 1059,
-      "title": "Issue249 integration PR (live title not verified)",
-      "feature": "issue249",
-      "head_sha": "12ad7633d898a83a71c2ea3e2f3f927872b03d0e",
+      "pr": 1073,
+      "title": "Live title not verified",
+      "feature": "unclassified",
+      "head_sha": "dbdc27e24fca0bfcfd0ab9812d992faca3d52073",
       "base_branch": "main",
-      "work_owner": "manual-issue249",
+      "work_owner": "manual-integration",
       "priority": "P1",
-      "phase": "in-progress",
+      "phase": "review",
       "checkpoint": {
-        "owner": "manual-issue249",
-        "ci": "Exact-head #45013826803 FAIL 3/4 (Python/uv); native CPU #45013826802 FAIL 0/1; all jobs independently checked.",
-        "next_action": "Manual Issue249 owner diagnose exact-head Python/uv and native CPU failures; preserve security/symlink guards, rerun CI and independent review.",
+        "owner": "manual-integration",
+        "ci": "Exact-head #45020269415 IN PROGRESS; Python passed, other three running at inspection",
+        "next_action": "Await all four mandatory CI jobs and independent review",
         "feature_done": false
       },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1059"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1073"
+    },
+    {
+      "pr": 1065,
+      "title": "fix(#249): prevent false healthy Flex probes and cross-app telemetry",
+      "feature": "issue249",
+      "head_sha": "d8c2c12a87ffd0c43a15d21897aace549efa5e65",
+      "base_branch": "main",
+      "work_owner": "manual-issue249-flex-20261121",
+      "priority": "P1",
+      "phase": "review",
+      "checkpoint": {
+        "owner": "manual-issue249-flex-20261121",
+        "ci": "Exact-head Part1 #44808654931 4/4 SUCCESS at d8c2c12a87ffd0c43a15d21897aace549efa5e65; all source/negative checks passed",
+        "next_action": "Independent review of original Flex diagnostic scope and data-minimization; manual integration owner to verify unchanged main and exact-head before merge; no Azure deployment or role grant",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1065"
     },
     {
       "pr": 1064,
@@ -55,22 +72,22 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
     },
     {
-      "pr": 1065,
-      "title": "fix(#249): prevent false healthy Flex probes and cross-app telemetry",
+      "pr": 1059,
+      "title": "Issue249 integration PR (live title not verified)",
       "feature": "issue249",
-      "head_sha": "d8c2c12a87ffd0c43a15d21897aace549efa5e65",
+      "head_sha": "0ee6980b83d22d458e87c3ef090221f7abccd14a",
       "base_branch": "main",
-      "work_owner": "manual-issue249-flex-20261121",
+      "work_owner": "manual-issue249",
       "priority": "P1",
-      "phase": "review",
+      "phase": "in-progress",
       "checkpoint": {
-        "owner": "manual-issue249-flex-20261121",
-        "ci": "Exact-head Part1 #44808654931 4/4 SUCCESS at d8c2c12a87ffd0c43a15d21897aace549efa5e65; all source/negative checks passed",
-        "next_action": "Independent review of original Flex diagnostic scope and data-minimization; manual integration owner to verify unchanged main and exact-head before merge; no Azure deployment or role grant",
+        "owner": "manual-issue249",
+        "ci": "Exact-head #45018675230 FAIL 3/4 (Python/uv); native CPU #45018675277 FAIL 0/1, jobs independently checked",
+        "next_action": "Manual Issue249 owner repair and rerun exact-head CI; independent review required",
         "feature_done": false
       },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1065"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1059"
     }
   ],
-  "last_inventory_checked_at": "2026-11-22T10:43:36Z"
+  "last_inventory_checked_at": "2026-11-22T12:04:39Z"
 }
