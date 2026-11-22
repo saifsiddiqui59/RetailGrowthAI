@@ -1851,3 +1851,9 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 
 ## 2026-11-22 — F4 queue host source next
 - Verify fresh exact-head CI for `feature4_cpu_dev_queues.py`, and inspect protected DEV Azure OIDC tags/storage/RBAC. On an authorized DEV apply, ensure no existing F4 queues, create only two isolated CPU queue names using login data-plane rights, then independently verify. An existing partial queue state fails closed; do not delete messages or legacy queues. Isolated CPU worker host/artifact and customer activation remain separately gated.
+
+## 2026-11-22 — F4 API activation order after protected worker release
+- Before enabling F4 issue/review/render, verify hosted original API ZIP includes all four routes and original URI rollback is pinned; source-only CI does not prove hosted code. Dedicated worker triggers index only in its separate app. In the original API, CPU_WORKER_ENABLED is a readiness attestation and must stay false during staging, then true ONLY after worker/queue/rights proof. Enable plan issue/review first, CPU_RENDER last, frontend after signed E2E. Do not touch another chat's #249/Y1 release.
+
+## 2026-11-22 — F4 worker concurrency source guard
+- Verify PR #1084 exact-head four-job CI, merge source only if current main compatibility and all checks success; verify postmerge main CI. Before protected worker activation, validate Bicep, dedicated 2-GiB FC1 instance, packaging of isolated batchSize=1 host, queue/poison/lease under load, private MP4 and signed two-shop E2E. No Azure/Supabase writes or F4 customer render flags until real release gates pass.
