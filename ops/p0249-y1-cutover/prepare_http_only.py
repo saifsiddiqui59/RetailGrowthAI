@@ -99,9 +99,23 @@ def strip_only_background_triggers(source: bytes) -> bytes:
         deleted.update(range(start, end))
     # Reuse original byte-for-byte HTTP handlers and build_api, rather than
     # reimplementing token verification, billing or queue/outbox behavior.
-    result = "".join(line for i, line in enumerate(text) if i not in deleted).encode()
+    # Keep the existing Y1 health contract unchanged through replacement.
+    # Only original HTTP code is copied; this is the sole additive health handler.
+    health = '''
+@app.route(route="p0249/health", methods=["GET"])
+def p0249_health(req: func.HttpRequest) -> func.HttpResponse:
+    import uuid
+    del req
+    return func.HttpResponse(
+        json.dumps({"status":"ok","canary":"classic-y1-v1-p0249"}),
+        status_code=200, mimetype="application/json",
+        headers={"X-Request-ID":str(uuid.uuid4()),"Cache-Control":"no-store"},
+    )
+'''
+    result = ("".join(line for i, line in enumerate(text) if i not in deleted)
+              + health).encode()
     staged, _ = registrations(result)
-    if staged != {name: "route" for name in HTTP}:
+    if staged != {name: "route" for name in HTTP | {"p0249_health"}}:
         raise ValueError("Y1 package registered a background trigger")
     compile(result, str(ORIGINAL), "exec")
     return result
@@ -111,7 +125,7 @@ def check_source():
     transformed = strip_only_background_triggers(ORIGINAL.read_bytes())
     if b"@app.queue_trigger" in transformed or b"@app.timer_trigger" in transformed:
         raise ValueError("Y1 core HTTP still registers a worker")
-    print("P0249_Y1_FULL_HTTP_ROUTES=" + str(len(HTTP)))
+    print("P0249_Y1_FULL_HTTP_ROUTES=" + str(len(HTTP) + 1))
     print("P0249_Y1_BACKGROUND_TRIGGER_REGISTRATIONS=0")
     print("P0249_Y1_HTTP_SOURCE_CHECK=PASS_SOURCE_ONLY_NOT_DEPLOYED")
 
