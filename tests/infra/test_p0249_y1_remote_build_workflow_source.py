@@ -110,6 +110,14 @@ class Y1RemoteBuildWorkflowSourceTests(unittest.TestCase):
         self.assertIn("p0249-dev-y1-five-get-remote-build-protected.yml/dispatches", bridge)
         self.assertNotIn("az functionapp", bridge)
 
+    def test_successful_one_shot_owner_dispatch_was_retired(self):
+        # Hosted Y1 5/5 was accepted under #45021333842. Prevent a second
+        # push-main dispatch from a consumed one-shot workflow or its test.
+        self.assertFalse((ROOT / ".github/workflows/p0249-y1-pinned-action-owner-dispatch-once.yml").exists())
+        self.assertFalse((ROOT / "tests/infra/test_p0249_y1_pinned_action_dispatch_once.py").exists())
+        # Keep the protected manual release/rollback workflow separately.
+        self.assertTrue(NEW.is_file())
+
     def test_original_pkg_backup_is_owned_and_sanitized_not_published(self):
         script = (ROOT / "ops/p0249_y1_remote_build_mode.py").read_text()
         for token in (
