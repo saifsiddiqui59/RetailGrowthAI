@@ -47,7 +47,8 @@ def main(argv=None) -> int:
     path = Path(items[0])
     try:
         # Stderr could contain tokens or adversarial text: never print it.
-        raw = path.read_bytes()[:MAX_BYTES]
+        with path.open("rb") as stream:
+            raw = stream.read(MAX_BYTES)
         category = classify(raw.decode("utf-8", errors="replace"))
     except (OSError, ValueError):
         category = "PRIVATE_DIAGNOSTIC_UNAVAILABLE"
