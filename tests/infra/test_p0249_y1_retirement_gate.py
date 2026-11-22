@@ -31,6 +31,12 @@ def observation():
             "background_workers_enabled": False,
         },
         "frontend": {"served_api_origin": m.Y1_ORIGIN},
+        "render_worker": {
+            "hosting_mode": "isolated_on_demand_cpu_worker",
+            "max_execution_seconds": 1200,
+            "same_approved_shop_queue_and_lease": True,
+            "private_media_and_ffmpeg_verified": True,
+        },
         "protected_evidence": {name: True for name in m.PROOF},
         "verified_by_protected_release_workflow": True,
     }
@@ -64,6 +70,27 @@ class Y1NoPrematureFlexStop(unittest.TestCase):
         state = observation()
         state["y1"]["same_retailgrowth_dev_connections_as_flex"] = False
         self.assertIn("protected_original_connection_value_comparison",
+                      m.evaluate(state))
+
+    def test_unmodified_classic_y1_cannot_claim_780_second_render_worker(self):
+        self.assertEqual(m.CLASSIC_CONSUMPTION_MAX_SECONDS, 600)
+        self.assertEqual(m.ORIGINAL_RENDER_HARD_CAP_SECONDS, 780)
+        state = observation()
+        state["render_worker"] = {
+            "hosting_mode": "classic_y1_consumption",
+            "max_execution_seconds": 600,
+            "same_approved_shop_queue_and_lease": True,
+            "private_media_and_ffmpeg_verified": False,
+        }
+        self.assertIn("long_render_worker_incompatible_with_classic_y1_600s_limit",
+                      m.evaluate(state))
+        state = observation()
+        state["render_worker"]["max_execution_seconds"] = 540
+        self.assertIn("long_render_worker_incompatible_with_classic_y1_600s_limit",
+                      m.evaluate(state))
+        state = observation()
+        state["render_worker"]["private_media_and_ffmpeg_verified"] = False
+        self.assertIn("long_render_worker_incompatible_with_classic_y1_600s_limit",
                       m.evaluate(state))
 
     def test_untransferred_customer_traffic_blocks(self):
