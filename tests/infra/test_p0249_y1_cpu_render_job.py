@@ -169,7 +169,9 @@ class Y1CpuQueueSafety(unittest.TestCase):
     def test_source_has_no_loop_or_resource_provisioning(self):
         code=SOURCE.read_text()
         self.assertNotIn("create_queue", code)
-        self.assertNotIn("send_message", code)
+        self.assertNotIn("queue.send_message(", code)
+        self.assertIn("poison.send_message(jid)", code)
+        self.assertIn('POISON_QUEUE = "retail-reel-render-poison"', code)
         self.assertNotIn("while True", code)
         self.assertNotIn("az containerapp", code)
         self.assertNotIn("az functionapp stop", code)
