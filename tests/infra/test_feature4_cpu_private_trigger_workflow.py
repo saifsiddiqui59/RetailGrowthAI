@@ -45,10 +45,7 @@ class Feature4PrivateWorkerTriggerActivationTests(unittest.TestCase):
             "feature4_cpu_dispatch_timer",
             "if names!=expected",
             "trap rollback EXIT",
-            "RET AIL",
         ):
-            if token == "RET AIL":
-                continue
             self.assertIn(token,x)
         self.assertNotIn("'RETAIL_FEATURE4_CPU_RENDER_ENABLED': 'true'",x)
         self.assertNotIn("AZURE_STORAGE_KEY",x)
