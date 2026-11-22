@@ -39,11 +39,13 @@ class VerifiedPrivateMedia:
 
     def upload(self, shop_id, job_id, media_file, *, lease_token=None):
         import hashlib
+        from urllib.parse import quote
         old_transport = self.backing.transport
         expected_sha = None
+        uploaded_url = None
 
         def capture_exact_uploaded_bytes(request, timeout):
-            nonlocal expected_sha
+            nonlocal expected_sha, uploaded_url
             endpoint = (self.backing.origin
                         + "/storage/v1/object/retailgrowth-media/")
             payload = getattr(request, "data", None)
@@ -54,6 +56,7 @@ class VerifiedPrivateMedia:
                 or expected_sha is not None):
                 raise RuntimeError("Unsafe or duplicate private video upload")
             expected_sha = hashlib.sha256(payload).hexdigest()
+            uploaded_url = request.full_url
             return old_transport(request, timeout=timeout)
 
         # process_one handles only a single job, so this scoped interception is
@@ -66,6 +69,15 @@ class VerifiedPrivateMedia:
             self.backing.transport = old_transport
         if expected_sha is None:
             raise RuntimeError("No actual private media upload was observed")
+        # A successful POST to *some* private object is not proof that the
+        # key committed to the render ledger points to those uploaded bytes.
+        # Tie the actual wire URL to the key returned by the original client;
+        # verify_uploaded_mp4 independently enforces this shop\'s path scope.
+        expected_url = (self.backing.origin
+                        + "/storage/v1/object/retailgrowth-media/"
+                        + quote(key, safe="/")) if isinstance(key, str) else None
+        if uploaded_url != expected_url:
+            raise RuntimeError("Private video upload key differs from uploaded object")
         if self.backing.verify_uploaded_mp4(shop_id, key, expected_sha) is not True:
             raise RuntimeError("Private video readback failed")
         return key
