@@ -1843,3 +1843,11 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 1. Verify fresh main exact-merge CI after #1079 at `6269e167`. Review new isolated pre-migration 22-check read-only SQL and static test; obtain its own exact-head 4/4 and safely source-integrate with main compatibility.
 2. Before any actual DEV SQL, obtain separate affected-feature security/release review, backup/rollback and approved exact source inventory. Six additive F4 candidate files remain unapplied; isolated worker/queues/flags remain off. The inventory must run against verified RetailGrowthAI DEV project ref, never PROD.
 3. Prepare authorized nonprivileged two-shop identities through Auth Admin, then real signed JWT/RLS, private MP4, quota/queue/poison and browser tests; never fabricate editorial/ROOT approvals. No WineShopPOS, GPU/paid, or Issue #249/Y1 modifications.
+
+## 2026-11-22 — F4 atomic DEV release next steps
+1. Verify exact-head 4/4 and protected review of new `scripts/deploy/feature4_cpu_release_bundle.py` and regression tests; merge source only after accepted CI. Use `--project-ref jeearzffnjbvghwjjjrf` for an offline SHA256 manifest; optional `--output` writes one atomic SQL transaction outside repo.
+2. Before any actual DEV migration/worker provision, verify independent SECURITY DEFINER/RLS, media rights, JWT, quota, lease, outbox and protected Azure environment/cost/rollback gate. Explicit owner request alone does not demonstrate independent review or authenticated retailer consent.
+3. Provision nonprivileged DEV Auth users using trusted GoTrue Admin only when service-role secret and distinct test passwords are available. ROOT/onboarding and editor approvals cannot be bypassed. Then run real two-shop JWT/Playwright, worker and private MP4 E2E. Leave PROD/WineShopPOS/GPU/paid and Issue #249 untouched.
+
+## 2026-11-22 — F4 queue host source next
+- Verify fresh exact-head CI for `feature4_cpu_dev_queues.py`, and inspect protected DEV Azure OIDC tags/storage/RBAC. On an authorized DEV apply, ensure no existing F4 queues, create only two isolated CPU queue names using login data-plane rights, then independently verify. An existing partial queue state fails closed; do not delete messages or legacy queues. Isolated CPU worker host/artifact and customer activation remain separately gated.
