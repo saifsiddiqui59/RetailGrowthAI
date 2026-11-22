@@ -97,6 +97,21 @@ class Feature4CpuWorkerPackageTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "Unsafe non-regular F4 archive source"):
                     module._write_member(archive, "deps/blocking.pipe", pipe)
 
+    def test_archive_member_traversal_rejected_before_read(self):
+        import tempfile
+        from zipfile import ZipFile
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = root / "payload.txt"
+            payload.write_text("synthetic", encoding="utf-8")
+            with ZipFile(root / "artifact.zip", "w") as archive:
+                for unsafe in ("../escape", "/absolute", "deps/../escape",
+                               "deps//double", "deps/./dot", "deps\\\\windows"):
+                    with self.subTest(member=unsafe):
+                        with self.assertRaisesRegex(ValueError, "Unsafe F4 archive member"):
+                            module._write_member(archive, unsafe, payload)
+                self.assertEqual(archive.namelist(), [])
+
     def test_dependency_root_symlink_is_rejected(self):
         import tempfile
         with tempfile.TemporaryDirectory() as directory:
