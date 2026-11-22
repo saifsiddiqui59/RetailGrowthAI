@@ -143,6 +143,22 @@ class Feature4CpuWorkerPackageTests(unittest.TestCase):
                             module._write_member(archive, "deps/oversized.bin", payload)
                 self.assertEqual(archive.namelist(), [])
 
+    def test_archive_member_streams_and_matches_sha256(self):
+        import hashlib
+        import tempfile
+        from zipfile import ZipFile
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = root / "large-synthetic.bin"
+            data = b"synthetic-private-free" * 100000
+            payload.write_bytes(data)
+            archive_path = root / "artifact.zip"
+            with ZipFile(archive_path, "w") as archive:
+                digest = module._write_member(archive, "deps/payload.bin", payload)
+            self.assertEqual(digest, hashlib.sha256(data).hexdigest())
+            with ZipFile(archive_path) as archive:
+                self.assertEqual(archive.read("deps/payload.bin"), data)
+
     def test_dependency_root_symlink_is_rejected(self):
         import tempfile
         with tempfile.TemporaryDirectory() as directory:
