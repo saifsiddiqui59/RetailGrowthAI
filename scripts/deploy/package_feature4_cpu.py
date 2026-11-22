@@ -62,6 +62,10 @@ def sources():
     for rel, file in mapping.items():
         if not file.is_file() or file.is_symlink():
             raise ValueError("Missing/unsafe Feature4 package source: " + rel)
+        # A source directory link can redirect a reviewed path to mutable code.
+        # Check every ancestor inside the checkout before reading or packaging.
+        if any(parent.is_symlink() for parent in file.parents if parent == ROOT or ROOT in parent.parents):
+            raise ValueError("Linked Feature4 package source directory: " + rel)
         if not rel or rel.startswith("/") or ".." in Path(rel).parts:
             raise ValueError("Unsafe archive member: " + rel)
     host = json.loads(mapping["host.json"].read_text(encoding="utf-8"))
