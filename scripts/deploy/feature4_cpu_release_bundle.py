@@ -143,7 +143,7 @@ def main(argv=None):
         raise SystemExit("BLOCKED: wrong DEV project reference")
     sql, manifest = build_bundle()
     if args.output:
-        output = args.output.absolute()
+        output = args.output.expanduser().resolve(strict=False)
         if output.is_relative_to(ROOT.resolve()):
             raise SystemExit("BLOCKED: write release bundle outside the checkout")
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
