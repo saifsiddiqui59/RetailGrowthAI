@@ -1827,5 +1827,51 @@ Manual integration chat C reviewed original PRs #979/#972/#970/#964/#944/#880/#8
 ## 2026-11-23 IST — F4 host what-if must compare full scoped ARM IDs
 The host what-if review found suffix-only ID comparisons in the pending PR #1101. The source now constructs full expected IDs from the OIDC-confirmed exact DEV subscription and resource group, rejects lookalike IDs from other groups/subscriptions, and retains denial of unrecognized Ignore/Modify/Delete actions. New static/negative scope tests; PR exact-head CI and protected DEV run remain pending. No infrastructure was created by this fix.
 
+## 2026-11-22 — #249 Y1 full-route index evidence hardened on PR #1077 (SOURCE ONLY)
+- Hardened Y1 retirement gate to require all 37 original Flex HTTP handlers plus Y1 health = 38, plus exactly eight allowed short queue/timer consumers = 46 expected indexed functions in final stage. Explicitly rejects missing optional registered routes, duplicate indexes, unexpected functions and classic Y1's 780s video queue consumer.
+- Sanitized read-only Azure inspector now reports separate exact HTTP-only (38) and full short-worker (46) index verdicts, and flags all original background triggers including onboarding/trends timers. Offline negative regressions added for missing optional routes, unexpected/duplicate functions and omitted timer detection.
+- Source commits on draft PR #1077, not hosted Y1 index or release proof. Last verified hosted milestone remains protected five-GET run #45021333842. Original Flex stays running; no Y1 traffic switch, queue/ACA worker release, Azure/Supabase hosted mutation or Issue #249 closure. Exact-head 4/4 CI, independent review, protected cutover, signed tenant/worker/rollback checks pending. No PROD/GPU/WineShopPOS.
+
+
+
+## 2026-11-22 — #249 CPU worker private MP4 readback fence (source only)
+- PR #1077 now wraps only its isolated Container Apps legacy CPU render adapter with VerifiedPrivateMedia. The wrapper observes the exact bounded uploaded POST bytes already captured by the original private-media client, hashes them and requires remote private MP4 SHA-256 readback before reporting an object path to the legacy claim-completion RPC. A failed/missing/duplicate/foreign upload or failed readback must fail closed and leave the original queue message unacknowledged for fenced recovery.
+- New synthetic offline negative tests cover uploaded-byte checksum, missing upload, wrong destination, duplicate upload and failed readback. Original running Flex worker is unchanged. Source and test commits are NOT hosted readback proof; latest exact-head CI and protected independent rollout remain pending. Neither Flex nor Y1 live settings changed; Issue #249 open.
+
+
+
+## 2026-11-22 — #249 CPU timeout-safe visibility and full route gate continuation (SOURCE ONLY)
+- PR #1077 source checks now distinguish all 38 hosted Y1 HTTP indexes from the final 46-function short-worker stage; missing optional routes and unknown/duplicate registrations block Flex retirement. The isolated CPU Container Apps queue adapter now uses 2100s message invisibility, greater than its 1800s replica timeout (instead of 1500s), to prevent lease expiration while a 30-minute job is still running. Unit assertions were updated without changing the original Flex runtime.
+- This is source-only. Exact final-head Part1 4/4 and real Azure protected release/rollback remain unverified. Five-GET Y1 still the last proven live milestone. No worker activation, traffic switch, Flex stop, #249 closure, PROD/GPU/WineShopPOS changes.
+
+
+
+## 2026-11-22 — #249 protected CPU Event scaler source candidate (NOT deployed)
+- Added a separate source-only Azure Container Apps Event scaler Bicep candidate to transition the same existing disabled Manual job to a single parallel consumer of the existing `retail-reel-render` queue, with min 0/max 1 executions, 60s polling, secure storage auth and explicit protected activation parameter. New tests keep the default Manual template OFF and require 2100s queue invisibility > 1800s job timeout. This is NOT an active queue scaler, built immutable image, Azure deployment, full Y1 host parity or accepted cloud render. Flex remains active and Issue #249 remains open.
+
+
+
+## 2026-11-22 — #249 CPU queue visibility corrected (source only)
+- The separate Container Apps CPU render adapter now requests a 2100s Azure queue invisibility window, greater than the proposed 1800s job timeout and 780s FFmpeg cap. The previous 1500s invisibility window was shorter than the replica lifetime and could allow another receiver to see an unfinished message. Offline contract now asserts the corrected bounds. No Azure deployment, Y1 worker activation, Flex stop or #249 closure.
+
+
+
+## 2026-11-22 — #249 CPU private MP4 exact-key fence (source only)
+- Draft PR #1077 now checks the actual observed private upload HTTP POST URL against the URL derived from the returned object key **before** private SHA-256 cloud readback and DB completion. A POST to an unrelated object inside the same bucket no longer qualifies as proof of the committed output key. Source commits `264793f2` + `d356a949` added denial fixture. All hosted Azure Y1 write routes/worker/SWA cutover remain unverified; original DEV Flex stays running, issue #249 OPEN. Exact-head four-job CI and protected deployment pending.
+
+
+
+## 2026-11-22 — #249 Y1 38-route verified offline package artifact (NOT Azure deployment)
+- Source PR #1077 exact head `6e54c0ebc789ea0cdda75e1606f13cebb2abd4a9` passed 4/4 Part 1 CI [#45055901056](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/45055901056). Stacked offline packaging [PR #1088](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1088) passed its own 4/4 [#45056253757](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/45056253757) and release-artifact build [#45056269139](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/45056269139). Actual verified package indices: exactly 38 HTTP/no queue or timer consumers, separate exact 46 staging candidate with eight short workers and no 780s classic renderer. HTTP-only ZIP SHA256 `34a2a962b325c5dc3c21864b87099605131de54dd21019cc7bc2574e853b8b2b`; review artifact `14767657526` (one-day retention). No Azure deployment, Flex stop, SWA cutover or #249 issue closure; live Y1 remains five GET functions.
+
+
+## 2026-11-23 — Issue #249 Y1 parity source integrated; hosted cutover NOT done
+- [PR #1077](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1077) merged as `bb20f37cf5bc01e29db46a0ebf7d070e81e809df` after exact-head mandatory four-job CI [#45075576388](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/45075576388) passed 4/4. New source-only tooling stages 38 original HTTP routes including health, eight separately staged short queue/timer workers, and an isolated on-demand CPU render candidate. No source merge itself deploys any worker, migrates traffic or permits Flex retirement.
+- Live DEV Y1 remains the previously proven **five GET routes** [#45021333842](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/45021333842). The original DEV Flex HTTP/queue/render service stays active, and hosted signed tenants, POST/PATCH/private media, SWA routing, 503/p95/p99 and queue ownership are not yet proven on Y1. Issue #249 remains OPEN.
+- [PR #1088](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1088) was rebased to a one-file non-deploying artifact workflow and merged as `eb9291b16f0bb2f2f66ec398ae19d0988720bdd2` after exact-head four-job CI #45084002703 and offline artifact #45084002664 passed. Its post-merge main CI remains to be verified. CPU safety ordering: 780s FFmpeg < 1380s job replica < 1500s DB lease < 2100s Azure Queue invisibility. No Azure/PROD/WineShopPOS/GPU resource change from this source integration.
+
+## 2026-11-23 — #249 five-to-38 live-release safety candidate PR #1102 (NOT deployed)
+- Prepared [PR #1102](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1102) as a draft manual-only protected `dev` Y1 release candidate, starting from the actual hosted five-route ZIP. It pins the exact original private Blob package and run owner, audits live original DEV settings/CORS before writing, constructs zero-worker 38-route ZIP, checks actual handler indexes, three marked missing-JWT 401 responses in both real 20/20 HTTP windows separated 240 seconds, and has same-run plus independent five-route rollback. Source and negative tests are under CI; no dispatch, live Y1 writes, 38-route hosted acceptance or Flex shutdown. Shared workflow security/release review and actual signed two-shop tests remain outstanding.
+
 ## 2026-11-23 IST — Diagnosed protected F4 host what-if unrelated Ignore entries
 - Main #1101 `34d57ba6` merged after exact-head #45084206950 Part1 CI 4/4. Protected DEV host workflow #45084635172 passed OIDC/tags/storage, two dedicated queues and missing target host/plan/container, then **failed before any create** on what-if. The type-only summary showed `Ignore` for several *existing unrelated* DEV Microsoft.Web/Storage/Insights/App/AlertsManagement resources (including an irregular alert rule); intended F4 app/plan/container were `Create`. Microsoft ARM semantics distinguish omitted existing resources in Incremental from actual modifications. Source-only next fix inventories exact pre-existing DEV RG resource IDs read-only, permits `Ignore` only when the same full ID exists in that bounded snapshot and has exact subscription/RG scope; unknowns, Modify/Delete and new resources still deny. This is unmerged/not deployed until four CI and reviewed protected DEV retry.
