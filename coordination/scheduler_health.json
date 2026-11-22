@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-22T19:03:30Z",
+  "last_written_at": "2026-11-22T21:00:06Z",
   "last_inventory_count": 9,
   "last_inventory_checked_at": "2026-11-22T19:03:30Z",
   "owners": {
@@ -549,7 +549,7 @@
     "verified_at_utc": "2026-11-22T01:02:04.025Z"
   },
   "current_ci_verified": {
-    "checked_at_utc": "2026-11-22T12:04:39Z",
+    "checked_at_utc": "2026-11-22T21:00:06Z",
     "pr1073": {
       "head": "dbdc27e24fca0bfcfd0ab9812d992faca3d52073",
       "run_id": 45020269415,
@@ -570,6 +570,18 @@
     "pr1065": {
       "run_id": 44808654931,
       "status": "PASS 4/4"
+    },
+    "note": "Exact-head workflow runs and mandatory jobs independently checked; PR 1085 has no returned runs",
+    "prs": {
+      "1064": "PASS 4/4",
+      "1065": "PASS 4/4",
+      "1076": "PASS 4/4",
+      "1077": "latest CANCELLED 0/4; earlier same-head PASS 4/4",
+      "1085": "CURRENT UNKNOWN no runs",
+      "1088": "PASS mandatory 4/4; specialized 1/1",
+      "1096": "PASS 4/4",
+      "1098": "PASS 4/4",
+      "1101": "PASS 4/4"
     }
   },
   "latest_issue249_ci": {
@@ -601,8 +613,14 @@
     "last_verified_green_on_current_head": null,
     "previous_head_failures_not_current": true
   },
-  "current_automation_controls": "F3/F4/F7 verified disabled; F2 inaccessible UNVERIFIED; no settings changed",
-  "current_executor_status": "GITHUB_CONNECTOR_ONLY / EXECUTOR_NOT_PROVISIONED; inherited environments null",
+  "current_automation_controls": {
+    "F2": "DISABLED",
+    "F3": "DISABLED",
+    "F4": "DISABLED REVIEW_BLOCKED",
+    "F7": "DISABLED REVIEW_BLOCKED",
+    "verified_at_utc": "2026-11-22T21:00:06Z"
+  },
+  "current_executor_status": "EXECUTOR_NOT_PROVISIONED: all four inherited environments null; GITHUB_CONNECTOR_ONLY last verified",
   "current_live_ci": {
     "checked_at_utc": "2026-11-22T19:55:25Z",
     "verified": [
@@ -642,12 +660,13 @@
   },
   "automation_controls_current": "UNVERIFIED: all four Automations get calls returned 404; retain last verified run durations and enabled states, do not infer current",
   "active_leases_current": "UNKNOWN: no explicit active lease fields in verified queue; preserved existing ownership",
-  "current_source_commit_verification": "CURRENT UNKNOWN for F2; no new F3/F4/F7 run",
-  "current_lease_verification": "UNKNOWN: queue contains no explicit active lease fields; foreign lease ownership preserved",
-  "last_queue_delta": [
-    "added #1101",
-    "added #1098",
-    "removed #1097",
-    "removed #1095"
-  ]
+  "current_source_commit_verification": "UNKNOWN: no new source/test commit verified from exact SHA metadata",
+  "current_lease_verification": "UNKNOWN: no live lease claim verified",
+  "last_queue_delta": {
+    "head_changes": [
+      1085
+    ],
+    "added": [],
+    "removed": []
+  }
 }
