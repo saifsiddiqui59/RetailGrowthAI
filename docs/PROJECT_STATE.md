@@ -1826,3 +1826,6 @@ Manual integration chat C reviewed original PRs #979/#972/#970/#964/#944/#880/#8
 
 ## 2026-11-23 IST — F4 host what-if must compare full scoped ARM IDs
 The host what-if review found suffix-only ID comparisons in the pending PR #1101. The source now constructs full expected IDs from the OIDC-confirmed exact DEV subscription and resource group, rejects lookalike IDs from other groups/subscriptions, and retains denial of unrecognized Ignore/Modify/Delete actions. New static/negative scope tests; PR exact-head CI and protected DEV run remain pending. No infrastructure was created by this fix.
+
+## 2026-11-23 IST — Protected F4 host existing-resource Ignore finding
+Protected Azure host run #45084635172 failed before provisioning; an ARM what-if returned Ignore entries for unrelated existing DEV resources while required F4 host/plan/container were Create. The follow-up candidate permits Ignore only for full resource IDs independently inventoried read-only within the exact OIDC-verified DEV RG. Uninventoried, foreign, changed resources remain denied. Worker still not deployed; API/customer flags remain OFF. Existing queues and six F4 SQL migrations must not be recreated.

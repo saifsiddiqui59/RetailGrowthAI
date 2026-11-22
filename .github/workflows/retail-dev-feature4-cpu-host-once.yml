@@ -85,6 +85,11 @@ jobs:
               raise SystemExit('BLOCKED: deployment container already exists or state ambiguous')
           print('PASS: distinct host, plan and private package container are absent')
           PY
+      - name: Inventory exact existing DEV resources (read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          az resource list --resource-group "$RG" --subscription "$AZURE_SUBSCRIPTION_ID" --query '[].id' -o json > "$RUNNER_TEMP/f4cpu-rg-existing.json"
       - name: Compile fixed disabled-by-default Bicep and inspect ARM what-if
         shell: bash
         run: |
@@ -98,6 +103,7 @@ jobs:
           python3 - <<'PY'
           import os,json,pathlib
           from scripts.deploy.feature4_cpu_whatif_type import classify_resource_type
+          from scripts.deploy.feature4_cpu_whatif_scope import load_existing_dev_ids, is_existing_ignore
           payload=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'f4cpu-whatif.json').read_text())
           changes=payload.get('changes') or (payload.get('properties') or {}).get('changes') or []
           allowed=('/providers/microsoft.web/sites/rgai-dev-f4cpu-d4e5ddbd',
@@ -114,6 +120,9 @@ jobs:
                  + '/resourcegroups/' + os.environ['RG'].lower())
           allowed=tuple(scope + suffix for suffix in allowed)
           existing=tuple(scope + suffix for suffix in existing)
+          # Exact pre-existing DEV RG IDs, never a type/name wildcard.
+          inventoried=load_existing_dev_ids(
+              pathlib.Path(os.environ['RUNNER_TEMP'])/'f4cpu-rg-existing.json', scope)
           if not changes:
               raise SystemExit('BLOCKED: empty/unreadable ARM what-if')
           if len(changes) > 50:
@@ -137,6 +146,10 @@ jobs:
                       raise SystemExit('BLOCKED: existing DEV storage would be changed')
                   continue
               if rid not in allowed:
+                  # ARM reports unrelated existing DEV resources as Ignore.
+                  # Skip only read-only inventoried FULL IDs with action Ignore.
+                  if is_existing_ignore(rid, action, inventoried, scope):
+                      continue
                   # Never print full ARM resource IDs: extract only provider
                   # namespace and child resource TYPES (not names/tokens).
                   # Never return names from untrusted ARM IDs; shape-only

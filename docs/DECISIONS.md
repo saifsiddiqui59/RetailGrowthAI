@@ -1417,3 +1417,6 @@ A protected ARM `Ignore` entry can have an unknown provider/type even when its n
 
 ## 2026-11-23 IST — Never authorize ARM deployment by resource-ID suffix alone
 Accept ARM what-if entries only when their complete, case-normalized resource ID matches an expected ID under the already authenticated exact DEV subscription and resource group. Names shared across subscriptions or resource groups cannot authorize foreign resources. Retain the existing fail-closed action whitelist; no new resource types/actions are allowed by this change.
+
+## 2026-11-23 IST — Permit only exact inventoried pre-existing DEV Ignore entries
+ARM what-if can include unrelated pre-existing resources as Ignore. A separate read-only OIDC-scoped resource list provides exact existing DEV RG IDs. Only Ignore entries matching that set by complete normalized ID may be skipped. Foreign/unknown Create, Modify, Delete and non-inventoried Ignore still fail closed, and the isolated F4 site and plan must both be explicit Create. The read-only inventory is not independent deployment approval or tenant authorization.

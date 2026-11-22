@@ -1882,3 +1882,6 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 
 ## 2026-11-23 IST — Next: scoped ARM full-ID verification
 - Verify PR #1101 exact final-head four CI checks including new foreign-subscription/foreign-RG negative tests; ensure no release approval bypass. Merge only under current main integration/review policy, then inspect protected DEV what-if. Unknown `Ignore` or any unexpected resource still BLOCKS. Do not reapply six DEV migrations or recreate two existing queues. Worker ZIP #1096, private-trigger #1098, flags and signed two-shop E2E remain in order AFTER hosted worker creation.
+
+## 2026-11-23 IST — Next: verify exact Ignore inventory guard
+Verify four-job exact-head CI for the dedicated F4 existing-resource Ignore inventory check, including negative foreign-scope and action tests. Only accept read-only matched existing DEV IDs marked Ignore; maintain strict denial of any new unknown resource and require real Create for isolated F4 host and plan. Retry protected host, then sealed ZIP #1096, private triggers #1098 and genuine signed two-shop end-to-end. Do not replay DEV migrations, queues, Y1/#249 or WineShopPOS.
