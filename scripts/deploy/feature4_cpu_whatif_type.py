@@ -17,6 +17,7 @@ _ALLOWED = frozenset({
 })
 _NAME = re.compile(r"^[a-z][a-z0-9.]{1,79}$")
 _TYPE = re.compile(r"^[a-z][a-z0-9]{1,79}$")
+_RESOURCE_NAME = re.compile(r"^[a-z0-9._-]{1,160}$")
 
 
 def classify_resource_type(value) -> str:
@@ -37,7 +38,7 @@ def classify_resource_type(value) -> str:
         return "malformed-provider-namespace"
     if not all(_TYPE.fullmatch(t) for t in chunks[1::2]):
         return "malformed-resource-type"
-    if not all(name and len(name) <= 160 for name in chunks[2::2]):
+    if not all(_RESOURCE_NAME.fullmatch(name) for name in chunks[2::2]):
         return "malformed-resource-name"
     typ = "/".join((chunks[0], *chunks[1::2]))
     return typ if typ in _ALLOWED else "unrecognized-resource-type"
