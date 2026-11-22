@@ -32,8 +32,10 @@ CONNECTIONS = frozenset({
     "RETAIL_SUPABASE_SERVICE_ROLE_KEY", "RETAIL_STORAGE",
     "AzureWebJobsStorage", "FUNCTIONS_WORKER_RUNTIME",
 })
+# All bounded queue triggers live on Y1; the 780s video renderer
+# MUST be hosted only by the separate 1800s CPU job.
 QUEUE_FUNCTIONS = frozenset({
-    "plan_campaign", "render_campaign_reel", "planning_poison",
+    "plan_campaign", "planning_poison",
     "render_poison", "render_campaign_poster",
 })
 TIMER_FUNCTIONS = frozenset({
@@ -120,6 +122,8 @@ def evaluate(observed: dict) -> tuple[str, ...]:
     ):
         if not required.issubset(indexed):
             missing.append(group)
+    if "render_campaign_reel" in indexed:
+        missing.append("classic_y1_must_not_index_780s_render_consumer")
     if y1.get("unauthenticated_protected_endpoints_denied") is not True:
         missing.append("y1_anonymous_auth_proof")
     if y1.get("customer_traffic_origin") != Y1_ORIGIN:
