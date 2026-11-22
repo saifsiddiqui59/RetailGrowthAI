@@ -239,7 +239,18 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
     if admin.feature4_claim_current(claim) is not True:
         return "STALE"
     try:
-        request, manifest, objects, audit = _bundle(claim, admin.load_feature4_bundle(claim))
+        source = admin.load_feature4_bundle(claim)
+        if (type(source) is dict and set(source) == {
+                "direction", "snapshot", "reviewed_hash"}):
+            # Existing v1 Azure ZIP does not ship the F2 bridge/HyperFrames.
+            # Only the distinct F4 worker artifact may execute this native
+            # CPU compilation, with current service-role approval rows.
+            from feature2_feature4_bridge import compile_feature2_direction
+            compiled = compile_feature2_direction(
+                source["direction"], source["snapshot"],
+                reviewed_hash=source["reviewed_hash"])
+            source = compiled["bundle"]
+        request, manifest, objects, audit = _bundle(claim, source)
         # A rights/lease change during the authoritative bundle lookup must
         # block all private staging and CPU work, not just output finalization.
         if (admin.render_authorized(claim) is not True or
@@ -317,3 +328,18 @@ def process_feature4_render(job_id, admin, media, *, render_fn=run_compiled_reel
     except Exception:
         admin.render_failure(claim, "RENDER_FAILED")
         raise
+
+
+def process_feature4_cpu_render(job_id, admin, media):
+    """Isolated Feature4 native worker entrypoint, not in legacy Functions ZIP.
+
+    Dedicated worker package must ship the reviewed Python/Node/FFmpeg runtime
+    and execute this with service-only credentials. All flags remain OFF until
+    that independently reviewed package and private queue are deployed.
+    """
+    from cpu_backend import Feature4CpuAdmin, VerifiedFeature4Media
+    try:
+        return process_feature4_render(
+            job_id, Feature4CpuAdmin(admin), VerifiedFeature4Media(media))
+    except Feature4ClaimBusy:
+        return "CLAIMED_ELSEWHERE"

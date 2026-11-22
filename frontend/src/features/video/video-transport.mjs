@@ -174,6 +174,21 @@ export function createVideoTransport({ enabled = false, baseUrl, tokenProvider, 
       }
       return parseVideoJob(out.data, shop)
     },
+    async createReviewedCpu({ shopId, campaignId, planId, reviewHash }) {
+      const shop = canonicalVideoId(shopId)
+      const campaign = canonicalVideoId(campaignId)
+      const plan = canonicalVideoId(planId)
+      if (typeof reviewHash !== 'string' || !/^[a-f0-9]{64}$/.test(reviewHash)) {
+        throw Error('Persisted, approved Feature2 review SHA256 is required')
+      }
+      // Browser is NOT allowed to choose any script, media, job or credits.
+      // A lost POST ACK must be checked via RLS job history, never blindly retried.
+      const out = await request('POST', routes.create(campaign), {
+        plan_id: plan, expected_review_hash: reviewHash,
+      })
+      if (![200, 202].includes(out.status)) throw Error('CPU render was not acknowledged')
+      return parseVideoJob(out.data, shop)
+    },
     async status({ jobId, shopId, signal }) {
       const job = canonicalVideoId(jobId)
       const out = await request('GET', routes.status(job), undefined, signal)

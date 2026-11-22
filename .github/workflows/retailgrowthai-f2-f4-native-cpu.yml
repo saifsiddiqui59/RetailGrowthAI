@@ -1,0 +1,169 @@
+name: RetailGrowthAI F2-F4 synthetic native CPU integration
+
+# Scoped to the integration branch; no cloud deployment, provider calls or secrets.
+# This optional proof supplements (never replaces) the four mandatory Part1 jobs.
+on:
+  push:
+    branches:
+      - feat/f2-f4-approved-cpu-handoff-20261121
+
+permissions:
+  contents: read
+
+concurrency:
+  group: f2f4-native-cpu-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-native-render:
+    name: F2 plan to F4 real 30s H264 AAC native CPU evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Node 22 for pinned native HyperFrames
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - name: Install SHA256-pinned full-filter FFmpeg and ffprobe without Ubuntu apt
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Known source: immutable FFmpeg-Builds release 2026-11-18.
+          # GPL Linux x64 static includes libx264/AAC AND libfreetype drawtext,
+          # required by REAL Pexels caption/reel tests. John Van Sickle binary
+          # from ffmpeg-static@5.3.0 lacked drawtext (#44483223193).
+          test "$(uname -m)" = x86_64
+          tag=autobuild-2026-11-18-12-39
+          archive=ffmpeg-n8.1.3-36-ge22a4510c9-linux64-gpl-8.1.tar.xz
+          digest=fce424851b0a982bdd4ac4e96f0e7b32cf29de999e54500676d41ad175ed0c79
+          asset="$RUNNER_TEMP/$archive"
+          timeout --signal=TERM --kill-after=10s 320s curl \
+            --fail --location --silent --show-error --retry 2 --retry-delay 2 \
+            --connect-timeout 15 --max-time 300 \
+            "https://github.com/FFmpeg-Builds/FFmpeg-Builds/releases/download/$tag/$archive" \
+            --output "$asset"
+          printf '%s  %s\n' "$digest" "$asset" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/rgai-media-extract" "$RUNNER_TEMP/rgai-media-bin"
+          tar --extract --xz --file "$asset" --directory "$RUNNER_TEMP/rgai-media-extract" \
+            --no-same-owner --no-same-permissions
+          mapfile -t ffmpegs < <(find "$RUNNER_TEMP/rgai-media-extract" -type f -path '*/bin/ffmpeg')
+          mapfile -t ffprobes < <(find "$RUNNER_TEMP/rgai-media-extract" -type f -path '*/bin/ffprobe')
+          test "${#ffmpegs[@]}" -eq 1
+          test "${#ffprobes[@]}" -eq 1
+          install -m 0755 "${ffmpegs[0]}" "$RUNNER_TEMP/rgai-media-bin/ffmpeg"
+          install -m 0755 "${ffprobes[0]}" "$RUNNER_TEMP/rgai-media-bin/ffprobe"
+          echo "$RUNNER_TEMP/rgai-media-bin" >> "$GITHUB_PATH"
+          export PATH="$RUNNER_TEMP/rgai-media-bin:$PATH"
+          timeout --signal=TERM --kill-after=5s 20s ffmpeg -version | sed -n '1p'
+          timeout --signal=TERM --kill-after=5s 20s ffprobe -version | sed -n '1p'
+          ffmpeg -hide_banner -encoders | grep -Eq 'libx264([[:space:]]|$)'
+          ffmpeg -hide_banner -encoders | grep -Eq '[[:space:]]aac([[:space:]]|$)'
+          ffmpeg -hide_banner -filters | grep -Eq '[[:space:]]drawtext[[:space:]]'
+      - name: Verify local FFmpeg codecs and text overlays
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v ffmpeg
+          command -v ffprobe
+          ffmpeg -hide_banner -encoders | grep -Eq 'libx264([[:space:]]|$)'
+          ffmpeg -hide_banner -encoders | grep -Eq '[[:space:]]aac([[:space:]]|$)'
+          ffmpeg -hide_banner -filters | grep -Eq '[[:space:]]drawtext[[:space:]]'
+      - name: Install disposable pinned Python imaging fixture dependency
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: '0.13.1'
+          enable-cache: false
+      - name: Isolate Pillow for original synthetic owned stills
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv venv .f2f4-ci-venv --python python3
+          uv pip install --python .f2f4-ci-venv/bin/python "Pillow==13.0.0"
+          echo "$GITHUB_WORKSPACE/.f2f4-ci-venv/bin" >> "$GITHUB_PATH"
+      - name: Enforce existing HyperFrames pinned dependency lock
+        shell: bash
+        run: |
+          python3 video-engine/hyperframes/lock_guard.py \
+            --lock video-engine/hyperframes/package-lock.json \
+            --report "$RUNNER_TEMP/f2f4-hyperframes-lock.json"
+      - name: Install reviewed native renderer and Chromium shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout --signal=TERM --kill-after=10s 180s \
+            npm ci --prefix video-engine/hyperframes --no-audit --no-fund
+          if [[ -x video-engine/hyperframes/node_modules/.bin/puppeteer ]]; then
+            timeout --signal=TERM --kill-after=10s 180s \
+              video-engine/hyperframes/node_modules/.bin/puppeteer browsers install chrome-headless-shell
+          fi
+      - name: Build and verify isolated F4 worker artifact (source-only, no cloud)
+        shell: bash
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
+          # Never edit or repackage the existing legacy Functions ZIP.
+          python3 scripts/deploy/package_feature4_cpu.py --check
+          uv python install 3.11
+          uv venv "$RUNNER_TEMP/f4cpu-build-venv" --python 3.11
+          uv pip install --python "$RUNNER_TEMP/f4cpu-build-venv/bin/python" \
+            --requirement azure-functions/campaign-api/requirements.txt
+          py="$RUNNER_TEMP/f4cpu-build-venv/bin/python"
+          deps="$RUNNER_TEMP/f4cpu-build-venv/lib/python3.11/site-packages"
+          "$py" scripts/deploy/package_feature4_cpu.py --build \
+            --node "$(command -v node)" \
+            --ffmpeg "$(command -v ffmpeg)" \
+            --ffprobe "$(command -v ffprobe)" \
+            --python-site-packages "$deps" \
+            --puppeteer-cache "$HOME/.cache/puppeteer" \
+            --output "$RUNNER_TEMP/rgai-f4cpu-private-worker.zip"
+          "$py" - <<'PY'
+          import zipfile
+          from pathlib import Path
+          src=Path(__import__("os").environ["RUNNER_TEMP"])/"rgai-f4cpu-private-worker.zip"
+          with zipfile.ZipFile(src) as z:
+              names=set(z.namelist())
+              assert {"function_app.py","host.json","requirements.txt",
+                      "cpu_backend.py","feature4_worker_handoff.py",
+                      "bin/node","bin/ffmpeg","bin/ffprobe",
+                      "package_manifest.json"} <= names
+              assert all("/../" not in n and not n.startswith("/") for n in names)
+              assert z.testzip() is None
+          print("PASS: isolated pinned Python+Node+FFmpeg+browser package verified")
+          PY
+          # Bind every released byte to the reviewed SHA-256 package manifest;
+          # this verifier also rejects ZIP traversal, duplicate members and
+          # any accidentally packaged legacy authenticated HTTP entrypoints.
+          "$py" scripts/deploy/verify_feature4_cpu_release.py \
+            --zip "$RUNNER_TEMP/rgai-f4cpu-private-worker.zip"
+          # Do not upload a potentially costly multi-hundred-MB binary artifact.
+          rm -- "$RUNNER_TEMP/rgai-f4cpu-private-worker.zip"
+      - name: Render Feature2 approved synthetic test plan through actual F4
+        shell: bash
+        timeout-minutes: 17
+        run: |
+          set -euo pipefail
+          install -d -m 700 "$RUNNER_TEMP/f2-f4-evidence"
+          python3 tests/media/feature2_f4_native_cpu_acceptance.py \
+            "$RUNNER_TEMP/f2-f4-evidence"
+          test -s "$RUNNER_TEMP/f2-f4-evidence/synthetic-f2-f4.mp4"
+          test -s "$RUNNER_TEMP/f2-f4-evidence/f2-f4-offline-receipt.json"
+          test -s "$RUNNER_TEMP/f2-f4-evidence/synthetic-f2-mit-director-to-f4.mp4"
+          test -s "$RUNNER_TEMP/f2-f4-evidence/mit-director-f4-offline-receipt.json"
+          echo "CPU-only F2->F4 real MP4 verification (synthetic, NOT retailer approval)." >> "$GITHUB_STEP_SUMMARY"
+      - name: Save synthetic-only acceptance evidence for inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: f2f4-synthetic-native-cpu-evidence
+          path: |
+            ${{ runner.temp }}/f2-f4-evidence/f2-f4-offline-receipt.json
+            ${{ runner.temp }}/f2-f4-evidence/synthetic-f2-f4.mp4
+            ${{ runner.temp }}/f2-f4-evidence/synthetic-f2-mit-director-to-f4.mp4
+            ${{ runner.temp }}/f2-f4-evidence/mit-director-f4-offline-receipt.json
+            ${{ runner.temp }}/f2f4-hyperframes-lock.json
+          retention-days: 1
+          if-no-files-found: warn

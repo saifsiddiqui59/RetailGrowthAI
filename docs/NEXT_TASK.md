@@ -1698,6 +1698,54 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 2. Before any retry, establish whether the exact verified package container is dedicated to code and does not host retailer media; identify current OIDC service-principal data-plane access and Azure firewall/ABAC/deny policies. An authorized, **container-only**, reversible Blob data read/write remediation with independent security controls is needed if confirmed, not account keys, broad account Contributor or automatic self-grant. The new source guard deliberately blocks any Y1 upload until effective original-package HEAD read succeeds. A 200 read later will NOT prove Put Blob.
 3. Once legitimately permitted, run protected **read-only preflight first**, then a separately bounded five-handler immutable package publish with exact old-URI/two-index rollback; require original health and after-idle negative auth, real signed own-shop/foreign-shop/revoked member RLS, original POST/PATCH/media/queue/billing parity and timestamp-correlated original Flex gateway p95/p99 and 503 elimination. Issue #249 OPEN; do not spend GPU/paid provider or touch PROD/WineShopPOS.
 
+## 2026-11-21 — F2/F4 basic reel integration sprint — explicit next gates
+1. Review draft [#1059](https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1059) at its **latest exact head**, run FFmpeg/contract tests and four mandatory CI jobs; diagnose failures, do not mark DONE from former successful `9353e0dd` checks.
+2. Obtain affected-lead independent review of the new cross-feature approval SHA/content contract. Backend must derive the trusted whole-plan digest from a persisted immutable approved F2 revision, check active JWT/RLS OWNER/EDITOR and current media rights at submission and claim; do not trust submitted creative approval flags or offline simulated approval.
+3. Implement additive F4 v2 API routes, immutable approval/tenant media snapshot, idempotency/quota/queue/lease/claim transaction, private upload and signed output. Reuse existing `feature4_http_handoff`, `feature4_intent_compiler`, `feature4_worker_handoff` and `render_adapter`; don't alter old v1 routes.
+4. Prove **one actual playable 30s H.264/AAC** using F2 generated approved test plan and trusted synthetic retail footage through F4 HyperFrames/FFmpeg; decode/check scene boundaries, text overlays, approved soundtrack, voiceover track or explicit silence, captions and output SHA. Negative-render failure/expiry/rights/tenant test and retry reconciliation required.
+5. Mount F4 in authenticated Creative Studio only after v2 backend and signed original shop media/approval context are independently verified. Run two-shop signed DEV job/status/download/preview tests and signed-URL revocation, plus Playwright. If #249 ingress blocks, record exact run/error and keep independent CPU work moving.
+6. Integrate only with reviewed compatible latest-main PR, all exact-head 4/4 CI and fresh postmerge 4/4 main CI; never merge closed stale #551/#322 or claim commercial/hosted completion from fixtures. GPU and paid calls OFF.
+
+
+### 2026-11-21 acceptance remaining after F2→F4 native 4/4 + MP4 proof
+- Source checkpoint `96ee0dc731939750828ddde4a8f0c15986f12f2b`: four GitHub CI jobs **PASSED** (run #44798903200); synthetic native 30s H264/AAC F2→F4 **PASSED** (#44798903117). PR #1059 remains **DRAFT**, not merged/deployed; postmerge CI does not exist. Every subsequent documentation-only branch commit should still receive exact-head checks.
+- **P0:** affected-lead independent cross-feature SHA/rights/security review, coordinator server-verified F2 immutable approval persistence and full tenant JWT/RLS grants, F4 API registration, atomic ledger+quota/outbox+idempotency+claim, worker and private signed delivery. Then retailer approval, preview, editing, download with two-shop DEV cross-tenant/expired/revoked tests. #249 hosted ingress is separate until diagnosed; do not modify it in this sprint.
+- **P1 separate work:** #551 parent had local speech/voiceover recording and review source files not retained (73/171 absent), so do not claim recorded narration or upload/review workflow is available. Current CPU proof correctly uses original text + AAC silence, no paid voice/songs; restore optional voice/audio only after separate review and verified rights.
+
+### 2026-11-21 — remaining F2/F4 P0 after code+CI
+- PR #1059 code `4829c1007bab9432f01dae1dfbe5bf2902851649` green 4/4 (#44805767405), native 30s MP4 green (#44805767414). Revalidate fresh exact PR head after newest-main-docs reconciliation and obtain affected-lead independent approval. Do not merge draft.
+- Implement real RLS-frozen F2 approval/read/write storage; single atomic F4 v2 job, current rights/membership, quota, outbox, idempotency and immutable media bundle transaction. Current `Feature4ApprovedPlanIntake` is only a source-only injection contract and fake tests.
+- Then register protected v2 HTTP and claim worker, stage tenant-private media, output H264/AAC with signed revocable preview/download; connect authorized Creative Studio edits/approval; test DEV 2-shop positive+foreign+revoked, bad media, failed render and postmerge 4/4. Issue #249 remains separate hosted dependency; GPU/paid inference OFF.
+
+
+### 2026-11-21 — after real MIT-director source → F4 native CPU acceptance
+- **Verified offline:** PR #1059 source SHA `328490325ed588c43c3565dc184fed457e5192ee`, Part1 4/4 [#44808141347](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/44808141347) SUCCESS; dual real 30s H264/AAC [#44808130900](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/44808130900) SUCCESS, including pinned MIT professional original F2 script/shot storyboard. New `feature2_mit_director_projection` remains **unapproved proposal only**. Need final-head checks after this docs update; no postmerge CI or deployment yet.
+- **P0 real backend:** Add an independently reviewed F2 immutable human-approved revision and evidence/rights/source-media-byte binding, including signed-offer lineage for professional MIT plans; persist original and projected hashes by tenant/reviewer. Current `shop_content_drafts` is draft-only, and legacy `render_jobs.preset` only supports `instagram_reel_30s`; do not blindly reuse it for new v2 `feature4_reel_v1`. Implement a safe additive service-only atomic v2 job+quota/idempotency/outbox/lease+bundle contract, test real transaction rollbacks/isolation.
+- **P0 hosted:** Independently review and then register protected v2 Azure HTTP/claim worker (currently default OFF), stage current private media rights and render CPU, upload final MP4, issue tenant+job-scoped signed preview/download and revocation. Connect current retailer Creative Studio approved-plan editor, inspect captions/transitions/voice/audio and run real two-shop signed DEV negatives and successful download. Issue #249 ingress remains separately owned; keep GPU/paid provider OFF.
+- Obtain independent affected-lead review before merge, exact PR head 4/4 and real native test, followed by postmerge main 4/4; do not mark project or F2/F4 integrated customer workflow DONE from synthetic footage.
+
+
+## 2026-11-21 — next F2/F4 integration gates after saved-plan issuance/review code
+1. Verify **exact final branch head** mandatory 4/4 + native 30s dual-CPU render and disposable cross-shop SQL; fix CI without weakening existing release/migration/import gates. PR #1059 stays draft until genuinely reviewable/accepted; source-only is not DONE.
+2. Reviewed additive F4 v2 data plane: genuine immutable tenant approved-version/media hash and source rights, single DB transaction reserving existing subscription render quota with idempotency and outbox, bounded leases/retries, claim-fencing + fail/complete RPCs, and private output asset registration/revocable signed URL. Legacy `render_jobs` only permits `instagram_reel_30s` preset; do not silently reuse it for `feature4_reel_v1`. Existing `feature4_worker_handoff.py` still needs a real service-only admin/queue/FFmpeg+HyperFrames runtime, hosted DEV not present.
+3. Upon accepted source + protected DEV migration/release gates, separately enable reviewed `RETAIL_FEATURE4_PLAN_ISSUE_ENABLED`, `RETAIL_FEATURE4_PLAN_REVIEW_ENABLED` and corresponding frontend flags. Render submission remains explicitly OFF. Prove two genuine low-privilege signed DEV shop users (own/foreign/revoked), saved storyboard issue→retailer explicit review→render/preview/edit/download, claim loss, media revoked, queue poison and cost meter, plus Chromium and 240s idle. User E2E happens only after these verified steps; never claim ready from synthetic CI.
+4. Reconcile main/PR changed paths, independent affected-lead shared/security review and mandatory postmerge main CI; keep #249 Azure 503/private Blob access, PROD, WineShopPOS and GPU/paid providers separate/off.
+
+### 2026-11-21 — remaining P0 after F4 CPU reviewed-plan job and UI source
+1. Verify exact-head Part1 four jobs and native CPU on PR #1059, diagnose any real SQL/frontend/ZIP failure before release.
+2. Finish dedicated F4 CPU outbox dispatcher, service-only fenced claim/25-minute lease/three bounded retries, failure/poison recovery, authoritative reviewer+rights recheck, private output object registration and SHA-verified completion. Keep new v2 queue separate from legacy instagram_reel_30s queue.
+3. Reuse original approved F2 direction from DB to compile genuine F4 native render inside verified worker. Stage tenant private owned media, encode with FFmpeg, upload shop/renders/job/lease.mp4 and expose only current signed tenant/job preview/download. Prove revocation and stale-worker failure scenarios in disposable CI.
+4. Obtain independent cross-feature security review without asking account owner to manually approve GitHub PR; controlled DEV migration/deployment, real two-shop JWT test identities, hosted browser E2E and issue #249 reliability are mandatory before owner product E2E. No GPU or paid provider.
+
+
+### 2026-11-22 — postworker-source F2/F4 P0 acceptance queue (PR #1059)
+1. Check **exact latest PR head** all four mandatory CI jobs, disposable F4 SQL worker tests (claim/lease/outbox/poison/finalize) and separate real native CPU render. Diagnose and fix any test failures; no obsolete green-head reuse.
+2. Independently review F4 candidate SQL SECURITY DEFINER grants, stale-fenced concurrency, retry exhaustion, source media ownership/provenance, private object bytes/sha, release migration order, and brand/immutable approval compatibility. A repository-owner code approval is not requested from the user; do not bypass protected security review.
+3. Only after review, add protected additive DEV migration/release with rollback, provision dedicated `retail-feature4-cpu-render` Queue and poison route under isolated DEV, build and test a **separate** Feature4 native worker artifact (HyperFrames/Node/FFmpeg and approved Python closure) without modifying the existing 120-member v1 Functions ZIP, then deploy it with verified 20m host/25m lease budget. Confirm a live worker is consuming before enabling billable CPU-render submissions. All new flags are currently OFF.
+4. Test actual low-privilege DEV shop owner/editor and a foreign shop using signed JWTs: saved campaign → F2 source issue → explicit real retailer review → F4 quota/outbox → CPU render → SHA-verified private MP4 → signed short-lived preview/download → revoke/expire/foreign/viewer denial. Include duplicate queue ACK, crash/stale lease, retry exhaustion, poison receipt, revoked source, and 240s idle.
+5. Obtain independent affected-path review, integrate only after exact-head 4/4/native PASS, verify fresh main 4/4 postmerge, then permit owner product E2E. Preserve Issue #249's separate Y1/ingress work; no GPU/paid inference/PROD/WineShopPOS.
+
+
 ## 2026-11-22 — #249 Y1 five-GET continuation
 1. Inspect the isolated pinned Microsoft Functions Action source candidate and exact-head four-job CI/review; avoid repeating the CLI remote build that removed ENABLE_ORYX_BUILD in #44629301025.
 2. Only through a separately reviewed protected DEV manual workflow, establish valid original two-route package recovery and exact Y1 identity, then try the official action publisher with same-run and independent rollback. Do not weaken Blob OAuth permission preflight on the separate private-Blob workflow.
@@ -1705,6 +1753,7 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 
 ## 2026-11-22 — #249 owner-delegated exact-main Y1 launch next
 - Run four exact-head CI jobs on the new one-shot dispatch bridge; independently inspect its restricted main SHA checks, source pins, exact 4/4 CI, prior-run duplicate block and no-Azure bridge scope. After reviewed merge with exact approved commit message, require real protected workflow run and verify 5/5 indexed, repeated 20/20, 240s negative auth, and original URI rollback on failure. If protected environment requires an external approval, do not bypass it. No traffic cutover or issue closure until full signed RLS and write/media/p95/p99 acceptance.
+
 
 ## 2026-11-22 — #249 after failed Y1 release #44962137246
 1. Complete the protected Y1 read-only original-package/owner/20-of-20 audit via #1068. Do not repeat a package or setting write unless current active package, saved baseline, old run owner, Oryx flags, exact two index and no customer settings are proven.
@@ -1738,3 +1787,43 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 1. Stop retrying GET-only Y1 deployment: [run #45021333842](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/45021333842) proves 5/5 hosted + two 20/20 windows and marked 401 8/8 after 240s. Preserve existing DEV Y1 signed original URI backup and protected rollback; retire consumed one-shot dispatch trigger/source-only tests in reviewed PR, not permanent manual Y1 release.
 2. Prepare **real DEV signed two-shop** JWT positive own/foreign/revoked RLS for GETs. Use dedicated nonprivileged two-retailer test accounts only after authorized provision; no owner login/secret logging or guessed claims. Run positive own-shop data and foreign/revoked denials before changing frontend API traffic. User intends real two-shop acceptance later.
 3. Inventory original FC1 POST/PATCH/create/status/select/download and private media/queue/outbox/billing paths, implement and verify authenticated Y1 parity as separate work. Collect original-gateway 503/p95/p99 and controlled rollback evidence, then transfer verified connections/host routing. Only close issue #249 after end-to-end hosted cutover and acceptance; no PROD/WineShopPOS/GPU.
+
+
+## 2026-11-22 — PR #1059 packaging/merge repair checkpoint
+1. Inspect exact final branch-head Part1 4/4 and native F2→F4 CPU result (at prior head `d64017c9a4f13a1d65f7c108d85081d7c104c821`, Part1 #45030511656, native #45030506333). The Python and Supabase jobs at that head passed; frontend, FFmpeg and native completion were still pending at checkpoint. A documentation update creates a newer head and must get **new exact-head** green checks before integration.
+2. Keep the F4 worker independently packaged; preserve original legacy v1 ZIP, source-symlink and native binary preflight guards. Independently review rights, service-role SQL, outbox/lease/reconciliation/poison, private object SHA, and cross-shop denial. PR comment #7080249041 requests this; self-review is not approval.
+3. After affected-lead security and release gates, apply additive **DEV-only** migration with rollback, provision separate queue and CPU worker, verify real hosted render without enabling customer billing first. The user deferred real signed two-shop/browser acceptance to 2026-11-23. Do not merge PR #1059 or activate GPU/paid providers before hosted/rights acceptance; leave Issue #249/Y1, PROD and WineShopPOS untouched.
+
+
+## 2026-11-22 — F2→F4 sealed CPU release ZIP continuation (#1059)
+1. Verify *final* exact PR head all four Part1 CI jobs and true 30s F2→F4 native render; at prior head `ccf3a8bc71c68e6487e719b2beedaf8df1b276b2` Python plus native ZIP validation passed, remaining checks were still in progress. A subsequent documentation commit requires fresh CI for its own head; do not reuse earlier green checks.
+2. Obtain independent affected-path security review of service-only RLS/SECURITY DEFINER candidate SQL, F2 review/rights, job quotas, outbox poison and lease fencing, private MP4 bytes, package integrity and cost. Self-audit can find bugs but does NOT count as independent release approval. No manual owner review request necessary unless actual protected GitHub gate demands human action.
+3. Supabase DEV `feature4_creative_plans`, `feature4_cpu_render_jobs`, `retail_private.feature4_cpu_outbox` are confirmed absent by read-only catalog query. After protected security/release approval, stage additive migrations, isolated Azure Queue/CPU worker, verify credentials/claim/worker indexing, privately encoded MP4 and rollback before enabling submissions or charging. User defers signed real two-shop E2E to 2026-11-23. Keep PR draft and Issue #249/Y1, GPU/paid models, PROD/WineShopPOS separate until required acceptance.
+
+
+## 2026-11-22 — PR #1059 next after NULL-safe guard
+1. Run/check the new exact-head mandatory 4/4 Part1 and native 30s CPU rendering; repair any test regressions in the source branch.
+2. Obtain independent affected-lead security review of SQL grants/rights/claim/outbox/poison, immutable plan digest, private media and release artifact. Owner's preference not to review GitHub manually does not remove separate security/protected release approval.
+3. Only after authorized DEV gates, stage six additive migrations and dedicated queue/worker with rollback; signed nonprivileged two-shop browser E2E is still pending. Do not merge/enable billable rendering or mutate #249/Y1, PROD, WineShopPOS, GPU or paid inference without necessary evidence.
+
+
+## 2026-11-22 — PR #1059 terminal outbox recovery next
+1. Confirm exact new-head 4/4 mandatory CI plus native F2→F4 CPU artifact after SQL three-valued approval and terminal outbox regression additions; repair test failures in existing branch.
+2. Independently review eight-send dead/expired ACK fence, quota settlement/credit lifecycle, plan rights, service_role-only SQL and release ZIP before approving integration. Do not mark hosted, reviewed or main-merged from source-only tests.
+3. After protected DEV schema/deployment authorization, verify private queue/worker, signed two-shop real media, positive/revoked/foreign JWT and short-lived private MP4 before release, without user GitHub approval request or bypass of required reviewer. #249/Y1, PROD, GPU/paid, WineShopPOS untouched.
+
+
+## 2026-11-22 — PR #1059 SQL test repair next
+1. Verify the new exact-head four mandatory Part1 jobs, particularly the real disposable Supabase SQL check for both eight-send terminal scenarios; verify native 30s F2→F4 CPU artifact and fix any source failures.
+2. Keep PR draft until independent security/release lead approval, then protected DEV-only migration, worker and two-shop signed acceptance. No false DONE, main merge, deployment, GPU/paid, PROD/WineShopPOS or Issue249/Y1 change.
+
+
+## 2026-11-22 — PR #1059 reviewer hardening next
+1. Inspect all exact final-HEAD four mandatory jobs and native CPU render; verify two re-hashed missing-flag JWT-negative SQL tests, repair source failure if any.
+2. Independent rights/security approval is required for sensitive SQL/worker and protected DEV-only migration/deploy; no owner manual GitHub review needed, but no bypass. Keep live two-shop signed browser acceptance, #249/Y1, GPU, PROD and WineShopPOS separate.
+
+
+## 2026-11-22 — PR #1059 upload race guard next checks
+1. Inspect exact current PR-head four Part1 CI jobs including worker upload race test and genuine native F2→F4 CPU render; do not count earlier-green SHA.
+2. Independent affected-lead review of private byte upload identity, licensed media, service-role SQL, F4 outbox/poison and worker ZIP; no manual customer/owner approval bypass.
+3. Protected DEV-only additive SQL and queue/worker deployment with rollback, then real two-shop signed JWT/Playwright, only after reviewer/release gates. Keep #249/Y1 and WineShopPOS/PROD/GPU unchanged.
