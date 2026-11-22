@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 3,
+    "open_prs": 4,
     "by_feature": {
       "issue249": 2,
-      "unclassified": 1
+      "unclassified": 2
     }
   },
   "entries": [
@@ -58,19 +58,36 @@
       "pr": 1059,
       "title": "feat(F2→F4): approved-plan CPU reel handoff + real synthetic MP4 proof",
       "feature": "issue249",
-      "head_sha": "91a933f78e9d9958cea529a1a8eb7923da1681cb",
+      "head_sha": "9b8399b6be5428bddc54adf261cc3723283d0d92",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P1",
       "phase": "in-progress",
       "checkpoint": {
         "owner": "manual-issue249",
-        "ci": "Exact-head latest Part1 #45040310227 SUCCESS 4/4; earlier same-head #45040305487 SUCCESS 4/4; native CPU #45040305559 IN_PROGRESS at inspection; jobs individually verified",
-        "next_action": "Wait for native CPU exact-head completion; manual Issue249 owner handles any failure; independent security/integration review required",
+        "ci": "Exact-head latest mandatory Part1 #45046055130 SUCCESS 4/4; prior same-head #45046050108 SUCCESS 4/4; native CPU #45046050075 IN_PROGRESS (individually inspected)",
+        "next_action": "Await native CPU completion; independent security/integration review remains required; Issue249 manual ownership unchanged",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1059"
+    },
+    {
+      "pr": 1076,
+      "title": "Live title not verified",
+      "feature": "unclassified",
+      "head_sha": "7be4b85385f1fc819f5ce6adda1f08a99ce1461e",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P1",
+      "phase": "ci-pending",
+      "checkpoint": {
+        "owner": "manual-integration",
+        "ci": "Exact-head Part1 #45046436986 IN_PROGRESS 0/4 complete at inspection",
+        "next_action": "Await all four mandatory CI jobs; independent review before any integration",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1076"
     }
   ],
-  "last_inventory_checked_at": "2026-11-22T15:55:00Z"
+  "last_inventory_checked_at": "2026-11-22T16:55:46.618Z"
 }
