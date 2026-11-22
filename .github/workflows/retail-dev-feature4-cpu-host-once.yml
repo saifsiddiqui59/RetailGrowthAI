@@ -97,6 +97,7 @@ jobs:
             --no-pretty-print -o json > "$RUNNER_TEMP/f4cpu-whatif.json"
           python3 - <<'PY'
           import os,json,pathlib
+          from scripts.deploy.feature4_cpu_whatif_type import classify_resource_type
           payload=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'f4cpu-whatif.json').read_text())
           changes=payload.get('changes') or (payload.get('properties') or {}).get('changes') or []
           allowed=('/providers/microsoft.web/sites/rgai-dev-f4cpu-d4e5ddbd',
@@ -119,10 +120,9 @@ jobs:
               if not any(rid.endswith(v) for v in allowed):
                   # Never print full ARM resource IDs: extract only provider
                   # namespace and child resource TYPES (not names/tokens).
-                  raw=rid.rsplit('/providers/',1)[-1].split('/')
-                  kind='/'.join(raw[0::2])
-                  if not kind or len(kind)>160 or any(ch not in 'abcdefghijklmnopqrstuvwxyz0123456789./-' for ch in kind):
-                      kind='unclassified'
+                  # Never return names from untrusted ARM IDs; shape-only
+                  # categorization still blocks unknowns, including Ignore.
+                  kind=classify_resource_type(c.get('resourceId'))
                   print('BLOCKED: unexpected ARM resource TYPE=' + kind + ' action=' + str(action)[:24])
                   raise SystemExit('BLOCKED: unexpected resource in F4 what-if')
               if action not in ('Create','NoChange','Ignore'):
