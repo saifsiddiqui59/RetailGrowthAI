@@ -35,3 +35,7 @@ Keep local credential files out of Git, CI artifacts, screenshots, PR comments a
 ## Budget protection
 
 Use **zero paid AI/GPU calls by default**. No Wan, FLUX, A100, cloud model downloads, paid image/video model inference, provisioned compute, PROD or changes to WineShopPOS. GPT-4.1 Mini is the only allowable optional model for a narrowly scoped DEV test if **existing deployment + explicit metered budget guard** are verified; otherwise BLOCKED. Prefer ordinary Playwright, Python, CPU/FFmpeg and contract tests.
+
+## Protected synthetic Auth-only login proposal (2026-11-22)
+
+The existing `.github/workflows/retail-dev-test-accounts-canary-once.yml` now has a **proposed** `auth-login-only` mode in an unmerged branch. Once independently reviewed and merged, an authorized protected DEV manual run may create two *run-bound* synthetic Auth accounts, run real Chromium login/logout on `/account` (separate browser contexts), then clean both exact Auth identities. No permanent credentials, production identity, ROOT approval, shops, tenant grants, media or generation are involved. The service key remains only in the protected Python runner, never in Playwright. This proves only DEV frontend/Supabase Auth, **not** two-shop RLS, Y1 authenticated GET parity, POST/PATCH, media, billing or full end-to-end. A logged-in test account must still receive separate ROOT onboarding approval before running the existing `browser-upload`/full canary. No live result is claimed until a successful protected Actions run and cleanup receipt exist.
