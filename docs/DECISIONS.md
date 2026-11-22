@@ -1369,3 +1369,7 @@ A service-only F4 CPU outbox may send at most eight times. When a QUEUED job's r
 
 ## 2026-11-22 — SQL regression side-effects require separate statement snapshots
 Do not call a VOLATILE mutating PostgreSQL function inside the same boolean predicate as its resulting database-state assertions. Test the return value first, then inspect rows in subsequent PL/pgSQL statements; SQL expression evaluation order and statement snapshots are not a valid mutation-verification contract. Preserve all production outbox bounds and reconciliation logic.
+
+
+## 2026-11-22 — Required source proposal fields must reject SQL UNKNOWN
+The first F2→F4 JWT reviewer must refuse missing proposal/script approval flags and typed direction fields even when proposal SHA is recomputed. PostgreSQL `CHECK` can accept UNKNOWN, so procedural `IF` must explicitly require positive predicates or `IS DISTINCT FROM`; no silent approval on JSON NULL. Disposable auth-JWT regression re-seals and denies both missing-field variants. No real commercial rights approval implied.

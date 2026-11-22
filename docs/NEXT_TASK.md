@@ -1816,3 +1816,8 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 ## 2026-11-22 — PR #1059 SQL test repair next
 1. Verify the new exact-head four mandatory Part1 jobs, particularly the real disposable Supabase SQL check for both eight-send terminal scenarios; verify native 30s F2→F4 CPU artifact and fix any source failures.
 2. Keep PR draft until independent security/release lead approval, then protected DEV-only migration, worker and two-shop signed acceptance. No false DONE, main merge, deployment, GPU/paid, PROD/WineShopPOS or Issue249/Y1 change.
+
+
+## 2026-11-22 — PR #1059 reviewer hardening next
+1. Inspect all exact final-HEAD four mandatory jobs and native CPU render; verify two re-hashed missing-flag JWT-negative SQL tests, repair source failure if any.
+2. Independent rights/security approval is required for sensitive SQL/worker and protected DEV-only migration/deploy; no owner manual GitHub review needed, but no bypass. Keep live two-shop signed browser acceptance, #249/Y1, GPU, PROD and WineShopPOS separate.

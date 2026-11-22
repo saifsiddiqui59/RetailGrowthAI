@@ -1205,3 +1205,6 @@ Work completed: #859 merged & postmerge 4/4, #866 merged (postmerge running), #8
 
 
 - 2026-11-22 PR #1059: investigated exact head `97d83cbe` CI [#45047419122](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/45047419122): Python job succeeded; isolated Supabase job failed at rollback-only `feature4_cpu_render_jobs_negative.sql:321`. An outbox reconciliation side-effect was combined with status reads in one boolean expression. Split reconciliation and terminal state assertions into distinct PL/pgSQL statements in both dead-outbox and lost-final-ACK fixtures; full exact-new-head and real native CPU proofs must be rerun and inspected. No security test skipped, no DEV schema/cloud mutation, no independent review claimed.
+
+
+- 2026-11-22 PR #1059: identified SQL NULL-fail-open risk in earliest F2 plan-review stage, not only F4 CPU claim/submit. Fixed mandatory original unapproved flags, scene/source and no-audio predicates and added two real JWT reviewer negative SQL test fixtures removing and re-hashing missing flags, each restored via SAVEPOINT. Previous head `898a6c78` Python/Supabase CI jobs passed when checked, further exact-head 4/4 + native proof required. Independent review/hosted DEV/real two-shop tests remain pending; paid/GPU, PROD, WineShopPOS and Issue249 untouched.

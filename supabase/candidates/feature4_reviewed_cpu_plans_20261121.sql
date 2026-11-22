@@ -111,20 +111,21 @@ begin
           and c.status in ('DRAFT','READY')
       )
   then return null; end if;
+  -- Missing JSON approval keys evaluate to SQL NULL. Reject UNKNOWN.
   -- Check real server-issued proposal bytes; never trust a client-provided
   -- hash alone, and recheck the full existing revision on every invocation.
   if plan.proposal->>'shop_id' is distinct from plan.shop_id::text
       or plan.proposal->>'campaign_id' is distinct from plan.campaign_id::text
-      or plan.proposal->>'version' <> 'creative_direction_v1'
-      or plan.proposal->>'source_feature' <> 'feature2'
-      or plan.proposal->'approved' <> 'false'::jsonb
-      or plan.proposal->'script'->'approved' <> 'false'::jsonb
+      or plan.proposal->>'version' is distinct from 'creative_direction_v1'
+      or plan.proposal->>'source_feature' is distinct from 'feature2'
+      or plan.proposal->'approved' is distinct from 'false'::jsonb
+      or plan.proposal->'script'->'approved' is distinct from 'false'::jsonb
       or plan.proposal ? 'review_hash'
-      or plan.proposal->'script'->>'source_feature' <> 'feature2'
+      or plan.proposal->'script'->>'source_feature' is distinct from 'feature2'
       or plan.proposal->'script'->>'cta' is distinct from plan.proposal->>'cta'
-      or pg_catalog.jsonb_typeof(plan.proposal->'scenes') <> 'array'
-      or pg_catalog.jsonb_typeof(plan.proposal->'script'->'approved_text') <> 'array'
-      or (plan.proposal->>'duration_seconds') !~ '^(15|30|60)$'
+      or pg_catalog.jsonb_typeof(plan.proposal->'scenes') is distinct from 'array'
+      or pg_catalog.jsonb_typeof(plan.proposal->'script'->'approved_text') is distinct from 'array'
+      or (plan.proposal->>'duration_seconds' ~ '^(15|30|60)$') is not true
       or pg_catalog.jsonb_array_length(plan.proposal->'scenes') not between 1 and 12
       or plan.proposal_sha256 <> pg_catalog.encode(
           extensions.digest(pg_catalog.convert_to(
@@ -134,10 +135,10 @@ begin
   for shot in select value from pg_catalog.jsonb_array_elements(
       plan.proposal->'scenes') loop
     if pg_catalog.jsonb_typeof(shot) <> 'object'
-        or pg_catalog.jsonb_typeof(shot->'duration') <> 'number'
-        or pg_catalog.jsonb_typeof(shot->'headline') <> 'string'
-        or shot->>'asset_id' !~ '^[0-9a-f-]{36}$'
-        or not ((plan.proposal->'script'->'approved_text') ? (shot->>'headline'))
+        or pg_catalog.jsonb_typeof(shot->'duration') is distinct from 'number'
+        or pg_catalog.jsonb_typeof(shot->'headline') is distinct from 'string'
+        or (shot->>'asset_id' ~ '^[0-9a-f-]{36}$') is not true
+        or ((plan.proposal->'script'->'approved_text') ? (shot->>'headline')) is not true
         or pg_catalog.char_length(shot->>'headline') not between 1 and 110
         or (shot->>'headline') ~ '[<>]'
     then return null; end if;
@@ -180,7 +181,7 @@ begin
   -- edits/rejects its original reel. Never approve an earlier source revision.
   if (plan.proposal ? 'source_reel') then
     if pg_catalog.jsonb_typeof(plan.proposal->'source_reel') <> 'object'
-       or plan.proposal->'music_asset_id' <> 'null'::jsonb
+       or plan.proposal->'music_asset_id' is distinct from 'null'::jsonb
        or plan.proposal->>'day_id' is null
        or (plan.proposal->>'day_id') !~
           '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'

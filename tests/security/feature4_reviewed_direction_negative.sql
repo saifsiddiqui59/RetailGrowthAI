@@ -152,6 +152,58 @@ begin
   end if;
 end $$;
 
+-- JWT owner cannot review malformed-but-resealed original F2 proposals.
+-- Postgres CHECK permits UNKNOWN, hence the explicit SQL reviewer guards.
+reset role;
+savepoint feature4_null_source_approved;
+with altered as (
+ select id,proposal - 'approved' as payload from public.feature4_creative_plans
+ where id='f4300000-0000-4000-8000-000000000001'
+)
+update public.feature4_creative_plans p set proposal=altered.payload,
+ proposal_sha256=pg_catalog.encode(extensions.digest(
+   pg_catalog.convert_to(retail_private.python_json_v1(altered.payload),'UTF8'),
+   'sha256'),'hex')
+from altered where p.id=altered.id;
+set local role authenticated;
+select set_config('request.jwt.claims',
+ '{"role":"authenticated","sub":"f4010000-0000-4000-8000-000000000001","is_anonymous":false}',true);
+do $no_source_approved$
+declare digest text;
+begin
+ select proposal_sha256 into digest from public.feature4_creative_plans
+ where id='f4300000-0000-4000-8000-000000000001';
+ if public.feature4_review_cpu_plan('f4300000-0000-4000-8000-000000000001',digest) is not null
+ then raise exception 'FAIL: source missing approval field passed review'; end if;
+end $no_source_approved$;
+reset role;
+rollback to savepoint feature4_null_source_approved;
+
+savepoint feature4_null_script_approved;
+with altered as (
+ select id,pg_catalog.jsonb_set(proposal,'{script}',(proposal->'script')-'approved') as payload
+ from public.feature4_creative_plans
+ where id='f4300000-0000-4000-8000-000000000001'
+)
+update public.feature4_creative_plans p set proposal=altered.payload,
+ proposal_sha256=pg_catalog.encode(extensions.digest(
+   pg_catalog.convert_to(retail_private.python_json_v1(altered.payload),'UTF8'),
+   'sha256'),'hex')
+from altered where p.id=altered.id;
+set local role authenticated;
+select set_config('request.jwt.claims',
+ '{"role":"authenticated","sub":"f4010000-0000-4000-8000-000000000001","is_anonymous":false}',true);
+do $no_script_approved$
+declare digest text;
+begin
+ select proposal_sha256 into digest from public.feature4_creative_plans
+ where id='f4300000-0000-4000-8000-000000000001';
+ if public.feature4_review_cpu_plan('f4300000-0000-4000-8000-000000000001',digest) is not null
+ then raise exception 'FAIL: source script missing approval field passed review'; end if;
+end $no_script_approved$;
+reset role;
+rollback to savepoint feature4_null_script_approved;
+
 -- Owner explicitly approves only its current saved source, no automatic fixture
 -- promotion. Hash is independently predetermined by Python serializer.
 select set_config('request.jwt.claims','{"role":"authenticated","sub":"f4010000-0000-4000-8000-000000000001","is_anonymous":false}',true);

@@ -1770,3 +1770,7 @@ Manual integration chat C reviewed original PRs #979/#972/#970/#964/#944/#880/#8
 
 ## 2026-11-22 — PR #1059 SQL regression statement-snapshot repair
 - Exact-head `97d83cbe` disposable Supabase CI failed in run #45047419122 at `tests/security/feature4_cpu_render_jobs_negative.sql`, line 321 (`FAIL: dead outbox stranded queued CPU job`); Python CI passed. The regression combined a VOLATILE reconciliation RPC with immediate row checks in one SQL boolean `OR` expression; PostgreSQL may evaluate the row reads against the pre-mutation snapshot. Split each eight-send exhaustion test into a separate reconciliation statement, explicitly assert 1 row reconciled, then independently assert FAILED job and DEAD outbox. The terminal fail-safe SQL and security gates are retained unchanged. New exact-head CI/native still required; no hosted changes.
+
+
+## 2026-11-22 — PR #1059 initial reviewer JSON NULL hardening
+- Required original F2 unapproved proposal/script flags, scene/shot fields, source/version and no-audio marker now use SQL `IS DISTINCT FROM` or positive `IS NOT TRUE`, rejecting missing JSON keys before reviewer approval. Actual JWT reviewer disposable SQL regression re-seals each missing approval key and verifies denial with savepoint rollback. Preceding `898a6c78` Python/Supabase CI passed at inspection; newer head requires all exact-head CI/native proof. Source only; draft PR, independent security gate/hosted release remain pending. No #249/Y1, DEV SQL, GPU, PROD/WineShopPOS changes.
