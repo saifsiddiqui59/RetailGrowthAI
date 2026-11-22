@@ -10,7 +10,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import stat
+from contextlib import ExitStack
 from pathlib import Path
 from zipfile import BadZipFile, ZipFile
 
@@ -37,7 +39,16 @@ def verify_release(path: Path) -> dict:
     if path.is_symlink() or not path.is_file() or not 0 < path.stat().st_size <= MAX_ZIP_BYTES:
         raise ReleaseIntegrityError("Missing, linked or oversized Feature4 release ZIP")
     try:
-        with ZipFile(path) as archive:
+        with ExitStack() as stack:
+            # The initial symlink/path check is only advisory: pin one regular
+            # inode with O_NOFOLLOW before parsing or hashing any ZIP bytes.
+            flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+            fd = os.open(path, flags)
+            artifact = stack.enter_context(os.fdopen(fd, "rb"))
+            first = os.fstat(artifact.fileno())
+            if not stat.S_ISREG(first.st_mode) or not 0 < first.st_size <= MAX_ZIP_BYTES:
+                raise ReleaseIntegrityError("Nonregular or oversized Feature4 release source")
+            archive = stack.enter_context(ZipFile(artifact))
             entries = archive.infolist()
             if not entries or len(entries) > MAX_FILES + 1:
                 raise ReleaseIntegrityError("Invalid Feature4 archive member count")
@@ -102,10 +113,18 @@ def verify_release(path: Path) -> dict:
                         digest.update(chunk)
                 if seen != member.file_size or digest.hexdigest() != expected:
                     raise ReleaseIntegrityError("Feature4 ZIP bytes do not match sealed SHA-256")
-            # Never read a potentially 1 GiB native ZIP wholly into RAM.
-            with path.open("rb") as artifact:
-                whole_digest = hashlib.file_digest(artifact, "sha256").hexdigest()
-            return {"files": len(entries) - 1, "bytes": path.stat().st_size,
+            # Rehash the SAME open descriptor that the ZIP parser consumed:
+            # never reopen a mutable path for the release receipt.
+            artifact.seek(0)
+            whole_digest = hashlib.file_digest(artifact, "sha256").hexdigest()
+            last = os.fstat(artifact.fileno())
+            live = path.lstat()
+            identity = (first.st_dev, first.st_ino, first.st_size, first.st_mtime_ns)
+            if identity != (last.st_dev, last.st_ino, last.st_size, last.st_mtime_ns) or (
+                    identity != (live.st_dev, live.st_ino, live.st_size, live.st_mtime_ns)
+                    or not stat.S_ISREG(live.st_mode)):
+                raise ReleaseIntegrityError("Feature4 release bytes or file path changed during verification")
+            return {"files": len(entries) - 1, "bytes": first.st_size,
                     "verified_sha256": whole_digest}
     except (BadZipFile, OSError, EOFError, RuntimeError) as exc:
         raise ReleaseIntegrityError("Invalid or truncated Feature4 release ZIP") from exc
