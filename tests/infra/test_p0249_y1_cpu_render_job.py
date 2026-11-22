@@ -73,6 +73,67 @@ class Y1CpuQueueSafety(unittest.TestCase):
             job.process_one(q, None, None, fails)
         self.assertEqual(q.acks, [])
 
+    def test_over_retry_budget_enters_original_deduplicating_poison_queue(self):
+        class Admin:
+            def render_status(self, job_id):
+                self.last = job_id
+                return "QUEUED"
+        class Poison:
+            def __init__(self):
+                self.messages = []
+            def send_message(self, payload):
+                self.messages.append(payload)
+                return SimpleNamespace(id="confirmed-poison-ack")
+        pending=msg()
+        pending.dequeue_count=4
+        queue=FakeQueue([pending])
+        admin=Admin()
+        poison=Poison()
+        result=job.process_one(queue,admin,None,
+                   lambda *_: self.fail("Cannot render over-budget queue item"),poison)
+        self.assertEqual(result,"POISONED")
+        self.assertEqual(admin.last,GOOD_ID)
+        self.assertEqual(poison.messages,[GOOD_ID])
+        self.assertEqual(queue.acks,[("private-mid","private-receipt")])
+
+    def test_poison_failure_or_uncertain_ack_never_deletes_original(self):
+        class Admin:
+            def render_status(self,_): return "QUEUED"
+        class Poison:
+            def __init__(self, ack): self.ack=ack
+            def send_message(self,_):
+                if self.ack is None: raise RuntimeError("transport interrupted")
+                return SimpleNamespace(id=self.ack)
+        for ack in (None,""):
+            pending=msg()
+            pending.dequeue_count=4
+            queue=FakeQueue([pending])
+            with self.subTest(ack=ack),self.assertRaises(RuntimeError):
+                job.process_one(queue,Admin(),None,
+                       lambda *_:"SUCCEEDED",Poison(ack))
+            self.assertEqual(queue.acks,[])
+
+    def test_finalized_job_dequeues_without_duplicate_poison_or_bill(self):
+        class Admin:
+            def render_status(self,_): return "SUCCEEDED"
+        pending=msg()
+        pending.dequeue_count=4
+        queue=FakeQueue([pending])
+        self.assertEqual(job.process_one(queue,Admin(),None,
+             lambda *_: self.fail("Replayed a final render")),
+             "ALREADY_FINAL")
+        self.assertEqual(queue.acks,[("private-mid","private-receipt")])
+
+    def test_invalid_attempt_counter_never_processes_or_acks(self):
+        for count in (-1,0,1.5,"3",True,1001):
+            pending=msg()
+            pending.dequeue_count=count
+            queue=FakeQueue([pending])
+            with self.subTest(count=count), self.assertRaises(RuntimeError):
+                job.process_one(queue,None,None,
+                                lambda *_:self.fail("bad count rendered"))
+            self.assertEqual(queue.acks,[])
+
     def test_explicit_dev_handoff_and_longer_than_780s_budget_required(self):
         env = {
             "RGAI_CPU_RENDER_SINGLE_OWNER_ACTIVATED": "VERIFIED_FLEX_RENDER_CONSUMER_DISABLED",
