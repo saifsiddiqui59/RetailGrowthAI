@@ -162,13 +162,24 @@ def _write_member(z, archive_path, origin):
     info.compress_type = ZIP_DEFLATED
     digest = hashlib.sha256()
     count = 0
-    with origin.open("rb") as source, z.open(info, "w", force_zip64=True) as target:
-        while chunk := source.read(1024 * 1024):
-            count += len(chunk)
-            if count > MAX_ARCHIVE:
-                raise ValueError("F4 archive source exceeds 1GB limit: " + archive_path)
-            digest.update(chunk)
-            target.write(chunk)
+    # Open without following a last-moment swapped symlink. Check the opened
+    # descriptor, not just the pathname checked before ZIP creation.
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    fd = os.open(origin, flags)
+    with os.fdopen(fd, "rb") as source:
+        opened = os.fstat(source.fileno())
+        current = origin.lstat()
+        if (not stat.S_ISREG(opened.st_mode) or
+                (opened.st_dev, opened.st_ino) != (current.st_dev, current.st_ino) or
+                opened.st_size > MAX_ARCHIVE):
+            raise ValueError("F4 archive source changed during packaging: " + archive_path)
+        with z.open(info, "w", force_zip64=True) as target:
+            while chunk := source.read(1024 * 1024):
+                count += len(chunk)
+                if count > MAX_ARCHIVE:
+                    raise ValueError("F4 archive source exceeds 1GB limit: " + archive_path)
+                digest.update(chunk)
+                target.write(chunk)
     return digest.hexdigest()
 
 
