@@ -1,0 +1,103 @@
+"""#249: Flex cannot be stopped based on five GET routes or mocked receipts."""
+import importlib.util
+from pathlib import Path
+import unittest
+
+ROOT = Path(__file__).resolve().parents[2]
+SOURCE = ROOT / "ops/p0249-y1-cutover/retirement_gate.py"
+spec = importlib.util.spec_from_file_location("p0249_y1_stop_gate", SOURCE)
+m = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(m)
+
+
+def observation():
+    return {
+        "scope": {
+            "resource_group": m.RG, "y1_app": m.Y1, "flex_app": m.FLEX,
+            "supabase_origin": m.SUPABASE, "frontend_origin": m.FRONTEND,
+        },
+        "y1": {
+            "host": m.Y1_ORIGIN, "state": "Running",
+            "app_setting_names": sorted(m.CONNECTIONS),
+            "same_retailgrowth_dev_connections_as_flex": True,
+            "indexed_functions": sorted(
+                m.CORE_FUNCTIONS | m.QUEUE_FUNCTIONS | m.TIMER_FUNCTIONS),
+            "unauthenticated_protected_endpoints_denied": True,
+            "customer_traffic_origin": m.Y1_ORIGIN,
+            "background_workers_enabled": True, "queue_backlog_reconciled": True,
+        },
+        "flex": {
+            "host": m.FLEX_ORIGIN, "receiving_customer_traffic": False,
+            "background_workers_enabled": False,
+        },
+        "frontend": {"served_api_origin": m.Y1_ORIGIN},
+        "protected_evidence": {name: True for name in m.PROOF},
+        "verified_by_protected_release_workflow": True,
+    }
+
+
+class Y1NoPrematureFlexStop(unittest.TestCase):
+    def test_actual_five_get_package_cannot_retire_flex(self):
+        state = observation()
+        state["y1"]["indexed_functions"] = [
+            "p0249_health", "campaign_read", "render_job_read",
+            "poster_job_read", "poster_draft_read",
+        ]
+        denied = m.evaluate(state)
+        self.assertIn("original_core_http_routes", denied)
+        self.assertIn("planning_render_poster_poison_workers", denied)
+        self.assertIn("outbox_recovery_email_trend_timers", denied)
+
+    def test_no_data_also_blocks_retirement(self):
+        self.assertIn("exact_dev_scope", m.evaluate({}))
+        self.assertEqual(m.evaluate(None), ("untrusted_snapshot",))
+
+    def test_foreign_or_modified_app_never_accepted(self):
+        state = observation()
+        state["scope"]["y1_app"] = "other-functions-app"
+        self.assertIn("exact_dev_scope", m.evaluate(state))
+
+    def test_missing_supabase_and_storage_connection_blocks(self):
+        state = observation()
+        state["y1"]["app_setting_names"].remove("RETAIL_STORAGE")
+        self.assertIn("server_side_y1_supabase_storage_connections", m.evaluate(state))
+        state = observation()
+        state["y1"]["same_retailgrowth_dev_connections_as_flex"] = False
+        self.assertIn("protected_original_connection_value_comparison",
+                      m.evaluate(state))
+
+    def test_untransferred_customer_traffic_blocks(self):
+        state = observation()
+        state["frontend"]["served_api_origin"] = m.FLEX_ORIGIN
+        state["flex"]["receiving_customer_traffic"] = True
+        self.assertIn("frontend_live_cutover", m.evaluate(state))
+        self.assertIn("flex_customer_traffic_still_possible", m.evaluate(state))
+
+    def test_no_dual_workers_or_unknown_queue_inflight(self):
+        state = observation()
+        state["flex"]["background_workers_enabled"] = True
+        state["y1"]["queue_backlog_reconciled"] = False
+        self.assertIn("flex_workers_still_active", m.evaluate(state))
+        self.assertIn("y1_queue_drain_or_unknown_work", m.evaluate(state))
+
+    def test_cannot_claim_completion_without_hosted_evidence(self):
+        state = observation()
+        state["protected_evidence"]["quota_billing_idempotency"] = False
+        self.assertIn("independent_hosted_e2e_and_rollback_receipts",
+                      m.evaluate(state))
+        state = observation()
+        state["verified_by_protected_release_workflow"] = False
+        self.assertIn("protected_release_origin_unverified", m.evaluate(state))
+
+    def test_fully_asserted_json_never_executes_stop(self):
+        self.assertEqual(m.evaluate(observation()), ())
+        text = SOURCE.read_text()
+        self.assertIn("BLOCKED_PENDING_PROTECTED_AZURE_ACCEPTANCE", text)
+        self.assertNotIn("az functionapp stop", text)
+        self.assertNotIn("az functionapp delete", text)
+        self.assertNotIn("az group delete", text)
+        self.assertNotIn("github.issues.update", text)
+
+
+if __name__ == "__main__":
+    unittest.main()
