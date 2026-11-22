@@ -35,7 +35,7 @@ class Feature4HostedAcceptanceContract(unittest.TestCase):
             "'ffprobe'",
             "'h264'",
             "'aac'",
-            "shop_id === cfg.shopB",
+            "membership(request, token, cfg.shopB)",
             "cfg.expiredJwt",
             "'REVOKED'",
         ):
