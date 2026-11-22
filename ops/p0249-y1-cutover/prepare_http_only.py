@@ -1,0 +1,178 @@
+#!/usr/bin/env python3
+"""Source-only Y1 *HTTP* package conversion for Issue #249.
+
+Uses the existing reviewed full Flex ZIP as input, preserving exact HTTP API,
+JWT/RLS/store/queue/outbox code and pinned FFmpeg/media bytes. Strips ONLY the
+known queue/timer Azure registrations from the nested original function_app.
+Background workers remain on Flex until a separately tested single-owner
+transition; this artifact must never be mistaken for complete Flex retirement.
+
+No Azure login, deploy, secrets, network requests, appsettings or stop/delete.
+"""
+from __future__ import annotations
+
+import argparse
+import ast
+from collections import Counter
+from pathlib import Path
+from zipfile import ZipFile, ZIP_DEFLATED
+
+ROOT = Path(__file__).resolve().parents[2]
+ORIGINAL = ROOT / "azure-functions/campaign-api/function_app.py"
+MEMBER = "azure-functions/campaign-api/function_app.py"
+
+# Explicitly pin the functions actually registered in the original Flex
+# source. Any newly added worker or HTTP route demands a new affected review.
+WORKERS = frozenset({
+    "plan_campaign", "render_campaign_reel", "recover_stale_jobs",
+    "planning_poison", "render_poison", "dispatch_onboarding_emails",
+    "dispatch_pending_posters", "render_campaign_poster",
+    "feature2_collect_india_trends",
+})
+HTTP = frozenset({
+    "feature3_registered_source", "feature3_private_png_download",
+    "feature3_private_png", "feature3_private_job_history",
+    "feature3_gpu_private_download", "list_feature3_models",
+    "register_feature3_model_original", "import_feature3_pending_model",
+    "review_feature3_model", "revoke_feature3_model", "feature3_designs",
+    "create_campaign", "read_campaign", "create_poster_draft",
+    "list_saved_posters", "get_poster_draft", "select_poster_banner",
+    "request_poster_render", "read_poster_render", "download_poster_render",
+    "save_campaign_day", "create_render", "get_render", "get_render_download",
+    "get_retailer_trends", "create_retailer_trend_draft",
+    "improve_retailer_prompt", "improve_retailer_prompt_with_ai",
+    "create_retailer_trend_draft_with_ai", "create_private_voicestudio_job",
+})
+CORE_HTTP = frozenset({
+    "create_campaign", "read_campaign", "save_campaign_day", "create_render",
+    "get_render", "get_render_download", "create_poster_draft",
+    "get_poster_draft", "list_saved_posters", "select_poster_banner",
+    "request_poster_render", "read_poster_render", "download_poster_render",
+})
+
+
+def registrations(source: bytes):
+    tree = ast.parse(source.decode("utf-8"))
+    methods = {}
+    locations = {}
+    for node in tree.body:
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        marked = []
+        for decorator in node.decorator_list:
+            if (not isinstance(decorator, ast.Call)
+                or not isinstance(decorator.func, ast.Attribute)
+                or not isinstance(decorator.func.value, ast.Name)
+                or decorator.func.value.id != "app"):
+                # Helpers have no app decorators; any nonstandard decorator on a
+                # registered handler changes code and must be reviewed.
+                continue
+            marked.append(decorator.func.attr)
+        if marked:
+            if len(marked) != 1 or marked[0] not in {
+                    "route", "queue_trigger", "timer_trigger"}:
+                raise ValueError("Unknown/multiple Azure Function registration")
+            methods[node.name] = marked[0]
+            locations[node.name] = (
+                min(d.lineno for d in node.decorator_list) - 1,
+                node.end_lineno,
+            )
+    return methods, locations
+
+
+def strip_only_background_triggers(source: bytes) -> bytes:
+    methods, positions = registrations(source)
+    names = set(methods)
+    if (names != WORKERS | HTTP
+        or {name for name in names if methods[name] != "route"} != WORKERS
+        or {name for name in names if methods[name] == "route"} != HTTP
+        or not CORE_HTTP <= names):
+        raise ValueError("Original Flex registrations drifted; Y1 source review required")
+    text = source.decode("utf-8").splitlines(keepends=True)
+    deleted = set()
+    for name in WORKERS:
+        start, end = positions[name]
+        if start < 0 or end > len(text) or not start < end:
+            raise ValueError("Invalid worker source span")
+        if deleted.intersection(range(start, end)):
+            raise ValueError("Overlapping worker source spans")
+        deleted.update(range(start, end))
+    # Reuse original byte-for-byte HTTP handlers and build_api, rather than
+    # reimplementing token verification, billing or queue/outbox behavior.
+    result = "".join(line for i, line in enumerate(text) if i not in deleted).encode()
+    staged, _ = registrations(result)
+    if staged != {name: "route" for name in HTTP}:
+        raise ValueError("Y1 package registered a background trigger")
+    compile(result, str(ORIGINAL), "exec")
+    return result
+
+
+def check_source():
+    transformed = strip_only_background_triggers(ORIGINAL.read_bytes())
+    if b"@app.queue_trigger" in transformed or b"@app.timer_trigger" in transformed:
+        raise ValueError("Y1 core HTTP still registers a worker")
+    print("P0249_Y1_FULL_HTTP_ROUTES=" + str(len(HTTP)))
+    print("P0249_Y1_BACKGROUND_TRIGGER_REGISTRATIONS=0")
+    print("P0249_Y1_HTTP_SOURCE_CHECK=PASS_SOURCE_ONLY_NOT_DEPLOYED")
+
+
+def convert_zip(source: Path, destination: Path):
+    # Source ZIP must pass the ORIGINAL release packager's immutable inventory,
+    # ELF/FFprobe, licensing, compression and path safety gates.
+    from importlib.util import module_from_spec, spec_from_file_location
+    spec = spec_from_file_location("p0249_original_release_packager",
+                                  ROOT / "scripts/deploy/package.py")
+    original_packager = module_from_spec(spec)
+    spec.loader.exec_module(original_packager)
+    original_packager.verify_zip(source)
+
+    if source.resolve() == destination.resolve() or destination.exists():
+        raise ValueError("Refuse to overwrite any source/previous release artifact")
+    if not destination.parent.is_dir() or destination.parent.is_symlink():
+        raise ValueError("Output directory must already exist and be trusted")
+    if ROOT in destination.resolve().parents:
+        raise ValueError("No generated production ZIP inside the repository")
+    expected_source = ORIGINAL.read_bytes()
+    transformed = strip_only_background_triggers(expected_source)
+    with ZipFile(source) as original, ZipFile(destination, "x", ZIP_DEFLATED) as y1:
+        listing = original.infolist()
+        names = [item.filename for item in listing]
+        if Counter(names)[MEMBER] != 1:
+            raise ValueError("Original ZIP does not contain one canonical entrypoint")
+        for entry in listing:
+            data = original.read(entry)
+            if entry.filename == MEMBER:
+                if data != expected_source:
+                    raise ValueError("Source ZIP does not match the checked-out original")
+                data = transformed
+            y1.writestr(entry, data)
+    try:
+        original_packager.verify_zip(destination)
+        with ZipFile(destination) as staged:
+            actual = staged.read(MEMBER)
+            if actual != transformed or any(
+                    kind != "route" for kind in registrations(actual)[0].values()):
+                raise ValueError("Generated Y1 ZIP contains an unexpected trigger")
+        print("P0249_Y1_FULL_HTTP_ZIP=STAGED_NOT_DEPLOYED")
+        print("P0249_Y1_WORKER_MIGRATION_REQUIRED=true")
+    except Exception:
+        destination.unlink(missing_ok=True)
+        raise
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--check", action="store_true")
+    parser.add_argument("--source-zip", type=Path)
+    parser.add_argument("--output-zip", type=Path)
+    args = parser.parse_args()
+    if args.check and args.source_zip is None and args.output_zip is None:
+        check_source()
+    elif not args.check and args.source_zip and args.output_zip:
+        convert_zip(args.source_zip, args.output_zip)
+    else:
+        parser.error("Choose --check OR both --source-zip and --output-zip")
+
+
+if __name__ == "__main__":
+    main()
