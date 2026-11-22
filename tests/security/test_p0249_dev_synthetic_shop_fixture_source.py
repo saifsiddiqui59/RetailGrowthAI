@@ -9,7 +9,7 @@ import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-MIGRATION = ROOT / "supabase/migrations/20261122221500_p0249_dev_synthetic_canary_approval.sql"
+MIGRATION = ROOT / "tests/security/dev_only/p0249_dev_synthetic_canary_approval.sql"
 CANARY = ROOT / "tests/e2e/retail_dev_canary_once.py"
 WORKFLOW = ROOT / ".github/workflows/retail-dev-test-accounts-canary-once.yml"
 
