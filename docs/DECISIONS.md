@@ -1399,3 +1399,6 @@ Only exact existing DEV storage and two names may be created by the queue stage 
 
 ## 2026-11-22 — Limit CPU queue concurrency in the isolated worker host
 High-resolution F4 reels are CPU/memory-heavy. Shared legacy queue defaults are inappropriate for a 2-GiB single-instance F4 host, even if max instances = 1. Therefore a separate worker-only host.json enforces batchSize=1 and newBatchThreshold=0, dynamicConcurrencyEnabled=false; the native package must fail closed on deviations. Do not mutate the v1 API host or assume this static guard proves live scale/cost behavior.
+
+## 2026-11-23 IST — Scope actual F4 DEV SQL release separately from worker authorization
+The owner instructed autonomous DEV development without manual GitHub review. Connected Supabase DEV received the exact six F4 candidate sources atomically via one fail-closed preflight transaction, history `20261122183402`. Source SHA matching, 22/22 foundation/absence preflight, expected RLS and worker-claim role restrictions were verified after installation. This decision does **not** activate jobs, authorize retailer editorial approvals, provide missing Azure credentials, or count as independent third-party security review. Never replay this candidate bundle against an already installed schema; keep all runtime flags OFF until protected worker, genuine signed tenants, privacy and quotas pass.
