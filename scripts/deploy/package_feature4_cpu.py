@@ -185,9 +185,11 @@ def build(args):
     if out.stat().st_size > MAX_ARCHIVE:
         out.unlink(missing_ok=True)
         raise ValueError("F4 worker ZIP exceeds Azure 1GB package limit")
+    # Close the release artifact before a later deploy/cleanup step can access it.
+    with out.open("rb") as artifact:
+        artifact_sha256 = hashlib.file_digest(artifact, "sha256").hexdigest()
     print(json.dumps({"artifact": str(out), "files": len(checksums),
-                      "bytes": out.stat().st_size, "sha256":
-                      hashlib.file_digest(out.open("rb"), "sha256").hexdigest()}))
+                      "bytes": out.stat().st_size, "sha256": artifact_sha256}))
 
 
 def main(argv=None):
