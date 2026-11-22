@@ -24,15 +24,15 @@
       "pr": 1059,
       "title": "Issue249 integration PR (live title not verified)",
       "feature": "issue249",
-      "head_sha": "2ceee89a51085a25e1ec58128b49d0857c5059a5",
+      "head_sha": "ae75ff63ff50cf08b76afc5cf174a8f80bd57eec",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P1",
       "phase": "in-progress",
       "checkpoint": {
         "owner": "manual-issue249",
-        "ci": "Exact-head mandatory #44972604428 SUCCESS 4/4 independently checked; native CPU #44972604365 SUCCESS 1/1; manual Issue249 review remains",
-        "next_action": "Manual Issue249 owner to review security/integration at latest exact head; no automatic merge",
+        "ci": "Exact-head latest mandatory #44977502801 FAILED 3/4: Python/uv test_native_binary_symlink_is_rejected_before_version_execution expected linked-native-dependency error but Python 3.13 runtime guard raised first; native CPU #44977502909 PASS 1/1. Manual Issue249 owner repair/review required.",
+        "next_action": "Manual Issue249 owner: reproduce Python 3.13 vs pinned Python 3.11 test ordering mismatch in tests/infra/test_feature4_cpu_worker_package.py:54, fix on owned branch and rerun exact-head four jobs; no automatic merge.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1059"
@@ -72,5 +72,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1065"
     }
   ],
-  "last_inventory_checked_at": "2026-11-22T02:01:26Z"
+  "last_inventory_checked_at": "2026-11-22T02:45:54Z"
 }
