@@ -304,6 +304,9 @@ jobs:
           # New owner-directed synthetic test accounts must never weaken the
           # global gate or tenant RLS: disposable local-only SQL negative test.
           if [ -f tests/security/p0249_synthetic_shop_fixture_negative.sql ]; then
+            # Install ONLY in the disposable local CI database, never in
+            # canonical/prod Supabase migrations or hosted DEV from CI.
+            psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -f tests/security/dev_only/p0249_dev_synthetic_canary_approval.sql
             psql -X -v ON_ERROR_STOP=1 -h 127.0.0.1 -p 54322 -U postgres -d postgres -f tests/security/p0249_synthetic_shop_fixture_negative.sql
           fi
           for source in tests/security/poster*.sql tests/security/notification*.sql; do
