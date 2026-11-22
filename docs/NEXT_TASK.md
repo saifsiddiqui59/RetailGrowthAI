@@ -1857,3 +1857,8 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 
 ## 2026-11-22 — F4 worker concurrency source guard
 - Verify PR #1084 exact-head four-job CI, merge source only if current main compatibility and all checks success; verify postmerge main CI. Before protected worker activation, validate Bicep, dedicated 2-GiB FC1 instance, packaging of isolated batchSize=1 host, queue/poison/lease under load, private MP4 and signed two-shop E2E. No Azure/Supabase writes or F4 customer render flags until real release gates pass.
+
+## 2026-11-22 — Y1 after private storage redirect hardening
+1. Verify exact latest PR #1077 HEAD four-job GitHub Actions run including `test_privileged_private_media_default_transport_does_not_follow_redirects`, fix failures without bypass, and get required protected release/security review.
+2. Stage the verified original full Flex artifact into 38-route **HTTP-only** Y1 ZIP for protected DEV deployment; validate real indexed functions, signed JWT authorization, POST/PATCH, tenant/storage and rollback before live SWA routing.
+3. Transition 8 short workers and isolated CPU 1800-second FFmpeg renderer using single-owner queue handoff, authenticated output path/bytes SHA, poison/idempotency/billing receipts, and check 46 total live Y1 indexes. Stop Flex/close #249 ONLY after all hosted, served-site, idle/performance and rollback checks pass. No PROD/WineShopPOS/GPU.

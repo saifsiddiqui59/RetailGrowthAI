@@ -1802,3 +1802,6 @@ Manual integration chat C reviewed original PRs #979/#972/#970/#964/#944/#880/#8
 
 ## 2026-11-22 — F4 isolated CPU host serial-queue guard (source-only)
 - Implemented a distinct native F4 worker `host.json` with batchSize=1, newBatchThreshold=0 and dynamicConcurrencyEnabled=false, mapped by isolated ZIP packager instead of legacy API host. Guarded packaging refuses altered concurrency, offline regression checks unchanged original v1. PR #1084 source only; hosted worker, Azure queues, six DEV SQL candidates and real signed two-shop E2E still NOT deployed/verified.
+
+## 2026-11-22 — Issue #249 Y1 isolated CPU media redirect guard (source only)
+- PR #1077 Y1 CPU worker now installs a redirect-denying urllib opener for its default privileged private Supabase Storage transport, covering download, upload and post-upload SHA readback. The original Flex storage client remains unmodified. Regression test checks that foreign-origin HTTP 302 cannot produce a follow-up request. Source commits `1190d502c8579572d1f8481d567e20e2f74097eb` and `92a542be0836b488338d2ec01e11eca4cd569019`. The Y1 branch was reconciled with current Feature4 main. Exact latest-head four-job CI and hosted Y1 protected release are NOT verified; Flex running and #249 open.

@@ -1399,3 +1399,6 @@ Only exact existing DEV storage and two names may be created by the queue stage 
 
 ## 2026-11-22 — Limit CPU queue concurrency in the isolated worker host
 High-resolution F4 reels are CPU/memory-heavy. Shared legacy queue defaults are inappropriate for a 2-GiB single-instance F4 host, even if max instances = 1. Therefore a separate worker-only host.json enforces batchSize=1 and newBatchThreshold=0, dynamicConcurrencyEnabled=false; the native package must fail closed on deviations. Do not mutate the v1 API host or assume this static guard proves live scale/cost behavior.
+
+## 2026-11-22 — Prevent privileged private media redirects in isolated Y1 CPU job
+Supabase Storage uploads, downloads and remote MP4 readback use server-only service-role credentials. The new isolated CPU adapter must replace the standard urllib redirect-following transport with a redirect-denying opener BEFORE handling media, without altering original Flex behavior. A foreign-origin 302 must never forward privileged headers or body. Keep exact POST object-key binding and SHA-256 cloud readback fences; synthetic transport tests and source CI are not equivalent to live protected acceptance.
