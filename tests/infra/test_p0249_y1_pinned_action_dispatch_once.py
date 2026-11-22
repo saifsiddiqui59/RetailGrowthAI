@@ -32,11 +32,11 @@ class P0249PinnedActionDispatchTests(unittest.TestCase):
         w = self.source
         for sha in (
             "ea7a6411ce011fc8e7b9cffc8ca097d1c950869a",
-            "a624a8664a3bcc7c9556ab89cfe3056e4d9b09d5",
+            "fc67d27105dedd2f06f39162f901fb39831246c5",
             "b6cc730a0bce59093e831965ca4ee1f817121203",
             "109098490b767dae3d4f01f1c3b2284560b23eb1",
             "d5091e4cf14071473813b77226c2a5ad61b84635",
-            "0827b7fbff0507d37f82e4bbfe2b5d32e5dd6b39",
+            "139069d79029d6a84112ec389ece0d0f111e341a",
             "e10548a4dbc27795028d1141c548a6209aa90135",
             "c5060b3b8bb1ebbcb531abd00c822ecbaa8ea656",
         ):
