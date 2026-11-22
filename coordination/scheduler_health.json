@@ -2,9 +2,9 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-22T04:39:33Z",
+  "last_written_at": "2026-11-22T05:47:08Z",
   "last_inventory_count": 3,
-  "last_inventory_checked_at": "2026-11-22T04:39:33Z",
+  "last_inventory_checked_at": "2026-11-22T05:47:08Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
@@ -108,25 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "eab3508e-eb90-8320-be16-68de55c97d8e",
-      "started_at": "2026-11-18T20:26:29.753707Z",
-      "completed_at": "2026-11-18T20:26:58.459899Z",
-      "duration_seconds": 28.706,
-      "verified_code_test_commits": null,
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "No new source/test commit independently verified; automation currently disabled; executor not provisioned"
-    },
-    {
-      "event": "exact_head_ci",
-      "pr": 1055,
-      "run_id": 44713603379,
-      "head_sha": "11734f5112451916bec53260c1dbe0eeca760897",
-      "status": "SUCCESS 4/4",
-      "evidence": "Four independently inspected mandatory jobs; review still required"
-    },
     {
       "event": "exact_head_ci",
       "pr": 1059,
@@ -302,6 +283,22 @@
       "head_sha": "eb4f92a0da43373a80ee0f2d721961aa01c659ea",
       "status": "FAIL native CPU 0/1",
       "evidence": "One native CPU job inspected: failed"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 44990887544,
+      "head_sha": "292a441264466d9ea564138eae6da484fa2f64bd",
+      "status": "FAIL 3/4",
+      "evidence": "Four mandatory jobs independently checked; Python failed"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 44990887575,
+      "head_sha": "292a441264466d9ea564138eae6da484fa2f64bd",
+      "status": "FAIL native CPU 0/1",
+      "evidence": "One native CPU job independently checked; failed"
     }
   ],
   "current_review_gates": {
@@ -494,17 +491,17 @@
     "chatgpt_scheduler_runtime_increased": false
   },
   "current_automation_inspection": {
-    "checked_at_utc": "2026-11-22T02:01:26Z",
-    "F2": "UNVERIFIED: automation ID inaccessible",
-    "F3": "disabled; inherited environment null; latest 45.589s",
-    "F4": "disabled; inherited environment null; latest 29.793s; REVIEW_BLOCKED",
-    "F7": "disabled; inherited environment null; latest 39.968s; REVIEW_BLOCKED",
+    "checked_at_utc": "2026-11-22T05:47:08Z",
+    "F2": "UNVERIFIED (404)",
+    "F3": "UNVERIFIED (404)",
+    "F4": "UNVERIFIED (404); REVIEW_BLOCKED per ledger",
+    "F7": "UNVERIFIED (404); REVIEW_BLOCKED per ledger",
     "new_verified_source_test_commits": null,
     "executor": "GITHUB_CONNECTOR_ONLY / EXECUTOR_NOT_PROVISIONED",
     "last_checked_at": "2026-11-22T01:02:04.025Z",
     "summary": "F2/F3/F4/F7 all confirmed disabled; inherited environment_selection, environments null; no new run IDs; no new verified coding commits; F4/F7 review blocked",
     "status": "CURRENT_UNKNOWN",
-    "reason": "All four Automations get calls returned 404 NOT_FOUND; retain last verified run durations and do not infer controls or provisioned environments"
+    "reason": "Four Automations get requests returned 404; preserve last verified durations and disabled states without asserting current controls"
   },
   "issue249_ci_watch": {
     "checked_at_utc": "2026-11-20T04:55:41Z",
@@ -577,13 +574,13 @@
   },
   "latest_issue249_ci": {
     "pr": 1059,
-    "head_sha": "3cce2a42513a3963ad352e3c845a8cf778a575c9",
-    "mandatory_run_id": 44981814680,
+    "head_sha": "292a441264466d9ea564138eae6da484fa2f64bd",
+    "mandatory_run_id": 44990887544,
     "mandatory_status": "FAILED 3/4",
-    "native_run_id": 44981814668,
+    "native_run_id": 44990887575,
     "native_status": "FAILED 0/1",
-    "verified_at_utc": "2026-11-22T03:42:52Z",
-    "reason": "Python 3.13 vs pinned 3.11 test guard; native package rejects HyperFrames .bin/acorn symlink",
+    "verified_at_utc": "2026-11-22T05:47:08Z",
+    "reason": "Current head: Python/uv job #137112493019 failed; native CPU job #137111470855 failed; logs not inspected",
     "owner": "manual-issue249"
   }
 }
