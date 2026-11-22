@@ -87,6 +87,20 @@ def unreviewed_public_endpoint(req):
         with self.assertRaisesRegex(ValueError, "registrations drifted"):
             MODULE.strip_only_background_triggers(tampered)
 
+    def test_y1_http_host_is_original_consumption_host_not_flex_20min(self):
+        import json
+        host = json.loads(MODULE.HOST.read_text())
+        self.assertEqual(host["version"], "2.0")
+        self.assertNotIn("functionTimeout", host)
+        self.assertNotIn("extensions", host)
+        text = SOURCE.read_text()
+        self.assertIn('elif entry.filename == "host.json":', text)
+        self.assertIn('data = y1_host', text)
+        self.assertIn('P0249_Y1_HTTP_HOST_CLASSIC_CONSUMPTION_SAFE=PASS', text)
+        # Legacy Consumption cannot host the 780-second FFmpeg execution;
+        # this stage must not add queue or timer workers.
+        self.assertNotIn('P0249_Y1_WORKER_MIGRATION_COMPLETE=true', text)
+
     def test_no_cloud_shutdown_or_config_write_in_package_script(self):
         text = SOURCE.read_text()
         self.assertNotIn("az functionapp stop", text)
@@ -95,7 +109,11 @@ def unreviewed_public_endpoint(req):
         self.assertNotIn("requests.post", text)
         self.assertNotIn("subprocess.run(", text)
         self.assertIn("original_packager.verify_zip(source)", text)
-        self.assertIn("original_packager.verify_zip(destination)", text)
+        self.assertIn("original_packager.verify_zip(source)", text)
+        self.assertIn('elif new.filename == "host.json":', text)
+        self.assertIn("Non-HTTP source or worker package byte drift", text)
+        self.assertIn("staged.testzip()", text)
+        self.assertIn("original_packager.MAX_UNPACKED_BYTES", text)
         self.assertIn("Source ZIP does not match the checked-out original", text)
 
 
