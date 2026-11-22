@@ -55,6 +55,7 @@ class Feature4PsqlRedactedDiagnosticsTests(unittest.TestCase):
             "feature4_cpu_psql_diagnostic.py",
             "f4cpu-psql-stderr",
             "umask 077",
+            'rm -f -- "$RUNNER_TEMP/f4cpu-psql-stderr"',
             "has_function_privilege('service_role'",
             "RETAIL_FEATURE4_CPU_RENDER_ENABLED: 'false'",
         ):
