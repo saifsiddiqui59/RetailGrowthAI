@@ -1387,3 +1387,9 @@ Never use only `lease_until<=now()` as a PL/pgSQL IF denial condition: NULL prod
 
 ## 2026-11-22 — Release candidate requires read-only exact DEV inventory
 Before Feature4 DEV schema promotion, confirm original shop/campaign/media/rights/subscription/quota/storage/security helper dependencies and reject any partially installed F4 plan/job/outbox/poison/function state. A 22-row `SELECT` report with `expected IS NOT DISTINCT FROM observed` must be fully matched on the independently verified DEV project. No automatic SQL repair or rollout follows success; independent release rights, tagged Azure worker, private queue, rollback and signed retailer validation remain separate gates.
+
+## 2026-11-22 — Batch F4 SQL atomically, never partially replay candidates
+A protected DEV release may build six additive SQL candidates into one transaction guarded against an absent foundation or partially installed Feature4 schema. SHA256 receipts bind exact source bytes, and the offline bundle carries no privileges or deployment rights. The generated SQL must never be treated as approved merely because a preflight or a disposable database test passed; validate target project, release grants, DEV worker/queue rollback and real signed two-shop authorization separately. No auto-apply, no customer billing before worker proof.
+
+## 2026-11-22 — F4 queue creation is deny-by-default with exact DEV scope
+Only exact existing DEV storage and two names may be created by the queue stage CLI. No subscription-wide role grant, account-key retrieval, queue message read, auto-retry of ambiguous creation, implicit adoption of existing queues or customer-facing runtime activation. Dry-run performs zero cloud calls; applying requires explicit protected environment guards and scoped Azure identity verification. F4 worker remains disabled until SQL/rights/rollback acceptance.
