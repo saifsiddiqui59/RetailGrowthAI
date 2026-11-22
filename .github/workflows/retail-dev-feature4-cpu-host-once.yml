@@ -102,12 +102,18 @@ jobs:
           allowed=('/providers/microsoft.web/sites/rgai-dev-f4cpu-d4e5ddbd',
                    '/providers/microsoft.web/serverfarms/rgai-dev-f4cpu-plan',
                    '/providers/microsoft.storage/storageaccounts/rgaid4e5ddbdf0d21d96/blobservices/default/containers/retailgrowth-f4cpu-packages')
+          existing=('/providers/microsoft.storage/storageaccounts/rgaid4e5ddbdf0d21d96',
+                    '/providers/microsoft.storage/storageaccounts/rgaid4e5ddbdf0d21d96/blobservices/default')
           if not changes:
               raise SystemExit('BLOCKED: empty/unreadable ARM what-if')
           created=set()
           for c in changes:
               action=c.get('changeType')
               rid=str(c.get('resourceId') or '').lower()
+              if any(rid.endswith(v) for v in existing):
+                  if action not in ('NoChange','Ignore'):
+                      raise SystemExit('BLOCKED: existing DEV storage would be changed')
+                  continue
               if not any(rid.endswith(v) for v in allowed):
                   raise SystemExit('BLOCKED: unexpected resource in F4 what-if')
               if action not in ('Create','NoChange','Ignore'):
