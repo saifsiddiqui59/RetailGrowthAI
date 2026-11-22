@@ -1883,5 +1883,62 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 ## 2026-11-23 IST — Next: scoped ARM full-ID verification
 - Verify PR #1101 exact final-head four CI checks including new foreign-subscription/foreign-RG negative tests; ensure no release approval bypass. Merge only under current main integration/review policy, then inspect protected DEV what-if. Unknown `Ignore` or any unexpected resource still BLOCKS. Do not reapply six DEV migrations or recreate two existing queues. Worker ZIP #1096, private-trigger #1098, flags and signed two-shop E2E remain in order AFTER hosted worker creation.
 
+## 2026-11-22 — #249 full Y1 migration after exact index-inventory hardening
+1. Obtain exact PR #1077 HEAD four-job CI (including tests/infra/test_p0249_y1_connection_inspector.py and test_p0249_y1_retirement_gate.py), fix code if red, and obtain required independent affected-lead review before integration; check fresh main 4/4 after merge.
+2. In separate protected DEV Azure release, use verified original Flex package to deploy Y1 HTTP-only 38 functions without concurrent workers. Verify read-only inspector's y1_exact_http_only_index=true, signed shop authorization, POST/PATCH, media/rights, and independent rollback before routing any Free SWA customers.
+3. Transfer eight short queues/timers one owner at a time only after disabling original Flex consumers and observing zero duplicates. Transfer long 780s-cap CPU FFmpeg to independently proved and authorized 1800s Container Apps Job, never classic Y1's 600s host. Confirm full 46 registrations, private MP4, poison/lease/outbox/quota, hosted 503/p95/p99 and served SWA host; preserve original rollback, then and only then consider Flex stop/#249 closure. No manual ROOT onboarding bypass, PROD/GPU/WineShopPOS.
+
+
+
+## 2026-11-22 — #249 isolated CPU SHA verification follow-up
+1. Verify exact final PR #1077 four-job CI after adding VerifiedPrivateMedia and negative tests. Repair any red code/test, do not bypass. Obtain independent release/security review before source integration and protected Azure changes.
+2. For the separate 1800s Container Apps CPU Job, independently demonstrate real immutable image/FFmpeg codec, exact private uploaded-byte SHA-256 readback, denied redirects, original queue ACK/poison/lease idempotency and single-consumer handoff before ever disabling Flex render consumer. Legacy Y1 classic Consumption must not host 780s renders.
+3. Only after signed tested full 38-route HTTP and 46-indexed short-worker Y1, live SWA routing, two-shop and latency/rollback acceptance may old Flex be stopped and #249 closed; source CI is not deployment.
+
+
+
+## 2026-11-22 — #249 next after CPU message invisibility correction
+1. Verify exact latest PR #1077 head mandatory four CI jobs including new exact-index and 2100s > 1800s timeout assertions; repair source failure without test bypass and require appropriate independent review before integration.
+2. Run protected Y1 full HTTP-only release from verified original ZIP and confirm 38/38 indexed plus JWT negative/positive auth, original POST/PATCH/media parity and independent rollback. Keep Flex workers as sole queue consumers until the later owner-verified transition.
+3. Build/verify immutable CPU image, single-owner handoff to separate 1800s CPU Container Apps worker with 2100s queue visibility, private MP4 SHA readback and queue/poison/lease/rights acceptance, then switch short workers one-by-one and verify 46/46 final indexing, served SWA routing, p95/p99, 240s idle and no 503 before stopping Flex/closing #249. No PROD/GPU/WineShopPOS.
+
+
+
+## 2026-11-22 — next Y1 CPU Event-source handoff
+1. Verify the new event-scaled Bicep source/static tests and exact PR #1077 HEAD four-job CI. Independently compile/inspect Bicep, verify image digest and future Azure storage account scope; do not deploy Event source before protected DEV handoff.
+2. First establish 38/38 hosted Y1 HTTP, genuine signed writes/reads/media/rollback, then independently disable and observe Flex's render consumer before protected same-job Manual→Event transition. Test one synthetic real FFmpeg queue job, SHA readback, 2100s invisibility, lease, retries/poison, billing and one active owner. Migrate the eight short Y1 consumers only after controlled deactivation on Flex. Do not close #249/stop Flex until full hosted 46-index and served SWA cutover acceptance.
+
+
+
+## 2026-11-22 — #249 next after CPU queue invisibility fix
+1. Verify exact latest PR #1077 four-job CI including CPU queue timing contract, complete HTTP 38-route and final 46-function indexing negative tests. Respect independent release/security review.
+2. Only through protected DEV release: verify actual 2100s queue visibility/1800s worker timeout, same-shop lease fencing, private 1080x1920 MP4, no duplicate consumption, rollback; no classic Y1 long FFmpeg.
+3. Keep Flex and #249 open until complete hosted signed GET/POST/PATCH, eight short-worker handoff, served SWA migration and 503/p95/p99/240s-idle validation. No PROD/WineShopPOS/GPU.
+
+
+
+## 2026-11-22 — #249 private MP4 exact-object proof next
+1. Inspect exact latest PR #1077 four-job Actions run after `d356a949`, including new wrong-object denial test; repair any failing tests without reducing checks.
+2. Reconcile branch against current main without losing newer F4 code; preserve independent security/release review and protected hosted DEV release. Verify 38/38 live Y1 HTTP, signed tenant writes, all 46 indexed after single-owner worker handoff, private MP4 exact-key/SHA proof, queues/leases/billing, real served SWA routing, 240s idle and rollback before Flex stop. Do not claim source-only work deployed.
+
+
+
+## 2026-11-22 — #249 next after real 38 HTTP offline package build
+1. Review and integrate #1077 source and stacked #1088 source artifact only with exact-head CI and required independent affected-lead/release approval; do not treat an Actions ZIP as hosted indexing.
+2. Create and verify a **new protected 5-GET baseline → 38-HTTP Y1** remote-release and five-GET rollback sequence. Existing `p0249_y1_remote_build_mode.py` preflight/rollback assumes original *two* indexes and MUST NOT be reused unchanged against today's hosted five-GET Y1. Verify original package URI, preserve secrets/independent restore, install full 38 HTTP only, signed same-shop/foreign tenant read/write denial, and 240s idle under actual Y1.
+3. After 38 hosted parity, transfer eight short Y1 workers and separately 1380s CPU video renderer using proven single-owner Flex handoff, storage/private SHA/lease/poison/billing and rollback receipts; switch Free SWA only after genuine tenant/browser acceptance. Keep Issue #249 open and Flex running until final post-cutover verification.
+
+
+## 2026-11-23 — #249 Y1 after merged source PR #1077
+1. PR #1077 source and #1088 offline artifact workflow are merged; verify #1088 post-merge main four-job CI on `eb9291b`. Both exact-head four-job CI and the source-only 38-route ZIP artifact passed. Do not confuse produced ZIP with actual Y1 deployment.
+2. Prepare a **new protected, additive five-GET → 38-HTTP Y1 release** with proven exact-current Y1 URI/package backup, independent restore and 38-route indexing, expected JWT 401 and signed own/foreign/revoked shop tests, POST/PATCH/private download, 20/20 240-second idle checks. Never reuse historical two-GET-only rollback logic unmodified or publish worker registrations during this HTTP stage.
+3. Prove Y1-to-original DEV Supabase, storage, CORS, billing/queue/outbox parity, then stage eight short workers and the separately verified 1380-second CPU Container Apps render job behind actual single-owner stop/lease/poison/rollback gates. Keep original Flex workers active until safe ownership transition; never run duplicate queue consumers.
+4. Only after genuine hosted E2E, measured gateway 503 and p95/p99 evidence and valid rollback, transfer verified Free SWA API routing; stop original DEV Flex only after post-cutover checks and then close Issue #249. No PROD/WineShopPOS/GPU.
+
+## 2026-11-23 — #249 after five-to-38 protected candidate PR #1102
+1. Verify exact-head four mandatory jobs, offline artifact verification, workflow/security review, main compatibility and postmerge four-job CI for draft #1102 before any operator deployment.
+2. Under existing protected DEV-only Azure release controls, confirm original five-index/private URI and all shared Supabase/storage/CORS settings, then publish ONLY zero-worker 38 HTTP stage with real 38/38 index, marked negative-JWT 401 and two 20/20 health windows with 240s idle; independently prove original five-index rollback on any failure. Do not reinterpret a source workflow or artifact as hosted acceptance.
+3. Real signed nonprivileged own/foreign/revoked POST/PATCH/download and media/queue/billing parity are separate gates, followed by controlled eight short-worker and separately verified long CPU job handoff, Free SWA cutover, 503/p95/p99 and original Flex retirement. Keep #249 OPEN until complete.
+
 ## 2026-11-23 IST — Next: verify exact Ignore inventory guard
 Verify four-job exact-head CI for the dedicated F4 existing-resource Ignore inventory check, including negative foreign-scope and action tests. Only accept read-only matched existing DEV IDs marked Ignore; maintain strict denial of any new unknown resource and require real Create for isolated F4 host and plan. Retry protected host, then sealed ZIP #1096, private triggers #1098 and genuine signed two-shop end-to-end. Do not replay DEV migrations, queues, Y1/#249 or WineShopPOS.

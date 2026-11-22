@@ -1418,5 +1418,52 @@ A protected ARM `Ignore` entry can have an unknown provider/type even when its n
 ## 2026-11-23 IST — Never authorize ARM deployment by resource-ID suffix alone
 Accept ARM what-if entries only when their complete, case-normalized resource ID matches an expected ID under the already authenticated exact DEV subscription and resource group. Names shared across subscriptions or resource groups cannot authorize foreign resources. Retain the existing fail-closed action whitelist; no new resource types/actions are allowed by this change.
 
+## 2026-11-22 — #249 Y1 index parity is an exact full-inventory gate
+Y1 HTTP-only release must index exactly 38 registered functions (37 original Flex HTTP plus one reviewed Y1 health); final bounded-worker stage must index exactly 46 (same 38 plus eight existing short queue/timer consumers) and never the 780s render trigger on classic Consumption. Core v1 route subset was insufficient for full cutover. Read-only inspector and retirement gate must detect missing optional feature routes, unknown/duplicate entries and every queue/timer (including onboarding and trends). Source checks and self-asserted JSON cannot certify live hosted indexing or authorize disabling Flex. Keep 13-minute FFmpeg budget on separately proven low-cost CPU backend with >=780s execution ceiling, existing tenant/auth/queue/rights fencing and independent controlled worker ownership; no GPU, PROD, WineShopPOS.
+
+
+
+## 2026-11-22 — #249 CPU render completion requires exact remote media readback
+Do not register a successful private MP4 from a mere HTTP upload response. The isolated new CPU worker intercepts the actual POST bytes already captured within PrivateMedia.upload and requires SHA-256 remote private object readback BEFORE the original worker's DB claim completion; this avoids a local path re-read race and does not alter original live Flex behavior. Lost upload confirmation, unexpected upload endpoints, duplicate submissions or remote checksum mismatch fail closed and preserve unacknowledged queue work. Real private output/cross-shop/lease/poison/rollback testing remains a protected hosted release gate, not a source-test assertion.
+
+
+
+## 2026-11-22 — #249 queue invisibility must outlast CPU replica execution
+The separate scale-to-zero Y1 CPU render job has a 1800-second maximum replica lifetime, so a 1500-second queue invisibility period could expose the same message to another worker while the first job still executes. Increase the single-message lease to 2100 seconds, assert it exceeds the entire replica budget, and continue relying on DB claim fencing, idempotency and final-only ACK. This tradeoff may delay re-delivery after a crashed job; monitor it in DEV acceptance, do not enable dual consumers, and never treat local tests as hosted authorization.
+
+
+
+## 2026-11-22 — #249 event-driven CPU rendering only after single-owner transition
+Manual, no-scaler CPU template remains default/inert. An explicit, separate Event candidate updates that same job, polls existing queue at 60s with minExecutions 0/maxExecutions 1 and secure scaler credentials. The protected release must independently verify original Flex renderer shutdown, supplied activation parameter and immutable image/Storage scope; a Bicep parameter cannot itself attest to a real single-owner cloud cutover. Keep 1800s max replica, 2100s invisibility and fenced job/poison semantics; never deploy the Event variant from ordinary source CI.
+
+
+
+## 2026-11-22 — CPU job message visibility must exceed replica runtime
+For the isolated Y1 replacement CPU reel job, the queue invisibility timeout must be greater than the entire Container Apps replica timeout, not merely the 780-second FFmpeg cap. Pin 2100-second Azure queue visibility against an 1800-second replica budget, retain database claim fencing and only single-owner protected handoff. This reduces premature redelivery but never replaces receipt/lease/poison verification; source-only, not a live release.
+
+
+
+## 2026-11-22 — CPU private output must bind wire upload to committed object key
+The isolated Y1 ACA CPU worker must verify **both** the actual bytes submitted to a single original private storage POST and that POST's complete URL matches the encoded key the legacy upload client returns, then perform private cloud SHA-256 readback under the same tenant scope before DB completion. Uploading identical bytes to an unrelated object or changing the returned key must never count as successful receipt. This source-only fence is not proof of hosted media acceptance, user authorization, independent release review or Azure cutover.
+
+
+
+## 2026-11-22 — Offline Y1 38-route artifact does not authorize a five-to-38 live publish
+Only a zero-background-trigger 38-HTTP package may be retained by source-only CI. A second 46-function short-worker ZIP may be validated but must not be published or uploaded as a release artifact while original Flex consumers remain live. Pin hash `34a2a962b325c5dc3c21864b87099605131de54dd21019cc7bc2574e853b8b2b` to successful [offline build #45056269139](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/45056269139). For hosted Y1 upgrade, start from the **actual five-route** production DEV canary baseline and capture independently usable rollback; the existing historical remote-build helper's two-route baseline assumption is invalid. Any real Azure publish must remain separately protected, reviewed and verified before moving SWA or Flex. No protected cloud write or release executed by offline CI.
+
+
+
+## 2026-11-23 — #249 CPU lease ordering supersedes earlier 1800s design notes
+The earlier #249 entries describing an **1800s** Container Apps CPU replica are historical and **not** the current deployable safety contract. Original v1 DB render claim lasts **1500s**, so a 1800s replica could outlive the claim and allow concurrent work even while the queue message remains invisible. The reviewed source candidate in PR #1077 instead caps **both** disabled Manual and protected Event Bicep replica configurations at **1380s**; preserve **780s FFmpeg < 1380s replica < 1500s DB claim < 2100s queue invisibility**. Require exact-source negative tests and independently observed hosted queue/claim/rollback proof before activation. Do not change original Flex, activate the Event scaler or treat offline CI as live acceptance.
+
+
+## 2026-11-23 — Y1 hosted five-GET baseline is mandatory rollback ancestor for 38 HTTP
+- The old two-index rollback tooling is NOT valid against today's hosted five-route Y1 baseline. Any protected upgrade must pin/verify the current package/owner and independently restore five indexes and original HTTP if the 38-route publish fails. An offline artifact or repository merge never authorizes deployment, Flex stop or Issue #249 closure.
+- Classic Y1 Consumption cannot safely run the original 780-second FFmpeg renderer under the 600-second host limit. Preserve single-owner queue ownership and bounded 780s < 1380s replica < 1500s DB claim < 2100s message visibility, with distinct protected event scaler activation only after real original Flex long-render consumer retirement and media readback proof.
+
+## 2026-11-23 — Five-to-38 Y1 prewrite and rollback gates remain protected
+- Do not publish a full HTTP-only Y1 ZIP until exact current five-index baseline, pinned existing DEV Blob package, original Flex health, equal Supabase/service/storage connections, expected frontend CORS and no Y1 background consumers are verified on the actual DEV target. Missing connections must fail before writing; never auto-copy service secrets from the old app.
+- The five-to-38 upgrade must never reuse historic two-index rollback. Only the same protected workflow run may restore its original five package, resync ARM trigger indexing and pass real marked HTTP checks; never automatically rewrite foreign-owner settings or turn on a second queue/renderer. Source PR #1102 and all CI are non-deployment evidence.
+
 ## 2026-11-23 IST — Permit only exact inventoried pre-existing DEV Ignore entries
 ARM what-if can include unrelated pre-existing resources as Ignore. A separate read-only OIDC-scoped resource list provides exact existing DEV RG IDs. Only Ignore entries matching that set by complete normalized ID may be skipped. Foreign/unknown Create, Modify, Delete and non-inventoried Ignore still fail closed, and the isolated F4 site and plan must both be explicit Create. The read-only inventory is not independent deployment approval or tenant authorization.
