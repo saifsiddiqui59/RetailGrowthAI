@@ -1,0 +1,120 @@
+"""Source-only contract tests: new CPU job never double ACKs private render work."""
+import importlib.util
+from pathlib import Path
+from types import SimpleNamespace
+import unittest
+
+ROOT = Path(__file__).resolve().parents[2]
+SOURCE = ROOT / "ops/p0249-y1-cutover/cpu_render_job.py"
+spec = importlib.util.spec_from_file_location("p0249_cpu_job", SOURCE)
+job = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(job)
+
+GOOD_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+
+
+class FakeQueue:
+    def __init__(self, items):
+        self.items = items
+        self.acks = []
+        self.reads = []
+
+    def receive_messages(self, **kw):
+        self.reads.append(kw)
+        return iter(self.items)
+
+    def delete_message(self, mid, receipt):
+        self.acks.append((mid, receipt))
+
+
+def msg(content=GOOD_ID):
+    return SimpleNamespace(content=content, id="private-mid", pop_receipt="private-receipt")
+
+
+class Y1CpuQueueSafety(unittest.TestCase):
+    def test_normal_success_acks_exact_delivered_receipt(self):
+        for status in sorted(job.SUCCESS):
+            with self.subTest(status=status):
+                queue = FakeQueue([msg()])
+                calls = []
+                def render(identifier, admin, media):
+                    calls.append((identifier, admin, media))
+                    return status
+                result = job.process_one(queue, "admin", "media", render)
+                self.assertEqual(result, status)
+                self.assertEqual(calls, [(GOOD_ID, "admin", "media")])
+                self.assertEqual(queue.acks, [("private-mid", "private-receipt")])
+                self.assertEqual(queue.reads, [
+                    {"messages_per_page": 1, "visibility_timeout": 1500}])
+
+    def test_no_message_never_renders_or_acks(self):
+        queue = FakeQueue([])
+        self.assertEqual(job.process_one(queue, 1, 2,
+                         lambda *_: self.fail("rendered empty queue")), "EMPTY")
+        self.assertEqual(queue.acks, [])
+
+    def test_invalid_payload_or_unknown_commit_never_acks(self):
+        for malformed in ("", "unknown", "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA",
+                          "not-a-uuid", "../../other", "0"*36):
+            q = FakeQueue([msg(malformed)])
+            with self.subTest(malformed=malformed), self.assertRaises(ValueError):
+                job.process_one(q, None, None, lambda *_: "SUCCEEDED")
+            self.assertEqual(q.acks, [])
+        q = FakeQueue([msg()])
+        with self.assertRaisesRegex(RuntimeError, "not committed"):
+            job.process_one(q, None, None, lambda *_: "RETRYABLE")
+        self.assertEqual(q.acks, [])
+
+    def test_render_exception_never_acknowledges(self):
+        q = FakeQueue([msg()])
+        def fails(*_):
+            raise RuntimeError("simulated DB lease conflict")
+        with self.assertRaises(RuntimeError):
+            job.process_one(q, None, None, fails)
+        self.assertEqual(q.acks, [])
+
+    def test_explicit_dev_handoff_and_longer_than_780s_budget_required(self):
+        env = {
+            "RGAI_CPU_RENDER_SINGLE_OWNER_ACTIVATED": "VERIFIED_FLEX_RENDER_CONSUMER_DISABLED",
+            "RGAI_CPU_RENDER_HOSTING": "azure-container-apps-job",
+            "RGAI_CPU_RENDER_RG": "rg-retailgrowth-dev",
+            "RETAIL_SUPABASE_URL": job.EXPECTED_SUPABASE,
+            "RGAI_CPU_RENDER_QUEUE_NAME": job.QUEUE,
+            "RGAI_CPU_RENDER_REPLICA_TIMEOUT_SECONDS": "1800",
+            "RETAIL_STORAGE": "server-secret-" + "a"*50,
+            "RETAIL_SUPABASE_SERVICE_ROLE_KEY": "server-secret-" + "b"*50,
+        }
+        job.preflight(env)
+        self.assertEqual(job.CONTAINER_REPLICA_TIMEOUT_SECONDS, 1800)
+        self.assertGreater(job.CONTAINER_REPLICA_TIMEOUT_SECONDS, 780)
+        self.assertEqual(job.VISIBILITY_SECONDS, 1500)
+        self.assertGreater(job.VISIBILITY_SECONDS, 780)
+        for name, wrong in (
+            ("RGAI_CPU_RENDER_SINGLE_OWNER_ACTIVATED", "false"),
+            ("RGAI_CPU_RENDER_HOSTING", "classic-y1"),
+            ("RGAI_CPU_RENDER_RG", "another-project"),
+            ("RETAIL_SUPABASE_URL", "https://foreign.example"),
+            ("RGAI_CPU_RENDER_QUEUE_NAME", "external"),
+            ("RGAI_CPU_RENDER_REPLICA_TIMEOUT_SECONDS", "600"),
+            ("RETAIL_STORAGE", ""),
+            ("RETAIL_SUPABASE_SERVICE_ROLE_KEY", ""),
+        ):
+            with self.subTest(name=name), self.assertRaises(RuntimeError):
+                job.preflight({**env, name:wrong})
+        for key in env:
+            with self.subTest(missing=key), self.assertRaises(RuntimeError):
+                job.preflight({k:v for k,v in env.items() if k!=key})
+
+    def test_source_has_no_loop_or_resource_provisioning(self):
+        code=SOURCE.read_text()
+        self.assertNotIn("create_queue", code)
+        self.assertNotIn("send_message", code)
+        self.assertNotIn("while True", code)
+        self.assertNotIn("az containerapp", code)
+        self.assertNotIn("az functionapp stop", code)
+        self.assertNotIn("print(secret", code)
+        self.assertNotIn("print(job_id", code)
+
+
+if __name__ == "__main__":
+    unittest.main()
