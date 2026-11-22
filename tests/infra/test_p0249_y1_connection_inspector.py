@@ -66,6 +66,9 @@ class ReadonlyY1ConnectionInspection(unittest.TestCase):
         report=tool.inspect(run)
         self.assertTrue(report["y1_same_core_connection_values"])
         self.assertTrue(report["y1_core_http_complete"])
+        self.assertFalse(report["y1_all_original_http_indexed"])
+        self.assertFalse(report["y1_exact_http_only_index"])
+        self.assertFalse(report["y1_exact_full_short_worker_index"])
         self.assertTrue(report["y1_running"])
         self.assertTrue(report["y1_frontend_cors_allowed"])
         self.assertFalse(report["y1_any_background_triggers"])
@@ -113,6 +116,29 @@ class ReadonlyY1ConnectionInspection(unittest.TestCase):
             with self.subTest(only_background=only_background):
                 self.assertTrue(tool.inspect(fake_runner(one_trigger)[0])[
                     "y1_any_background_triggers"])
+
+    def test_exact_http_and_short_worker_indexes_are_distinguished(self):
+        def indexes_http(op, payload):
+            if op[:3] == ("functionapp", "function", "list") and op[-1] == tool.Y1:
+                return [{"name": tool.Y1 + "/" + name}
+                        for name in sorted(tool.ALL_HTTP_FUNCTIONS)]
+            return payload
+        report = tool.inspect(fake_runner(indexes_http)[0])
+        self.assertTrue(report["y1_all_original_http_indexed"])
+        self.assertTrue(report["y1_exact_http_only_index"])
+        self.assertFalse(report["y1_exact_full_short_worker_index"])
+        self.assertFalse(report["y1_any_background_triggers"])
+
+        def indexes_all(op, payload):
+            if op[:3] == ("functionapp", "function", "list") and op[-1] == tool.Y1:
+                return [{"name": tool.Y1 + "/" + name}
+                        for name in sorted(tool.EXPECTED_FULL_Y1_INDEX)]
+            return payload
+        report = tool.inspect(fake_runner(indexes_all)[0])
+        self.assertTrue(report["y1_all_original_http_indexed"])
+        self.assertFalse(report["y1_exact_http_only_index"])
+        self.assertTrue(report["y1_exact_full_short_worker_index"])
+        self.assertTrue(report["y1_any_background_triggers"])
 
     def test_separate_y1_webjobs_host_storage_does_not_false_block_shared_queue(self):
         def changed(op,payload):
