@@ -2,9 +2,9 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-22T15:03:20Z",
+  "last_written_at": "2026-11-22T15:55:00Z",
   "last_inventory_count": 3,
-  "last_inventory_checked_at": "2026-11-22T15:03:20Z",
+  "last_inventory_checked_at": "2026-11-22T15:55:00Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
@@ -108,22 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 44986016727,
-      "head_sha": "eb4f92a0da43373a80ee0f2d721961aa01c659ea",
-      "status": "FAIL native CPU 0/1",
-      "evidence": "One native CPU job inspected: failed"
-    },
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 44990887544,
-      "head_sha": "292a441264466d9ea564138eae6da484fa2f64bd",
-      "status": "FAIL 3/4",
-      "evidence": "Four mandatory jobs independently checked; Python failed"
-    },
     {
       "event": "exact_head_ci",
       "pr": 1059,
@@ -299,6 +283,22 @@
       "head_sha": "2f46bad8497c257cb61cda6496a8d7ab5367d5a3",
       "status": "PASS native CPU 1/1",
       "evidence": "Native 30s F2-F4 CPU job independently checked SUCCESS"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 45040310227,
+      "head_sha": "91a933f78e9d9958cea529a1a8eb7923da1681cb",
+      "status": "PASS 4/4 latest mandatory",
+      "evidence": "All four jobs individually verified SUCCESS; earlier same-head #45040305487 also PASS 4/4"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 45040305559,
+      "head_sha": "91a933f78e9d9958cea529a1a8eb7923da1681cb",
+      "status": "IN_PROGRESS native CPU",
+      "evidence": "One job inspected in_progress; do not infer PASS"
     }
   ],
   "current_review_gates": {
