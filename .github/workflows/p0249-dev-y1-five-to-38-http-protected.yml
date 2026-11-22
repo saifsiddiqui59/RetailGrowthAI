@@ -125,6 +125,27 @@ jobs:
           import p0249_y1_canary_guard as guard
           guard.probe()
           PY
+      - name: Fail closed on missing shared DEV connections BEFORE any Azure write
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import importlib.util,sys
+          sys.path.insert(0,"ops/p0249-y1-cutover")
+          spec=importlib.util.spec_from_file_location(
+              "connections","ops/p0249-y1-cutover/inspect_azure_connections_readonly.py")
+          m=importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(m)
+          proof=m.inspect()
+          required=("y1_running","flex_running","y1_same_core_connection_values",
+                    "y1_frontend_cors_allowed")
+          if (any(proof.get(x) is not True for x in required)
+              or proof.get("y1_any_background_triggers") is not False
+              or proof.get("y1_indexed_count") != 5):
+              print("P0249_Y1_PREWRITE_CORE_CONNECTIONS=BLOCKED")
+              raise SystemExit(2)
+          print("P0249_Y1_PREWRITE_CORE_CONNECTIONS=PASS_FIVE_NO_WORKERS")
+          PY
       - name: Backup exact five-route active private Blob URL + protected run owner
         id: release_marker
         shell: bash
@@ -160,6 +181,7 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           import importlib.util,sys
+          sys.path.insert(0,"ops/p0249-y1-cutover")
           spec=importlib.util.spec_from_file_location(
               "connections","ops/p0249-y1-cutover/inspect_azure_connections_readonly.py")
           m=importlib.util.module_from_spec(spec)
@@ -188,6 +210,24 @@ jobs:
           guard.probe()
           PY
           python3 ops/p0249-y1-cutover/five_to_38_release.py verify
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0,"ops")
+          from p0249_y1_canary_guard import get
+          # No auth token, no customer data and no write. Assert this is the
+          # actual hosted HTTP handler (not a proxy 401/redirect).
+          checks=(
+              "/api/campaigns/00000000-0000-4000-8000-000000000001",
+              "/api/render-jobs/00000000-0000-4000-8000-000000000001",
+              "/api/poster-drafts/00000000-0000-4000-8000-000000000001",
+          )
+          for uri in checks:
+              code,marked,elapsed=get(uri,25)
+              if code != 401 or not marked or elapsed >= 25:
+                  print("P0249_Y1_HTTP_MISSING_JWT=BLOCKED")
+                  raise SystemExit(2)
+          print("P0249_Y1_HTTP_MISSING_JWT=3_OF_3_MARKED_401")
+          PY
       - name: Real 240-second idle then second 20/20 HTTP acceptance
         shell: bash
         run: |
@@ -200,6 +240,24 @@ jobs:
           guard.probe()
           PY
           python3 ops/p0249-y1-cutover/five_to_38_release.py verify
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0,"ops")
+          from p0249_y1_canary_guard import get
+          # No auth token, no customer data and no write. Assert this is the
+          # actual hosted HTTP handler (not a proxy 401/redirect).
+          checks=(
+              "/api/campaigns/00000000-0000-4000-8000-000000000001",
+              "/api/render-jobs/00000000-0000-4000-8000-000000000001",
+              "/api/poster-drafts/00000000-0000-4000-8000-000000000001",
+          )
+          for uri in checks:
+              code,marked,elapsed=get(uri,25)
+              if code != 401 or not marked or elapsed >= 25:
+                  print("P0249_Y1_HTTP_MISSING_JWT=BLOCKED")
+                  raise SystemExit(2)
+          print("P0249_Y1_HTTP_MISSING_JWT=3_OF_3_MARKED_401")
+          PY
           echo "P0249_Y1_38_HTTP_DEPLOYED_NOT_TRAFFIC_CUTOVER=PASS"
       - name: Same-run five-route restore on ANY failed post-marker step
         if: ${{ failure() && steps.release_marker.outputs.attempted == 'true' }}
