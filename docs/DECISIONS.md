@@ -1396,3 +1396,6 @@ Only exact existing DEV storage and two names may be created by the queue stage 
 
 ## 2026-11-22 — Distinguish F4 worker indexing from API readiness attestation
 `RETAIL_FEATURE4_CPU_WORKER_ENABLED` has two bounded usages: in the isolated F4 worker it indexes three private queue/timer triggers, whereas in the original API it is a required readiness condition for render routes (not a worker registration). Keep false in original API while staging; require verified dedicated host, rights, DB, queue, and original URI rollback before marking true. Enable CPU_RENDER last; never infer real hosted readiness from a source merge.
+
+## 2026-11-22 — Limit CPU queue concurrency in the isolated worker host
+High-resolution F4 reels are CPU/memory-heavy. Shared legacy queue defaults are inappropriate for a 2-GiB single-instance F4 host, even if max instances = 1. Therefore a separate worker-only host.json enforces batchSize=1 and newBatchThreshold=0, dynamicConcurrencyEnabled=false; the native package must fail closed on deviations. Do not mutate the v1 API host or assume this static guard proves live scale/cost behavior.

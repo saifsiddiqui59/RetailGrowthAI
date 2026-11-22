@@ -43,7 +43,7 @@ STATIC_FILES = ("render.mjs", "package.json", "package-lock.json")
 def sources():
     """Return flattened importable Python + reviewed Node sources; no v1 ZIP."""
     mapping = {
-        "host.json": SERVICE / "host.json",
+        "host.json": ISOLATED / "host.json",
         "requirements.txt": SERVICE / "requirements.txt",
     }
     for name in SERVICE_MODULES:
@@ -73,6 +73,15 @@ def sources():
         raise ValueError("Unreviewed Functions timeout")
     if host.get("extensions", {}).get("queues", {}).get("messageEncoding") != "none":
         raise ValueError("Queue encoding must match UUID-only messages")
+    queues = host.get("extensions", {}).get("queues", {})
+    # A single F4 CPU render may consume most of a 2 GiB Flex instance.
+    # The legacy API's default queue batch concurrency is unsafe here.
+    if (type(queues.get("batchSize")) is not int
+            or queues["batchSize"] != 1
+            or type(queues.get("newBatchThreshold")) is not int
+            or queues["newBatchThreshold"] != 0
+            or host.get("concurrency", {}).get("dynamicConcurrencyEnabled") is not False):
+        raise ValueError("Unreviewed isolated F4 CPU queue concurrency")
     app = mapping["function_app.py"].read_text(encoding="utf-8")
     if "retail-feature4-cpu-render" not in app or "RETAIL_FEATURE4_CPU_WORKER_ENABLED" not in app:
         raise ValueError("Worker queue name/activation gate missing")
