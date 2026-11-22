@@ -126,7 +126,9 @@ def build(args):
     mapping = sources()
     if sys.version_info[:2] != (3, 11):
         raise ValueError("Only Python 3.11 supports this pinned isolated runtime build")
-    node, ffmpeg, ffprobe = (Path(x).resolve(strict=True) for x in
+    # Validate the supplied paths before resolving them: resolving first
+    # hides symlinks and defeats _version's release-artifact link guard.
+    node, ffmpeg, ffprobe = (Path(x) for x in
                            (args.node, args.ffmpeg, args.ffprobe))
     _version(node, ["--version"], r"^v22\.")
     _version(ffmpeg, ["-version"], r"^ffmpeg version")
