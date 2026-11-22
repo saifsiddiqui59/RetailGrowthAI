@@ -44,12 +44,20 @@ HTTP = frozenset({
     "get_retailer_trends", "create_retailer_trend_draft",
     "improve_retailer_prompt", "improve_retailer_prompt_with_ai",
     "create_retailer_trend_draft_with_ai", "create_private_voicestudio_job",
+    # Seven exact Feature2→Feature4 routes newly integrated in main
+    # 6c376c3a; never replace their reviewed code with the stale 30-route API.
+    "create_feature4_render", "get_feature4_render", "download_feature4_render",
+    "issue_feature4_creative_plan", "read_feature4_creative_plan",
+    "review_feature4_creative_plan", "revoke_feature4_creative_plan",
 })
 CORE_HTTP = frozenset({
     "create_campaign", "read_campaign", "save_campaign_day", "create_render",
     "get_render", "get_render_download", "create_poster_draft",
     "get_poster_draft", "list_saved_posters", "select_poster_banner",
     "request_poster_render", "read_poster_render", "download_poster_render",
+    "create_feature4_render", "get_feature4_render", "download_feature4_render",
+    "issue_feature4_creative_plan", "read_feature4_creative_plan",
+    "review_feature4_creative_plan", "revoke_feature4_creative_plan",
 })
 
 
