@@ -30,6 +30,7 @@ THIRTY_EIGHT = HTTP | {"p0249_health"}
 INDEX_ALLOWLIST = FIVE | THIRTY_EIGHT
 BACKUP = "RGAI_P0249_Y1_38_FIVE_BASELINE_PACKAGE_REF"
 OWNER = "RGAI_P0249_Y1_38_RELEASE_RUN_ID"
+ORYX_BASELINE = "RGAI_P0249_Y1_38_BASELINE_ORYX_MODE"
 MAX_INDEX = 48
 
 
@@ -89,32 +90,50 @@ def _assert_original_five(settings):
 def preflight():
     guard.verify()
     settings = legacy._settings()
-    if BACKUP in settings or OWNER in settings:
+    if any(k in settings for k in (BACKUP, OWNER, ORYX_BASELINE)):
         raise RuntimeError("Prior five-to-38 release ownership exists")
     _assert_original_five(settings)
     print("P0249_Y1_FIVE_TO_38_PREFLIGHT=FIVE_PINNED_NO_WRITE", flush=True)
 
 
 def prepare():
-    """Backup this exact live FIVE package without changing its active URI."""
+    """Save exact FIVE URI and Oryx baseline, then select safe remote build."""
     guard.verify()
     settings = legacy._settings()
-    if BACKUP in settings or OWNER in settings:
+    if any(k in settings for k in (BACKUP, OWNER, ORYX_BASELINE)):
         raise RuntimeError("Refuse to overwrite an existing release owner/backup")
     _assert_original_five(settings)
     owner = legacy._run_id()
     baseline = settings["WEBSITE_RUN_FROM_PACKAGE"]
+    original_oryx = str(settings["ENABLE_ORYX_BUILD"]).lower() if "ENABLE_ORYX_BUILD" in settings else "absent"
+    if original_oryx not in ("true", "false", "absent"):
+        raise RuntimeError("Unsafe baseline Oryx state")
     # Quarantined Azure CLI output. These markers are unique to the NEW 38
     # release; never overwrite retained previous two-route recovery markers.
-    legacy._set(**{BACKUP: baseline, OWNER: owner})
+    legacy._set(**{BACKUP: baseline, OWNER: owner, ORYX_BASELINE: original_oryx})
     after = legacy._settings()
     if (after.get(BACKUP) != baseline or after.get(OWNER) != owner
+        or after.get(ORYX_BASELINE) != original_oryx
         or after.get("WEBSITE_RUN_FROM_PACKAGE") != baseline):
-        raise RuntimeError("Five-route baseline backup was not atomically retained")
+        raise RuntimeError("Five-route rollback state not durably retained")
     guard.verify()
     if _index() != FIVE:
         raise RuntimeError("Y1 indexes changed during backup")
-    print("P0249_Y1_FIVE_TO_38_BACKUP=PINNED_OWNER_CONFIRMED", flush=True)
+    # Linux Consumption remote Python Oryx build cannot run while an
+    # external WEBSITE_RUN_FROM_PACKAGE URI selects the old ZIP. The pinned
+    # five-route baseline and original build mode were recorded FIRST.
+    legacy._delete("WEBSITE_RUN_FROM_PACKAGE")
+    legacy._set(ENABLE_ORYX_BUILD="true")
+    selected = legacy._settings()
+    if (selected.get(BACKUP) != baseline
+        or selected.get(OWNER) != owner
+        or selected.get(ORYX_BASELINE) != original_oryx
+        or "WEBSITE_RUN_FROM_PACKAGE" in selected
+        or str(selected.get("SCM_DO_BUILD_DURING_DEPLOYMENT", "")).lower() != "true"
+        or str(selected.get("ENABLE_ORYX_BUILD", "")).lower() != "true"):
+        raise RuntimeError("Y1 remote-build mode not safely selected")
+    guard.verify()
+    print("P0249_Y1_FIVE_TO_38_BACKUP=PINNED_REMOTE_BUILD_READY", flush=True)
 
 
 def verify():
@@ -122,6 +141,9 @@ def verify():
     guard.verify()
     settings = legacy._settings()
     if (settings.get(OWNER) != legacy._run_id()
+        or settings.get(ORYX_BASELINE) not in ("true", "false", "absent")
+        or str(settings.get("SCM_DO_BUILD_DURING_DEPLOYMENT", "")).lower() != "true"
+        or str(settings.get("ENABLE_ORYX_BUILD", "true")).lower() != "true"
         or not _pinned_package(settings.get(BACKUP))
         or not _pinned_package(settings.get("WEBSITE_RUN_FROM_PACKAGE"))
         or settings["WEBSITE_RUN_FROM_PACKAGE"] == settings[BACKUP]):
@@ -155,19 +177,30 @@ def rollback():
     settings = legacy._settings()
     backup = settings.get(BACKUP)
     owner = settings.get(OWNER)
-    if backup is None and owner is None:
+    old_oryx = settings.get(ORYX_BASELINE)
+    if backup is None and owner is None and old_oryx is None:
         _assert_original_five(settings)
         guard.probe()
         print("P0249_Y1_FIVE_BASELINE=UNCHANGED_NO_ROLLBACK_WRITE", flush=True)
         return
-    if owner != legacy._run_id() or not _pinned_package(backup):
+    if (owner != legacy._run_id() or not _pinned_package(backup)
+        or old_oryx not in ("true", "false", "absent")):
         raise RuntimeError("Unowned or unsafe five-route backup; stop")
     # No arbitrary unknown functions, queues or timers may be overwritten.
     _index()
     legacy._set(WEBSITE_RUN_FROM_PACKAGE=backup)
+    # Restore original five-route Oryx setting exactly, not just the URI.
+    if old_oryx == "absent":
+        if "ENABLE_ORYX_BUILD" in legacy._settings():
+            legacy._delete("ENABLE_ORYX_BUILD")
+    else:
+        legacy._set(ENABLE_ORYX_BUILD=old_oryx)
     after = legacy._settings()
+    restored_mode = str(after.get("ENABLE_ORYX_BUILD", "absent")).lower()
     if (after.get("WEBSITE_RUN_FROM_PACKAGE") != backup
-        or after.get(BACKUP) != backup or after.get(OWNER) != owner):
+        or after.get(BACKUP) != backup or after.get(OWNER) != owner
+        or after.get(ORYX_BASELINE) != old_oryx
+        or restored_mode != old_oryx):
         raise RuntimeError("Y1 original five-route package restore failed")
     # Linux Consumption needs explicit ARM sync after externally hosted URI
     # restore; the old CLI function-trigger sync is not reliable for Y1.
@@ -177,8 +210,8 @@ def rollback():
     if not _wait_for_five():
         raise RuntimeError("Original five routes not reindexed")
     guard.probe()
-    legacy._delete(BACKUP, OWNER)
-    if BACKUP in legacy._settings() or OWNER in legacy._settings():
+    legacy._delete(BACKUP, OWNER, ORYX_BASELINE)
+    if any(k in legacy._settings() for k in (BACKUP, OWNER, ORYX_BASELINE)):
         raise RuntimeError("Y1 new release backup-marker cleanup failed")
     if not _wait_for_five():
         raise RuntimeError("Five indexes lost after rollback cleanup")
