@@ -1361,3 +1361,7 @@ An isolated CPU worker package must be verified offline before any Azure release
 
 ## 2026-11-22 — Require NULL-safe JSON validation for approved F4 plans
 All required reviewed-plan approval, version, identity and media snapshot predicates in F4 CPU issue/claim source candidates use `IS DISTINCT FROM`, not `<>`, to reject missing JSON keys. PostgreSQL NULL in `IF` with compound `OR` may otherwise fail open. A disposable test deliberately re-seals a synthetic invalid direction and checks worker denial, without claiming a real-world exploit. No rights, billing, service-role permissions, legacy v1 or hosting changes authorized by this source rule.
+
+
+## 2026-11-22 — Terminally fail undeliverable F4 CPU jobs without unbounded retries
+A service-only F4 CPU outbox may send at most eight times. When a QUEUED job's row is `DEAD`, or its eighth `CLAIMED` send lease has expired without confirmation, the regular reconciler must mark the job `FAILED` with `RETRY_EXHAUSTED`, retain durable `DEAD` evidence and stop dispatching. Keep an actively running unexpired worker claim fenced; no automatic duplicate charge/refund or bypass of separate reviewer/DEV deployment gates. Rollback-only DB fixtures cover both failure modes.

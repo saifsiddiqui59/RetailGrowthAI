@@ -72,8 +72,14 @@ begin
    from public.feature4_cpu_render_jobs j
    join retail_private.feature4_cpu_outbox o on o.job_id=j.id
    where (j.status='RUNNING' and j.render_lease_until<now())
-      or (j.status='QUEUED' and o.state='SENT'
-          and o.delivered_at<now()-interval '5 minutes')
+      or (j.status='QUEUED' and (
+           (o.state='SENT' and o.delivered_at<now()-interval '5 minutes')
+           -- A failed eighth send or lost eighth ACK must not strand a
+           -- billable reservation as QUEUED with an undeliverable outbox.
+           or (o.attempts>=8 and (
+                 o.state='DEAD' or
+                 (o.state='CLAIMED' and
+                   (o.lease_until is null or o.lease_until<now()))))))
    order by j.created_at,j.id limit p_limit for update of j,o skip locked
  ), changed as (
    update public.feature4_cpu_render_jobs j set

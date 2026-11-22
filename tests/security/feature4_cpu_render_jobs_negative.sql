@@ -296,6 +296,56 @@ begin
       and o.state='PENDING')<>1 then
     raise exception 'FAIL: private outbox not inserted atomically'; end if;
 end $test$;
+-- Exhausted F4 outbox must terminally reconcile a QUEUED job. Without
+-- this, all eight failed sends could leave a charged job stuck indefinitely.
+-- Both fixture mutations are isolated in savepoints (no hosted writes).
+reset role;
+savepoint feature4_dead_outbox_guard;
+update retail_private.feature4_cpu_outbox o set state='DEAD',attempts=8,
+  lease_token=null,lease_until=null
+where job_id=(select id from public.feature4_cpu_render_jobs
+  where plan_id='f5300000-0000-4000-8000-000000000001');
+set local role service_role;
+do $dead_outbox$
+declare jid uuid;
+begin
+  select id into jid from public.feature4_cpu_render_jobs
+  where plan_id='f5300000-0000-4000-8000-000000000001';
+  if public.feature4_reconcile_cpu_render(20)<>1 or not exists(
+       select 1 from public.feature4_cpu_render_jobs
+       where id=jid and status='FAILED' and error_code='RETRY_EXHAUSTED')
+     or not exists(
+       select 1 from retail_private.feature4_cpu_outbox
+       where job_id=jid and state='DEAD')
+  then raise exception 'FAIL: dead outbox stranded queued CPU job'; end if;
+end $dead_outbox$;
+reset role;
+rollback to savepoint feature4_dead_outbox_guard;
+
+-- The last lease may expire without a confirm() RPC (lost ACK/crash).
+savepoint feature4_expired_eighth_send_guard;
+update retail_private.feature4_cpu_outbox o set state='CLAIMED',
+  attempts=8,lease_token=gen_random_uuid(),
+  lease_until=now()-interval '1 minute'
+where job_id=(select id from public.feature4_cpu_render_jobs
+  where plan_id='f5300000-0000-4000-8000-000000000001');
+set local role service_role;
+do $expired_eighth$
+declare jid uuid;
+begin
+  select id into jid from public.feature4_cpu_render_jobs
+  where plan_id='f5300000-0000-4000-8000-000000000001';
+  if public.feature4_reconcile_cpu_render(20)<>1 or not exists(
+       select 1 from public.feature4_cpu_render_jobs
+       where id=jid and status='FAILED' and error_code='RETRY_EXHAUSTED')
+     or not exists(
+       select 1 from retail_private.feature4_cpu_outbox
+       where job_id=jid and state='DEAD')
+  then raise exception 'FAIL: lost eighth queue ACK stranded CPU job'; end if;
+end $expired_eighth$;
+reset role;
+rollback to savepoint feature4_expired_eighth_send_guard;
+
 -- After an owned-media license has changed, EVEN idempotent readback fails.
 update public.media_assets set license_name='unverified'
 where id='f5200000-0000-4000-8000-000000000001';

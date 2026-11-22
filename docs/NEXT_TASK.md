@@ -1805,3 +1805,9 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 1. Run/check the new exact-head mandatory 4/4 Part1 and native 30s CPU rendering; repair any test regressions in the source branch.
 2. Obtain independent affected-lead security review of SQL grants/rights/claim/outbox/poison, immutable plan digest, private media and release artifact. Owner's preference not to review GitHub manually does not remove separate security/protected release approval.
 3. Only after authorized DEV gates, stage six additive migrations and dedicated queue/worker with rollback; signed nonprivileged two-shop browser E2E is still pending. Do not merge/enable billable rendering or mutate #249/Y1, PROD, WineShopPOS, GPU or paid inference without necessary evidence.
+
+
+## 2026-11-22 — PR #1059 terminal outbox recovery next
+1. Confirm exact new-head 4/4 mandatory CI plus native F2→F4 CPU artifact after SQL three-valued approval and terminal outbox regression additions; repair test failures in existing branch.
+2. Independently review eight-send dead/expired ACK fence, quota settlement/credit lifecycle, plan rights, service_role-only SQL and release ZIP before approving integration. Do not mark hosted, reviewed or main-merged from source-only tests.
+3. After protected DEV schema/deployment authorization, verify private queue/worker, signed two-shop real media, positive/revoked/foreign JWT and short-lived private MP4 before release, without user GitHub approval request or bypass of required reviewer. #249/Y1, PROD, GPU/paid, WineShopPOS untouched.

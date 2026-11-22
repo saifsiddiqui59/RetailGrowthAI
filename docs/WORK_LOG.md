@@ -1199,3 +1199,6 @@ Work completed: #859 merged & postmerge 4/4, #866 merged (postmerge running), #8
 
 
 - 2026-11-22 PR #1059: verified exact previous head `9b8399b6be5428bddc54adf261cc3723283d0d92`: [Part1 run #45046055130](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/45046055130) 4/4 SUCCESS and [real F2→F4 native CPU run #45046050075](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/45046050075) SUCCESS. Identified PostgreSQL three-valued-logic edge case for missing approved-direction JSON keys, hardened F4 submit/claim SQL candidates and added a rollback-only deliberately re-hashed missing-approval denial regression. New exact-head CI pending; independent security approval/hosted DEV migration/worker and signed two-shop E2E remain unverified. PR draft, #249/Y1, GPU/paid, PROD/WineShopPOS unchanged.
+
+
+- 2026-11-22 PR #1059: audited F4 outbox/reconciler source and found a stranded-quota liveness hole when queue send attempt eight transitions to `DEAD` or final `CLAIMED` expires: `QUEUED` job was never selected for reconciliation. Source fix adds terminal recovery for both under existing row locks and two disposable SQL rollback regression cases; new exact-HEAD four-job and native CPU checks still pending. No hosted migration/queue/worker/app changes, no independent review impersonation, no #249/Y1/PROD/WineShopPOS/GPU/paid change.
