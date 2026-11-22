@@ -74,6 +74,29 @@ class Feature4CpuWorkerPackageTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Symlink in F4 package"):
                 module._collect_tree(dependencies, "deps")
 
+    @unittest.skipUnless(hasattr(__import__("os"), "mkfifo"), "POSIX FIFO required")
+    def test_fifo_dependency_rejected_before_archive_read(self):
+        import os
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            os.mkfifo(root / "blocking.pipe")
+            with self.assertRaisesRegex(ValueError, "Non-regular F4 package dependency"):
+                module._collect_tree(root, "deps")
+
+    @unittest.skipUnless(hasattr(__import__("os"), "mkfifo"), "POSIX FIFO required")
+    def test_fifo_archive_source_rejected_before_read(self):
+        import os
+        import tempfile
+        from zipfile import ZipFile
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            pipe = root / "blocking.pipe"
+            os.mkfifo(pipe)
+            with ZipFile(root / "artifact.zip", "w") as archive:
+                with self.assertRaisesRegex(ValueError, "Unsafe non-regular F4 archive source"):
+                    module._write_member(archive, "deps/blocking.pipe", pipe)
+
     def test_dependency_root_symlink_is_rejected(self):
         import tempfile
         with tempfile.TemporaryDirectory() as directory:
