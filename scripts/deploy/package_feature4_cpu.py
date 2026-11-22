@@ -146,8 +146,9 @@ def _write_member(z, archive_path, origin):
         raise ValueError("Duplicate F4 archive member: " + archive_path)
     # Zip deploy does not require source-tree symlink semantics. Copy a
     # regular, locally verified file and retain executable permissions.
-    if not stat.S_ISREG(origin.lstat().st_mode) or origin.is_symlink():
-        raise ValueError("Unsafe non-regular F4 archive source: " + archive_path)
+    if (not stat.S_ISREG(origin.lstat().st_mode) or origin.is_symlink()
+            or any(parent.is_symlink() for parent in origin.parents)):
+        raise ValueError("Unsafe non-regular or linked F4 archive source: " + archive_path)
     # Bound each input before allocating its bytes; a single oversized file
     # must not exhaust CI/worker memory before the ZIP-size guard runs.
     if origin.stat().st_size > MAX_ARCHIVE:
