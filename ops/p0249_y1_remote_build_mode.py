@@ -22,6 +22,7 @@ RG = guard.RG
 SITE = guard.SITE
 BACKUP = "RGAI_P0249_Y1_BASELINE_PACKAGE_REF"
 OWNER = "RGAI_P0249_Y1_REMOTE_BUILD_RUN_ID"
+LEGACY_FAILED_RUN = "44629301025"  # Exact prior owned protected release, never arbitrary
 SHADOWS = (
     "RGAI_P0249_READONLY_SHADOW", "RGAI_P0249_EXTRA_GET_SHADOW",
     "RETAIL_SUPABASE_URL", "RETAIL_SUPABASE_PUBLISHABLE_KEY",
@@ -133,11 +134,22 @@ def prepare():
         raise RuntimeError("Y1 baseline is not exactly two functions")
     before = _settings()
     _assert_settings(before)
-    if BACKUP in before or OWNER in before:
-        raise RuntimeError("Y1 protected backup/owner already exists")
     original = before.get("WEBSITE_RUN_FROM_PACKAGE")
+    # Preserve the existing fail-closed second-run/foreign-owner rejection
+    # before inspecting a package URL removed by an earlier active trial.
+    if (BACKUP in before or OWNER in before) and before.get(OWNER) != LEGACY_FAILED_RUN:
+        raise RuntimeError("Y1 protected backup/owner already exists")
     if not _package_url(original):
         raise RuntimeError("Y1 baseline is not an expected Azure HTTPS package URL")
+    # Previous protected run #44629301025 retained an OWNED original URI
+    # backup after its failed rollback. Re-adopt ONLY that exact known owner
+    # with active and backup URLs byte-identical; never accept arbitrary
+    # owners, partial markers, or an active package different from backup.
+    if BACKUP in before or OWNER in before:
+        if not (before.get(OWNER) == LEGACY_FAILED_RUN
+                and before.get(BACKUP) == original
+                and urlsplit(original).hostname == guard.STORAGE + ".blob.core.windows.net"):
+            raise RuntimeError("Y1 existing backup/owner is not safe to adopt")
     if "ENABLE_ORYX_BUILD" in before:
         raise RuntimeError("Y1 Oryx baseline unexpected; do not overwrite")
     run_id = _run_id()
@@ -180,6 +192,17 @@ def rollback():
     _assert_settings(before)
     old = before.get(BACKUP)
     owner = before.get(OWNER)
+    # If a new trial was denied before any setting write, a prior known
+    # owner must not be mistaken for our own rollback ownership. Prove
+    # unchanged original URL, no Oryx flag, exactly two handlers and live
+    # 20/20 health instead; do not mutate or delete legacy recovery keys.
+    if (owner == LEGACY_FAILED_RUN and _package_url(old)
+            and urlsplit(old).hostname == guard.STORAGE + ".blob.core.windows.net"
+            and before.get("WEBSITE_RUN_FROM_PACKAGE") == old
+            and "ENABLE_ORYX_BUILD" not in before and _index() == TWO):
+        guard.probe()
+        print("P0249_Y1_LEGACY_ORIGINAL_PACKAGE_RETAINED=PASS_20OF20", flush=True)
+        return
     if old is None and owner is None:
         if ("WEBSITE_RUN_FROM_PACKAGE" in before
                 and _package_url(before.get("WEBSITE_RUN_FROM_PACKAGE"))
@@ -206,7 +229,11 @@ def rollback():
             "ENABLE_ORYX_BUILD" in after or after.get(OWNER) != run_id):
         raise RuntimeError("Y1 original package reference not restored")
     # Re-sync the external package after its URL is restored; no raw URL/log.
-    _az("functionapp", "sync-function-triggers", "-g", RG, "-n", SITE)
+    # Azure CLI sync-function-triggers is not reliable on this Linux Y1;
+    # use the pinned WebSites ARM syncfunctiontriggers action.
+    _az("resource", "invoke-action", "-g", RG, "-n", SITE,
+        "--resource-type", "Microsoft.Web/sites",
+        "--action", "syncfunctiontriggers")
     if not _wait_for_index(TWO):
         raise RuntimeError("Y1 rollback did not reindex the original two functions")
     guard.probe()
@@ -220,14 +247,65 @@ def rollback():
     print("P0249_Y1_ORIGINAL_EXTERNAL_PACKAGE_ROLLBACK=PASS", flush=True)
 
 
+def _postpublisher_oryx_allowed(s):
+    """Official Functions Action Oryx input is temporary, not a persistent flag.
+
+    Permit only true or ABSENT; the next gated index/HTTP checks must still
+    prove the code actually launched. Never allow a false/unknown Oryx value.
+    """
+    return ("ENABLE_ORYX_BUILD" not in s or
+            str(s.get("ENABLE_ORYX_BUILD", "")).lower() == "true")
+
+
+def _pinned_package_on_storage(value):
+    """Require a package URL hosted on exact existing RetailGrowthAI DEV storage."""
+    if not _package_url(value):
+        return False
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return False
+    return parsed.hostname == guard.STORAGE + ".blob.core.windows.net"
+
+
+def _postpublisher_package_allowed(settings):
+    """Linux Consumption publisher may install a NEW run-from-package Blob URL.
+
+    Refuse the old baseline pointer, foreign domain/account, local-package
+    marker or malformed URL.  Five hosted indexes and real GET/401 checks
+    remain required separately.
+    """
+    original = settings.get(BACKUP)
+    if not _pinned_package_on_storage(original):
+        return False
+    installed = settings.get("WEBSITE_RUN_FROM_PACKAGE")
+    if installed is None:
+        return True  # remote-build mode; hosted evidence still required
+    return _pinned_package_on_storage(installed) and installed != original
+
+
 def verify_build_mode():
-    """Fail closed when an external publisher removes required Oryx settings."""
+    """Verify persistent ownership/package state, not ephemeral Action flags."""
     guard.verify()
     s = _settings()
+    # Fixed booleans only; never print credential-bearing URL, token or keys.
+    print("P0249_Y1_POSTPUBLISH_FLAGS=" + json.dumps({
+        "scm_true": str(s.get("SCM_DO_BUILD_DURING_DEPLOYMENT", "")).lower() == "true",
+        "oryx_absent": "ENABLE_ORYX_BUILD" not in s,
+        "oryx_true": str(s.get("ENABLE_ORYX_BUILD", "")).lower() == "true",
+        "runfrompackage_absent": "WEBSITE_RUN_FROM_PACKAGE" not in s,
+        "new_pinned_package_url": (
+            _pinned_package_on_storage(s.get("WEBSITE_RUN_FROM_PACKAGE"))
+            and s.get("WEBSITE_RUN_FROM_PACKAGE") != s.get(BACKUP)),
+        "old_package_still_active": (
+            s.get("WEBSITE_RUN_FROM_PACKAGE") == s.get(BACKUP)),
+        "backup_url_valid": _pinned_package_on_storage(s.get(BACKUP)),
+        "owner_matches_current_run": s.get(OWNER) == _run_id(),
+    }, sort_keys=True), flush=True)
     _assert_settings(s)
-    if (s.get(OWNER) != _run_id() or not _package_url(s.get(BACKUP))
-            or "WEBSITE_RUN_FROM_PACKAGE" in s
-            or str(s.get("ENABLE_ORYX_BUILD", "")).lower() != "true"):
+    if (s.get(OWNER) != _run_id() or
+            not _postpublisher_package_allowed(s) or
+            not _postpublisher_oryx_allowed(s)):
         raise RuntimeError("Y1 remote build settings or owner drifted")
     print("P0249_Y1_REMOTE_BUILD_POSTPUBLISH_SETTINGS=PASS", flush=True)
 
@@ -237,8 +315,8 @@ def verify_five():
     value = _settings()
     _assert_settings(value)
     if (value.get(OWNER) != _run_id() or
-            not _package_url(value.get(BACKUP)) or
-            str(value.get("ENABLE_ORYX_BUILD", "")).lower() != "true"):
+            not _postpublisher_package_allowed(value) or
+            not _postpublisher_oryx_allowed(value)):
         raise RuntimeError("Protected Y1 remote-build owner/mode drifted")
     if _index() != FIVE:
         raise RuntimeError("Five Y1 functions not actually indexed")

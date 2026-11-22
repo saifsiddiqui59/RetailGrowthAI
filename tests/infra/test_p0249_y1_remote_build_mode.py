@@ -45,7 +45,9 @@ class FakeAzure:
             for name in names:
                 self.settings.pop(name, None)
             return []
-        if args[:2] == ["functionapp", "sync-function-triggers"]:
+        if args[:2] == ["resource", "invoke-action"]:
+            assert "--action" in args and args[args.index("--action") + 1] == "syncfunctiontriggers"
+            assert "--resource-type" in args and args[args.index("--resource-type") + 1] == "Microsoft.Web/sites"
             self.sync += 1
             return None
         raise AssertionError("Unapproved Azure CLI path: " + repr(args[:4]))
@@ -116,6 +118,69 @@ class Y1RemoteBuildModeTests(unittest.TestCase):
             y1.rollback()
         self.assertEqual(self.cloud.mutations, [])
 
+    def test_verified_exact_legacy_owner_can_be_adopted_and_restored(self):
+        self.cloud.settings[y1.BACKUP] = self.cloud.secret
+        self.cloud.settings[y1.OWNER] = y1.LEGACY_FAILED_RUN
+        y1.prepare()
+        self.assertEqual(self.cloud.settings[y1.OWNER], "44630000000")
+        self.assertEqual(self.cloud.settings[y1.BACKUP], self.cloud.secret)
+        self.assertNotIn("WEBSITE_RUN_FROM_PACKAGE", self.cloud.settings)
+        y1.rollback()
+        self.assertEqual(self.cloud.settings["WEBSITE_RUN_FROM_PACKAGE"], self.cloud.secret)
+        self.assertNotIn(y1.BACKUP, self.cloud.settings)
+        self.assertNotIn(y1.OWNER, self.cloud.settings)
+
+    def test_legacy_unchanged_rollback_is_readonly_and_health_checked(self):
+        self.cloud.settings[y1.BACKUP] = self.cloud.secret
+        self.cloud.settings[y1.OWNER] = y1.LEGACY_FAILED_RUN
+        self.cloud.mutations.clear()
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            y1.rollback()
+        self.assertIn("LEGACY_ORIGINAL_PACKAGE_RETAINED=PASS_20OF20", output.getvalue())
+        self.assertEqual(self.cloud.mutations, [])
+        self.assertEqual(self.cloud.settings[y1.OWNER], y1.LEGACY_FAILED_RUN)
+
+    def test_reject_foreign_or_partial_legacy_marker_without_writes(self):
+        for owner, backup in (
+            ("12345678901", self.cloud.secret),
+            (y1.LEGACY_FAILED_RUN, "https://other.blob.core.windows.net/pkg.zip"),
+            (y1.LEGACY_FAILED_RUN, None),
+            (None, self.cloud.secret),
+        ):
+            with self.subTest(owner=owner, backup=backup):
+                self.cloud = FakeAzure()
+                if owner is not None:
+                    self.cloud.settings[y1.OWNER] = owner
+                if backup is not None:
+                    self.cloud.settings[y1.BACKUP] = backup
+                with self.assertRaises(RuntimeError):
+                    y1.prepare()
+                self.assertEqual(self.cloud.mutations, [])
+
+    def test_foreign_account_even_with_matching_legacy_backup_is_denied(self):
+        self.cloud = FakeAzure()
+        bad = "https://other.blob.core.windows.net/pkg.zip?sig=SENSITIVE"
+        self.cloud.settings["WEBSITE_RUN_FROM_PACKAGE"] = bad
+        self.cloud.settings[y1.BACKUP] = bad
+        self.cloud.settings[y1.OWNER] = y1.LEGACY_FAILED_RUN
+        with self.assertRaises(RuntimeError):
+            y1.prepare()
+        self.assertEqual(self.cloud.mutations, [])
+
+    def test_legacy_rollback_denies_modified_package_or_build_settings(self):
+        self.cloud.settings[y1.BACKUP] = self.cloud.secret
+        self.cloud.settings[y1.OWNER] = y1.LEGACY_FAILED_RUN
+        self.cloud.settings["WEBSITE_RUN_FROM_PACKAGE"] = (
+            "https://other.blob.core.windows.net/changed.zip")
+        with self.assertRaises(RuntimeError):
+            y1.rollback()
+        self.assertEqual(self.cloud.mutations, [])
+        self.cloud.settings["WEBSITE_RUN_FROM_PACKAGE"] = self.cloud.secret
+        self.cloud.settings["ENABLE_ORYX_BUILD"] = "true"
+        with self.assertRaises(RuntimeError):
+            y1.rollback()
+        self.assertEqual(self.cloud.mutations, [])
+
     def test_prepare_refuses_second_run_and_no_backup_state(self):
         y1.prepare()
         self.cloud.mutations.clear()
@@ -127,21 +192,97 @@ class Y1RemoteBuildModeTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "No Y1 backup"):
             y1.rollback()
 
-    def test_postpublish_build_settings_fail_closed_on_removed_oryx(self):
+    def test_postpublisher_temporary_oryx_cleanup_requires_real_five_indexes(self):
         y1.prepare()
+        self.cloud.settings.pop("ENABLE_ORYX_BUILD")
+        self.cloud.mutations.clear()
         with contextlib.redirect_stdout(io.StringIO()) as b:
             y1.verify_build_mode()
         self.assertIn("POSTPUBLISH_SETTINGS=PASS", b.getvalue())
-        self.cloud.settings.pop("ENABLE_ORYX_BUILD")
+        self.assertIn('"oryx_absent": true', b.getvalue())
+        self.assertNotIn("SENSITIVE", b.getvalue())
+        with self.assertRaisesRegex(RuntimeError, "not actually indexed"):
+            y1.verify_five()
+        self.cloud.names = sorted(y1.FIVE)
+        with contextlib.redirect_stdout(io.StringIO()) as good:
+            y1.verify_five()
+        self.assertIn("FIVE_INDEXES=PASS", good.getvalue())
+        self.assertEqual(self.cloud.mutations, [])
+
+    def test_postpublisher_misaligned_flags_or_package_ref_are_denied(self):
+        y1.prepare()
         self.cloud.mutations.clear()
+        self.cloud.settings["ENABLE_ORYX_BUILD"] = "false"
         with self.assertRaisesRegex(RuntimeError, "settings or owner drifted"):
             y1.verify_build_mode()
-        self.assertEqual(self.cloud.mutations, [])
-        self.cloud.settings["ENABLE_ORYX_BUILD"] = "true"
+        self.cloud.settings.pop("ENABLE_ORYX_BUILD")
         self.cloud.settings["WEBSITE_RUN_FROM_PACKAGE"] = self.cloud.secret
         with self.assertRaisesRegex(RuntimeError, "settings or owner drifted"):
             y1.verify_build_mode()
+        self.cloud.settings.pop("WEBSITE_RUN_FROM_PACKAGE")
+        self.cloud.settings["SCM_DO_BUILD_DURING_DEPLOYMENT"] = "false"
+        with self.assertRaises(RuntimeError):
+            y1.verify_build_mode()
         self.assertEqual(self.cloud.mutations, [])
+
+    def test_action_new_signed_blob_pointer_requires_real_five_index(self):
+        y1.prepare()
+        new = ("https://" + y1.guard.STORAGE +
+               ".blob.core.windows.net/sitepackages/new-release.zip?sig=NEW")
+        self.cloud.settings["WEBSITE_RUN_FROM_PACKAGE"] = new
+        self.cloud.mutations.clear()
+        with contextlib.redirect_stdout(io.StringIO()) as out:
+            y1.verify_build_mode()
+        self.assertIn('"new_pinned_package_url": true', out.getvalue())
+        self.assertIn('"old_package_still_active": false', out.getvalue())
+        self.assertNotIn(new, out.getvalue())
+        with self.assertRaisesRegex(RuntimeError, "not actually indexed"):
+            y1.verify_five()
+        self.cloud.names = sorted(y1.FIVE)
+        with contextlib.redirect_stdout(io.StringIO()) as ok:
+            y1.verify_five()
+        self.assertIn("FIVE_INDEXES=PASS", ok.getvalue())
+        self.assertEqual(self.cloud.mutations, [])
+
+    def test_new_blob_pointer_rejects_old_foreign_malformed_and_local(self):
+        y1.prepare()
+        old = self.cloud.settings[y1.BACKUP]
+        candidates = (
+            old, "1", "0", "http://" + y1.guard.STORAGE + ".blob.core.windows.net/pkg.zip",
+            "https://other.blob.core.windows.net/sitepackages/forged.zip",
+            "https://" + y1.guard.STORAGE + ".blob.core.windows.net.evil.test/pkg.zip",
+            "https://user:pass@" + y1.guard.STORAGE + ".blob.core.windows.net/pkg.zip",
+            "https://" + y1.guard.STORAGE + ".blob.core.windows.net/pkg.zip#fragment",
+        )
+        self.cloud.mutations.clear()
+        for candidate in candidates:
+            with self.subTest(candidate_index=candidates.index(candidate)):
+                self.cloud.settings["WEBSITE_RUN_FROM_PACKAGE"] = candidate
+                with self.assertRaisesRegex(RuntimeError, "settings or owner drifted"):
+                    y1.verify_build_mode()
+        self.assertEqual(self.cloud.mutations, [])
+
+    def test_new_pointer_never_bypasses_owner_or_oryx_or_shadow(self):
+        y1.prepare()
+        self.cloud.settings["WEBSITE_RUN_FROM_PACKAGE"] = (
+            "https://" + y1.guard.STORAGE +
+            ".blob.core.windows.net/sitepackages/new-release.zip")
+        self.cloud.names = sorted(y1.FIVE)
+        for key, bad in (
+            (y1.OWNER, "stranger"),
+            ("ENABLE_ORYX_BUILD", "false"),
+            ("SCM_DO_BUILD_DURING_DEPLOYMENT", "false"),
+            ("RETAIL_SUPABASE_URL", "unapproved"),
+        ):
+            old = self.cloud.settings.get(key)
+            self.cloud.settings[key] = bad
+            with self.subTest(key=key):
+                with self.assertRaises(RuntimeError):
+                    y1.verify_five()
+            if old is None:
+                self.cloud.settings.pop(key)
+            else:
+                self.cloud.settings[key] = old
 
     def test_verify_five_requires_actual_routes_remote_mode_and_owner(self):
         y1.prepare()

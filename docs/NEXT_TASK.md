@@ -1753,3 +1753,37 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 
 ## 2026-11-22 — #249 owner-delegated exact-main Y1 launch next
 - Run four exact-head CI jobs on the new one-shot dispatch bridge; independently inspect its restricted main SHA checks, source pins, exact 4/4 CI, prior-run duplicate block and no-Azure bridge scope. After reviewed merge with exact approved commit message, require real protected workflow run and verify 5/5 indexed, repeated 20/20, 240s negative auth, and original URI rollback on failure. If protected environment requires an external approval, do not bypass it. No traffic cutover or issue closure until full signed RLS and write/media/p95/p99 acceptance.
+
+
+## 2026-11-22 — #249 after failed Y1 release #44962137246
+1. Complete the protected Y1 read-only original-package/owner/20-of-20 audit via #1068. Do not repeat a package or setting write unless current active package, saved baseline, old run owner, Oryx flags, exact two index and no customer settings are proven.
+2. Review/test the exact-legacy-only recovery source candidate and its negative tests, obtain exact-head 4/4 and merge/main 4/4 before any second protected bounded attempt. Deny any unknown owner, changed package, foreign storage account or failed health.
+3. Only after a safe source and an exact main/owner protected release, require hosted 5/5 and two idle negative-auth windows, real signed two-shop RLS, original write/media/queue/billing and p95/p99 before traffic cutover or Issue #249 closure.
+
+## 2026-11-22 — #249 owner-directed protected retry after confirmed legacy package
+1. Fresh main CI 4/4 on #1069 `c7ff1e4d`; verify one-shot dispatch bridge source pins to exact legacy adoption test/code and its own exact-head 4/4. Then approve only scoped DEV Y1 target via existing protected workflow and original URI rollback; do not bypass storage OAuth restrictions on separate private Blob path.
+2. Inspect actual attempt: mode transition must record ownership correctly before official pinned Azure Functions Action; require postpublisher Oryx flags, exactly 5 indexed, 20/20 two real HTTP windows with 240s idle and four handler-marked negative JWT GETs; independent restore if failure.
+3. Need signed own/foreign/revoked shop RLS and original POST/PATCH/private media/queue/billing and p95/p99 parity before any traffic migration or #249 closure. Original Flex, PROD/WineShopPOS/GPU unchanged.
+
+## 2026-11-22 — #249 after protected Microsoft Action postpublish verification failure
+1. Preserve proven original Y1 two-route recovery and prior exact owner/backup. Protected #44963730037 published the five-route source but the strict postpublish *flag* check failed; same-run and independent rollback were SUCCESS, two real 20/20 accepted. Do not claim five functions indexed or cut over traffic.
+2. Run exact-head 4/4 tests and review the source-only relaxation for TEMPORARY Oryx flag absence, while still requiring no WEBSITE_RUN_FROM_PACKAGE, exact protected owner+backup, original SCM mode and **actual five** live index/HTTP acceptance. Record allowlisted postpublish booleans for diagnostics. Never bypass prewrite identity or old URI rollback.
+3. On separately guarded protected DEV one-shot, verify all five indexes, both HTTP/auth windows separated 240s, then signed two-shop own/foreign/revoked, original POST/PATCH/private media, queue/billing and p95/p99 before closing #249. No WineShopPOS/PROD/GPU.
+
+## 2026-11-22 — #249 third bounded exact-source protected Y1 release
+- Require source PR #1071 postmerge four-job CI and repinned GitHub-only one-shot 4/4; then protected manual DEV target must pass exact Y1 identity, original backup/owner, publisher, postpublisher fixed-Boolean mode, five Azure-indexed functions, 2 x 20/20 and four marked 401 GETs after 240s. If any fail, preserve old URI/two-index rollback and stop blind retry; diagnose fresh fixed labels. Original Flex, production, WineShopPOS and GPU untouched.
+
+## 2026-11-22 — #249 action-produced new Y1 package pointer
+1. Exact-head four-job CI + review of pinned/new `WEBSITE_RUN_FROM_PACKAGE` URL guard on source branch; do not repeat guard rejecting any run-from-package pointer because protected #44965786526 proved the official publisher restores one. Never log a SAS or accept unpinned host, original URL, local `1`, foreign owner or customer shadow settings.
+2. After separately reviewed merge and fresh main CI 4/4, one bounded protected DEV release must *actually* show all five indexed GETs and two HTTP windows separated by 240s, 20/20 each, with four marked missing-JWT 401 GETs. If failed, restore original signed package, verify two indexes and original HTTP and retain #249 OPEN.
+3. Only then test genuine signed own/foreign/revoked two-shop JWT/RLS and original POST/PATCH/media/queue/billing + p95/p99, cut over frontend traffic, close #249 after accepted evidence. No WineShopPOS/PROD/GPU or broad IAM.
+
+## 2026-11-22 — #249 fourth bounded Y1 package-pointer acceptance attempt
+1. Verify merged main #1073 4/4 exact-SHA CI, new one-shot bridge PR exact-head 4/4 and source pins for code/test/workflow. The GitHub-only bridge must have no Azure credentials, no duplication and no automatic permission/approval bypass.
+2. On one owner-directed DEV-protected run, log only safe postpublisher booleans: `new_pinned_package_url`, `old_package_still_active`, `backup_url_valid`, Oryx/SCM/owner. Require **real 5/5 Azure function index**, 20/20 x2 health plus four handler-marked unauthenticated 401s separated 240s. If any mismatch, rollback exact original two-route package and verify live HTTP, do not retry blindly.
+3. Even after 5/5 GETs: real two-shop signed own/foreign/revoked RLS and original POST/PATCH/media/queue/billing and p95/p99 parity + frontend cutover are separate acceptance before closing #249. Original Flex/WineShopPOS/PROD/GPU unaffected.
+
+## 2026-11-22 — #249 NEXT AFTER VERIFIED HOSTED FIVE GETS
+1. Stop retrying GET-only Y1 deployment: [run #45021333842](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/45021333842) proves 5/5 hosted + two 20/20 windows and marked 401 8/8 after 240s. Preserve existing DEV Y1 signed original URI backup and protected rollback; retire consumed one-shot dispatch trigger/source-only tests in reviewed PR, not permanent manual Y1 release.
+2. Prepare **real DEV signed two-shop** JWT positive own/foreign/revoked RLS for GETs. Use dedicated nonprivileged two-retailer test accounts only after authorized provision; no owner login/secret logging or guessed claims. Run positive own-shop data and foreign/revoked denials before changing frontend API traffic. User intends real two-shop acceptance later.
+3. Inventory original FC1 POST/PATCH/create/status/select/download and private media/queue/outbox/billing paths, implement and verify authenticated Y1 parity as separate work. Collect original-gateway 503/p95/p99 and controlled rollback evidence, then transfer verified connections/host routing. Only close issue #249 after end-to-end hosted cutover and acceptance; no PROD/WineShopPOS/GPU.
