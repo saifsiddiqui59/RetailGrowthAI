@@ -71,10 +71,8 @@ class Feature4CpuWorkerPackageTests(unittest.TestCase):
             nested.mkdir()
             (nested / "payload.py").write_text("safe", encoding="utf-8")
             (dependencies / "linked_dir").symlink_to(nested, target_is_directory=True)
-            # rglob behavior for directory links varies by Python version;
-            # a direct linked file is always rejected.
-            self.assertEqual(
-                module._collect_tree(dependencies, "deps")["deps/real.py"], real)
+            with self.assertRaisesRegex(ValueError, "Symlink in F4 package"):
+                module._collect_tree(dependencies, "deps")
 
     def test_native_worker_not_silently_added_to_protected_v1_zip(self):
         old = (ROOT / "scripts" / "deploy" / "package.py").read_text(encoding="utf-8")
