@@ -42,6 +42,8 @@ def fake_runner(overrides=None):
             elif op[:3]==("functionapp","function","list"):
                 names=tool.CORE_FUNCTIONS if app==tool.Y1 else {"plan_campaign"}
                 payload=[{"name":app+"/"+name} for name in sorted(names)]
+            elif op[:3]==("functionapp","cors","show"):
+                payload={"allowedOrigins":[tool.FRONTEND],"supportCredentials":False}
             else:
                 raise AssertionError("Unexpected Azure command")
         if overrides:
@@ -65,9 +67,10 @@ class ReadonlyY1ConnectionInspection(unittest.TestCase):
         self.assertTrue(report["y1_same_core_connection_values"])
         self.assertTrue(report["y1_core_http_complete"])
         self.assertTrue(report["y1_running"])
+        self.assertTrue(report["y1_frontend_cors_allowed"])
         self.assertFalse(report["y1_any_background_triggers"])
         self.assertEqual(report["y1_indexed_count"],len(tool.CORE_FUNCTIONS))
-        self.assertEqual(len(calls),8)
+        self.assertEqual(len(calls),10)
         self.assertTrue(all(x[0]=="az" and x[-2:]==("--output","json")
                             for x in calls))
         self.assertFalse(any(x in {"stop","delete","set"}
@@ -82,6 +85,18 @@ class ReadonlyY1ConnectionInspection(unittest.TestCase):
             return payload
         report=tool.inspect(fake_runner(changed)[0])
         self.assertTrue(report["y1_same_core_connection_values"])
+
+    def test_wrong_frontend_cors_or_credentials_denied(self):
+        def changed(op,payload):
+            if op[:3]==("functionapp","cors","show") and op[-1]==tool.Y1:
+                payload["allowedOrigins"]=["https://evil.example"]
+            return payload
+        self.assertFalse(tool.inspect(fake_runner(changed)[0])["y1_frontend_cors_allowed"])
+        def unsafe_credentials(op,payload):
+            if op[:3]==("functionapp","cors","show") and op[-1]==tool.Y1:
+                payload["supportCredentials"]=True
+            return payload
+        self.assertFalse(tool.inspect(fake_runner(unsafe_credentials)[0])["y1_frontend_cors_allowed"])
 
     def test_changed_service_role_key_prevents_false_connection_parity(self):
         def changed(op, payload):
