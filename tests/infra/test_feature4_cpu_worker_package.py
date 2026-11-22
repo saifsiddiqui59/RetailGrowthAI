@@ -74,6 +74,18 @@ class Feature4CpuWorkerPackageTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Symlink in F4 package"):
                 module._collect_tree(dependencies, "deps")
 
+    def test_dependency_root_symlink_is_rejected(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            actual = root / "real"
+            actual.mkdir()
+            (actual / "payload.py").write_text("safe", encoding="utf-8")
+            alias = root / "linked"
+            alias.symlink_to(actual, target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, "linked offline build dependency"):
+                module._collect_tree(alias, "deps")
+
     def test_native_worker_not_silently_added_to_protected_v1_zip(self):
         old = (ROOT / "scripts" / "deploy" / "package.py").read_text(encoding="utf-8")
         self.assertIn(
