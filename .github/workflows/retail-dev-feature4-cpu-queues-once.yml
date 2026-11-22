@@ -36,48 +36,7 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$RETAIL_SUPABASE_DB_URL" || { echo 'BLOCKED: DEV database connection secret absent'; exit 3; }
-          python3 - <<'PY'
-          import os, pathlib, urllib.parse
-          raw = os.environ['RETAIL_SUPABASE_DB_URL'].strip()
-          project = 'jeearzffnjbvghwjjjrf'
-          pooler = 'aws-0-ap-northeast-1.pooler.supabase.com'
-          # Session pooler passwords may contain raw reserved URL characters.
-          # Normalize only the password, never loosen the exact project/host.
-          canonical = None
-          tails = {
-              '@' + pooler + ':' + str(port) + '/postgres' + query
-              for port in (5432, 6543)
-              for query in ('', '?sslmode=require')
-          }
-          for scheme in ('postgresql', 'postgres'):
-              prefix = scheme + '://postgres.' + project + ':'
-              if raw.startswith(prefix):
-                  split = raw.rfind('@')
-                  tail = raw[split:] if split >= len(prefix) else ''
-                  password = raw[len(prefix):split] if split >= len(prefix) else ''
-                  if tail not in tails or not password or 'YOUR-PASSWORD' in password:
-                      raise SystemExit('BLOCKED: malformed DEV pooler secret')
-                  canonical = prefix + urllib.parse.quote(
-                      urllib.parse.unquote(password), safe=''
-                  ) + tail
-                  break
-          if canonical is None:
-              try:
-                  u = urllib.parse.urlsplit(raw)
-                  direct = 'db.' + project + '.supabase.co'
-                  if not (u.scheme in ('postgresql','postgres')
-                          and u.hostname == direct and u.path == '/postgres'
-                          and u.port == 5432 and urllib.parse.unquote(u.username or '') == 'postgres'
-                          and u.password and 'YOUR-PASSWORD' not in u.password):
-                      raise ValueError('foreign DB URI')
-                  canonical = raw
-              except (ValueError, TypeError):
-                  raise SystemExit('BLOCKED: database URI is not the exact RetailGrowthAI DEV project')
-          file = pathlib.Path(os.environ['RUNNER_TEMP']) / 'f4cpu-private-dev-db-uri'
-          file.write_text(canonical)
-          file.chmod(0o600)
-          print('PASS: exact DEV project connection target; no password disclosed')
-          PY
+          python3 scripts/deploy/feature4_cpu_db_uri_guard.py
           # No database writes; suppress error output which might contain connection details.
           if ! result="$(timeout 35s psql -X -qAt -w -v ON_ERROR_STOP=1               -d "$(cat "$RUNNER_TEMP/f4cpu-private-dev-db-uri")"               -c "SELECT (
                   (SELECT count(*) FROM supabase_migrations.schema_migrations
