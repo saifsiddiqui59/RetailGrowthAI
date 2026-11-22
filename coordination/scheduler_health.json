@@ -4,7 +4,7 @@
   "scope": "schedule-only diagnostics; source and main merges excluded",
   "last_written_at": "2026-11-22T02:45:54Z",
   "last_inventory_count": 3,
-  "last_inventory_checked_at": "2026-11-22T02:45:54Z",
+  "last_inventory_checked_at": "2026-11-22T03:42:52Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
@@ -108,31 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "efbf925d-0ffc-8324-a09c-2420bdcf784c",
-      "started_at": "2026-11-18T17:28:20.780871Z",
-      "completed_at": "2026-11-18T17:28:47.534662Z",
-      "duration_seconds": 26.754,
-      "verified_code_test_commits": null,
-      "reported_code_test_commits": 0,
-      "local_tests_verified": false,
-      "ci": "exact-head #44002627409 PASS 4/4, jobs rechecked",
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "No new source/test SHA independently established; inherited environment with null details."
-    },
-    {
-      "event": "worker_run",
-      "owner": "schedule-f2",
-      "run_id": "53ddbaa4-3d94-8324-9a58-71f0c197f51f",
-      "started_at": "2026-11-18T19:28:08.015789Z",
-      "completed_at": "2026-11-18T19:28:34.143377Z",
-      "duration_seconds": 26.128,
-      "verified_code_test_commits": null,
-      "classification": "REVIEW_BLOCKED",
-      "evidence": "No new source/test SHA independently verified; environment inherited/null; manual integration protected."
-    },
     {
       "event": "worker_run",
       "owner": "schedule-f3",
@@ -317,6 +292,22 @@
       "head_sha": "ae75ff63ff50cf08b76afc5cf174a8f80bd57eec",
       "status": "SUCCESS native CPU 1/1",
       "evidence": "Job #137070592644 independently checked"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 44981814680,
+      "head_sha": "3cce2a42513a3963ad352e3c845a8cf778a575c9",
+      "status": "FAIL 3/4",
+      "evidence": "Python/uv job #137083793969 failed 1 test; 2730 passed; Python 3.13 runtime guard precedes expected symlink rejection"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1059,
+      "run_id": 44981814668,
+      "head_sha": "3cce2a42513a3963ad352e3c845a8cf778a575c9",
+      "status": "FAIL native CPU 0/1",
+      "evidence": "Job #137083778984 failed: package_feature4_cpu.py rejects HyperFrames node_modules/.bin/acorn symlink"
     }
   ],
   "current_review_gates": {
@@ -592,16 +583,13 @@
   },
   "latest_issue249_ci": {
     "pr": 1059,
-    "head_sha": "ae75ff63ff50cf08b76afc5cf174a8f80bd57eec",
-    "mandatory_run_id": 44977502801,
-    "mandatory_passed": 3,
-    "mandatory_total": 4,
-    "failed_job": "Python / uv + campaign contract tests",
-    "failed_test": "Feature4CpuWorkerPackageTests.test_native_binary_symlink_is_rejected_before_version_execution",
-    "native_cpu_run_id": 44977502909,
-    "native_cpu_passed": true,
-    "owner": "manual-issue249",
-    "classification": "EXECUTOR_BLOCKED",
-    "next_action": "Owner-scoped test/runtime mismatch repair; do not unpause F4/F7 without proof of distinct ownership"
+    "head_sha": "3cce2a42513a3963ad352e3c845a8cf778a575c9",
+    "mandatory_run_id": 44981814680,
+    "mandatory_status": "FAILED 3/4",
+    "native_run_id": 44981814668,
+    "native_status": "FAILED 0/1",
+    "verified_at_utc": "2026-11-22T03:42:52Z",
+    "reason": "Python 3.13 vs pinned 3.11 test guard; native package rejects HyperFrames .bin/acorn symlink",
+    "owner": "manual-issue249"
   }
 }
