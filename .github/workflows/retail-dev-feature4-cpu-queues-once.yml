@@ -38,17 +38,43 @@ jobs:
           test -n "$RETAIL_SUPABASE_DB_URL" || { echo 'BLOCKED: DEV database connection secret absent'; exit 3; }
           python3 - <<'PY'
           import os, pathlib, urllib.parse
-          raw = os.environ['RETAIL_SUPABASE_DB_URL']
-          u = urllib.parse.urlsplit(raw)
+          raw = os.environ['RETAIL_SUPABASE_DB_URL'].strip()
           project = 'jeearzffnjbvghwjjjrf'
           pooler = 'aws-0-ap-northeast-1.pooler.supabase.com'
-          if not (u.scheme in ('postgresql', 'postgres')
-                  and u.hostname in ('db.' + project + '.supabase.co', pooler)
-                  and u.path == '/postgres' and u.port in (5432, 6543)
-                  and u.username == ('postgres.' + project if u.hostname == pooler else 'postgres')):
-              raise SystemExit('BLOCKED: database URL is not the exact RetailGrowthAI DEV project')
+          # Session pooler passwords may contain raw reserved URL characters.
+          # Normalize only the password, never loosen the exact project/host.
+          canonical = None
+          tails = {
+              '@' + pooler + ':' + str(port) + '/postgres' + query
+              for port in (5432, 6543)
+              for query in ('', '?sslmode=require')
+          }
+          for scheme in ('postgresql', 'postgres'):
+              prefix = scheme + '://postgres.' + project + ':'
+              if raw.startswith(prefix):
+                  split = raw.rfind('@')
+                  tail = raw[split:] if split >= len(prefix) else ''
+                  password = raw[len(prefix):split] if split >= len(prefix) else ''
+                  if tail not in tails or not password or 'YOUR-PASSWORD' in password:
+                      raise SystemExit('BLOCKED: malformed DEV pooler secret')
+                  canonical = prefix + urllib.parse.quote(
+                      urllib.parse.unquote(password), safe=''
+                  ) + tail
+                  break
+          if canonical is None:
+              try:
+                  u = urllib.parse.urlsplit(raw)
+                  direct = 'db.' + project + '.supabase.co'
+                  if not (u.scheme in ('postgresql','postgres')
+                          and u.hostname == direct and u.path == '/postgres'
+                          and u.port == 5432 and urllib.parse.unquote(u.username or '') == 'postgres'
+                          and u.password and 'YOUR-PASSWORD' not in u.password):
+                      raise ValueError('foreign DB URI')
+                  canonical = raw
+              except (ValueError, TypeError):
+                  raise SystemExit('BLOCKED: database URI is not the exact RetailGrowthAI DEV project')
           file = pathlib.Path(os.environ['RUNNER_TEMP']) / 'f4cpu-private-dev-db-uri'
-          file.write_text(raw)
+          file.write_text(canonical)
           file.chmod(0o600)
           print('PASS: exact DEV project connection target; no password disclosed')
           PY
