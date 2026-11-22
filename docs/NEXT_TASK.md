@@ -1877,3 +1877,7 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 1. Verify exact latest PR #1077 four-job CI including CPU queue timing contract, complete HTTP 38-route and final 46-function indexing negative tests. Respect independent release/security review.
 2. Only through protected DEV release: verify actual 2100s queue visibility/1800s worker timeout, same-shop lease fencing, private 1080x1920 MP4, no duplicate consumption, rollback; no classic Y1 long FFmpeg.
 3. Keep Flex and #249 open until complete hosted signed GET/POST/PATCH, eight short-worker handoff, served SWA migration and 503/p95/p99/240s-idle validation. No PROD/WineShopPOS/GPU.
+
+## 2026-11-22 — #249 private MP4 exact-object proof next
+1. Inspect exact latest PR #1077 four-job Actions run after `d356a949`, including new wrong-object denial test; repair any failing tests without reducing checks.
+2. Reconcile branch against current main without losing newer F4 code; preserve independent security/release review and protected hosted DEV release. Verify 38/38 live Y1 HTTP, signed tenant writes, all 46 indexed after single-owner worker handoff, private MP4 exact-key/SHA proof, queues/leases/billing, real served SWA routing, 240s idle and rollback before Flex stop. Do not claim source-only work deployed.
