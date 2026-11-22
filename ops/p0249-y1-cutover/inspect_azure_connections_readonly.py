@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 try:
-    from retirement_gate import RG, Y1, FLEX, CONNECTIONS, CORE_FUNCTIONS, SUPABASE, FRONTEND
+    from retirement_gate import RG, Y1, FLEX, CONNECTIONS, CORE_FUNCTIONS, ALL_HTTP_FUNCTIONS, EXPECTED_FULL_Y1_INDEX, QUEUE_FUNCTIONS, TIMER_FUNCTIONS, SUPABASE, FRONTEND
 except ImportError:
     from ops.p0249_y1_cutover.retirement_gate import RG, Y1, FLEX, CONNECTIONS, CORE_FUNCTIONS, SUPABASE, FRONTEND
 
@@ -142,16 +142,18 @@ def inspect(runner=subprocess.run):
         "flex_running": original["state"] == "Running",
         "y1_indexed_count": len(target["functions"]),
         "y1_core_http_complete": CORE_FUNCTIONS.issubset(set(target["functions"])),
+        "y1_all_original_http_indexed": ALL_HTTP_FUNCTIONS.issubset(set(target["functions"])),
+        "y1_exact_http_only_index": set(target["functions"]) == ALL_HTTP_FUNCTIONS,
+        "y1_exact_full_short_worker_index":
+            set(target["functions"]) == EXPECTED_FULL_Y1_INDEX,
         "y1_same_core_connection_values": bool(matching),
         "y1_frontend_cors_allowed": (
             FRONTEND in target["cors"]["allowedOrigins"]
             and target["cors"]["supportCredentials"] is False
         ),
-        "y1_any_background_triggers": any(
-           name in set(target["functions"]) for name in (
-            "render_campaign_reel","plan_campaign","recover_stale_jobs",
-            "render_campaign_poster","planning_poison","render_poison",
-            "dispatch_pending_posters")),
+        "y1_any_background_triggers": bool(
+            set(target["functions"]) &
+            (QUEUE_FUNCTIONS | TIMER_FUNCTIONS | {"render_campaign_reel"})),
     }
     return report
 
