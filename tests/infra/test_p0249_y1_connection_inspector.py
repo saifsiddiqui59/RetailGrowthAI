@@ -67,7 +67,7 @@ class ReadonlyY1ConnectionInspection(unittest.TestCase):
         self.assertEqual(len(calls),8)
         self.assertTrue(all(x[0]=="az" and x[-2:]==("--output","json")
                             for x in calls))
-        self.assertFalse(any("stop" in x or "delete" in x or "set" in x
+        self.assertFalse(any(x in {"stop","delete","set"}
                              for cmd in calls for x in cmd))
 
     def test_changed_service_role_key_prevents_false_connection_parity(self):
