@@ -1384,3 +1384,6 @@ The user repeatedly declined to perform manual independent GitHub approval. Sinc
 
 ## 2026-11-22 — Worker lease validation rejects SQL UNKNOWN
 Never use only `lease_until<=now()` as a PL/pgSQL IF denial condition: NULL produces UNKNOWN, possibly allowing a stale token to act. Both F4 CPU service-role finish and fail functions explicitly treat a missing lease expiry as invalid before writing terminal/queued state. Rollback-only SQL fixture tests failure denial for NULL expiry; hosted release remains behind separately authorized DEV gates.
+
+## 2026-11-22 — Release candidate requires read-only exact DEV inventory
+Before Feature4 DEV schema promotion, confirm original shop/campaign/media/rights/subscription/quota/storage/security helper dependencies and reject any partially installed F4 plan/job/outbox/poison/function state. A 22-row `SELECT` report with `expected IS NOT DISTINCT FROM observed` must be fully matched on the independently verified DEV project. No automatic SQL repair or rollout follows success; independent release rights, tagged Azure worker, private queue, rollback and signed retailer validation remain separate gates.

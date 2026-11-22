@@ -1838,3 +1838,8 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 1. Run exact-head four-job isolated PR CI for `fix/f4-cpu-null-lease-fail-closed-20261122`, including SQL NULL lease negative. Fix CI failures without bypassing cases; require current main compatibility before source-only merge.
 2. Protected DEV release remains separate: review all six SQL candidates, worker/queue, tenant rights, outbox, lease, exact private MP4 SHA; prepare rollback and independently authorize hosted modifications. Main source CI and a self-audit are not hosted E2E.
 3. Genuine nonprivileged two-shop Auth/Playwright and test media approval require approved test identities; do not forge ROOT/retailer approval or charge a customer. No PROD, GPU/paid, WineShopPOS, or Issue #249/Y1 changes.
+
+## 2026-11-22 — DEV F4 CPU inventory next
+1. Verify fresh main exact-merge CI after #1079 at `6269e167`. Review new isolated pre-migration 22-check read-only SQL and static test; obtain its own exact-head 4/4 and safely source-integrate with main compatibility.
+2. Before any actual DEV SQL, obtain separate affected-feature security/release review, backup/rollback and approved exact source inventory. Six additive F4 candidate files remain unapplied; isolated worker/queues/flags remain off. The inventory must run against verified RetailGrowthAI DEV project ref, never PROD.
+3. Prepare authorized nonprivileged two-shop identities through Auth Admin, then real signed JWT/RLS, private MP4, quota/queue/poison and browser tests; never fabricate editorial/ROOT approvals. No WineShopPOS, GPU/paid, or Issue #249/Y1 modifications.
