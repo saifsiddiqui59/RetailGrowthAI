@@ -15,7 +15,7 @@ from uuid import UUID
 QUEUE = "retail-reel-render"
 POISON_QUEUE = "retail-reel-render-poison"
 MAX_DEQUEUE_COUNT = 3
-VISIBILITY_SECONDS = 1500
+VISIBILITY_SECONDS = 2100
 CONTAINER_REPLICA_TIMEOUT_SECONDS = 1800
 SUCCESS = frozenset({"SUCCEEDED", "ALREADY_FINAL", "DENIED"})
 EXPECTED_SUPABASE = "https://jeearzffnjbvghwjjjrf.supabase.co"
@@ -130,6 +130,8 @@ def preflight(env):
         or env.get("RGAI_CPU_RENDER_REPLICA_TIMEOUT_SECONDS") !=
             str(CONTAINER_REPLICA_TIMEOUT_SECONDS)):
         raise RuntimeError("Protected Y1 CPU worker handoff incomplete")
+    if VISIBILITY_SECONDS <= CONTAINER_REPLICA_TIMEOUT_SECONDS:
+        raise RuntimeError("Queue visibility must exceed complete CPU job lifetime")
     for key in ("RETAIL_STORAGE", "RETAIL_SUPABASE_SERVICE_ROLE_KEY"):
         value = env.get(key)
         if not isinstance(value, str) or len(value) < 40:
