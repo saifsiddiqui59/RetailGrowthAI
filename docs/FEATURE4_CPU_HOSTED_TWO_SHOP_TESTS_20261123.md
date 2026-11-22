@@ -1,0 +1,11 @@
+# Feature4 CPU real signed two-shop DEV acceptance
+
+Status: **source-only test harness, NOT executed on live DEV**. This does not create test users, install a worker, enable the customer API or certify real video completion.
+
+After the private DEV worker is actually indexed, both dedicated queues exist, the original Feature4 API flags are proven healthy, two **legitimately provisioned nonprivileged** DEV retailer accounts hold distinct approved shops and one real saved Feature2 campaign/day uses their owned test media, run the dedicated Playwright `frontend/e2e/feature4-cpu.hosted.mjs` suite from a trusted operator machine.
+
+It uses the existing fail-closed `hostedConfig` settings and separate explicit `RG_F4_E2E_CAMPAIGN_ID`, `RG_F4_E2E_DAY_ID`, `RG_F4_E2E_WORKER_VERIFIED=YES` and `RG_F4_E2E_TEST_RENDER_CONSENT=I_APPROVE_SYNTHETIC_FEATURE4_DEV_RENDER_TEST`. This is not part of ordinary CI or a GitHub Actions token bypass. A dedicated test-shop OWNER actually signs in through the browser and signs the immutable Feature2 plan approval; never generate a fake ROOT/onboarding permission or programmatically approve a real customer's marketing media. The test consumes one real DEV quota reservation and must not run on customer shops.
+
+The acceptance checks: real browser sign-in; saved campaign/current day; issue immutable plan; review exact source SHA; submit exactly once through service-side quota/outbox; poll bounded CPU status; signed private MP4 HTTPS download; actual FFprobe H.264/AAC 1080×1920 at approved duration; second valid shop's foreign resource denials; expired JWT denial; idempotent resubmit; and owner revocation preventing further download. No permanent screenshots, tracing or MP4 artifact retention. Worker-side poison/lease crash recovery, 240s idle behavior, independent resource cost evidence and frontend edit/preview controls require separate live acceptance.
+
+Example execution, with sensitive environment variables provided privately, is `npm --prefix frontend/e2e run test:hosted-dev -- --grep 'F2 -> F4'`. If missing credentials/shops, disabled API or worker/rights evidence, it must **FAIL/BLOCK**, never mock a green run. No PROD, WineShopPOS, Y1/#249, GPU or paid models.
