@@ -55,39 +55,39 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
     },
     {
-      "pr": 1059,
-      "title": "feat(F2→F4): approved-plan CPU reel handoff + real synthetic MP4 proof",
-      "feature": "issue249",
-      "head_sha": "9b8399b6be5428bddc54adf261cc3723283d0d92",
-      "base_branch": "main",
-      "work_owner": "manual-issue249",
-      "priority": "P1",
-      "phase": "in-progress",
-      "checkpoint": {
-        "owner": "manual-issue249",
-        "ci": "Exact-head latest mandatory Part1 #45046055130 SUCCESS 4/4; prior same-head #45046050108 SUCCESS 4/4; native CPU #45046050075 IN_PROGRESS (individually inspected)",
-        "next_action": "Await native CPU completion; independent security/integration review remains required; Issue249 manual ownership unchanged",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1059"
-    },
-    {
       "pr": 1076,
-      "title": "Live title not verified",
+      "title": "test(#249): isolated DEV synthetic shop approval and real Playwright campaign canary",
       "feature": "unclassified",
-      "head_sha": "7be4b85385f1fc819f5ce6adda1f08a99ce1461e",
+      "head_sha": "b4b9f3f0396a27186f229dc8fe289f28e1e5708b",
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P1",
-      "phase": "ci-pending",
+      "phase": "review",
       "checkpoint": {
         "owner": "manual-integration",
-        "ci": "Exact-head Part1 #45046436986 IN_PROGRESS 0/4 complete at inspection",
-        "next_action": "Await all four mandatory CI jobs; independent review before any integration",
+        "ci": "Exact-head Part1 #45048648868 SUCCESS 4/4, all four jobs individually verified",
+        "next_action": "Independent security/integration review; no unattended DEV or main writes",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1076"
+    },
+    {
+      "pr": 1077,
+      "title": "feat(#249): stage 38-route Y1 API, eight bounded workers, CPU render handoff and Flex stop gate",
+      "feature": "issue249",
+      "head_sha": "a5b0444a4856e4b15b979d99aa2fd2457da2529d",
+      "base_branch": "main",
+      "work_owner": "manual-issue249",
+      "priority": "P1",
+      "phase": "review",
+      "checkpoint": {
+        "owner": "manual-issue249",
+        "ci": "Exact-head Part1 #45052084305 SUCCESS 4/4, all four jobs individually verified",
+        "next_action": "Issue249 owner to verify security and hosted connections; independent integration review before merge or deployment",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1077"
     }
   ],
-  "last_inventory_checked_at": "2026-11-22T16:55:46.618Z"
+  "last_inventory_checked_at": "2026-11-22T17:58:39Z"
 }
