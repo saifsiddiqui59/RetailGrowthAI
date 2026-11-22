@@ -8,10 +8,10 @@ SQL = ROOT / "supabase" / "candidates" / "feature4_cpu_dev_readonly_preflight_20
 
 def test_feature4_dev_inventory_is_readonly_and_stage_pinned():
     source = SQL.read_text(encoding="utf-8")
-    statement = "\\n".join(line.split("--", 1)[0] for line in source.splitlines()).strip()
+    statement = "\n".join(line.split("--", 1)[0] for line in source.splitlines()).strip()
     assert statement.lower().startswith("with checks(")
     assert statement.endswith(";") and statement.count(";") == 1
-    assert not re.search(r"\\b(insert|update|delete|drop|alter|grant|revoke|truncate|execute|create|call|copy)\\b", statement, re.I)
+    assert not re.search(r"\b(insert|update|delete|drop|alter|grant|revoke|truncate|execute|create|call|copy)\b", statement, re.I)
     assert "jeearzffnjbvghwjjjrf" in source
     assert statement.count("('required table ") == 8
     assert statement.count("('required routine ") == 3
