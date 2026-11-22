@@ -110,30 +110,6 @@
   "history": [
     {
       "event": "exact_head_ci",
-      "pr": 1073,
-      "run_id": 45020269415,
-      "head_sha": "dbdc27e24fca0bfcfd0ab9812d992faca3d52073",
-      "status": "IN_PROGRESS 1/4 passed, three running",
-      "evidence": "GitHub Actions jobs independently inspected 2026-11-22"
-    },
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 45018675230,
-      "head_sha": "0ee6980b83d22d458e87c3ef090221f7abccd14a",
-      "status": "FAIL 3/4 Python/uv",
-      "evidence": "GitHub Actions jobs independently inspected 2026-11-22"
-    },
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 45018675277,
-      "head_sha": "0ee6980b83d22d458e87c3ef090221f7abccd14a",
-      "status": "FAIL native CPU 0/1",
-      "evidence": "GitHub Actions jobs independently inspected 2026-11-22"
-    },
-    {
-      "event": "exact_head_ci",
       "pr": 1059,
       "run_id": 45023905629,
       "head_sha": "345498813b27a61e93f2f5b6612ba826e3d9bfb9",
@@ -299,6 +275,33 @@
       "head_sha": "6e54c0ebc789ea0cdda75e1606f13cebb2abd4a9",
       "status": "PASS 4/4 earlier same-head",
       "evidence": "Exact-head workflow and all four mandatory jobs independently inspected 2026-11-22"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1101,
+      "id": 45060638680,
+      "sha": "953b0ae34a215d2d0f2c8c340ed5f18ce8f4bf38",
+      "status": "PASS 4/4",
+      "run_id": 45060638680,
+      "evidence": "Exact SHA workflow and jobs inspected 2026-11-22"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1098,
+      "id": 45058598396,
+      "sha": "e759dc259908773255e6751f33b2178761294610",
+      "status": "PASS 4/4",
+      "run_id": 45058598396,
+      "evidence": "Exact SHA workflow and jobs inspected 2026-11-22"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1088,
+      "id": 45056269139,
+      "sha": "5386f2447aebeba31e7572520473b906babd71b7",
+      "status": "PASS 1/1 special workflow; earlier mandatory 4/4 PASS",
+      "run_id": 45056269139,
+      "evidence": "Exact SHA workflow and jobs inspected 2026-11-22"
     }
   ],
   "current_review_gates": {
@@ -490,20 +493,20 @@
     "chatgpt_scheduler_runtime_increased": false
   },
   "current_automation_inspection": {
-    "checked_at_utc": "2026-11-22T12:04:39Z",
-    "controls": "VERIFIED",
-    "f2_enabled": false,
+    "checked_at_utc": "2026-11-22T19:55:25Z",
+    "controls": "F3/F4/F7 VERIFIED disabled; F2 UNVERIFIED inaccessible",
+    "f2_enabled": null,
     "f3_enabled": false,
     "f4_enabled": false,
     "f7_enabled": false,
     "latest_durations_seconds": {
       "f2": 28.706,
       "f3": 45.59,
-      "f4": 29.79,
-      "f7": 39.97
+      "f4": 29.793,
+      "f7": 39.969
     },
-    "verified_new_source_test_commits": 0,
-    "commit_evidence": "No new automation runs since previously recorded runs; no new source/test commits attributable to these tasks",
+    "verified_new_source_test_commits": null,
+    "commit_evidence": "No new run since last verified for F3/F4/F7; F2 inaccessible, source/test commit count CURRENT UNKNOWN",
     "environment_selection": "inherited",
     "environments": null,
     "executor": "GITHUB_CONNECTOR_ONLY",
@@ -598,66 +601,53 @@
     "last_verified_green_on_current_head": null,
     "previous_head_failures_not_current": true
   },
-  "current_automation_controls": "UNVERIFIED: all four automation get calls returned 404; no task settings changed",
-  "current_executor_status": "GITHUB_CONNECTOR_ONLY / EXECUTOR_NOT_PROVISIONED (last verified); current automation environments UNVERIFIED",
+  "current_automation_controls": "F3/F4/F7 verified disabled; F2 inaccessible UNVERIFIED; no settings changed",
+  "current_executor_status": "GITHUB_CONNECTOR_ONLY / EXECUTOR_NOT_PROVISIONED; inherited environments null",
   "current_live_ci": {
-    "checked_at_utc": "2026-11-22T19:03:30Z",
+    "checked_at_utc": "2026-11-22T19:55:25Z",
     "verified": [
       {
-        "pr": 1097,
-        "id": 45058534647,
-        "sha": "79b359afe97e31081ca0cdb76b533c1e9c499965",
-        "status": "IN_PROGRESS 0/4"
+        "pr": 1101,
+        "id": 45060638680,
+        "sha": "953b0ae34a215d2d0f2c8c340ed5f18ce8f4bf38",
+        "status": "PASS 4/4"
+      },
+      {
+        "pr": 1098,
+        "id": 45058598396,
+        "sha": "e759dc259908773255e6751f33b2178761294610",
+        "status": "PASS 4/4"
       },
       {
         "pr": 1096,
         "id": 45058400992,
         "sha": "e9f533e8a84586a287430b6b37c2c4e2e9afcb73",
-        "status": "IN_PROGRESS 1/4"
-      },
-      {
-        "pr": 1095,
-        "id": 45058252734,
-        "sha": "cbd1a9a0eca11ab0de1c70b896be136d70cde528",
-        "status": "IN_PROGRESS 2/4"
-      },
-      {
-        "pr": 1088,
-        "id": 45056253757,
-        "sha": "5386f2447aebeba31e7572520473b906babd71b7",
         "status": "PASS 4/4"
       },
       {
-        "pr": 1077,
-        "id": 45056199814,
-        "sha": "6e54c0ebc789ea0cdda75e1606f13cebb2abd4a9",
-        "status": "LATEST CANCELLED 0/4; earlier same-head #45055906627 PASS 4/4"
-      },
-      {
-        "pr": 1077,
-        "id": 45055906627,
-        "sha": "6e54c0ebc789ea0cdda75e1606f13cebb2abd4a9",
-        "status": "PASS 4/4 earlier same-head"
+        "pr": 1088,
+        "id": 45056269139,
+        "sha": "5386f2447aebeba31e7572520473b906babd71b7",
+        "status": "PASS 1/1 special workflow; earlier mandatory 4/4 PASS"
       }
     ],
-    "pr_1085": "CURRENT UNKNOWN (no exact-head workflow runs)",
+    "pr_1085": "CURRENT UNKNOWN: no exact-head workflow runs",
     "other_verified": {
-      "1064": "PASS 4/4",
-      "1065": "PASS 4/4",
-      "1076": "PASS 4/4"
+      "1064": "last verified 4/4 PASS",
+      "1065": "last verified 4/4 PASS",
+      "1076": "last verified 4/4 PASS",
+      "1077": "earlier same-head 4/4 PASS; latest CANCELLED"
     },
-    "docs_postmerge": "PASS 4/4"
+    "docs_postmerge": "PASS 4/4 (previously verified)"
   },
   "automation_controls_current": "UNVERIFIED: all four Automations get calls returned 404; retain last verified run durations and enabled states, do not infer current",
-  "active_leases_current": "UNKNOWN: current lease fields absent from verified queue entries; no live foreign leases modified",
-  "current_source_commit_verification": "UNKNOWN: no new owner-run exact-SHA source/test commit attribution verified",
+  "active_leases_current": "UNKNOWN: no explicit active lease fields in verified queue; preserved existing ownership",
+  "current_source_commit_verification": "CURRENT UNKNOWN for F2; no new F3/F4/F7 run",
   "current_lease_verification": "UNKNOWN: queue contains no explicit active lease fields; foreign lease ownership preserved",
   "last_queue_delta": [
-    "added #1097",
-    "#1096",
-    "#1095",
-    "#1088",
-    "#1085",
-    "updated #1077 head"
+    "added #1101",
+    "added #1098",
+    "removed #1097",
+    "removed #1095"
   ]
 }
