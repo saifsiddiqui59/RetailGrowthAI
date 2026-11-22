@@ -2,9 +2,9 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-22T16:55:46.618Z",
+  "last_written_at": "2026-11-22T17:58:39Z",
   "last_inventory_count": 4,
-  "last_inventory_checked_at": "2026-11-22T16:55:46.618Z",
+  "last_inventory_checked_at": "2026-11-22T17:58:39Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
@@ -108,22 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 44999599321,
-      "head_sha": "cb59c5168a0cf7e519766a4ef68a3f4ac388ff2d",
-      "status": "FAIL 3/4",
-      "evidence": "Four mandatory jobs independently checked: Python/uv failed, three success"
-    },
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 44999599323,
-      "head_sha": "cb59c5168a0cf7e519766a4ef68a3f4ac388ff2d",
-      "status": "FAIL native CPU 0/1",
-      "evidence": "One native CPU job independently checked: failed"
-    },
     {
       "event": "exact_head_ci",
       "pr": 1059,
@@ -299,6 +283,22 @@
       "head_sha": "7be4b85385f1fc819f5ce6adda1f08a99ce1461e",
       "status": "IN_PROGRESS 0/4 complete",
       "evidence": "Four jobs individually inspected in_progress"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1076,
+      "run_id": 45048648868,
+      "head_sha": "b4b9f3f0396a27186f229dc8fe289f28e1e5708b",
+      "status": "PASS 4/4",
+      "evidence": "All four mandatory jobs independently verified SUCCESS on exact head"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1077,
+      "run_id": 45052084305,
+      "head_sha": "a5b0444a4856e4b15b979d99aa2fd2457da2529d",
+      "status": "PASS 4/4",
+      "evidence": "All four mandatory jobs independently verified SUCCESS on exact head"
     }
   ],
   "current_review_gates": {
@@ -450,9 +450,11 @@
     "docs_postmerge_main_ci": {
       "run_id": 44377599370,
       "head_sha": "a65bb1503dd83af68de342329db45314aaa654cb",
-      "status": "COMPLETED SUCCESS 4/4",
-      "verified_at_utc": "2026-11-22T16:55:46.618Z",
-      "evidence": "All four mandatory jobs individually inspected success"
+      "status": "SUCCESS",
+      "verified_at_utc": "2026-11-22T17:58:39Z",
+      "evidence": "All four mandatory jobs individually inspected success",
+      "jobs_passed": 4,
+      "jobs_total": 4
     },
     "docs_files_updated": [
       "docs/PROJECT_STATE.md",
@@ -596,7 +598,7 @@
     "last_verified_green_on_current_head": null,
     "previous_head_failures_not_current": true
   },
-  "current_automation_controls": "UNVERIFIED: automation get returned 404; no F4/F7 changes",
+  "current_automation_controls": "UNVERIFIED (Automation get returned 404 for F2/F3/F4/F7 on this run); prior verified states retained",
   "current_executor_status": "EXECUTOR_NOT_PROVISIONED (last verified); environment details currently UNVERIFIED",
   "current_live_ci": {
     "verified_at_utc": "2026-11-22T16:55:46.618Z",
@@ -626,5 +628,8 @@
     }
   },
   "automation_controls_current": "UNVERIFIED: all four Automations get calls returned 404; retain last verified run durations and enabled states, do not infer current",
-  "active_leases_current": "UNVERIFIED: no lease field in current queue entries; no foreign ownership modified"
+  "active_leases_current": "UNVERIFIED: no lease field in current queue entries; no foreign ownership modified",
+  "current_source_commit_verification": "UNKNOWN: automation run metadata unavailable; do not infer 0 new commits",
+  "current_lease_verification": "UNKNOWN: queue contains no explicit active lease fields; foreign lease ownership preserved",
+  "last_queue_delta": "Removed merged #1059; added #1077; updated #1076 exact head"
 }
