@@ -1746,3 +1746,8 @@ Feature3 NEXT: verify main CI #41820799158, integrate reviewed 24-component sour
 4. **Only then** stop exact original DEV Flex function app under protected Azure review and post-stop verification; close #249 only after full observed cutover, 240s idle reliability and rollback evidence. No PROD/WineShopPOS/GPU or fake completion receipts.
 
 - Apply `ops/p0249-y1-cutover/retirement_gate.py` to actual protected Azure/SWA observations after full Y1 HTTP+worker release; never treat synthetic JSON or source CI as retirement authority. A future *separately reviewed* protected Azure stop must still verify current resource owner, Y1 live traffic/queues, final worker state, rollback and original Flex absence from served frontend connections before issue #249 closure.
+
+## 2026-11-22 — #249 Classic Consumption long-running video worker blocker
+1. Never copy original 1200s Flex host.json or 780s render worker into classic Y1 Consumption; Azure caps execution at 600s. HTTP-only Y1 candidate uses exact five-GET Consumption host.json and zero queue/timer consumers; require ZIP parity tests and protected review.
+2. Develop and verify a separate **scale-to-zero CPU worker** that can finish original FFmpeg 780s budget and consumes the existing exact Azure render queue with current Postgres idempotent claim/lease and private assets. Do not create a second active consumer while Flex handles jobs; no new paid GPU resources.
+3. Split planning/poster/recovery/timer ownership from video CPU rendering and implement a protected, measured single-owner handoff before stopping Flex. Full HTTPS/API routing and 503 + p95/p99/240s health acceptance remain required.
