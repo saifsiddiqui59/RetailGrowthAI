@@ -168,6 +168,22 @@ class Y1CpuQueueSafety(unittest.TestCase):
             with self.subTest(missing=key), self.assertRaises(RuntimeError):
                 job.preflight({k:v for k,v in env.items() if k!=key})
 
+    def test_privileged_private_media_default_transport_does_not_follow_redirects(self):
+        from urllib.request import HTTPRedirectHandler, Request, urlopen
+        storage = SimpleNamespace(transport=urlopen)
+        wrapped = job.VerifiedPrivateMedia(storage)
+        self.assertIs(wrapped.backing, storage)
+        self.assertIsNot(storage.transport, urlopen)
+        opener = storage.transport.__self__
+        redirects = [handler for handler in opener.handlers
+                     if isinstance(handler, HTTPRedirectHandler)]
+        self.assertEqual(len(redirects), 1)
+        target = Request("https://dev-storage.example/storage/v1/object/private")
+        # A redirect must not turn one privileged request into a request to a
+        # foreign origin; no network request or actual credential is necessary.
+        self.assertIsNone(redirects[0].redirect_request(
+            target, None, 302, "redirect", {}, "https://foreign.example/steal"))
+
     def test_exact_uploaded_post_bytes_verified_before_returning_private_key(self):
         import hashlib
         from urllib.request import Request
