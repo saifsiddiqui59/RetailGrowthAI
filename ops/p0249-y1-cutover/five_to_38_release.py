@@ -19,6 +19,7 @@ from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "ops"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 import p0249_y1_canary_guard as guard
 import p0249_y1_remote_build_mode as legacy
 
@@ -40,11 +41,15 @@ def _pinned_package(value):
         u = urlsplit(value)
     except ValueError:
         return False
+    try:
+        port = u.port
+    except ValueError:
+        return False
     return (
         u.scheme == "https" and
         u.hostname == guard.STORAGE + ".blob.core.windows.net" and
         u.username is None and u.password is None and
-        u.port in (None, 443) and
+        port in (None, 443) and
         bool(u.path) and u.path.startswith("/") and
         not u.path.startswith("//") and
         not u.fragment and not u.query.startswith("#")
