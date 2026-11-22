@@ -269,6 +269,11 @@ begin
 end $null_lease$;
 reset role;
 rollback to savepoint feature4_null_render_lease_guard;
+-- Restore the original owner JWT and authenticated SQL role for the
+-- pre-existing browser grant-denial assertion below.
+set local role authenticated;
+select set_config('request.jwt.claims',
+ '{"role":"authenticated","sub":"f5010000-0000-4000-8000-000000000001","is_anonymous":false}',true);
 
 -- Browser can see only same-shop job status, cannot directly create jobs.
 do $test$
