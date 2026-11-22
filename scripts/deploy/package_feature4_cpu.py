@@ -103,6 +103,11 @@ def _collect_tree(root, prefix, *, omit_bin_shims=False):
         raise ValueError("Missing or linked offline build dependency directory: " + prefix)
     listing = {}
     for file in sorted(root.rglob("*")):
+        # npm ci creates node_modules/.bin symlink shims. They are never
+        # executed or shipped: skip them before symlink rejection, while
+        # retaining strict rejection for all included runtime dependencies.
+        if omit_bin_shims and ".bin" in file.relative_to(root).parts:
+            continue
         if file.is_symlink():
             raise ValueError("Symlink in F4 package: " + str(file.relative_to(root)))
         if file.is_dir():
