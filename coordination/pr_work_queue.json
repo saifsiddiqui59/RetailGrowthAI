@@ -24,14 +24,14 @@
       "pr": 1059,
       "title": "Issue249 integration PR (live title not verified)",
       "feature": "issue249",
-      "head_sha": "2179142549c6beecad6036399618364a72cb0b4b",
+      "head_sha": "ca6180d7a0072b346135ca2ed1e9abac20693e2b",
       "base_branch": "main",
       "work_owner": "manual-issue249",
       "priority": "P1",
       "phase": "in-progress",
       "checkpoint": {
         "owner": "manual-issue249",
-        "ci": "Exact-head #44963408318 and #44963405193 SUCCESS 4/4; native CPU #44963405190 SUCCESS; independent Issue249 review remains",
+        "ci": "Exact-head mandatory #44967786134 SUCCESS 4/4 independently checked; native CPU #44967786155 SUCCESS 1/1; manual Issue249 review remains",
         "next_action": "Manual Issue249 owner to review security/integration at latest exact head; no automatic merge",
         "feature_done": false
       },
@@ -72,5 +72,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1065"
     }
   ],
-  "last_inventory_checked_at": "2026-11-21T23:50:00Z"
+  "last_inventory_checked_at": "2026-11-22T01:01:58.085Z"
 }
