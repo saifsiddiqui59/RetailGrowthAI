@@ -1,0 +1,30 @@
+# Source-only CPU render job. NEVER docker-build/deploy without a reviewed,
+# immutable SHA256 pinned base image and approved DEV-only Container Apps Job.
+# Build context must be the RetailGrowthAI repository root.
+ARG PYTHON_BASE_IMAGE
+FROM ${PYTHON_BASE_IMAGE}
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# An actual release MUST additionally pin its Debian archive package
+# snapshot and verify encoder/media acceptance in the protected build.
+# GPU codecs, proprietary models and customer media are not installed.
+RUN apt-get update -qq \
+    && DEBIAN_FRONTEND=noninteractive apt-get install -y \
+       --no-install-recommends ffmpeg ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && ffmpeg -hide_banner -encoders 2>/dev/null | grep -Eq 'libx264([[:space:]]|$)' \
+    && ffmpeg -hide_banner -encoders 2>/dev/null | grep -Eq '[[:space:]]aac([[:space:]]|$)' \
+    && ffmpeg -hide_banner -filters 2>/dev/null | grep -Eq '[[:space:]]drawtext[[:space:]]'
+
+COPY azure-functions/campaign-api/requirements.txt /tmp/rgai-worker-requirements.txt
+RUN pip install --no-cache-dir -r /tmp/rgai-worker-requirements.txt \
+    && rm -f /tmp/rgai-worker-requirements.txt
+
+WORKDIR /app
+COPY azure-functions/campaign-api /app/azure-functions/campaign-api
+COPY video-engine /app/video-engine
+COPY ops/p0249-y1-cutover/cpu_render_job.py /app/ops/p0249-y1-cutover/cpu_render_job.py
+USER 65532:65532
+ENTRYPOINT ["python","/app/ops/p0249-y1-cutover/cpu_render_job.py"]
