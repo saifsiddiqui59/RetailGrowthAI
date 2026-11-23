@@ -58,7 +58,7 @@ class FakeAzure:
     def read(self, args, **kwargs):
         self.reads += 1
         self_args = tuple(args[1:-2])
-        assert args[0] == "az" and args[-2:] == ["--output", "json"]
+        assert args[0] == "az" and tuple(args[-2:]) == ("--output", "json")
         if self_args[:2] == ("account", "show"):
             data = {"id": self.subscription}
         elif self_args[:2] == ("group", "show"):
