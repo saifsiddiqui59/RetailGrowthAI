@@ -810,35 +810,6 @@ export function createRetailClient({
     return rows.slice(0, 20)
   }
 
-  // A lost POST acknowledgement may still have committed the once-per-plan
-  // F4 job. Recover by JWT/RLS GET only; do not submit another render or
-  // infer ownership from browser-side session data.
-  async function findFeature4CpuRenderJob(shopId, planId, reviewSha256) {
-    if (!UUID_V4.test(shopId || '') || !UUID_V4.test(planId || '') ||
-        !/^[a-f0-9]{64}$/.test(reviewSha256 || '')) {
-      throw Error('Current verified business and approved creative revision required')
-    }
-    const rows = await send('/rest/v1/feature4_cpu_render_jobs', {
-      query: {
-        select: 'id,shop_id,campaign_id,plan_id,approved_review_sha256,status',
-        shop_id: 'eq.' + shopId, plan_id: 'eq.' + planId, limit: '2',
-      },
-      token: await accessToken(),
-    })
-    if (!Array.isArray(rows) || rows.length > 1 || rows.some(item =>
-      !item || item.shop_id !== shopId || item.plan_id !== planId ||
-      !UUID_V4.test(item.id || '') ||
-      !UUID_V4.test(item.campaign_id || '') ||
-      item.approved_review_sha256 !== reviewSha256 ||
-      !['QUEUED', 'RUNNING', 'SUCCEEDED', 'FAILED'].includes(item.status))) {
-      throw Error('Existing CPU job failed private business/revision verification')
-    }
-    if (!rows.length) return null
-    const job = rows[0]
-    return { job_id: job.id, shop_id: shopId, plan_id: planId,
-      campaign_id: job.campaign_id, status: job.status }
-  }
-
   async function reviewFeature4CreativePlan(shopId, planId, sourceSha256) {
     if (!UUID_V4.test(shopId || '') || !UUID_V4.test(planId || '') ||
         !/^[a-f0-9]{64}$/.test(sourceSha256 || '')) {
@@ -886,7 +857,7 @@ export function createRetailClient({
     listShops, createShop, getShopSubscription, getShopMetrics, getShopUsage,
     isPlatformAdmin, getPlatformSummary, listPlatformShops, setPlatformSubscription,
     listPlatformNotifications, setPlatformNotificationRead, listPlatformSubscriptionWatch,
-    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listFeature4SourceDays, issueFeature4CreativePlan, listFeature4CreativePlans, findFeature4CpuRenderJob, reviewFeature4CreativePlan, revokeFeature4CreativePlan, listMediaAssets, listMediaAssetsPage, listMediaAssetsKeysetPage, listRetailerInbox, setRetailerInboxRead, downloadPrivateImage, uploadImageAsset, uploadModelOriginal,
+    getOnboardingStatus, listPlatformOnboardingRequests, reviewPlatformOnboarding, getBusinessProfile, updateBusinessProfile, listShopCalendarMonth, listFeature4SourceDays, issueFeature4CreativePlan, listFeature4CreativePlans, reviewFeature4CreativePlan, revokeFeature4CreativePlan, listMediaAssets, listMediaAssetsPage, listMediaAssetsKeysetPage, listRetailerInbox, setRetailerInboxRead, downloadPrivateImage, uploadImageAsset, uploadModelOriginal,
   }
 }
 
