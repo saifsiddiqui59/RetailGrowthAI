@@ -94,6 +94,8 @@ test('Creative Studio recovers history with GET and forces a fresh private signe
   assert.match(ui, /readFeature4CpuJobForPlan/)
   assert.match(ui, /history\.isSuccess/)
   assert.match(ui, /history\.refetch\(\)/)
+  assert.match(ui, /const latest = await history\.refetch\(\)/)
+  assert.match(ui, /if \(!latest\.isSuccess \|\| latest\.data\)/)
   assert.match(ui, /Resume existing render \(no new job\)/)
   assert.match(ui, /cpuApi\.status\(\{ jobId: existing\.id, shopId \}\)/)
   assert.match(ui, /cpuApi\.download\(\{ jobId: existing\.id, shopId \}\)/)
