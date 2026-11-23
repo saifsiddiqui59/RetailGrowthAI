@@ -94,7 +94,7 @@ jobs:
             --account-name "$STORAGE" --auth-mode login -o json > "$F4_READINESS_DIR/queue-render.json"
           az storage queue exists --name retail-feature4-cpu-render-poison \
             --account-name "$STORAGE" --auth-mode login -o json > "$F4_READINESS_DIR/queue-poison.json"
-      - name: Fail closed unless entire F4 isolated runtime and original API bundle are proven
+      - name: Fail closed with fixed category unless F4 runtime and original API bundle are proven
         run: python3 scripts/deploy/feature4_cpu_original_api_readiness.py
       - name: Activate ONLY original API plan issue/review with CPU_RENDER OFF
         shell: bash
