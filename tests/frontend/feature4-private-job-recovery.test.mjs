@@ -109,6 +109,12 @@ test('UI recovery requires explicit click, verified status and renewed signed li
   assert.match(ui, /cpuApi\.status\(/)
   assert.match(ui, /cpuApi\.download\(/)
   assert.match(ui, /Check existing render \(read only\)/)
+  const poll = ui.slice(ui.indexOf('async function refresh()'),
+    ui.indexOf('async function downloadCpu()'))
+  assert.ok(poll.indexOf('signed = await cpuApi.download(') >= 0)
+  assert.ok(poll.indexOf('signed = await cpuApi.download(') <
+    poll.indexOf('setCpuJob({ ...verified, planId: currentPlan })'),
+    'signed preview renewal must precede terminal job state effect cleanup')
   assert.doesNotMatch(ui.slice(ui.indexOf('async function recoverCpuRender()'),
     ui.indexOf('async function submitCpuRender()')), /createReviewedCpu|feature4_submit_cpu_render/)
 })
