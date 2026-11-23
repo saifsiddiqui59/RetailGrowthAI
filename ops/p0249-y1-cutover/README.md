@@ -73,8 +73,7 @@ An optional separate manual-only GitHub protected `dev` workflow,
 `RETAIL_STORAGE` from the **same already authorized original DEV Flex** app
 to Y1; it verifies resulting values by protected in-memory readback and
 captures no raw credentials in logs. Existing target values are never replaced
-and the host-specific `AzureWebJobsStorage` is never copied. The workflow has
-no push/PR trigger, cannot create identities or grant roles, and leaves all
+and the host-specific `AzureWebJobsStorage` is never copied. Only when\nthe known Free SWA origin is absent (and there are no foreign/wildcard\norigins), it can add that exact CORS origin without credentials. The workflow has\nno push/PR trigger, cannot create identities or grant roles, and leaves all
 workers, customer API flags, served frontend routing and original Flex
 untouched. Source-only CI never attempts it; a protected release/security gate
 is still required. A stage can restart the isolated Y1 host, so revalidate
