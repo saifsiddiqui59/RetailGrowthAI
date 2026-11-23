@@ -85,13 +85,22 @@ jobs:
                  +'/resourcegroups/rg-retailgrowth-dev')
           tags={str(k).lower():str(v).lower() for k,v in (plan.get('tags') or {}).items()}
           sku=plan.get('sku') or {}
-          if (str(plan.get('id') or '').lower()!=scope+'/providers/microsoft.web/serverfarms/rgai-dev-f4cpu-plan'
-              or plan.get('name')!='rgai-dev-f4cpu-plan' or plan.get('location')!='centralindia'
-              or tags.get('app')!='retailgrowthai' or tags.get('environment')!='dev'
-              or tags.get('purpose')!='feature4-cpu-private-worker'
-              or sku.get('name')!='FC1' or sku.get('tier')!='FlexConsumption'
-              or (plan.get('properties') or {}).get('reserved') is not True):
-              raise SystemExit('BLOCKED: existing FC1 plan identity unverified')
+          checks={
+              'id': str(plan.get('id') or '').lower()==scope+'/providers/microsoft.web/serverfarms/rgai-dev-f4cpu-plan',
+              'name': plan.get('name')=='rgai-dev-f4cpu-plan',
+              'location': plan.get('location')=='centralindia',
+              'tag-app': tags.get('app')=='retailgrowthai',
+              'tag-environment': tags.get('environment')=='dev',
+              'tag-purpose': tags.get('purpose')=='feature4-cpu-private-worker',
+              'sku-name': sku.get('name')=='FC1',
+              'sku-tier': sku.get('tier')=='FlexConsumption',
+              'linux-reserved': (plan.get('properties') or {}).get('reserved') is True,
+          }
+          mismatches=sorted(label for label,passed in checks.items() if not passed)
+          if mismatches:
+              # Fixed field LABELS only; never expose IDs/tags/values or token.
+              raise SystemExit('BLOCKED: existing FC1 plan identity unverified fields='
+                               +','.join(mismatches))
           props=container.get('properties') if isinstance(container,dict) else None
           if (not isinstance(props,dict) or 'publicAccess' not in props
               or props['publicAccess'] not in (None,'off','Off','None')):

@@ -1881,3 +1881,6 @@ Protected run #45085661277 passed exact DEV OIDC, queues, inventory and ARM what
 
 ## 2026-11-23 IST — Partial F4 worker app-only recovery source
 Read-only protected Azure run #45086416640 confirmed exact tagged F4 DEV state: APP absent, PLAN present, private-package CONTAINER present. Recovery candidate #1109 declares existing plan/container read-only, creates only the new disabled 2 GiB Python 3.11 app, and requires live plan SKU/tags and private access proof before strict ARM what-if. Hosted recovery not completed by source commit; source CI/protected DEV results pending. No queue/schema replay, customer activation, Y1/Issue #249, PROD, GPU or WineShopPOS changes.
+
+## 2026-11-23 IST — F4 partial recovery identity proof denied
+Protected partial-host recovery #45087200940 failed before any Azure Create at the exact existing FC1 plan identity predicate. Added source-only bounded field-label diagnostics (no IDs/tags/values/secrets), preserving every equality requirement and complete deny-on-mismatch behavior. Worker app remains absent and customer flags remain OFF. No data/queue/plan/container mutation in this follow-up.

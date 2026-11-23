@@ -1949,3 +1949,6 @@ Verify source PR exact-head four CI and protected DEV retry after removing forbi
 ## 2026-11-23 IST — Next after verified partial host inventory
 1. Verify exact-head 4/4 CI for PR #1109, reconcile latest main without overwriting Y1 documentation and run the protected one-shot DEV recovery. Source Bicep must declare the existing FC1 plan and package container as existing, prove plan tags/SKU/private container, and allow ARM Create for the absent F4 app only.
 2. If host is genuinely created, verify 1x2 GiB Python 3.11, worker/render flags OFF and no service-role secret, then stage #1096 sealed ZIP and #1098 private-only triggers. Keep original API and customer render disabled until authorized signed two-shop MP4, rights/lease/quota/foreign/revoked tests pass.
+
+## 2026-11-23 IST — Diagnose protected partial FC1 identity field
+Inspect narrow field-label-only diagnostics from the next protected DEV recovery retry; never print Azure resource IDs or secret settings. Fix only the specifically unsupported check after proving equivalent exact safety evidence. Do not weaken plan SKU/tenant/tags/foreign subscription boundaries; no app Create until all checks satisfy the independent read-only identity contract. Original v1/Y1/#249, PROD and WineShopPOS remain outside scope.

@@ -1473,3 +1473,6 @@ Azure Functions Flex Consumption rejects FUNCTIONS_WORKER_RUNTIME in siteConfig.
 
 ## 2026-11-23 IST — F4 failed deployment partial recovery is app-only
 When an initial ARM create fails after provisioning F4 plan/container, never delete/recreate or implicitly adopt other workloads. A dedicated recovery Bicep may reference the same exact tagged private resources as existing, but only after protected read-only OIDC checks of plan full ID, tags, FC1 capacity, location and container private access. What-if may Create only the previously absent disabled F4 app; any unexpected ID/action still fails closed. No original Flex/Y1/Issue249 or retailer approval bypass.
+
+## 2026-11-23 IST — Diagnose FC1 plan shape without revealing identifiers
+For partial Azure release validation, a read-only protected comparison may report the finite names of failed identity fields, not actual ARM IDs, names, plan properties, metadata, credentials or tokens. A diagnostic is not an allowlist expansion: every predicate still denies on mismatch and the new app cannot be created while uncertain.
