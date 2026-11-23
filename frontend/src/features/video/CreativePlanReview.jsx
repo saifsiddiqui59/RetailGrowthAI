@@ -118,13 +118,20 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
 
   async function submitCpuRender() {
     if (!cpuApi || !canReview || !plan || plan.state !== 'APPROVED' ||
-        working || submissionUncertain || !history.isSuccess || history.data || cpuJob ||
+        working || submissionUncertain || history.isFetching ||
+        !history.isSuccess || history.data || cpuJob ||
         typeof plan.review_sha256 !== 'string') return
     setWorking(true)
     setCpuError('')
     setCpuPreview(null)
     setSubmissionUncertain(true)
     try {
+      // A stale React Query cache is never permission to POST. Recheck
+      // the current tenant/plan read directly against PostgREST now.
+      const latest = await history.refetch()
+      if (!latest.isSuccess || latest.data) {
+        throw Error('A private render may already exist. Resume history instead.')
+      }
       const response = await cpuApi.createReviewedCpu({
         shopId, campaignId: plan.campaign_id, planId: plan.id,
         reviewHash: plan.review_sha256,
@@ -311,8 +318,8 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
             Retry private history read
           </Button>
         </p>}
-        {cpuApi && history.isSuccess && !history.data && !cpuJob &&
-          !submissionUncertain &&
+        {cpuApi && history.isSuccess && !history.isFetching &&
+          !history.data && !cpuJob && !submissionUncertain &&
           <Button type="button" disabled={working} onClick={submitCpuRender}>
             Render approved Reel using owned media
           </Button>}
