@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { createRetailClient } from '../../frontend/src/lib/supabase.js'
+import { findFeature4CpuRenderJob } from '../../frontend/src/features/video/feature4-cpu-job-recovery.mjs'
 
 const SHOP = '11111111-1111-4111-8111-111111111111'
 const FOREIGN = '22222222-2222-4222-8222-222222222222'
@@ -17,42 +17,34 @@ const row = {
 const response = (payload, status = 200) => new Response(JSON.stringify(payload), {
   status, headers: { 'content-type': 'application/json' },
 })
-const storage = () => {
-  const data = new Map()
-  return {
-    getItem: key => data.get(key) || null,
-    setItem: (key, value) => data.set(key, value),
-    removeItem: key => data.delete(key),
-  }
-}
-function client(handler) {
+function fixture(handler, config = {}) {
   const calls = []
-  const api = createRetailClient({
-    url: 'https://retailgrowth-dev.example.supabase.co',
-    key: 'sb_publishable_only_test',
-    storage: storage(),
+  const lookup = (override = {}) => findFeature4CpuRenderJob({
+    shopId: SHOP, planId: PLAN, reviewHash: HASH,
+    supabaseOrigin: 'https://retailgrowth-dev.example.supabase.co',
+    publishableKey: 'sb_publishable_only_test',
+    tokenProvider: async () => 'signed-tenant-jwt',
     fetchImpl: async (url, init) => {
-      if (url.includes('/auth/v1/token')) return response({
-        access_token: 'signed-tenant-jwt', refresh_token: 'tenant-refresh',
-        expires_in: 3600,
-      })
       calls.push({ url, init })
       return handler(url, init)
     },
+    ...config, ...override,
   })
-  return { api, calls }
+  return { lookup, calls }
 }
 
 test('existing once-per-plan job recovers only via signed RLS GET, no POST or quota', async () => {
-  const { api, calls } = client(() => response([row]))
-  await api.signIn('owner@example.invalid', 'test-password')
-  const recovered = await api.findFeature4CpuRenderJob(SHOP, PLAN, HASH)
+  const { lookup, calls } = fixture(() => response([row]))
+  const recovered = await lookup()
   assert.deepEqual(recovered, {
     job_id: JOB, shop_id: SHOP, campaign_id: CAMPAIGN,
     plan_id: PLAN, status: 'QUEUED',
   })
   assert.equal(calls.length, 1)
   assert.equal(calls[0].init.method, 'GET')
+  assert.equal(calls[0].init.redirect, 'error')
+  assert.equal(calls[0].init.cache, 'no-store')
+  assert.equal(calls[0].init.credentials, 'omit')
   assert.equal(calls[0].init.headers.Authorization, 'Bearer signed-tenant-jwt')
   assert.equal(calls[0].init.headers.apikey, 'sb_publishable_only_test')
   const url = new URL(calls[0].url)
@@ -65,18 +57,20 @@ test('existing once-per-plan job recovers only via signed RLS GET, no POST or qu
   assert.doesNotMatch(JSON.stringify(calls), /service_role|sb_secret_|submit_cpu_render/)
 })
 
-test('no job returns null; invalid business/hash does not contact backend', async () => {
-  const { api, calls } = client(() => response([]))
-  await api.signIn('owner@example.invalid', 'test-password')
-  assert.equal(await api.findFeature4CpuRenderJob(SHOP, PLAN, HASH), null)
+test('no job returns null; invalid resource/hash or URL never sends a request', async () => {
+  const { lookup, calls } = fixture(() => response([]))
+  assert.equal(await lookup(), null)
   const before = calls.length
-  for (const args of [
-    ['invalid-shop', PLAN, HASH],
-    [SHOP, 'not-a-uuid', HASH],
-    [SHOP, PLAN, 'fake-hash'],
+  for (const wrong of [
+    { shopId: 'invalid-shop' },
+    { planId: 'not-a-uuid' },
+    { reviewHash: 'fake-hash' },
+    { supabaseOrigin: 'http://retailgrowth-dev.example.supabase.co' },
+    { supabaseOrigin: 'https://malicious.example/path' },
+    { publishableKey: 'not-valid' },
+    { tokenProvider: async () => 'invalid token with space' },
   ]) {
-    await assert.rejects(() => api.findFeature4CpuRenderJob(...args),
-      /verified business/)
+    await assert.rejects(() => lookup(wrong))
   }
   assert.equal(calls.length, before)
 })
@@ -93,28 +87,25 @@ test('foreign, stale, forged and ambiguous job rows are rejected fail-closed', a
     { status: 'SUCCEEDED' },
   ]
   for (const payload of variants) {
-    const { api, calls } = client(() => response(payload))
-    await api.signIn('owner@example.invalid', 'test-password')
-    await assert.rejects(() => api.findFeature4CpuRenderJob(SHOP, PLAN, HASH),
-      /private business\/revision verification/)
+    const { lookup, calls } = fixture(() => response(payload))
+    await assert.rejects(() => lookup(), /tenant, revision or status verification/)
     assert.equal(calls.length, 1)
   }
 })
 
 test('unavailable RLS read is not mistaken for no job and does not replay POST', async () => {
-  const { api, calls } = client(() => response({ code: 'DEV_OFFLINE' }, 503))
-  await api.signIn('owner@example.invalid', 'test-password')
-  await assert.rejects(() => api.findFeature4CpuRenderJob(SHOP, PLAN, HASH))
+  const { lookup, calls } = fixture(() => response({ code: 'DEV_OFFLINE' }, 503))
+  await assert.rejects(() => lookup(), /history unavailable/)
   assert.equal(calls.length, 1)
   assert.equal(calls[0].init.method, 'GET')
 })
 
-test('UI recovery requires explicit click and renews GET status/private signed link', async () => {
+test('UI recovery requires explicit click, verified status and renewed signed link', async () => {
   const ui = await readFile(new URL(
     '../../frontend/src/features/video/CreativePlanReview.jsx', import.meta.url), 'utf8')
   assert.match(ui, /async function recoverCpuRender\(\)/)
   assert.match(ui, /onClick=\{recoverCpuRender\}/)
-  assert.match(ui, /client\.findFeature4CpuRenderJob\(/)
+  assert.match(ui, /await findFeature4CpuRenderJob\(\{/)
   assert.match(ui, /cpuApi\.status\(/)
   assert.match(ui, /cpuApi\.download\(/)
   assert.match(ui, /Check existing render \(read only\)/)
