@@ -26,6 +26,7 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
   const [cpuJob, setCpuJob] = useState(null)
   const [cpuPreview, setCpuPreview] = useState(null)
   const [cpuError, setCpuError] = useState('')
+  const [submissionUncertain, setSubmissionUncertain] = useState(false)
   const cpuApi = useMemo(() => {
     if (!CPU_RENDER_ENABLED || !REVIEW_ENABLED || !user || !shopId) return null
     try {
@@ -103,6 +104,9 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
       const result = await client.issueFeature4CreativePlan(
         shopId, chosen.campaign_id, chosen.id)
       setSelectedId(result.plan_id)
+      setCpuJob(null)
+      setCpuPreview(null)
+      setSubmissionUncertain(false)
       setNotice('Saved campaign storyboard prepared for retailer review.')
       await reviews.refetch()
     } catch (cause) {
@@ -114,17 +118,19 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
 
   async function submitCpuRender() {
     if (!cpuApi || !canReview || !plan || plan.state !== 'APPROVED' ||
-        working || !history.isSuccess || history.data || cpuJob ||
+        working || submissionUncertain || !history.isSuccess || history.data || cpuJob ||
         typeof plan.review_sha256 !== 'string') return
     setWorking(true)
     setCpuError('')
     setCpuPreview(null)
+    setSubmissionUncertain(true)
     try {
       const response = await cpuApi.createReviewedCpu({
         shopId, campaignId: plan.campaign_id, planId: plan.id,
         reviewHash: plan.review_sha256,
       })
       setCpuJob({ ...response, planId: plan.id })
+      setSubmissionUncertain(false)
       setNotice('CPU render request confirmed by the server; status is private.')
       void history.refetch()
     } catch (cause) {
@@ -270,7 +276,7 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
     {plan && <>
       <label>Review saved plan
         <select aria-label="Saved creative plan" value={plan.id}
-          onChange={event => { setSelectedId(event.target.value); setError(''); setNotice(''); setCpuJob(null); setCpuPreview(null); setCpuError('') }}>
+          onChange={event => { setSelectedId(event.target.value); setError(''); setNotice(''); setCpuJob(null); setCpuPreview(null); setCpuError(''); setSubmissionUncertain(false) }}>
           {plans.map(item => <option key={item.id} value={item.id}>
             {item.campaign_id.slice(0, 8)} · {item.state}
           </option>)}
@@ -296,6 +302,9 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
           The verified CPU renderer is not configured; no job or credits were used.
         </p>}
         {history.isFetching && <p role="status">Checking previous private renders…</p>}
+        {submissionUncertain && !history.data && <p role="alert">
+          Render submission may already exist. Check private job history before any new request.
+        </p>}
         {history.isError && <p role="alert">
           Private render history is unavailable. Creating another job is disabled.
           <Button type="button" variant="outline" onClick={() => history.refetch()}>
@@ -303,6 +312,7 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
           </Button>
         </p>}
         {cpuApi && history.isSuccess && !history.data && !cpuJob &&
+          !submissionUncertain &&
           <Button type="button" disabled={working} onClick={submitCpuRender}>
             Render approved Reel using owned media
           </Button>}
