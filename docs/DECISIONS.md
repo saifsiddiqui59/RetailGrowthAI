@@ -1470,3 +1470,6 @@ ARM what-if can include unrelated pre-existing resources as Ignore. A separate r
 
 ## 2026-11-23 IST — Use functionAppConfig.runtime on Flex Consumption
 Azure Functions Flex Consumption rejects FUNCTIONS_WORKER_RUNTIME in siteConfig.appSettings; FUNCTIONS_EXTENSION_VERSION is platform-managed. Keep language name/version only in functionAppConfig.runtime and do not re-add legacy app settings. A failed ARM group deployment can leave partial resources: preserve exact resource identity and deny implicit adoption/deletion until separate read-only checks prove safe recovery.
+
+## 2026-11-23 IST — F4 failed deployment partial recovery is app-only
+When an initial ARM create fails after provisioning F4 plan/container, never delete/recreate or implicitly adopt other workloads. A dedicated recovery Bicep may reference the same exact tagged private resources as existing, but only after protected read-only OIDC checks of plan full ID, tags, FC1 capacity, location and container private access. What-if may Create only the previously absent disabled F4 app; any unexpected ID/action still fails closed. No original Flex/Y1/Issue249 or retailer approval bypass.
