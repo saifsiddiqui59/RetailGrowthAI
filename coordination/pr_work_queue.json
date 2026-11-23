@@ -13,13 +13,32 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 5,
+    "open_prs": 8,
     "by_feature": {
-      "unclassified": 3,
-      "issue249": 2
+      "feature4": 1,
+      "issue249": 2,
+      "unclassified": 5
     }
   },
   "entries": [
+    {
+      "pr": 1121,
+      "title": "fix(F2→F4): recover existing private CPU render after lost POST acknowledgement",
+      "feature": "feature4",
+      "head_sha": "7963e8fe37ac057d8edefe81e8b1769177e1cd6d",
+      "base_branch": "main",
+      "work_owner": "manual-integration-chat-f2f4",
+      "priority": "P1",
+      "phase": "ci",
+      "checkpoint": {
+        "owner": "manual-integration-chat-f2f4",
+        "tests": "5 signed RLS-read-only negative/positive tests committed; exact-head CI still running",
+        "ci": "Part1 exact-head CI #45100383012 in progress",
+        "next_action": "Verify exact-head mandatory four jobs, inspect main/changed paths, merge only if feature-scoped eligible and no independent gate; otherwise route for security review",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1121"
+    },
     {
       "pr": 1118,
       "title": "fix(F4): sync isolated private triggers after guarded enablement; preserve rollback",
@@ -108,5 +127,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
     }
   ],
-  "last_inventory_checked_at": "2026-11-23T02:04:00Z"
+  "last_inventory_checked_at": "2026-11-23T02:28:13Z"
 }
