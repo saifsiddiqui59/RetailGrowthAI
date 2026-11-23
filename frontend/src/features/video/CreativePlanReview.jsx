@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Button } from '../../components/ui/button.jsx'
 import { Card } from '../../components/ui/card.jsx'
 import { createVideoTransport } from './video-transport.mjs'
+import { readFeature4CpuJobForPlan } from './feature4-cpu-job-history.mjs'
 
 const REVIEW_ENABLED = import.meta.env?.VITE_FEATURE4_PLAN_REVIEW_ENABLED === 'true'
 const ISSUE_ENABLED = import.meta.env?.VITE_FEATURE4_PLAN_ISSUE_ENABLED === 'true'
@@ -57,6 +58,20 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
   const plan = plans.find(item => item.id === selectedId) || plans[0] || null
   const source = plan?.proposal
   const scenes = Array.isArray(source?.scenes) ? source.scenes : []
+  // The database, not browser session state, owns a previously accepted job.
+  // Check per signed actor/shop/approved revision before offering POST.
+  const history = useQuery({
+    queryKey: ['f4-cpu-plan-history', user?.id, shopId, plan?.id],
+    queryFn: () => readFeature4CpuJobForPlan({
+      shopId, planId: plan.id,
+      supabaseUrl: import.meta.env?.VITE_SUPABASE_URL,
+      publishableKey: import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY,
+      tokenProvider: () => client.getAccessToken(),
+    }),
+    enabled: CPU_RENDER_ENABLED && REVIEW_ENABLED && Boolean(
+      user && shopId && canReview && plan?.id && plan?.state === 'APPROVED'),
+    retry: false, staleTime: 0, gcTime: 0,
+  })
 
   async function write(kind) {
     if (!canReview || !plan || working) return
@@ -99,7 +114,8 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
 
   async function submitCpuRender() {
     if (!cpuApi || !canReview || !plan || plan.state !== 'APPROVED' ||
-        working || typeof plan.review_sha256 !== 'string') return
+        working || !history.isSuccess || history.data || cpuJob ||
+        typeof plan.review_sha256 !== 'string') return
     setWorking(true)
     setCpuError('')
     setCpuPreview(null)
@@ -110,9 +126,37 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
       })
       setCpuJob({ ...response, planId: plan.id })
       setNotice('CPU render request confirmed by the server; status is private.')
+      void history.refetch()
     } catch (cause) {
       // Do NOT POST again automatically after an uncertain network response.
       setCpuError(cause?.message || 'Render submission unconfirmed. Check your job status.')
+      // Lost POST acknowledgements can still have committed one job. GET
+      // history instead of replaying a second quota/outbox write.
+      void history.refetch()
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  async function resumeCpuRender() {
+    const existing = history.data
+    if (!cpuApi || !canReview || working || plan?.state !== 'APPROVED' ||
+        !history.isSuccess || !existing || existing.shop_id !== shopId ||
+        existing.plan_id !== plan.id) return
+    setWorking(true)
+    setCpuError('')
+    setCpuPreview(null)
+    try {
+      // GET-only recovery; signed URLs are always minted afresh by the API.
+      const verified = await cpuApi.status({ jobId: existing.id, shopId })
+      setCpuJob({ ...verified, planId: plan.id })
+      if (verified.status === 'SUCCEEDED') {
+        setCpuPreview(await cpuApi.download({ jobId: existing.id, shopId }))
+      } else if (verified.status === 'FAILED') {
+        setCpuError('This render failed. Review a changed creative revision before requesting another.')
+      }
+    } catch {
+      setCpuError('Unable to resume this private render. Recheck job history before retrying.')
     } finally {
       setWorking(false)
     }
@@ -251,9 +295,25 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
         {!cpuApi && <p role="status">
           The verified CPU renderer is not configured; no job or credits were used.
         </p>}
-        {cpuApi && <Button type="button" disabled={working} onClick={submitCpuRender}>
-          Render approved Reel using owned media
-        </Button>}
+        {history.isFetching && <p role="status">Checking previous private renders…</p>}
+        {history.isError && <p role="alert">
+          Private render history is unavailable. Creating another job is disabled.
+          <Button type="button" variant="outline" onClick={() => history.refetch()}>
+            Retry private history read
+          </Button>
+        </p>}
+        {cpuApi && history.isSuccess && !history.data && !cpuJob &&
+          <Button type="button" disabled={working} onClick={submitCpuRender}>
+            Render approved Reel using owned media
+          </Button>}
+        {history.data && history.data.plan_id === plan.id && <p role="status">
+          Existing private render: {history.data.status.toLowerCase()}
+        </p>}
+        {cpuApi && history.data && history.data.plan_id === plan.id &&
+          (!cpuJob || cpuJob.job_id !== history.data.id) &&
+          <Button type="button" disabled={working} variant="outline" onClick={resumeCpuRender}>
+            Resume existing render (no new job)
+          </Button>}
         {cpuJob && cpuJob.planId === plan.id && <p role="status">
           Render {cpuJob.status.toLowerCase()} · {cpuJob.job_id}
         </p>}
