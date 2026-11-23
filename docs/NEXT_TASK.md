@@ -1963,3 +1963,7 @@ Verify source PR exact-head four CI and protected DEV retry after removing forbi
 
 ## 2026-11-23 IST — Pending after shape-corrected container privacy guard
 - Verify PR #1111 new exact-head 4/4 CI. Protected app-only recovery must read the *same* existing F4 package container through Azure ARM with full subscription/RG/storage/blobServices/default/container ID, require non-public `properties.publicAccess`, and use the exact FC1 plan's normalized region. Missing/foreign ARM data remains a hard stop. Once isolated app exists with flags OFF, proceed to sealed native ZIP #1096, then private triggers #1098 and signed two-shop E2E, leaving API render OFF until rights/lease/quota acceptance.
+
+## 2026-11-23 IST — F4 no-index recovery
+1. Verify exact-head four CI for package import-closure fix, especially the negative omitted-security module regression and required member test. Ensure failed private-trigger stage #45089361586 restored worker flags OFF and removed the protected worker secret via independently safe read-only Azure checks, never log secret values.
+2. Rebuild and reseal the separate F4 ZIP with `security.py`, deploy only to exact tagged DEV CPU worker via protected workflow while customer render remains OFF. Verify actual packaged FunctionApp startup and three indexed queue/timer names before re-running protected private-worker activation; do not retry on uncertain queue/job state. Keep #249/Y1, PROD, WineShopPOS, GPU and paid calls unchanged.

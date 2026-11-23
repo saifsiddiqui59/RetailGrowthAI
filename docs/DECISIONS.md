@@ -1485,3 +1485,6 @@ The Azure plan REST API may omit `properties.reserved` or render location with w
 
 ## 2026-11-23 IST — Check F4 package container privacy from exact ARM child identity
 Azure storage container data-plane `show` may omit the `publicAccess` property. Do not infer public/private from omission. Independently read the exact ARM `Microsoft.Storage/storageAccounts/blobServices/containers` resource under the already verified DEV subscription/RG/storage and require its full ID and non-public `properties.publicAccess` before creating the worker app. Treat missing ARM properties, foreign ID, or any public-access setting as denial; never change storage ACLs to make a check pass.
+
+## 2026-11-23 IST — Enforce transitive local Python imports for sealed CPU releases
+An Azure Functions ZIP can pass member/checksum validation but still fail Python startup when a top-level local import is absent. Walk Python imports reachable from isolated `function_app.py`, resolving only checked-in local modules and requiring each one in the packaged mapping. In particular, `tenant_store` requires `security.py` through `admin_store`. Include that source in the checksum manifest and reject a release that omits it. Do not treat successful ZIP deployment as trigger indexing or authorized customer rendering.

@@ -1,4 +1,5 @@
 name: RetailGrowthAI F4 DEV sealed native CPU ZIP (protected stage only)
+# Re-stage native ZIP after validating complete local Python startup imports.
 # One-shot deployment of a validated, separate F4 worker package to the
 # *already present*, isolated and still disabled DEV Functions app.
 # No worker trigger indexing, customer rendering, new IAM or Y1/Flex changes.

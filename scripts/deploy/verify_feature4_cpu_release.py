@@ -22,7 +22,8 @@ MAX_FILES = 100_000
 REQUIRED = frozenset({
     "host.json", "requirements.txt", "function_app.py", "cpu_backend.py",
     "admin_store.py", "private_media.py", "queue_adapter.py",
-    "recovery_runtime.py", "tenant_store.py", "feature4_worker_handoff.py",
+    "recovery_runtime.py", "tenant_store.py", "security.py",
+    "feature4_worker_handoff.py",
     "render_adapter.py", "hyperframes/render.mjs",
     "hyperframes/package.json", "hyperframes/package-lock.json",
     "bin/node", "bin/ffmpeg", "bin/ffprobe",
