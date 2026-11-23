@@ -1945,3 +1945,7 @@ Verify four-job exact-head CI for the dedicated F4 existing-resource Ignore inve
 
 ## 2026-11-23 IST — Flex worker BadRequest recovery
 Verify source PR exact-head four CI and protected DEV retry after removing forbidden FUNCTIONS_WORKER_RUNTIME and obsolete FUNCTIONS_EXTENSION_VERSION from the F4 Bicep site app settings. Inspect partial host/plan/container state before allowing any recovery; fail closed if already present and unverified. Do not delete/recreate resources blindly. Once host proven 1x2GiB and flags OFF, stage #1096 native ZIP then #1098 private triggers and run real signed two-shop E2E.
+
+## 2026-11-23 IST — Next after verified partial host inventory
+1. Verify exact-head 4/4 CI for PR #1109, reconcile latest main without overwriting Y1 documentation and run the protected one-shot DEV recovery. Source Bicep must declare the existing FC1 plan and package container as existing, prove plan tags/SKU/private container, and allow ARM Create for the absent F4 app only.
+2. If host is genuinely created, verify 1x2 GiB Python 3.11, worker/render flags OFF and no service-role secret, then stage #1096 sealed ZIP and #1098 private-only triggers. Keep original API and customer render disabled until authorized signed two-shop MP4, rights/lease/quota/foreign/revoked tests pass.

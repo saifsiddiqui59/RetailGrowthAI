@@ -1,0 +1,223 @@
+name: RetailGrowthAI F4 DEV partial-host recovery (protected one-time)
+# Retry guarded host creation after Azure rejected obsolete Flex runtime settings. The preflight still denies partial resources; no adoption or unconditional retry.
+# Exact DEV/OIDC guard, Bicep what-if and rollback by not enabling any trigger.
+# Does not upload worker ZIP or change the original v1 API/Flex/Y1.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-feature4-cpu-resume-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-feature4-cpu-resume-once
+  cancel-in-progress: false
+jobs:
+  resume-disabled-worker:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RG: rg-retailgrowth-dev
+      STORAGE: rgaid4e5ddbdf0d21d96
+      HOST: rgai-dev-f4cpu-d4e5ddbd
+      PLAN: rgai-dev-f4cpu-plan
+      CONTAINER: retailgrowth-f4cpu-packages
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Login to exact existing protected DEV Azure identity
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Verify exact tagged DEV RG/storage and private queue prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AZURE_SUBSCRIPTION_ID" && test "$(az account show --query id -o tsv)" = "$AZURE_SUBSCRIPTION_ID"
+          az group show --name "$RG" --subscription "$AZURE_SUBSCRIPTION_ID" -o json > "$RUNNER_TEMP/f4cpu-rg.json"
+          az storage account show --name "$STORAGE" --resource-group "$RG" --subscription "$AZURE_SUBSCRIPTION_ID" -o json > "$RUNNER_TEMP/f4cpu-storage.json"
+          python3 - <<'PY'
+          import os,json,pathlib
+          temp=pathlib.Path(os.environ['RUNNER_TEMP'])
+          rg=json.loads((temp/'f4cpu-rg.json').read_text())
+          storage=json.loads((temp/'f4cpu-storage.json').read_text())
+          tags={str(k).lower():str(v).lower() for k,v in (rg.get('tags') or {}).items()}
+          if rg.get('name')!='rg-retailgrowth-dev' or rg.get('location')!='centralindia' or tags.get('app')!='retailgrowthai' or tags.get('environment')!='dev':
+              raise SystemExit('BLOCKED: RG identity, location or tags mismatch')
+          if storage.get('name')!='rgaid4e5ddbdf0d21d96' or not str(storage.get('id','')).lower().startswith(str(rg.get('id','')).lower()+'/providers/microsoft.storage/storageaccounts/'):
+              raise SystemExit('BLOCKED: storage is not nested in exact DEV RG')
+          print('PASS: exact tagged DEV subscription/RG/storage')
+          PY
+          for queue in retail-feature4-cpu-render retail-feature4-cpu-render-poison; do
+            if ! az storage queue exists --name "$queue" --account-name "$STORAGE" --auth-mode login -o json > "$RUNNER_TEMP/f4cpu-queue.json" 2>/dev/null; then
+              echo 'BLOCKED: DEV queue data-plane permission or identity unverified'; exit 3
+            fi
+            python3 - <<'PY'
+          import json,os,pathlib
+          value=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'f4cpu-queue.json').read_text())
+          if value.get('exists') is not True:
+              raise SystemExit('BLOCKED: both dedicated CPU queues must already exist')
+          PY
+          done
+          echo 'PASS: two dedicated DEV F4 queues exist; no message read or write'
+      - name: Verify absent site and exact existing FC1 plan/private container
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(az resource list -g "$RG" --subscription "$AZURE_SUBSCRIPTION_ID" --resource-type Microsoft.Web/sites --query "[?name=='$HOST'].id" -o tsv)" || { echo 'BLOCKED: F4 worker app already exists'; exit 3; }
+          az resource show --resource-group "$RG" --name "$PLAN" --resource-type Microsoft.Web/serverfarms --api-version 2024-04-01 -o json > "$RUNNER_TEMP/f4cpu-resume-plan.json"
+          az storage container show --name "$CONTAINER" --account-name "$STORAGE" --auth-mode login -o json > "$RUNNER_TEMP/f4cpu-resume-container.json"
+          python3 - <<'PY'
+          import os,json,pathlib
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])
+          plan=json.loads((p/'f4cpu-resume-plan.json').read_text())
+          container=json.loads((p/'f4cpu-resume-container.json').read_text())
+          scope=('/subscriptions/'+os.environ['AZURE_SUBSCRIPTION_ID'].lower()
+                 +'/resourcegroups/rg-retailgrowth-dev')
+          tags={str(k).lower():str(v).lower() for k,v in (plan.get('tags') or {}).items()}
+          sku=plan.get('sku') or {}
+          if (str(plan.get('id') or '').lower()!=scope+'/providers/microsoft.web/serverfarms/rgai-dev-f4cpu-plan'
+              or plan.get('name')!='rgai-dev-f4cpu-plan' or plan.get('location')!='centralindia'
+              or tags.get('app')!='retailgrowthai' or tags.get('environment')!='dev'
+              or tags.get('purpose')!='feature4-cpu-private-worker'
+              or sku.get('name')!='FC1' or sku.get('tier')!='FlexConsumption'
+              or (plan.get('properties') or {}).get('reserved') is not True):
+              raise SystemExit('BLOCKED: existing FC1 plan identity unverified')
+          props=container.get('properties') if isinstance(container,dict) else None
+          if (not isinstance(props,dict) or 'publicAccess' not in props
+              or props['publicAccess'] not in (None,'off','Off','None')):
+              raise SystemExit('BLOCKED: existing package container privacy unverified')
+          print('PASS: isolated existing FC1 plan/private container; site absent')
+          PY
+      - name: Inventory exact existing DEV resources (read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          az resource list --resource-group "$RG" --subscription "$AZURE_SUBSCRIPTION_ID" --query '[].id' -o json > "$RUNNER_TEMP/f4cpu-rg-existing.json"
+      - name: Compile fixed disabled-by-default Bicep and inspect ARM what-if
+        shell: bash
+        run: |
+          set -euo pipefail
+          az bicep build --file infra/azure/feature4-cpu-worker-dev-resume.bicep --outfile "$RUNNER_TEMP/f4cpu-worker-compiled.json" 1>/dev/null
+          az deployment group what-if -g "$RG" --subscription "$AZURE_SUBSCRIPTION_ID" \
+            --template-file infra/azure/feature4-cpu-worker-dev-resume.bicep \
+            --parameters location=centralindia environmentName=dev \
+              storageAccountName="$STORAGE" functionAppName="$HOST" functionPlanName="$PLAN" \
+            --no-pretty-print -o json > "$RUNNER_TEMP/f4cpu-whatif.json"
+          python3 - <<'PY'
+          import os,json,pathlib
+          from scripts.deploy.feature4_cpu_whatif_type import classify_resource_type
+          from scripts.deploy.feature4_cpu_whatif_scope import load_existing_dev_ids, is_existing_ignore
+          payload=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'f4cpu-whatif.json').read_text())
+          changes=payload.get('changes') or (payload.get('properties') or {}).get('changes') or []
+          allowed=('/providers/microsoft.web/sites/rgai-dev-f4cpu-d4e5ddbd',
+                   '/providers/microsoft.web/sites/rgai-dev-f4cpu-d4e5ddbd/config/web')
+          existing=('/providers/microsoft.storage/storageaccounts/rgaid4e5ddbdf0d21d96',
+                    '/providers/microsoft.storage/storageaccounts/rgaid4e5ddbdf0d21d96/blobservices/default',
+                    '/providers/microsoft.web/serverfarms/rgai-dev-f4cpu-plan',
+                    '/providers/microsoft.storage/storageaccounts/rgaid4e5ddbdf0d21d96/blobservices/default/containers/retailgrowth-f4cpu-packages')
+          # Resource names alone are not authorization. Anchor every resource
+          # ID to the OIDC-validated exact subscription and DEV resource group.
+          # A foreign subscription/RG using identical suffixes must BLOCK.
+          scope=('/subscriptions/' + os.environ['AZURE_SUBSCRIPTION_ID'].lower()
+                 + '/resourcegroups/' + os.environ['RG'].lower())
+          allowed=tuple(scope + suffix for suffix in allowed)
+          existing=tuple(scope + suffix for suffix in existing)
+          # Exact pre-existing DEV RG IDs, never a type/name wildcard.
+          inventoried=load_existing_dev_ids(
+              pathlib.Path(os.environ['RUNNER_TEMP'])/'f4cpu-rg-existing.json', scope)
+          if not changes:
+              raise SystemExit('BLOCKED: empty/unreadable ARM what-if')
+          if len(changes) > 50:
+              raise SystemExit('BLOCKED: unbounded ARM what-if change inventory')
+          # Print a bounded TYPE/ACTION/COUNT summary only, NEVER IDs/names.
+          # This is diagnosis, not an authorization or a weaker allowlist.
+          from collections import Counter
+          safe_actions={'Create','NoChange','Ignore','Modify','Delete','Deploy'}
+          categories=Counter((
+              classify_resource_type(c.get('resourceId')),
+              c.get('changeType') if c.get('changeType') in safe_actions else 'Other'
+          ) for c in changes)
+          for (kind, action), count in sorted(categories.items()):
+              print('ARM what-if TYPE=' + kind + ' ACTION=' + action + ' COUNT=' + str(count))
+          created=set()
+          for c in changes:
+              action=c.get('changeType')
+              rid=str(c.get('resourceId') or '').lower()
+              if rid in existing:
+                  if action not in ('NoChange','Ignore'):
+                      raise SystemExit('BLOCKED: existing DEV storage would be changed')
+                  continue
+              if rid not in allowed:
+                  # ARM reports unrelated existing DEV resources as Ignore.
+                  # Skip only read-only inventoried FULL IDs with action Ignore.
+                  if is_existing_ignore(rid, action, inventoried, scope):
+                      continue
+                  # Never print full ARM resource IDs: extract only provider
+                  # namespace and child resource TYPES (not names/tokens).
+                  # Never return names from untrusted ARM IDs; shape-only
+                  # categorization still blocks unknowns, including Ignore.
+                  kind=classify_resource_type(c.get('resourceId'))
+                  # Even unrecognized Microsoft provider TYPE metadata is
+                  # diagnostic ONLY; exact resource ID and Ignore denial remain.
+                  # The resource name itself is never written to runner logs.
+                  print('BLOCKED: unexpected ARM resource TYPE=' + kind + ' action=' + str(action)[:24])
+                  raise SystemExit('BLOCKED: unexpected resource in F4 what-if')
+              if action not in ('Create','NoChange','Ignore'):
+                  raise SystemExit('BLOCKED: F4 what-if would modify or delete an existing resource')
+              if action=='Create':
+                  created.add(rid)
+          if allowed[0] not in created:
+              raise SystemExit('BLOCKED: no new F4 app in ARM what-if')
+          print('PASS: ARM what-if creates only new F4 app; existing plan and container unchanged')
+          PY
+      - name: Provision only disabled CPU host, no artifact and no trigger activation
+        shell: bash
+        run: |
+          set -euo pipefail
+          az deployment group create -g "$RG" --subscription "$AZURE_SUBSCRIPTION_ID" \
+            --name rgai-f4cpu-private-worker-resume \
+            --mode Incremental \
+            --template-file infra/azure/feature4-cpu-worker-dev-resume.bicep \
+            --parameters location=centralindia environmentName=dev \
+              storageAccountName="$STORAGE" functionAppName="$HOST" functionPlanName="$PLAN" \
+            -o none
+      - name: Verify separate host remains non-executing
+        shell: bash
+        run: |
+          set -euo pipefail
+          az resource show -g "$RG" --resource-type Microsoft.Web/sites \
+            --name "$HOST" --api-version 2024-11-01 -o json > "$RUNNER_TEMP/f4cpu-host.json"
+          az functionapp config appsettings list -g "$RG" --name "$HOST" -o json > "$RUNNER_TEMP/f4cpu-appsettings.json"
+          python3 - <<'PY'
+          import os,json,pathlib
+          temp=pathlib.Path(os.environ['RUNNER_TEMP'])
+          app=json.loads((temp/'f4cpu-host.json').read_text())
+          settings=json.loads((temp/'f4cpu-appsettings.json').read_text())
+          tags={str(k).lower():str(v).lower() for k,v in (app.get('tags') or {}).items()}
+          flags={i.get('name'):i.get('value') for i in settings}
+          conf=(app.get('properties') or {}).get('functionAppConfig') or {}
+          scale=conf.get('scaleAndConcurrency') or {}
+          if app.get('name')!='rgai-dev-f4cpu-d4e5ddbd' or tags.get('app')!='retailgrowthai' or tags.get('environment')!='dev' or tags.get('purpose')!='feature4-cpu-private-worker':
+              raise SystemExit('BLOCKED: deployed worker identity mismatch')
+          if str(flags.get('RETAIL_FEATURE4_CPU_WORKER_ENABLED','')).lower()!='false' or str(flags.get('RETAIL_FEATURE4_CPU_RENDER_ENABLED','')).lower()!='false':
+              raise SystemExit('BLOCKED: newly deployed CPU worker is unexpectedly enabled')
+          if 'RETAIL_SUPABASE_SERVICE_ROLE_KEY' in flags:
+              raise SystemExit('BLOCKED: no service secret should have been injected during host creation')
+          if scale.get('maximumInstanceCount') != 1 or scale.get('instanceMemoryMB') != 2048:
+              raise SystemExit('BLOCKED: worker capacity is not exactly one 2-GiB instance')
+          print('PASS: separate tagged DEV worker present with both F4 flags OFF; no release ZIP deployed')
+          PY
+      - name: Record only reviewed metadata
+        shell: bash
+        run: |
+          echo 'DEV F4 separate CPU Functions host and plan staged with flags OFF. Private package, service-only credentials and signed E2E are still pending.' >> "$GITHUB_STEP_SUMMARY"

@@ -1878,3 +1878,6 @@ Protected Azure host run #45084635172 failed before provisioning; an ARM what-if
 
 ## 2026-11-23 IST — Flex worker creation rejected obsolete app settings
 Protected run #45085661277 passed exact DEV OIDC, queues, inventory and ARM what-if. The actual Azure deployment failed with BadRequest because Flex Consumption forbids FUNCTIONS_WORKER_RUNTIME in SiteConfig.AppSettings; Microsoft also deprecates FUNCTIONS_EXTENSION_VERSION there. Source correction removes both and preserves Python 3.11 in functionAppConfig.runtime. The failed run may have created partial plan/container resources, so existing preflight remains fail-closed pending read-only proof; no worker activated or signed E2E passed.
+
+## 2026-11-23 IST — Partial F4 worker app-only recovery source
+Read-only protected Azure run #45086416640 confirmed exact tagged F4 DEV state: APP absent, PLAN present, private-package CONTAINER present. Recovery candidate #1109 declares existing plan/container read-only, creates only the new disabled 2 GiB Python 3.11 app, and requires live plan SKU/tags and private access proof before strict ARM what-if. Hosted recovery not completed by source commit; source CI/protected DEV results pending. No queue/schema replay, customer activation, Y1/Issue #249, PROD, GPU or WineShopPOS changes.
