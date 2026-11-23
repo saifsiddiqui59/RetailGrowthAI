@@ -35,7 +35,9 @@ def validate_env(env, apply=False):
     if env.get("RGAI_DEV_TEST_USERS_APPLY")!="YES":
         raise ProvisionError("Missing explicit local DEV test-user apply guard")
     key=env.get("SUPABASE_SERVICE_ROLE_KEY","")
-    if len(key)<32:
+    if not (isinstance(key,str) and len(key)>=32 and
+            (key.startswith("sb_secret_") or
+             (key.startswith("eyJ") and key.count(".")==2))):
         raise ProvisionError("Service role key must come from trusted local secret store")
     credentials={}
     for role in ACCOUNTS:
@@ -49,19 +51,34 @@ def validate_env(env, apply=False):
     return {"project":DEV_REF,"accounts":list(ACCOUNTS.values()),"mode":"APPLY",
             "key":key,"passwords":credentials}
 
-def do_request(method,url,key,payload=None):
+class NoRedirects(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        # Never forward GoTrue Admin credentials to a new host.
+        raise ProvisionError("Protected DEV Auth Admin redirect denied")
+
+
+def do_request(method,url,key,payload=None,opener=None):
+    # New sb_secret_ keys are ONLY allowed on apikey; they are opaque
+    # and must never be sent as Authorization: Bearer (which needs a JWT).
+    headers={"Content-Type":"application/json","Accept":"application/json",
+             "apikey":key}
+    if key.startswith("eyJ") and key.count(".")==2:
+        headers["Authorization"]="Bearer "+key
     data=None if payload is None else json.dumps(payload).encode()
-    req=urllib.request.Request(url,data=data,method=method,headers={
-      "Content-Type":"application/json","Accept":"application/json",
-      "apikey":key,"Authorization":"Bearer "+key})
+    req=urllib.request.Request(url,data=data,method=method,headers=headers)
+    if opener is None:
+        opener=urllib.request.build_opener(NoRedirects()).open
     try:
-        with urllib.request.urlopen(req,timeout=15) as response:
+        with opener(req,timeout=15) as response:
+            if response.status not in (200,201):
+                raise ProvisionError("Unexpected protected Auth Admin HTTP response")
             return json.loads(response.read(1_000_000))
     except urllib.error.HTTPError as exc:
         # Refuse to surface server-side untrusted detail that might echo data.
-        raise ProvisionError(f"Supabase Auth Admin returned HTTP {exc.code}; review Auth logs privately") from exc
-    except urllib.error.URLError as exc:
-        raise ProvisionError("Supabase DEV Auth Admin transport unavailable") from exc
+        raise ProvisionError(f"Supabase Auth Admin returned HTTP {exc.code}; review Auth logs privately") from None
+    except (urllib.error.URLError,OSError):
+        raise ProvisionError("Supabase DEV Auth Admin transport unavailable") from None
+
 
 def create(env):
     config=validate_env(env,apply=True)
