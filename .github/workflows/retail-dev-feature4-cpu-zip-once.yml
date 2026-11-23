@@ -141,8 +141,13 @@ jobs:
           "$py" scripts/deploy/verify_feature4_cpu_release.py \
             --zip "$RUNNER_TEMP/rgai-f4cpu-sealed-private-worker.zip" \
             > "$RUNNER_TEMP/f4cpu-zip-verification.json"
+          # Import the SAME sealed ZIP in isolated Python -S mode, with
+          # synthetic OFF and ON worker flags and ZERO service credentials.
+          # Do not deploy a package whose three private triggers cannot load.
+          "$py" scripts/deploy/probe_feature4_cpu_native_index.py \
+            --zip "$RUNNER_TEMP/rgai-f4cpu-sealed-private-worker.zip"
           # No archive artifact uploads or public/private source copying.
-          echo 'PASS: private F4 CPU ZIP sealed and validated on exact runner' >> "$GITHUB_STEP_SUMMARY"
+          echo 'PASS: private F4 CPU ZIP sealed and import-indexed on exact runner' >> "$GITHUB_STEP_SUMMARY"
       - name: Publish only to already-disabled isolated F4 DEV app
         uses: Azure/functions-action@c5060b3b8bb1ebbcb531abd00c822ecbaa8ea656
         with:
