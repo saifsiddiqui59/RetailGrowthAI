@@ -1,0 +1,136 @@
+name: RetailGrowthAI F4 DEV original API review stage (protected one-time)
+# Source PR does NOT enable CPU_RENDER or signed two-shop acceptance.
+# On main only, exact protected OIDC, DB, package, three private worker triggers,
+# storage parity and rollback are mandatory before plan/review settings.
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/retail-dev-feature4-api-review-once.yml']
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-f4api-review-only
+  cancel-in-progress: false
+jobs:
+  enable-review-only:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RETAIL_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+      F4_READINESS_DIR: ${{ runner.temp }}/f4-api-readiness
+      RG: rg-retailgrowth-dev
+      API: rgai-dev-functions-d4e5ddbd
+      WORKER: rgai-dev-f4cpu-d4e5ddbd
+      STORAGE: rgaid4e5ddbdf0d21d96
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify actual DEV F4 schema and zero outstanding jobs, read only
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p "$F4_READINESS_DIR"
+          python3 scripts/deploy/feature4_cpu_rest_schema_guard.py
+          python3 - <<'PY'
+          import json,os,pathlib,urllib.request
+          import sys
+          sys.path.insert(0,'scripts/deploy')
+          from feature4_cpu_rest_schema_guard import ROOT,_headers,NoRedirects
+          secret=os.environ['RETAIL_SUPABASE_SERVICE_ROLE_KEY']
+          url=ROOT+'/rest/v1/feature4_cpu_render_jobs?select=id&limit=1'
+          r=urllib.request.Request(url,headers=_headers(secret),method='GET')
+          try:
+              with urllib.request.build_opener(NoRedirects()).open(r,timeout=20) as response:
+                  empty=(response.status==200 and response.read(2048)==b'[]')
+          except (OSError,ValueError):
+              empty=False
+          if not empty:
+              raise SystemExit('BLOCKED: F4 DEV jobs not empty/verified')
+          p=pathlib.Path(os.environ['F4_READINESS_DIR'])/'jobs-empty.json'
+          p.write_text(json.dumps({'empty':True}))
+          print('PASS: exact DEV service-only schema and no CPU jobs')
+          PY
+      - name: Login to existing exact protected Azure DEV OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Inventory exact original API and isolated worker without changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$AZURE_SUBSCRIPTION_ID"
+          test "$(az account show --query id -o tsv)" = "$AZURE_SUBSCRIPTION_ID"
+          az resource show -g "$RG" --resource-type Microsoft.Web/sites --name "$API" \
+            --api-version 2024-11-01 -o json > "$F4_READINESS_DIR/api-app.json"
+          az resource show -g "$RG" --resource-type Microsoft.Web/sites --name "$WORKER" \
+            --api-version 2024-11-01 -o json > "$F4_READINESS_DIR/worker-app.json"
+          az functionapp config appsettings list -g "$RG" -n "$API" \
+            -o json > "$F4_READINESS_DIR/api-settings.json"
+          az functionapp config appsettings list -g "$RG" -n "$WORKER" \
+            -o json > "$F4_READINESS_DIR/worker-settings.json"
+          az functionapp function list -g "$RG" -n "$API" \
+            -o json > "$F4_READINESS_DIR/api-functions.json"
+          az functionapp function list -g "$RG" -n "$WORKER" \
+            -o json > "$F4_READINESS_DIR/worker-functions.json"
+          az storage queue exists --name retail-feature4-cpu-render \
+            --account-name "$STORAGE" --auth-mode login -o json > "$F4_READINESS_DIR/queue-render.json"
+          az storage queue exists --name retail-feature4-cpu-render-poison \
+            --account-name "$STORAGE" --auth-mode login -o json > "$F4_READINESS_DIR/queue-poison.json"
+      - name: Fail closed unless entire F4 isolated runtime and original API bundle are proven
+        run: python3 scripts/deploy/feature4_cpu_original_api_readiness.py
+      - name: Activate ONLY original API plan issue/review with CPU_RENDER OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          restore() {
+            rc=$?
+            trap - EXIT
+            if [ "$rc" -ne 0 ]; then
+              echo 'BLOCKED: reverting original DEV F4 API stage to OFF'
+              az functionapp config appsettings set -g "$RG" -n "$API" \
+                --settings RETAIL_FEATURE4_PLAN_ISSUE_ENABLED=false \
+                RETAIL_FEATURE4_PLAN_REVIEW_ENABLED=false \
+                RETAIL_FEATURE4_CPU_WORKER_ENABLED=false \
+                RETAIL_FEATURE4_CPU_RENDER_ENABLED=false -o none || \
+                echo 'BLOCKED: independent API OFF rollback verification required'
+            fi
+            exit "$rc"
+          }
+          trap restore EXIT
+          az functionapp config appsettings set -g "$RG" -n "$API" \
+            --settings RETAIL_FEATURE4_PLAN_ISSUE_ENABLED=true \
+            RETAIL_FEATURE4_PLAN_REVIEW_ENABLED=true \
+            RETAIL_FEATURE4_CPU_WORKER_ENABLED=true \
+            RETAIL_FEATURE4_CPU_RENDER_ENABLED=false -o none
+          az functionapp config appsettings list -g "$RG" -n "$API" \
+            -o json > "$F4_READINESS_DIR/api-post.json"
+          python3 - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ['F4_READINESS_DIR'])/'api-post.json'
+          s={str(x.get('name')):str(x.get('value')) for x in json.loads(p.read_text())}
+          wanted={'RETAIL_FEATURE4_PLAN_ISSUE_ENABLED':'true',
+                  'RETAIL_FEATURE4_PLAN_REVIEW_ENABLED':'true',
+                  'RETAIL_FEATURE4_CPU_WORKER_ENABLED':'true',
+                  'RETAIL_FEATURE4_CPU_RENDER_ENABLED':'false'}
+          if any(s.get(k,'').lower()!=v for k,v in wanted.items()):
+              raise SystemExit('BLOCKED: exact reviewed original API flags not confirmed')
+          print('PASS: original DEV F4 plan/review enabled, CPU_RENDER OFF')
+          PY
+          # The private worker and original route index were proven before
+          # changing ONLY the original app's four feature flags.
+          trap - EXIT
+      - name: Record safe checkpoint
+        run: |
+          echo 'F4 original DEV plan/review API flags staged; CPU_RENDER=false. No customer render or two-shop acceptance claimed. Live signed retailer verification remains required.' >> "$GITHUB_STEP_SUMMARY"
