@@ -43,7 +43,7 @@ class F4IgnoreScopeTests(unittest.TestCase):
             "if is_existing_ignore(rid, action, inventoried, scope):",
             "if rid not in allowed:",
             "if action not in ('Create','NoChange','Ignore')",
-            "if allowed[0] not in created or allowed[1] not in created",
+            "if allowed[0] not in created or allowed[1] not in observed or allowed[2] not in observed",
         ):
             self.assertIn(needed,x)
         self.assertLess(x.index("az resource list --resource-group"),x.index("az deployment group what-if"))

@@ -69,21 +69,52 @@ jobs:
           PY
           done
           echo 'PASS: two dedicated DEV F4 queues exist; no message read or write'
-      - name: Reject existing or partial worker resources
+      - name: Reject any existing app and verify only tagged partial DEV plan/container
         shell: bash
         run: |
           set -euo pipefail
-          test -z "$(az resource list -g "$RG" --resource-type Microsoft.Web/sites --query "[?name=='$HOST'].id" -o tsv)" || { echo 'BLOCKED: worker app already exists; no mutation'; exit 3; }
-          test -z "$(az resource list -g "$RG" --resource-type Microsoft.Web/serverfarms --query "[?name=='$PLAN'].id" -o tsv)" || { echo 'BLOCKED: worker plan already exists; no mutation'; exit 3; }
-          if ! az storage container exists --name "$CONTAINER" --account-name "$STORAGE" --auth-mode login -o json > "$RUNNER_TEMP/f4cpu-container.json" 2>/dev/null; then
-            echo 'BLOCKED: private deployment container inventory unavailable'; exit 3
+          # App must still be absent. Only the exact failed-plan/container may
+          # be reused after independent read-only identity/private checks.
+          test -z "$(az resource list -g "$RG" --resource-type Microsoft.Web/sites --query "[?name=='$HOST'].id" -o tsv)" || { echo 'BLOCKED: F4 app already exists; no mutation'; exit 3; }
+          az resource list -g "$RG" --subscription "$AZURE_SUBSCRIPTION_ID" --resource-type Microsoft.Web/serverfarms \
+            --query "[?name=='$PLAN']" -o json > "$RUNNER_TEMP/f4cpu-partial-plan-list.json"
+          if test "$(python3 -c 'import json,os,pathlib;print(len(json.loads((pathlib.Path(os.environ["RUNNER_TEMP"])/"f4cpu-partial-plan-list.json").read_text())))')" -eq 1; then
+            az resource show -g "$RG" --resource-type Microsoft.Web/serverfarms --name "$PLAN" \
+              --api-version 2024-04-01 -o json > "$RUNNER_TEMP/f4cpu-partial-plan.json"
+          else
+            printf 'null' > "$RUNNER_TEMP/f4cpu-partial-plan.json"
+          fi
+          az storage container exists --name "$CONTAINER" --account-name "$STORAGE" --auth-mode login \
+            -o json > "$RUNNER_TEMP/f4cpu-partial-container-exists.json"
+          if python3 - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'f4cpu-partial-container-exists.json'
+          d=json.loads(p.read_text())
+          if type(d.get('exists')) is not bool:
+              raise SystemExit('BLOCKED: container inventory unavailable')
+          raise SystemExit(0 if d['exists'] else 1)
+          PY
+          then
+            az storage container show --name "$CONTAINER" --account-name "$STORAGE" --auth-mode login \
+              -o json > "$RUNNER_TEMP/f4cpu-partial-container.json"
+          else
+            printf 'null' > "$RUNNER_TEMP/f4cpu-partial-container.json"
           fi
           python3 - <<'PY'
           import os,json,pathlib
-          data=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'f4cpu-container.json').read_text())
-          if data.get('exists') is not False:
-              raise SystemExit('BLOCKED: deployment container already exists or state ambiguous')
-          print('PASS: distinct host, plan and private package container are absent')
+          from scripts.deploy.feature4_cpu_whatif_scope import verify_tagged_partial_plan, verify_private_existing_container
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])
+          plan_list=json.loads((p/'f4cpu-partial-plan-list.json').read_text())
+          plan=json.loads((p/'f4cpu-partial-plan.json').read_text())
+          presence=json.loads((p/'f4cpu-partial-container-exists.json').read_text())
+          container=json.loads((p/'f4cpu-partial-container.json').read_text())
+          scope=('/subscriptions/'+os.environ['AZURE_SUBSCRIPTION_ID'].lower()
+                 +'/resourcegroups/'+os.environ['RG'].lower())
+          prior_plan=verify_tagged_partial_plan(plan_list,plan,scope)
+          prior_container=verify_private_existing_container(presence,container)
+          (p/'f4cpu-partial-safe-state.json').write_text(json.dumps({
+              'plan_present':prior_plan,'container_present':prior_container}))
+          print('PASS: exact DEV partial worker plan and private container verified read-only')
           PY
       - name: Inventory exact existing DEV resources (read-only)
         shell: bash
@@ -103,7 +134,7 @@ jobs:
           python3 - <<'PY'
           import os,json,pathlib
           from scripts.deploy.feature4_cpu_whatif_type import classify_resource_type
-          from scripts.deploy.feature4_cpu_whatif_scope import load_existing_dev_ids, is_existing_ignore
+          from scripts.deploy.feature4_cpu_whatif_scope import load_existing_dev_ids, is_existing_ignore, required_reuse_action
           payload=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'f4cpu-whatif.json').read_text())
           changes=payload.get('changes') or (payload.get('properties') or {}).get('changes') or []
           allowed=('/providers/microsoft.web/sites/rgai-dev-f4cpu-d4e5ddbd',
@@ -123,6 +154,10 @@ jobs:
           # Exact pre-existing DEV RG IDs, never a type/name wildcard.
           inventoried=load_existing_dev_ids(
               pathlib.Path(os.environ['RUNNER_TEMP'])/'f4cpu-rg-existing.json', scope)
+          partial=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'f4cpu-partial-safe-state.json').read_text())
+          if (set(partial)!={'plan_present','container_present'}
+              or any(type(v) is not bool for v in partial.values())):
+              raise SystemExit('BLOCKED: unverified F4 partial resource state')
           if not changes:
               raise SystemExit('BLOCKED: empty/unreadable ARM what-if')
           if len(changes) > 50:
@@ -138,12 +173,21 @@ jobs:
           for (kind, action), count in sorted(categories.items()):
               print('ARM what-if TYPE=' + kind + ' ACTION=' + action + ' COUNT=' + str(count))
           created=set()
+          observed=set()
           for c in changes:
               action=c.get('changeType')
               rid=str(c.get('resourceId') or '').lower()
               if rid in existing:
                   if action not in ('NoChange','Ignore'):
                       raise SystemExit('BLOCKED: existing DEV storage would be changed')
+                  continue
+              if rid in (allowed[1],allowed[2]):
+                  previously_present=(partial['plan_present'] if rid==allowed[1] else partial['container_present'])
+                  if not required_reuse_action(action,previously_present):
+                      raise SystemExit('BLOCKED: F4 prior resource would be created/changed unexpectedly')
+                  observed.add(rid)
+                  if action=='Create':
+                      created.add(rid)
                   continue
               if rid not in allowed:
                   # ARM reports unrelated existing DEV resources as Ignore.
@@ -164,8 +208,8 @@ jobs:
                   raise SystemExit('BLOCKED: F4 what-if would modify or delete an existing resource')
               if action=='Create':
                   created.add(rid)
-          if allowed[0] not in created or allowed[1] not in created:
-              raise SystemExit('BLOCKED: no new isolated F4 app and plan in ARM what-if')
+          if allowed[0] not in created or allowed[1] not in observed or allowed[2] not in observed:
+              raise SystemExit('BLOCKED: missing new F4 app or previously verified plan/container in ARM what-if')
           print('PASS: ARM what-if allows only isolated worker plan/app and private container; zero destructive changes')
           PY
       - name: Provision only disabled CPU host, no artifact and no trigger activation

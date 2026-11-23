@@ -18,7 +18,7 @@ class F4HostWhatifExplicitResourceScopeTests(unittest.TestCase):
         self.assertIn("scope=('/subscriptions/' + os.environ['AZURE_SUBSCRIPTION_ID'].lower()",text)
         self.assertNotIn("rid.endswith(",text)
         self.assertIn("if action not in ('Create','NoChange','Ignore')",text)
-        self.assertIn("if allowed[0] not in created or allowed[1] not in created",text)
+        self.assertIn("if allowed[0] not in created or allowed[1] not in observed or allowed[2] not in observed",text)
         self.assertNotIn("if 'microsoft.web' in rid:",text)
         self.assertNotIn("if 'storageaccounts' in rid:",text)
 
