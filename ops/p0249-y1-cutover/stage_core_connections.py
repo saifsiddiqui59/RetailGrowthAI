@@ -83,7 +83,6 @@ def plan(*, env=None, runner=subprocess.run):
     if (not isinstance(cors, dict)
         or cors.get("supportCredentials") is not False
         or not isinstance(cors.get("allowedOrigins"), list)
-        or FRONTEND not in cors["allowedOrigins"]
         or any(origin not in (FRONTEND, "https://portal.azure.com")
                for origin in cors["allowedOrigins"])):
         raise RuntimeError("Y1_FRONTEND_CORS_UNVERIFIED")
@@ -113,7 +112,17 @@ def plan(*, env=None, runner=subprocess.run):
         elif current != value:
             raise RuntimeError("EXISTING_Y1_CORE_SETTING_DRIFT")
     # No mutation or source credentials are returned to an ordinary caller.
-    return (tuple(missing), {name: source[name] for name in missing})
+    return (tuple(missing), {name: source[name] for name in missing},
+            FRONTEND not in cors["allowedOrigins"])
+
+
+def _write_cors(*, runner=subprocess.run):
+    # Only the exact already-approved Free SWA origin, never a wildcard.
+    argv = ["az", "functionapp", "cors", "add", "-g", RG, "-n", Y1,
+            "--allowed-origins", FRONTEND, "-o", "none", "--only-show-errors"]
+    outcome = runner(argv, capture_output=True, text=True, timeout=90, check=False)
+    if outcome.returncode != 0:
+        raise RuntimeError("PROTECTED_DEV_CORS_WRITE_FAILED")
 
 
 def _write_missing(settings, *, runner=subprocess.run):
@@ -136,20 +145,23 @@ def _write_missing(settings, *, runner=subprocess.run):
 
 def run(*, apply=False, env=None, reader=subprocess.run, writer=subprocess.run):
     env = os.environ if env is None else env
-    missing, values = plan(env=env, runner=reader)
+    missing, values, missing_cors = plan(env=env, runner=reader)
     for name in missing:
         print("P0249_Y1_MISSING_CORE_SETTING=" + name)
     print("P0249_Y1_CONNECTION_STAGE_PLAN=" +
           ("MISSING_" + str(len(missing)) if missing else "ALREADY_MATCHING"))
+    print("P0249_Y1_MISSING_FRONTEND_CORS=" + str(missing_cors).lower())
     if not apply:
         print("P0249_Y1_CORE_CONNECTION_STAGE=READ_ONLY")
         return missing
     if (env.get("RGAI_Y1_CORE_CONNECTION_STAGE") != STAGE_CONFIRM
         or env.get("GITHUB_ENVIRONMENT") != "dev"):
         raise RuntimeError("PROTECTED_DEV_STAGE_CONFIRMATION_REQUIRED")
+    if missing_cors:
+        _write_cors(runner=writer)
     _write_missing(values, runner=writer)
-    after, _ = plan(env=env, runner=reader)
-    if after:
+    after, _, after_cors = plan(env=env, runner=reader)
+    if after or after_cors:
         raise RuntimeError("STAGED_CORE_CONNECTION_READBACK_MISMATCH")
     print("P0249_Y1_CORE_CONNECTION_STAGE=VERIFIED_MISSING_ONLY")
     print("P0249_Y1_HOSTED_38_HTTP_DEPLOYED=false")
