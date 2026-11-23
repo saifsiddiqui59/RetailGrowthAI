@@ -143,6 +143,14 @@ class ConnectionStageTests(unittest.TestCase):
                 stage.plan(env=ENV, runner=az.read)
             self.assertEqual(az.writes, [])
 
+    def test_wildcard_or_foreign_cors_refused(self):
+        for origin in ("*", "https://foreign.example"):
+            az = FakeAzure()
+            az.origin = origin
+            with self.subTest(origin=origin), self.assertRaisesRegex(RuntimeError, "CORS"):
+                stage.plan(env=ENV, runner=az.read)
+            self.assertEqual(az.writes, [])
+
     def test_missing_original_value_denied(self):
         self.az.original.pop("RETAIL_STORAGE")
         with self.assertRaisesRegex(RuntimeError, "MALFORMED"):
