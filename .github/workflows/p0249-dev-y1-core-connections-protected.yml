@@ -1,0 +1,75 @@
+name: "RetailGrowthAI #249 Y1 protected missing-only core connection stage"
+# This is deliberately NOT run by PR/push/cron; no implicit secret replication.
+# DEV-only, exact current main and existing protected OIDC environment required.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Copy ONLY missing matching original Flex core settings to isolated DEV Y1"
+        required: true
+        type: choice
+        options:
+          - "NO"
+          - "YES-P0249-RETAILGROWTHAI-DEV-Y1-MISSING-ONLY"
+      reviewed_main_sha:
+        description: "Exact current reviewed main SHA, no feature branch or stale commits"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rgai-p0249-y1-five-get-release
+  cancel-in-progress: false
+
+jobs:
+  stage:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'workflow_dispatch' &&
+      inputs.confirm == 'YES-P0249-RETAILGROWTHAI-DEV-Y1-MISSING-ONLY'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RGAI_Y1_CORE_CONNECTION_STAGE: ${{ inputs.confirm }}
+      GITHUB_ENVIRONMENT: dev
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Require exact reviewed latest main and run synthetic negative tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${{ inputs.reviewed_main_sha }}" =~ ^[0-9a-f]{40}$ ]]
+          test "${{ inputs.reviewed_main_sha }}" = "$GITHUB_SHA"
+          python3 -m unittest discover -s tests/infra -p 'test_p0249_y1_connection_stage.py' -v
+      - name: Scoped RetailGrowthAI DEV OIDC only
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Redacted read-only original/Y1 connection and CORS inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ops/p0249-y1-cutover/stage_core_connections.py
+      - name: Stage and read back missing DEV settings and exact CORS, no feature enable
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ops/p0249-y1-cutover/stage_core_connections.py --apply
+          echo "P0249_Y1_ORIGINAL_FLEX_STOP=FORBIDDEN"
+          echo "P0249_Y1_SWA_ROUTE_CUTOVER=NOT_PERFORMED"
+          echo "P0249_Y1_38_HTTP_DEPLOYMENT=NOT_PERFORMED"
