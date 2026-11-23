@@ -1884,3 +1884,6 @@ Read-only protected Azure run #45086416640 confirmed exact tagged F4 DEV state: 
 
 ## 2026-11-23 IST — F4 partial-resume plan REST metadata shape check
 - Protected one-app recovery run #45087200940 failed closed at read-only FC1 plan validation (the site remained absent). The previous read-only isolated partial-resource report #45086416640 had proved exact DEV tags and FC1 plan SKU. Source follow-up canonicalizes Azure REST location formatting and tolerates absent Linux `reserved` metadata while rejecting an explicit `false` value and requiring full exact plan ID, name, tags and FC1 SKU. Mismatch reports print only category keys. No app/trigger/customer activation performed by this change.
+
+## 2026-11-23 IST — DEV plan/container read-only shape diagnostics
+- New protected inventory #45087752778 reported exact pre-existing F4 app absent/plan present/container present. Safe invariant report `id=true name=true purpose=true region=false reserved=true` indicates the strict raw region comparison was mismatched; normalized case/whitespace comparison is in PR #1111. The data-plane container description omitted `publicAccess`, so the resume workflow now validates exact ARM child ID and the ARM container `properties.publicAccess` instead of treating missing data-plane metadata as proof. No actual hosted worker created and no customer flags toggled.

@@ -1952,3 +1952,6 @@ Verify source PR exact-head four CI and protected DEV retry after removing forbi
 
 ## 2026-11-23 IST — Validate and resume bounded F4 plan metadata
 - Verify exact-head four-job CI for the F4 FC1 metadata-normalization source. The protected one-app recovery must independently confirm full DEV plan ID/name, normalized centralindia location, purpose tags, FC1 FlexConsumption SKU and no explicit Windows plan; only then inspect private package container and exact ARM what-if. If still blocked, diagnose by fixed category keys without logging secrets/names. On hosted app success, stage worker ZIP #1096 and triggers #1098 in that order before real signed two-shop testing.
+
+## 2026-11-23 IST — Pending after shape-corrected container privacy guard
+- Verify PR #1111 new exact-head 4/4 CI. Protected app-only recovery must read the *same* existing F4 package container through Azure ARM with full subscription/RG/storage/blobServices/default/container ID, require non-public `properties.publicAccess`, and use the exact FC1 plan's normalized region. Missing/foreign ARM data remains a hard stop. Once isolated app exists with flags OFF, proceed to sealed native ZIP #1096, then private triggers #1098 and signed two-shop E2E, leaving API render OFF until rights/lease/quota acceptance.

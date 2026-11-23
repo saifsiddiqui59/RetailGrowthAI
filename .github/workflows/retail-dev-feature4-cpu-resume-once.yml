@@ -76,6 +76,10 @@ jobs:
           test -z "$(az resource list -g "$RG" --subscription "$AZURE_SUBSCRIPTION_ID" --resource-type Microsoft.Web/sites --query "[?name=='$HOST'].id" -o tsv)" || { echo 'BLOCKED: F4 worker app already exists'; exit 3; }
           az resource show --resource-group "$RG" --name "$PLAN" --resource-type Microsoft.Web/serverfarms --api-version 2024-04-01 -o json > "$RUNNER_TEMP/f4cpu-resume-plan.json"
           az storage container show --name "$CONTAINER" --account-name "$STORAGE" --auth-mode login -o json > "$RUNNER_TEMP/f4cpu-resume-container.json"
+          # Data-plane container-show can omit publicAccess. Independently
+          # inspect the exact ARM child resource and its access policy.
+          container_arm_id="/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.Storage/storageAccounts/$STORAGE/blobServices/default/containers/$CONTAINER"
+          az resource show --ids "$container_arm_id" --api-version 2023-05-01 -o json > "$RUNNER_TEMP/f4cpu-resume-container-arm.json"
           python3 - <<'PY'
           import os,json,pathlib
           p=pathlib.Path(os.environ['RUNNER_TEMP'])
@@ -105,9 +109,17 @@ jobs:
           if failed:
               print('F4 FC1 preflight mismatch categories: '+','.join(failed))
               raise SystemExit('BLOCKED: existing FC1 plan identity unverified')
-          props=container.get('properties') if isinstance(container,dict) else None
-          if (not isinstance(props,dict) or 'publicAccess' not in props
-              or props['publicAccess'] not in (None,'off','Off','None')):
+          # The data-plane read establishes existence; ARM establishes
+          # the container's exact scoped ID and private (non-public) policy.
+          arm=json.loads((p/'f4cpu-resume-container-arm.json').read_text())
+          expected_container=(scope+'/providers/microsoft.storage/storageaccounts/'
+              'rgaid4e5ddbdf0d21d96/blobservices/default/containers/'
+              'retailgrowth-f4cpu-packages')
+          arm_props=arm.get('properties') if isinstance(arm,dict) else None
+          if (str(arm.get('id') or '').lower()!=expected_container
+              or not isinstance(arm_props,dict)
+              or 'publicAccess' not in arm_props
+              or arm_props['publicAccess'] not in (None,'None','none')):
               raise SystemExit('BLOCKED: existing package container privacy unverified')
           print('PASS: isolated existing FC1 plan/private container; site absent')
           PY
