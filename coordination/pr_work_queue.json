@@ -13,11 +13,11 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 8,
+    "open_prs": 5,
     "by_feature": {
       "feature4": 1,
-      "issue249": 2,
-      "unclassified": 5
+      "issue249": 1,
+      "unclassified": 3
     }
   },
   "entries": [
@@ -56,25 +56,6 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1118"
-    },
-    {
-      "pr": 1113,
-      "title": "feat(#249): protected DEV-only missing Y1 backend connection staging",
-      "feature": "issue249",
-      "head_sha": "f5d06a8c0bfb446b94ac6ab1caef6a14eee0418c",
-      "base_branch": "main",
-      "work_owner": "manual-issue249-flex-20261121",
-      "priority": "P1",
-      "phase": "review",
-      "checkpoint": {
-        "owner": "manual-issue249-flex-20261121",
-        "commits": 1,
-        "tests": "Python regression and full CI including argv exclusion, temporary 0600 file/0700 dir, success/failure cleanup passed on fresh head",
-        "ci": "Part1 #45098982207 exact-head 4/4 SUCCESS (all jobs independently checked); offline Y1 artifact #45098982202 SUCCESS",
-        "next_action": "Independent release/security approval; merge source only after review; no Azure dispatch, 38-route release or Flex retirement",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1113"
     },
     {
       "pr": 1076,
