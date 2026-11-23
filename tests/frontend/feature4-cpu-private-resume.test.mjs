@@ -73,7 +73,7 @@ test('no JWT, invalid shop, unsafe origin and 503 denial block reads without fal
   let requests = 0
   const fetchImpl = async () => { requests++; return reply([row]) }
   for (const overrides of [
-    { shopId: FOREIGN.toUpperCase() },
+    { shopId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'.toUpperCase() },
     { planId: 'not-a-plan' },
     { supabaseUrl: 'http://dev-test.supabase.co' },
     { supabaseUrl: 'https://dev-test.supabase.co/elsewhere' },
