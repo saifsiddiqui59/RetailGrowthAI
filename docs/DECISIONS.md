@@ -1467,3 +1467,6 @@ The earlier #249 entries describing an **1800s** Container Apps CPU replica are 
 
 ## 2026-11-23 IST — Permit only exact inventoried pre-existing DEV Ignore entries
 ARM what-if can include unrelated pre-existing resources as Ignore. A separate read-only OIDC-scoped resource list provides exact existing DEV RG IDs. Only Ignore entries matching that set by complete normalized ID may be skipped. Foreign/unknown Create, Modify, Delete and non-inventoried Ignore still fail closed, and the isolated F4 site and plan must both be explicit Create. The read-only inventory is not independent deployment approval or tenant authorization.
+
+## 2026-11-23 IST — Use functionAppConfig.runtime on Flex Consumption
+Azure Functions Flex Consumption rejects FUNCTIONS_WORKER_RUNTIME in siteConfig.appSettings; FUNCTIONS_EXTENSION_VERSION is platform-managed. Keep language name/version only in functionAppConfig.runtime and do not re-add legacy app settings. A failed ARM group deployment can leave partial resources: preserve exact resource identity and deny implicit adoption/deletion until separate read-only checks prove safe recovery.

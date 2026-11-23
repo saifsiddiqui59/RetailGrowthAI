@@ -1,5 +1,5 @@
 name: RetailGrowthAI F4 DEV dedicated CPU host (protected one-time)
-# Deploy only the disabled-by-default dedicated F4 CPU host after two queues.
+# Retry guarded host creation after Azure rejected obsolete Flex runtime settings. The preflight still denies partial resources; no adoption or unconditional retry.
 # Exact DEV/OIDC guard, Bicep what-if and rollback by not enabling any trigger.
 # Does not upload worker ZIP or change the original v1 API/Flex/Y1.
 on:

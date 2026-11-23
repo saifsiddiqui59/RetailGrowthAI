@@ -79,8 +79,6 @@ resource workerApp 'Microsoft.Web/sites@2024-11-01' = {
       appSettings: [
         { name: 'AzureWebJobsStorage', value: storageConnection }
         { name: 'RETAIL_STORAGE', value: storageConnection }
-        { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
-        { name: 'FUNCTIONS_WORKER_RUNTIME', value: 'python' }
         { name: 'RETAIL_FEATURE4_CPU_WORKER_ENABLED', value: 'false' }
         { name: 'RETAIL_FEATURE4_CPU_RENDER_ENABLED', value: 'false' }
       ]
