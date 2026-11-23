@@ -134,6 +134,29 @@ jobs:
               sku=plan.get('sku') or {}
               if sku.get('name')!='FC1' or sku.get('tier')!='FlexConsumption':
                   raise SystemExit('BLOCKED: unknown F4 worker plan SKU')
+              # Print only boolean predicates, never subscription/plan names,
+              # resource IDs, ARM payload or settings. The protected resume
+              # guard remains unchanged until mismatched fields are understood.
+              scope=('/subscriptions/'+os.environ['AZURE_SUBSCRIPTION_ID'].lower()
+                     +'/resourcegroups/rg-retailgrowth-dev')
+              plan_tags={str(k).lower():str(v).lower() for k,v in (plan.get('tags') or {}).items()}
+              bits={
+                  'id':str(plan.get('id') or '').lower()==scope+'/providers/microsoft.web/serverfarms/rgai-dev-f4cpu-plan',
+                  'name':plan.get('name')=='rgai-dev-f4cpu-plan',
+                  'region':str(plan.get('location') or '').lower()=='centralindia',
+                  'purpose':plan_tags.get('purpose')=='feature4-cpu-private-worker',
+                  'reserved':(plan.get('properties') or {}).get('reserved') is True,
+              }
+              print('DEV F4 plan invariant booleans: '+' '.join(k+'='+str(v).lower() for k,v in sorted(bits.items())))
+          if container['exists']:
+              body=get('f4cpu-target-container.json') or {}
+              props=(body.get('properties') or {}) if isinstance(body,dict) else {}
+              location=('nested' if 'publicAccess' in props else 'root'
+                        if isinstance(body,dict) and 'publicAccess' in body else 'missing')
+              access=(props.get('publicAccess') if location=='nested'
+                      else body.get('publicAccess') if location=='root' else None)
+              private=location!='missing' and access in (None,'None','none','off','Off')
+              print('DEV F4 container access metadata: field='+location+' private='+str(private).lower())
           status=('APP='+('present' if app is not None else 'absent')
                   +' PLAN='+('present' if plan is not None else 'absent')
                   +' CONTAINER='+('present' if container['exists'] else 'absent'))
