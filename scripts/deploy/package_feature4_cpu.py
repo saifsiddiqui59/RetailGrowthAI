@@ -14,6 +14,7 @@ Node dependencies require npm ci in video-engine/hyperframes.
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import json
 import os
@@ -34,7 +35,7 @@ MAX_FILES = 100_000
 # Keep this deliberately narrower than the general v1 backend source.
 SERVICE_MODULES = (
     "admin_store.py", "tenant_store.py", "queue_adapter.py",
-    "private_media.py", "recovery_runtime.py",
+    "private_media.py", "recovery_runtime.py", "security.py",
 )
 ISOLATED_MODULES = ("function_app.py", "cpu_backend.py")
 STATIC_FILES = ("render.mjs", "package.json", "package-lock.json")
@@ -82,6 +83,40 @@ def sources():
             or queues["newBatchThreshold"] != 0
             or host.get("concurrency", {}).get("dynamicConcurrencyEnabled") is not False):
         raise ValueError("Unreviewed isolated F4 CPU queue concurrency")
+    # Resolve the local Python import graph from the actual FunctionApp root.
+    # A verified ZIP is unusable if a local module imported at worker startup
+    # was accidentally omitted, as happened to tenant_store -> security.
+    candidates = {}
+    for base in (SERVICE, ISOLATED, VIDEO):
+        for file in base.glob("*.py"):
+            candidates[file.stem] = file
+    packaged = {
+        Path(archive).stem: file for archive, file in mapping.items()
+        if "/" not in archive and archive.endswith(".py")
+    }
+    pending = ["function_app"]
+    inspected = set()
+    while pending:
+        module = pending.pop()
+        if module in inspected:
+            continue
+        if module not in packaged:
+            raise ValueError("Missing local F4 worker import: " + module)
+        inspected.add(module)
+        parsed = ast.parse(packaged[module].read_text(encoding="utf-8"),
+                           filename=module + ".py")
+        for node in ast.walk(parsed):
+            imported = []
+            if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+                imported.append(node.module.split(".", 1)[0])
+            if isinstance(node, ast.Import):
+                imported.extend(alias.name.split(".", 1)[0]
+                                for alias in node.names)
+            for name in imported:
+                if name in candidates and name not in inspected:
+                    if name not in packaged:
+                        raise ValueError("Missing local F4 worker import: " + name)
+                    pending.append(name)
     app = mapping["function_app.py"].read_text(encoding="utf-8")
     if "retail-feature4-cpu-render" not in app or "RETAIL_FEATURE4_CPU_WORKER_ENABLED" not in app:
         raise ValueError("Worker queue name/activation gate missing")
