@@ -82,15 +82,19 @@ def plan(*, env=None, runner=subprocess.run):
     cors = az("functionapp", "cors", "show", "-g", RG, "-n", Y1)
     if (not isinstance(cors, dict)
         or cors.get("supportCredentials") is not False
-        or cors.get("allowedOrigins") != [FRONTEND]):
+        or not isinstance(cors.get("allowedOrigins"), list)
+        or FRONTEND not in cors["allowedOrigins"]):
         raise RuntimeError("Y1_FRONTEND_CORS_UNVERIFIED")
 
     source = safe_setting_map(az("functionapp", "config", "appsettings",
                                  "list", "-g", RG, "-n", FLEX))
     existing = safe_setting_map(az("functionapp", "config", "appsettings",
                                    "list", "-g", RG, "-n", Y1))
+    original_runtime = ((old.get("properties") or {}).get("functionAppConfig") or {}).get("runtime") or {}
+    original_is_python = (source.get("FUNCTIONS_WORKER_RUNTIME") == "python"
+                          or str(original_runtime.get("name", "")).lower() == "python")
     if (source.get("RETAIL_SUPABASE_URL") != SUPABASE
-        or source.get("FUNCTIONS_WORKER_RUNTIME") != "python"
+        or not original_is_python
         or existing.get("FUNCTIONS_WORKER_RUNTIME") != "python"
         or not existing.get("AzureWebJobsStorage")):
         raise RuntimeError("ORIGINAL_OR_TARGET_RUNTIME_UNVERIFIED")
