@@ -71,7 +71,7 @@ test('no job returns null; invalid business/hash does not contact backend', asyn
   assert.equal(await api.findFeature4CpuRenderJob(SHOP, PLAN, HASH), null)
   const before = calls.length
   for (const args of [
-    [FOREIGN.toUpperCase(), PLAN, HASH],
+    ['invalid-shop', PLAN, HASH],
     [SHOP, 'not-a-uuid', HASH],
     [SHOP, PLAN, 'fake-hash'],
   ]) {
