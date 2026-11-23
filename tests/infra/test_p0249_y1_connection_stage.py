@@ -48,6 +48,7 @@ class FakeAzure:
         self.reads = 0
         self.payload_paths = []
         self.fail_settings = False
+        self.fail_cors = False
 
     def _resource(self, name):
         return {
@@ -89,6 +90,9 @@ class FakeAzure:
             assert args[9] == stage.FRONTEND
             assert args[-3:] == ["-o", "none", "--only-show-errors"]
             self.writes.append(("CORS",))
+            if self.fail_cors:
+                return SimpleNamespace(returncode=1, stdout="sensitive-must-not-show",
+                                       stderr="sensitive-must-not-show")
             self.origin = stage.FRONTEND
             return SimpleNamespace(returncode=0, stdout="", stderr="")
         assert args[:7] == ["az", "functionapp", "config", "appsettings",
@@ -184,7 +188,8 @@ class ConnectionStageTests(unittest.TestCase):
         approved = {**ENV, "RGAI_Y1_CORE_CONNECTION_STAGE": stage.STAGE_CONFIRM}
         self.assertEqual(stage.run(apply=True, env=approved, reader=self.az.read,
                                    writer=self.az.write), ())
-        self.assertEqual(self.az.writes[0], ("CORS",))
+        self.assertEqual(set(self.az.writes[0]), set(stage.CORE))
+        self.assertEqual(self.az.writes[1], ("CORS",))
         self.assertEqual(self.az.origin, stage.FRONTEND)
         self.assertEqual(len(self.az.writes), 2)
 
@@ -237,6 +242,34 @@ class ConnectionStageTests(unittest.TestCase):
         self.assertFalse(self.az.payload_paths[0].exists())
         self.assertFalse(self.az.payload_paths[0].parent.exists())
         self.assertFalse(any(name in self.az.target for name in stage.CORE))
+
+    def test_failed_settings_stage_never_changes_cors(self):
+        self.az.origin = None
+        self.az.fail_settings = True
+        approved = {**ENV, "RGAI_Y1_CORE_CONNECTION_STAGE": stage.STAGE_CONFIRM}
+        with self.assertRaisesRegex(RuntimeError, "PROTECTED_DEV_STAGE_WRITE_FAILED"):
+            stage.run(apply=True, env=approved, reader=self.az.read,
+                      writer=self.az.write)
+        self.assertEqual(len(self.az.writes), 1)
+        self.assertNotIn(("CORS",), self.az.writes)
+        self.assertIsNone(self.az.origin)
+
+    def test_cors_failure_preserves_staged_settings_and_retries_idempotently(self):
+        self.az.origin = None
+        self.az.fail_cors = True
+        approved = {**ENV, "RGAI_Y1_CORE_CONNECTION_STAGE": stage.STAGE_CONFIRM}
+        with self.assertRaisesRegex(RuntimeError, "PROTECTED_DEV_CORS_WRITE_FAILED"):
+            stage.run(apply=True, env=approved, reader=self.az.read,
+                      writer=self.az.write)
+        self.assertEqual(set(self.az.target).intersection(stage.CORE), set(stage.CORE))
+        self.assertIsNone(self.az.origin)
+        self.assertEqual(self.az.writes[-1], ("CORS",))
+        self.az.fail_cors = False
+        self.assertEqual(stage.run(apply=True, env=approved, reader=self.az.read,
+                                   writer=self.az.write), ())
+        self.assertEqual(len(self.az.writes), 3)
+        self.assertEqual(self.az.writes[-1], ("CORS",))
+        self.assertEqual(self.az.origin, stage.FRONTEND)
 
     def test_writer_never_accepts_unapproved_settings(self):
         with self.assertRaisesRegex(RuntimeError, "UNAPPROVED"):
