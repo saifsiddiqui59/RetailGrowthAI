@@ -36,7 +36,7 @@ def fixture():
     return {
         "worker_app": site(guard.WORKER, "feature4-cpu-private-worker"),
         "api_app": site(guard.API),
-        "worker_settings": common + [
+        "worker_settings": deepcopy(common) + [
             {"name": "RETAIL_FEATURE4_CPU_WORKER_ENABLED", "value": "true"},
             {"name": "RETAIL_FEATURE4_CPU_RENDER_ENABLED", "value": "false"}],
         "api_settings": common + [
