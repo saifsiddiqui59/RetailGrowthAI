@@ -2,9 +2,9 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-22T23:03:07Z",
-  "last_inventory_count": 9,
-  "last_inventory_checked_at": "2026-11-22T23:03:07Z",
+  "last_written_at": "2026-11-23T00:01:14Z",
+  "last_inventory_count": 8,
+  "last_inventory_checked_at": "2026-11-23T00:01:14Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
@@ -108,54 +108,6 @@
     }
   },
   "history": [
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 45023905667,
-      "head_sha": "345498813b27a61e93f2f5b6612ba826e3d9bfb9",
-      "status": "FAIL native CPU 0/1",
-      "evidence": "Native F2-to-F4 30s CPU job inspected; failed"
-    },
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 45030511656,
-      "head_sha": "d64017c9a4f13a1d65f7c108d85081d7c104c821",
-      "status": "IN_PROGRESS 2/4 PASS, 2 running",
-      "evidence": "Exact-head GitHub Actions jobs independently inspected; current outcome pending; manual Issue249 ownership retained"
-    },
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 45030506382,
-      "head_sha": "d64017c9a4f13a1d65f7c108d85081d7c104c821",
-      "status": "IN_PROGRESS 3/4 PASS, 1 running",
-      "evidence": "Exact-head GitHub Actions jobs independently inspected; current outcome pending; manual Issue249 ownership retained"
-    },
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 45030506333,
-      "head_sha": "d64017c9a4f13a1d65f7c108d85081d7c104c821",
-      "status": "IN_PROGRESS native CPU 0/1 completed",
-      "evidence": "Exact-head GitHub Actions jobs independently inspected; current outcome pending; manual Issue249 ownership retained"
-    },
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 45034372073,
-      "head_sha": "2f46bad8497c257cb61cda6496a8d7ab5367d5a3",
-      "status": "FAIL 3/4 Python/uv; latest mandatory",
-      "evidence": "All four jobs inspected: Python/uv failure, other three success"
-    },
-    {
-      "event": "exact_head_ci",
-      "pr": 1059,
-      "run_id": 45034367450,
-      "head_sha": "2f46bad8497c257cb61cda6496a8d7ab5367d5a3",
-      "status": "FAIL 3/4 Python/uv; earlier same-head mandatory",
-      "evidence": "All four jobs inspected: Python/uv failure, other three success"
-    },
     {
       "event": "exact_head_ci",
       "pr": 1059,
@@ -302,6 +254,60 @@
       "head_sha": "84a00902ea5593925acadc1de60a5aa6efd177e3",
       "status": "PASS 4/4 latest mandatory",
       "evidence": "Four jobs independently verified SUCCESS on exact head 2026-11-22"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1107,
+      "run_id": 45086014501,
+      "head_sha": "6856bf535204ec7e8fffb18d8fb23618a603b0e0",
+      "status": "PASS 4/4",
+      "evidence": "All four mandatory jobs independently checked completed success; exact SHA",
+      "verified_at": "2026-11-23T00:01:14Z"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1106,
+      "run_id": 45085969626,
+      "head_sha": "db21e6cbf11695fe68ff503e3a9b3627d286abe6",
+      "status": "PASS 4/4",
+      "evidence": "All four mandatory jobs independently checked completed success; exact SHA",
+      "verified_at": "2026-11-23T00:01:14Z"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1105,
+      "run_id": 45085758035,
+      "head_sha": "66245e06c09fcdb88ec85039c220dc69fafe7e13",
+      "status": "PASS 4/4",
+      "evidence": "All four mandatory jobs independently checked completed success; exact SHA",
+      "verified_at": "2026-11-23T00:01:14Z"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1096,
+      "run_id": 45086002839,
+      "head_sha": "2356f5e0949b1989f594aac2296138df49acde9a",
+      "status": "PASS 4/4",
+      "evidence": "All four mandatory jobs independently checked completed success; exact SHA",
+      "verified_at": "2026-11-23T00:01:14Z"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1065,
+      "run_id": 44808654931,
+      "head_sha": "d8c2c12a87ffd0c43a15d21897aace549efa5e65",
+      "status": "PASS 4/4",
+      "evidence": "All four mandatory jobs independently checked completed success; exact SHA",
+      "verified_at": "2026-11-23T00:01:14Z"
+    },
+    {
+      "event": "exact_head_ci",
+      "pr": 1064,
+      "run_id": 44804945219,
+      "head_sha": "bd6693e97af56014ea985f7ef3301e07a8ad107f",
+      "status": "PASS 4/4",
+      "evidence": "All four mandatory jobs independently checked completed success; exact SHA",
+      "verified_at": "2026-11-23T00:01:14Z"
     }
   ],
   "current_review_gates": {
@@ -371,7 +377,10 @@
       "mean": 33.813
     },
     "acceptance": "2 new environment-backed coding runs, each with observed duration, executed targeted tests, source/test commit and exact-head CI if code changed; never insert a sleep just to increase duration",
-    "ready_to_provision": false
+    "ready_to_provision": false,
+    "current_status": "EXECUTOR_NOT_PROVISIONED",
+    "executor_type": "GITHUB_CONNECTOR_ONLY",
+    "environment_evidence": "All F2/F3/F4/F7 environment_selection inherited; environments null; no verified checkout"
   },
   "extended_cpu_runner": {
     "workflow_pr": 977,
@@ -668,5 +677,55 @@
     ],
     "added": [],
     "removed": []
+  },
+  "current_ci": {
+    "1064": {
+      "head_sha": "bd6693e97af56014ea985f7ef3301e07a8ad107f",
+      "latest_run_id": 44804945219,
+      "latest_status": "PASS 4/4 independently verified",
+      "last_verified_at": "2026-11-23T00:01:14Z"
+    },
+    "1065": {
+      "head_sha": "d8c2c12a87ffd0c43a15d21897aace549efa5e65",
+      "latest_run_id": 44808654931,
+      "latest_status": "PASS 4/4 independently verified",
+      "last_verified_at": "2026-11-23T00:01:14Z"
+    },
+    "1076": {
+      "head_sha": "b4b9f3f0396a27186f229dc8fe289f28e1e5708b",
+      "latest_run_id": 45048648868,
+      "latest_status": "PASS 4/4 independently verified",
+      "last_verified_at": "2026-11-23T00:01:14Z"
+    },
+    "1096": {
+      "head_sha": "2356f5e0949b1989f594aac2296138df49acde9a",
+      "latest_run_id": 45086002839,
+      "latest_status": "PASS 4/4 independently verified",
+      "last_verified_at": "2026-11-23T00:01:14Z"
+    },
+    "1098": {
+      "head_sha": "e759dc259908773255e6751f33b2178761294610",
+      "latest_run_id": 45058598396,
+      "latest_status": "PASS 4/4 independently verified",
+      "last_verified_at": "2026-11-23T00:01:14Z"
+    },
+    "1105": {
+      "head_sha": "66245e06c09fcdb88ec85039c220dc69fafe7e13",
+      "latest_run_id": 45085758035,
+      "latest_status": "PASS 4/4 independently verified",
+      "last_verified_at": "2026-11-23T00:01:14Z"
+    },
+    "1106": {
+      "head_sha": "db21e6cbf11695fe68ff503e3a9b3627d286abe6",
+      "latest_run_id": 45085969626,
+      "latest_status": "PASS 4/4 independently verified",
+      "last_verified_at": "2026-11-23T00:01:14Z"
+    },
+    "1107": {
+      "head_sha": "6856bf535204ec7e8fffb18d8fb23618a603b0e0",
+      "latest_run_id": 45086014501,
+      "latest_status": "PASS 4/4 independently verified",
+      "last_verified_at": "2026-11-23T00:01:14Z"
+    }
   }
 }
