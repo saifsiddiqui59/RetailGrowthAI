@@ -13,14 +13,32 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 5,
+    "open_prs": 6,
     "by_feature": {
       "issue249": 1,
       "unclassified": 3,
-      "feature4": 0
+      "feature4": 1
     }
   },
   "entries": [
+    {
+      "pr": 1122,
+      "title": "docs(F2→F4): record private render recovery merge and hosted E2E blockers",
+      "feature": "feature4",
+      "head_sha": "210424cb8659bdcc25b733789520756a1ec49eaa",
+      "base_branch": "main",
+      "work_owner": "manual-integration-chat-f2f4",
+      "priority": "P2",
+      "phase": "ci",
+      "checkpoint": {
+        "owner": "manual-integration-chat-f2f4",
+        "tests": "Only four append-only canonical handoff files; source main postmerge #45100975445 verified 4/4",
+        "ci": "Exact-head doc-PR #45101405361 pending",
+        "next_action": "Verify 4/4 CI; audit newest main; merge only as source-only documentation; verify postmerge",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1122"
+    },
     {
       "pr": 1118,
       "title": "fix(F4): sync isolated private triggers after guarded enablement; preserve rollback",
@@ -90,5 +108,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
     }
   ],
-  "last_inventory_checked_at": "2026-11-23T02:33:00Z"
+  "last_inventory_checked_at": "2026-11-23T02:38:53Z"
 }
