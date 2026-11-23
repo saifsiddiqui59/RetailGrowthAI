@@ -100,3 +100,10 @@ key in client JavaScript or publish unreviewed SQL functions to anon/JWT users.
 **Status as authored:** source package and disposable SQL are implemented;
 actual DEV migration, queue provisioning, hosted worker, independent review
 and signed two-shop E2E are NOT verified.
+
+## 2026-11-23 — Source-only recovery from an uncertain CPU render POST
+
+- The authenticated React review surface now offers **Check existing render (read only)**. It calls `findFeature4CpuRenderJob(shop_id, plan_id, review_sha256)` using only the current user's Supabase JWT, filtering the existing RLS-protected `feature4_cpu_render_jobs` table by exact shop+plan. It accepts **at most one** valid same-shop, same-approved-hash receipt.
+- After this read, the frontend separately verifies job status through the signed Feature4 API and renews the current short-lived private MP4 link only for an actually completed job. No customer quote, media path, service key, quota reservation, POST replay or frontend self-approval is issued by recovery.
+- A 503, foreign row, unexpected status, changed review hash or multiple rows fails closed; a lost submit acknowledgement is **never** interpreted as permission for an automatic second render. This adds browser continuity after reload/timeout, but it is NOT proof that private worker functions, API flags, signed test shops or hosted video acceptance are ready.
+- Source tests: `tests/frontend/feature4-private-job-recovery.test.mjs`. Exact-head main CI and hosted protected acceptance remain separate; no Y1/#249, PROD, WineShopPOS, paid model or GPU change.
