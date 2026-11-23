@@ -35,3 +35,6 @@ Keep local credential files out of Git, CI artifacts, screenshots, PR comments a
 ## Budget protection
 
 Use **zero paid AI/GPU calls by default**. No Wan, FLUX, A100, cloud model downloads, paid image/video model inference, provisioned compute, PROD or changes to WineShopPOS. GPT-4.1 Mini is the only allowable optional model for a narrowly scoped DEV test if **existing deployment + explicit metered budget guard** are verified; otherwise BLOCKED. Prefer ordinary Playwright, Python, CPU/FFmpeg and contract tests.
+
+## 2026-11-23 — Opaque DEV Auth Admin key transport hardening (source only)
+The local GoTrue Admin-only provisioning script now sends new `sb_secret_` keys on `apikey` **without** a JWT Bearer header; legacy JWT service-role credentials still use both headers. It rejects unknown key formats and all HTTP redirects before forwarding secrets. Synthetic no-network tests cover these boundaries. These changes do **not** create either test account, set OWNER/EDITOR membership, bypass ROOT/onboarding, approve creative content or authorize running hosted E2E from CI. Distinct real DEV Auth Admin test identities and signed shop-owned synthetic media remain separate preconditions.
