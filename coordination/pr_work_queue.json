@@ -13,14 +13,31 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 4,
+    "open_prs": 5,
     "by_feature": {
-      "issue249": 1,
+      "issue249": 2,
       "unclassified": 3,
       "feature4": 0
     }
   },
   "entries": [
+    {
+      "pr": 1129,
+      "title": "fix(#249): stage missing DEV settings before approved CORS and test partial failures",
+      "feature": "issue249",
+      "head_sha": "54ba654df717ab8fec9b60bf5615d7dce6346ff8",
+      "base_branch": "main",
+      "work_owner": "manual-issue249-flex-20261121",
+      "priority": "P1",
+      "phase": "review",
+      "checkpoint": {
+        "owner": "manual-issue249-flex-20261121",
+        "ci": "Exact-head Part1 #45116086355 PASS 4/4 verified; Y1 source artifact #45116086372 SUCCESS (separate workflow)",
+        "next_action": "Independent Issue249 security/integration review; no unattended merge or Azure writes",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1129"
+    },
     {
       "pr": 1119,
       "title": "fix(F2→F4): resume existing private CPU render after reload without duplicate POST",
@@ -90,5 +107,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
     }
   ],
-  "last_inventory_checked_at": "2026-11-23T03:29:00Z"
+  "last_inventory_checked_at": "2026-11-23T05:57:59Z"
 }
