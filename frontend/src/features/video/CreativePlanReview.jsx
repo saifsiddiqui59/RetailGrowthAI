@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Button } from '../../components/ui/button.jsx'
 import { Card } from '../../components/ui/card.jsx'
 import { createVideoTransport } from './video-transport.mjs'
+import { findFeature4CpuRenderJob } from './feature4-cpu-job-recovery.mjs'
 
 const REVIEW_ENABLED = import.meta.env?.VITE_FEATURE4_PLAN_REVIEW_ENABLED === 'true'
 const ISSUE_ENABLED = import.meta.env?.VITE_FEATURE4_PLAN_ISSUE_ENABLED === 'true'
@@ -107,8 +108,12 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
     setCpuPreview(null)
     setNotice('')
     try {
-      const existing = await client.findFeature4CpuRenderJob(
-        shopId, plan.id, plan.review_sha256)
+      const existing = await findFeature4CpuRenderJob({
+        shopId, planId: plan.id, reviewHash: plan.review_sha256,
+        supabaseOrigin: import.meta.env?.VITE_SUPABASE_URL,
+        publishableKey: import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY,
+        tokenProvider: () => client.getAccessToken(),
+      })
       if (!existing || existing.campaign_id !== plan.campaign_id) {
         if (existing) throw Error('Existing job does not match approved campaign')
         setCpuJob(null)
