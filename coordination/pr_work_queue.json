@@ -41,15 +41,17 @@
       "pr": 1113,
       "title": "feat(#249): protected DEV-only missing Y1 backend connection staging",
       "feature": "issue249",
-      "head_sha": "2631d3bf2cc50c20fad87a18015ec9dbe45c6855",
+      "head_sha": "f5d06a8c0bfb446b94ac6ab1caef6a14eee0418c",
       "base_branch": "main",
       "work_owner": "manual-issue249-flex-20261121",
       "priority": "P1",
-      "phase": "review",
+      "phase": "test",
       "checkpoint": {
         "owner": "manual-issue249-flex-20261121",
-        "ci": "Exact-head mandatory CI 4/4 PASS; independent review required",
-        "next_action": "Independent security/integration review; no automatic merge",
+        "commits": 1,
+        "ci": "New exact-head Part1 #45098982207 and offline artifact #45098982202 running; earlier 4/4 applied to previous SHA",
+        "tests": "Security regression: secrets absent from argv; 0600 payload, 0700 parent, success/error cleanup (CI pending)",
+        "next_action": "Verify exact-head tests and independent security review before merge; no Azure dispatch",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1113"
