@@ -13,32 +13,14 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 5,
+    "open_prs": 4,
     "by_feature": {
       "issue249": 1,
       "unclassified": 3,
-      "feature4": 1
+      "feature4": 0
     }
   },
   "entries": [
-    {
-      "pr": 1123,
-      "title": "feat(F2→F4): protected original DEV plan/review API stage after verified worker",
-      "feature": "feature4",
-      "head_sha": "e3c6bd14ea82a48e62cfeff59134886bde91d221",
-      "base_branch": "main",
-      "work_owner": "manual-integration-chat-f2f4",
-      "priority": "P1",
-      "phase": "ci",
-      "checkpoint": {
-        "owner": "manual-integration-chat-f2f4",
-        "tests": "Strict original API/worker identity and negative offline guards committed",
-        "ci": "Exact-head four-job PR CI running #45103911715; old earlier head errors superseded",
-        "next_action": "Inspect latest four CI and protected review; publish only guarded plan/review stage with CPU_RENDER OFF after worker 3/3",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1123"
-    },
     {
       "pr": 1119,
       "title": "fix(F2→F4): resume existing private CPU render after reload without duplicate POST",
@@ -108,5 +90,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
     }
   ],
-  "last_inventory_checked_at": "2026-11-23T03:06:00Z"
+  "last_inventory_checked_at": "2026-11-23T03:11:00Z"
 }
