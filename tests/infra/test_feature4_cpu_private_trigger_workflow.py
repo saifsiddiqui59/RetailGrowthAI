@@ -50,6 +50,23 @@ class Feature4PrivateWorkerTriggerActivationTests(unittest.TestCase):
         self.assertNotIn("'RETAIL_FEATURE4_CPU_RENDER_ENABLED': 'true'",x)
         self.assertNotIn("AZURE_STORAGE_KEY",x)
 
+    def test_one_bounded_exact_dev_sync_before_readonly_index_and_rollback(self):
+        x=WF.read_text()
+        self.assertIn("syncfunctiontriggers?api-version=2024-11-01",x)
+        self.assertIn('subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.Web/sites/$APP/',x)
+        self.assertIn("timeout --signal=TERM --kill-after=5s 50s az rest --method post",x)
+        self.assertIn("isolated F4 trigger metadata sync failed",x)
+        self.assertIn("F4 private function index observed count=",x)
+        self.assertIn("exact_match=false",x)
+        self.assertIn("not isinstance(functions,list) or len(functions)>20",x)
+        self.assertLess(x.index("az functionapp config appsettings set -g"),
+                        x.index('sync_url="https://management.azure.com/'))
+        self.assertLess(x.index('sync_url="https://management.azure.com/'),
+                        x.index('for attempt in 1 2 3 4 5 6 7 8; do'))
+        self.assertIn("trap rollback EXIT",x)
+        self.assertNotIn("az functionapp restart",x)
+        self.assertNotIn("az role assignment create",x)
+
     def test_failure_restores_off_and_cleans_new_secret(self):
         x=WF.read_text()
         self.assertIn("if [ \"$rc\" -ne 0 ]; then",x)

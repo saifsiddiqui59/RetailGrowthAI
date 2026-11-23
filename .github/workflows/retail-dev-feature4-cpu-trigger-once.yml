@@ -144,6 +144,15 @@ jobs:
           az functionapp config appsettings set -g "$RG" -n "$APP" \
             --settings "@$settings_file" -o none
           rm -f "$settings_file"
+          # The app was published with gated decorators OFF; after the DEV-only
+          # flag change, explicitly sync metadata for this exact worker APP.
+          # A failed sync never enables customer rendering and triggers rollback.
+          sync_url="https://management.azure.com/subscriptions/$AZURE_SUBSCRIPTION_ID/resourceGroups/$RG/providers/Microsoft.Web/sites/$APP/syncfunctiontriggers?api-version=2024-11-01"
+          if ! timeout --signal=TERM --kill-after=5s 50s az rest --method post \
+              --url "$sync_url" --only-show-errors -o none >/dev/null 2>&1; then
+            echo 'BLOCKED: isolated F4 trigger metadata sync failed'; exit 3
+          fi
+          echo 'PASS: isolated F4 trigger metadata sync accepted; indexing proof pending'
           # Inspect only function *names*: never fetch customer bodies or secrets.
           for attempt in 1 2 3 4 5 6 7 8; do
             if az functionapp function list -g "$RG" -n "$APP" -o json > "$RUNNER_TEMP/f4cpu-private-index.json" 2>/dev/null; then
@@ -153,8 +162,12 @@ jobs:
           functions=json.loads(p.read_text())
           expected={'feature4_cpu_render_message','feature4_cpu_poison_message',
                     'feature4_cpu_dispatch_timer'}
+          if not isinstance(functions,list) or len(functions)>20:
+              raise SystemExit(1)
           names={str(x.get('name','')).rsplit('/',1)[-1] for x in functions}
           if names!=expected:
+              # Count only; no unexpected names, host keys or customer data.
+              print('F4 private function index observed count='+str(len(names))+' exact_match=false')
               raise SystemExit(1)
           print('PASS: exactly three indexed private F4 queue/timer functions')
           PY
