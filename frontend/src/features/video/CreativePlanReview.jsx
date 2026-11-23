@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Button } from '../../components/ui/button.jsx'
 import { Card } from '../../components/ui/card.jsx'
 import { createVideoTransport } from './video-transport.mjs'
+import { findFeature4CpuRenderJob } from './feature4-cpu-job-recovery.mjs'
 
 const REVIEW_ENABLED = import.meta.env?.VITE_FEATURE4_PLAN_REVIEW_ENABLED === 'true'
 const ISSUE_ENABLED = import.meta.env?.VITE_FEATURE4_PLAN_ISSUE_ENABLED === 'true'
@@ -97,6 +98,45 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
     }
   }
 
+  // Explicit recovery is GET-only. A timed-out POST can have spent quota;
+  // never assume a failed HTTP acknowledgement means the job was absent.
+  async function recoverCpuRender() {
+    if (!cpuApi || !canReview || !plan || plan.state !== 'APPROVED' ||
+        typeof plan.review_sha256 !== 'string' || working) return
+    setWorking(true)
+    setCpuError('')
+    setCpuPreview(null)
+    setNotice('')
+    try {
+      const existing = await findFeature4CpuRenderJob({
+        shopId, planId: plan.id, reviewHash: plan.review_sha256,
+        supabaseOrigin: import.meta.env?.VITE_SUPABASE_URL,
+        publishableKey: import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY,
+        tokenProvider: () => client.getAccessToken(),
+      })
+      if (!existing || existing.campaign_id !== plan.campaign_id) {
+        if (existing) throw Error('Existing job does not match approved campaign')
+        setCpuJob(null)
+        setNotice('No confirmed job exists for this approved creative plan.')
+        return
+      }
+      const verified = await cpuApi.status({ jobId: existing.job_id, shopId })
+      setCpuJob({ ...verified, planId: plan.id })
+      setNotice('Existing private CPU render recovered without a new submission.')
+      if (verified.status === 'SUCCEEDED') {
+        try {
+          setCpuPreview(await cpuApi.download({ jobId: existing.job_id, shopId }))
+        } catch {
+          setCpuError('Render recovered; private preview link could not be renewed.')
+        }
+      }
+    } catch {
+      setCpuError('Existing job could not be verified. Do not resubmit until history is available.')
+    } finally {
+      setWorking(false)
+    }
+  }
+
   async function submitCpuRender() {
     if (!cpuApi || !canReview || !plan || plan.state !== 'APPROVED' ||
         working || typeof plan.review_sha256 !== 'string') return
@@ -132,12 +172,22 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
         const verified = await cpuApi.status({ jobId, shopId })
         if (cancel) return
         failures = 0
-        setCpuJob({ ...verified, planId: currentPlan })
         if (verified.status === 'SUCCEEDED') {
-          const url = await cpuApi.download({ jobId, shopId })
-          if (!cancel) setCpuPreview(url)
+          // Resolve the private URL before setting terminal job state:
+          // changing QUEUED -> SUCCEEDED tears down this polling effect,
+          // otherwise its cleanup cancels an in-flight preview renewal.
+          let signed = null
+          try {
+            signed = await cpuApi.download({ jobId, shopId })
+          } catch {
+            if (!cancel) setCpuError('Video finished; private preview could not be renewed.')
+          }
+          if (cancel) return
+          setCpuPreview(signed)
+          setCpuJob({ ...verified, planId: currentPlan })
           return
         }
+        setCpuJob({ ...verified, planId: currentPlan })
         if (verified.status === 'FAILED') {
           setCpuError('Video rendering failed; check the private job status.')
           return
@@ -254,6 +304,8 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
         {cpuApi && <Button type="button" disabled={working} onClick={submitCpuRender}>
           Render approved Reel using owned media
         </Button>}
+        {cpuApi && <Button type="button" variant="outline" disabled={working}
+          onClick={recoverCpuRender}>Check existing render (read only)</Button>}
         {cpuJob && cpuJob.planId === plan.id && <p role="status">
           Render {cpuJob.status.toLowerCase()} · {cpuJob.job_id}
         </p>}
