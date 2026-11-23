@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 6,
+    "open_prs": 5,
     "by_feature": {
-      "unclassified": 4,
+      "unclassified": 3,
       "issue249": 2
     }
   },
@@ -36,23 +36,6 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1118"
-    },
-    {
-      "pr": 1116,
-      "title": "fix(F4): seal complete worker Python import closure before private trigger retry",
-      "feature": "unclassified",
-      "head_sha": "518e1da0e9d2143404e19aa39f3d7679d5588ab3",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P1",
-      "phase": "review",
-      "checkpoint": {
-        "owner": "manual-integration",
-        "ci": "Exact-head mandatory CI 4/4 PASS; independent review required",
-        "next_action": "Independent security/integration review; no automatic merge",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1116"
     },
     {
       "pr": 1113,
@@ -123,5 +106,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
     }
   ],
-  "last_inventory_checked_at": "2026-11-23T01:00:30Z"
+  "last_inventory_checked_at": "2026-11-23T02:04:00Z"
 }
