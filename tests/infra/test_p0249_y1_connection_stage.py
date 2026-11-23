@@ -46,6 +46,8 @@ class FakeAzure:
         self.location = "centralindia"
         self.writes = []
         self.reads = 0
+        self.payload_paths = []
+        self.fail_settings = False
 
     def _resource(self, name):
         return {
@@ -93,10 +95,24 @@ class FakeAzure:
                             "set", "-g", stage.RG]
         assert args[7:10] == ["-n", stage.Y1, "--settings"]
         assert args[-3:] == ["-o", "none", "--only-show-errors"]
-        values = args[10:-3]
-        self.writes.append(tuple(x.split("=", 1)[0] for x in values))
-        for item in values:
-            name, value = item.split("=", 1)
+        assert len(args[10:-3]) == 1 and args[10].startswith("@")
+        for secret in self.original.values():
+            assert secret not in " ".join(args), "Secret included in subprocess argv"
+        payload_path = Path(args[10][1:])
+        self.payload_paths.append(payload_path)
+        assert payload_path.is_file()
+        assert payload_path.stat().st_mode & 0o777 == 0o600
+        assert payload_path.parent.stat().st_mode & 0o777 == 0o700
+        document = json.loads(payload_path.read_text(encoding="utf-8"))
+        assert isinstance(document, list) and document
+        assert all(set(item) == {"name", "value", "slotSetting"} and
+                   item["slotSetting"] is False for item in document)
+        self.writes.append(tuple(item["name"] for item in document))
+        if self.fail_settings:
+            return SimpleNamespace(returncode=1, stdout="sensitive-must-not-show",
+                                   stderr="sensitive-must-not-show")
+        for item in document:
+            name, value = item["name"], item["value"]
             assert name in stage.CORE
             assert value == self.original[name]
             self.target[name] = value
@@ -198,6 +214,29 @@ class ConnectionStageTests(unittest.TestCase):
         self.assertEqual(stage.run(apply=True, env=approved, reader=self.az.read,
                                    writer=self.az.write), ())
         self.assertEqual(len(self.az.writes), 1)
+
+    def test_private_payload_deleted_after_success_and_idempotent_apply(self):
+        approved = {**ENV, "RGAI_Y1_CORE_CONNECTION_STAGE": stage.STAGE_CONFIRM}
+        self.assertEqual(stage.run(apply=True, env=approved, reader=self.az.read,
+                                   writer=self.az.write), ())
+        self.assertEqual(len(self.az.payload_paths), 1)
+        for path in self.az.payload_paths:
+            self.assertFalse(path.exists())
+            self.assertFalse(path.parent.exists())
+        self.assertEqual(stage.run(apply=True, env=approved, reader=self.az.read,
+                                   writer=self.az.write), ())
+        self.assertEqual(len(self.az.payload_paths), 1)
+
+    def test_private_payload_deleted_after_azure_failure(self):
+        self.az.fail_settings = True
+        approved = {**ENV, "RGAI_Y1_CORE_CONNECTION_STAGE": stage.STAGE_CONFIRM}
+        with self.assertRaisesRegex(RuntimeError, "PROTECTED_DEV_STAGE_WRITE_FAILED"):
+            stage.run(apply=True, env=approved, reader=self.az.read,
+                      writer=self.az.write)
+        self.assertEqual(len(self.az.payload_paths), 1)
+        self.assertFalse(self.az.payload_paths[0].exists())
+        self.assertFalse(self.az.payload_paths[0].parent.exists())
+        self.assertFalse(any(name in self.az.target for name in stage.CORE))
 
     def test_writer_never_accepts_unapproved_settings(self):
         with self.assertRaisesRegex(RuntimeError, "UNAPPROVED"):

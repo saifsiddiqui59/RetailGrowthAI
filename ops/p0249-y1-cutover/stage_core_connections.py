@@ -10,9 +10,11 @@ stops Flex, or claims a hosted deployment/cutover.
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
+import tempfile
 
 from inspect_azure_connections_readonly import read_azure, safe_setting_map, function_names
 from retirement_gate import RG, Y1, FLEX, FRONTEND, SUPABASE
@@ -128,19 +130,35 @@ def _write_cors(*, runner=subprocess.run):
 def _write_missing(settings, *, runner=subprocess.run):
     if not settings:
         return
-    if set(settings) - set(CORE):
+    if set(settings) - set(CORE) or any(
+        not isinstance(value, str) for value in settings.values()
+    ):
         raise RuntimeError("UNAPPROVED_STAGED_SETTING")
-    argv = [
-        "az", "functionapp", "config", "appsettings", "set",
-        "-g", RG, "-n", Y1, "--settings",
-        *(name + "=" + settings[name] for name in CORE if name in settings),
-        "-o", "none", "--only-show-errors",
-    ]
-    # Values remain process-local to the trusted runner, never rendered or
-    # attached to Actions artifacts/logs. Do not print raw CLI failures.
-    result = runner(argv, capture_output=True, text=True, timeout=90, check=False)
-    if result.returncode != 0:
-        raise RuntimeError("PROTECTED_DEV_STAGE_WRITE_FAILED")
+
+    # Azure CLI supports --settings @file with a JSON name/value array.
+    # Never put service-role or storage credentials in subprocess argv,
+    # environment variables, GitHub logs or command output.
+    with tempfile.TemporaryDirectory(prefix="rgai-p0249-y1-") as directory:
+        os.chmod(directory, 0o700)
+        settings_path = os.path.join(directory, "missing-appsettings.json")
+        fd = os.open(settings_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as payload:
+            json.dump([
+                {"name": name, "value": settings[name], "slotSetting": False}
+                for name in CORE if name in settings
+            ], payload)
+            payload.write("\n")
+        argv = [
+            "az", "functionapp", "config", "appsettings", "set",
+            "-g", RG, "-n", Y1, "--settings", "@" + settings_path,
+            "-o", "none", "--only-show-errors",
+        ]
+        # Suppress *both* output streams; the file is removed on success,
+        # Azure error, timeout and Python exceptions.
+        result = runner(argv, capture_output=True, text=True,
+                        timeout=90, check=False)
+        if result.returncode != 0:
+            raise RuntimeError("PROTECTED_DEV_STAGE_WRITE_FAILED")
 
 
 def run(*, apply=False, env=None, reader=subprocess.run, writer=subprocess.run):

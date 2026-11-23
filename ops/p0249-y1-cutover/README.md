@@ -80,3 +80,14 @@ is still required. A stage can restart the isolated Y1 host, so revalidate
 five-GET indexes/health before the later 38-HTTP release. Do not interpret
 staging or source tests as signed two-shop, queue, private media or cutover
 acceptance; issue #249 must stay open.
+
+## 2026-11-23 — Prevent secrets in Azure CLI process arguments (PR #1113 amendment)
+
+The missing-only protected DEV stage sends the four approved app settings through
+Azure CLI's documented `--settings @file` JSON-array syntax, NOT `KEY=value`
+process arguments. The JSON lives only in a random 0700 temporary directory
+as a 0600 file, is never printed or uploaded, and is removed on normal or
+exceptional exit. Synthetic tests check argv exclusion, file permissions,
+correct missing-only settings and cleanup after success/failure; no real
+credentials are used in CI. This reduces exposure but does not imply Azure
+deployment, live health acceptance or independent release approval.
