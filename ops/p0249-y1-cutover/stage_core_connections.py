@@ -175,9 +175,12 @@ def run(*, apply=False, env=None, reader=subprocess.run, writer=subprocess.run):
     if (env.get("RGAI_Y1_CORE_CONNECTION_STAGE") != STAGE_CONFIRM
         or env.get("GITHUB_ENVIRONMENT") != "dev"):
         raise RuntimeError("PROTECTED_DEV_STAGE_CONFIRMATION_REQUIRED")
+    # Stage credentials first: a failed settings write must not leave CORS
+    # newly exposed. A later CORS failure leaves only missing-only settings;
+    # the next protected run can safely read back and resume without overwrite.
+    _write_missing(values, runner=writer)
     if missing_cors:
         _write_cors(runner=writer)
-    _write_missing(values, runner=writer)
     after, _, after_cors = plan(env=env, runner=reader)
     if after or after_cors:
         raise RuntimeError("STAGED_CORE_CONNECTION_READBACK_MISMATCH")
