@@ -1,0 +1,107 @@
+name: RetailGrowthAI F4 DEV private-trigger rollback audit (read only)
+# After a failed three-trigger activation: prove rollback before any retry.
+# No changes to app settings, credentials, queues, storage or customer traffic.
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/retail-dev-feature4-cpu-rollback-audit-once.yml']
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-f4cpu-rollback-audit-once
+  cancel-in-progress: false
+jobs:
+  inspect-dev-worker:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RG: rg-retailgrowth-dev
+      APP: rgai-dev-f4cpu-d4e5ddbd
+      ORIGINAL: rgai-dev-functions-d4e5ddbd
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Login with existing protected DEV OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Read exact DEV app identity, settings and function names without mutations
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AZURE_SUBSCRIPTION_ID"
+          test "$(az account show --query id -o tsv)" = "$AZURE_SUBSCRIPTION_ID"
+          az group show -g "$RG" --subscription "$AZURE_SUBSCRIPTION_ID" -o json > "$RUNNER_TEMP/f4cpu-rollback-rg.json"
+          az resource show -g "$RG" --resource-type Microsoft.Web/sites --name "$APP" \
+            --api-version 2024-11-01 -o json > "$RUNNER_TEMP/f4cpu-rollback-app.json"
+          az functionapp config appsettings list -g "$RG" -n "$APP" \
+            -o json > "$RUNNER_TEMP/f4cpu-rollback-settings.json"
+          az functionapp config appsettings list -g "$RG" -n "$ORIGINAL" \
+            -o json > "$RUNNER_TEMP/f4cpu-rollback-original.json"
+          if ! az functionapp function list -g "$RG" -n "$APP" \
+             -o json > "$RUNNER_TEMP/f4cpu-rollback-index.json" 2>/dev/null; then
+            echo 'BLOCKED: exact F4 worker indexed-function inventory unavailable'
+            exit 3
+          fi
+          python3 - <<'PY'
+          import os,json,pathlib
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])
+          read=lambda name:json.loads((p/name).read_text())
+          rg=read('f4cpu-rollback-rg.json')
+          app=read('f4cpu-rollback-app.json')
+          settings=read('f4cpu-rollback-settings.json')
+          original=read('f4cpu-rollback-original.json')
+          funcs=read('f4cpu-rollback-index.json')
+          if not all(isinstance(a,list) for a in (settings,original,funcs)):
+              raise SystemExit('BLOCKED: malformed F4 runtime inventory')
+          tags={str(k).lower():str(v).lower() for k,v in (rg.get('tags') or {}).items()}
+          scope=('/subscriptions/'+os.environ['AZURE_SUBSCRIPTION_ID'].lower()
+                 +'/resourcegroups/rg-retailgrowth-dev')
+          if (str(rg.get('id') or '').lower()!=scope
+              or tags.get('app')!='retailgrowthai' or tags.get('environment')!='dev'):
+              raise SystemExit('BLOCKED: foreign F4 resource group')
+          tags={str(k).lower():str(v).lower() for k,v in (app.get('tags') or {}).items()}
+          cfg=(app.get('properties') or {}).get('functionAppConfig') or {}
+          scale=cfg.get('scaleAndConcurrency') or {}
+          runtime=cfg.get('runtime') or {}
+          if (str(app.get('id') or '').lower()!=scope+'/providers/microsoft.web/sites/rgai-dev-f4cpu-d4e5ddbd'
+              or tags.get('app')!='retailgrowthai' or tags.get('environment')!='dev'
+              or tags.get('purpose')!='feature4-cpu-private-worker'
+              or scale.get('maximumInstanceCount')!=1 or scale.get('instanceMemoryMB')!=2048
+              or runtime.get('name')!='python' or runtime.get('version')!='3.11'):
+              raise SystemExit('BLOCKED: unexpected isolated F4 worker identity or capacity')
+          values={str(x.get('name')):str(x.get('value') or '') for x in settings}
+          parent={str(x.get('name')):str(x.get('value') or '') for x in original}
+          if values.get('RETAIL_FEATURE4_CPU_WORKER_ENABLED','').lower()!='false':
+              raise SystemExit('BLOCKED: rollback failed to disable private CPU worker')
+          if values.get('RETAIL_FEATURE4_CPU_RENDER_ENABLED','').lower()!='false':
+              raise SystemExit('BLOCKED: customer CPU render unexpectedly active in private host')
+          if 'RETAIL_SUPABASE_SERVICE_ROLE_KEY' in values:
+              raise SystemExit('BLOCKED: temporary protected service key not cleared')
+          if not values.get('AzureWebJobsStorage') or not values.get('RETAIL_STORAGE'):
+              raise SystemExit('BLOCKED: isolated CPU worker storage settings missing')
+          if (parent.get('RETAIL_FEATURE4_CPU_WORKER_ENABLED','').lower()=='true'
+              or parent.get('RETAIL_FEATURE4_CPU_RENDER_ENABLED','').lower()=='true'):
+              raise SystemExit('BLOCKED: original customer API active unexpectedly')
+          expected={'feature4_cpu_render_message','feature4_cpu_poison_message','feature4_cpu_dispatch_timer'}
+          names={str(x.get('name') or '').rsplit('/',1)[-1] for x in funcs}
+          if not names <= expected:
+              raise SystemExit('BLOCKED: unknown indexed F4 function')
+          # The worker flag is OFF, so any remaining index is a stale/unsafe
+          # state to examine before another service-key activation.
+          if names:
+              print('F4 rollback INDEXED_EXPECTED_COUNT='+str(len(names)))
+              raise SystemExit('BLOCKED: private functions remain indexed with worker OFF')
+          print('PASS: exact 2 GiB DEV worker OFF; service secret absent; customer API OFF; indexed functions zero')
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as receipt:
+              receipt.write('Exact DEV F4 protected rollback verified: worker OFF, secret absent, original API OFF; no customer render or cloud writes.\n')
+          PY
