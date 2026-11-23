@@ -25,16 +25,17 @@
       "pr": 1121,
       "title": "fix(F2→F4): recover existing private CPU render after lost POST acknowledgement",
       "feature": "feature4",
-      "head_sha": "7963e8fe37ac057d8edefe81e8b1769177e1cd6d",
+      "head_sha": "c8321512a3a98a79828c6b492dbf3251ff402aea",
       "base_branch": "main",
       "work_owner": "manual-integration-chat-f2f4",
       "priority": "P1",
       "phase": "ci",
       "checkpoint": {
         "owner": "manual-integration-chat-f2f4",
-        "tests": "5 signed RLS-read-only negative/positive tests committed; exact-head CI still running",
-        "ci": "Part1 exact-head CI #45100383012 in progress",
-        "next_action": "Verify exact-head mandatory four jobs, inspect main/changed paths, merge only if feature-scoped eligible and no independent gate; otherwise route for security review",
+        "commits": 9,
+        "tests": "5 targeted tests and cancelled/preview sequencing regression committed; self-review recorded in PR comment #7090001605",
+        "ci": "Part1 exact-head #45100525257 in progress; 1/4 completed pass at last read",
+        "next_action": "Wait for exact-head mandatory CI then check independent main compatibility and merge under solo-maintainer source-only policy; no hosted activation",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1121"
