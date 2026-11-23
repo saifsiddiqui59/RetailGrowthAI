@@ -172,12 +172,22 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
         const verified = await cpuApi.status({ jobId, shopId })
         if (cancel) return
         failures = 0
-        setCpuJob({ ...verified, planId: currentPlan })
         if (verified.status === 'SUCCEEDED') {
-          const url = await cpuApi.download({ jobId, shopId })
-          if (!cancel) setCpuPreview(url)
+          // Resolve the private URL before setting terminal job state:
+          // changing QUEUED -> SUCCEEDED tears down this polling effect,
+          // otherwise its cleanup cancels an in-flight preview renewal.
+          let signed = null
+          try {
+            signed = await cpuApi.download({ jobId, shopId })
+          } catch {
+            if (!cancel) setCpuError('Video finished; private preview could not be renewed.')
+          }
+          if (cancel) return
+          setCpuPreview(signed)
+          setCpuJob({ ...verified, planId: currentPlan })
           return
         }
+        setCpuJob({ ...verified, planId: currentPlan })
         if (verified.status === 'FAILED') {
           setCpuError('Video rendering failed; check the private job status.')
           return
