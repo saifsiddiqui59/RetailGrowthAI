@@ -13,14 +13,32 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 4,
+    "open_prs": 5,
     "by_feature": {
       "issue249": 1,
       "unclassified": 3,
-      "feature4": 0
+      "feature4": 1
     }
   },
   "entries": [
+    {
+      "pr": 1127,
+      "title": "ci(F4): protected read-only original API package rollback inventory",
+      "feature": "feature4",
+      "head_sha": "d20ba0ea2450a8a80d379c33d914e8c415f0d2fd",
+      "base_branch": "main",
+      "work_owner": "manual-integration-chat-f2f4",
+      "priority": "P1",
+      "phase": "ci",
+      "checkpoint": {
+        "owner": "manual-integration-chat-f2f4",
+        "tests": "Read-only baseline helper and foreign/active-state negatives committed",
+        "ci": "Exact-head Part1 #45105564646 in progress",
+        "next_action": "Verify 4/4, current main compatibility, integrate source under solo-maintainer review, inspect protected OIDC read-only original package mode; no ZIP publish",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1127"
+    },
     {
       "pr": 1119,
       "title": "fix(F2→F4): resume existing private CPU render after reload without duplicate POST",
@@ -90,5 +108,5 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
     }
   ],
-  "last_inventory_checked_at": "2026-11-23T03:11:00Z"
+  "last_inventory_checked_at": "2026-11-23T03:23:00Z"
 }
