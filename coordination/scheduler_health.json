@@ -2,9 +2,9 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "scope": "schedule-only diagnostics; source and main merges excluded",
-  "last_written_at": "2026-11-23T01:00:30Z",
-  "last_inventory_count": 6,
-  "last_inventory_checked_at": "2026-11-23T01:00:30Z",
+  "last_written_at": "2026-11-23T02:04:00Z",
+  "last_inventory_count": 5,
+  "last_inventory_checked_at": "2026-11-23T02:04:00Z",
   "owners": {
     "schedule-f2": {
       "automation_id": "Automation_da1315db6a28819188762e271906839a",
@@ -603,15 +603,7 @@
     "native_cpu_run_id": 45018675277,
     "native_cpu_status": "FAIL 0/1"
   },
-  "current_ci_status": {
-    "pr": 1059,
-    "head_sha": "d765eff3982bcd2258a4f53759d528a9cd7179e0",
-    "mandatory_run_id": 45008824004,
-    "mandatory": "FAIL 3/4",
-    "native_cpu_run_id": 45008824022,
-    "native_cpu": "FAIL 0/1",
-    "verified_at_utc": "2026-11-22T10:00:43Z"
-  },
+  "current_ci_status": "5/5 live PRs exact-head mandatory CI 4/4 PASS; each four jobs checked; historical docs main run 44377599370 PASS 4/4",
   "current_exact_head_ci": {
     "pr": 1059,
     "head_sha": "d64017c9a4f13a1d65f7c108d85081d7c104c821",
@@ -625,13 +617,7 @@
     "last_verified_green_on_current_head": null,
     "previous_head_failures_not_current": true
   },
-  "current_automation_controls": {
-    "F2": "DISABLED",
-    "F3": "DISABLED",
-    "F4": "DISABLED REVIEW_BLOCKED",
-    "F7": "DISABLED REVIEW_BLOCKED",
-    "verified_at_utc": "2026-11-22T21:00:06Z"
-  },
+  "current_automation_controls": "UNVERIFIED: all four get calls returned 404 on this run; last verified states retained",
   "current_executor_status": "EXECUTOR_NOT_PROVISIONED: all four inherited environments null; GITHUB_CONNECTOR_ONLY last verified",
   "current_live_ci": {
     "checked_at_utc": "2026-11-22T23:03:07Z",
@@ -671,15 +657,16 @@
     "docs_postmerge": "PASS 4/4 (previously verified)"
   },
   "automation_controls_current": "UNVERIFIED: all four Automations get calls returned 404; retain last verified run durations and enabled states, do not infer current",
-  "active_leases_current": "UNKNOWN: no explicit active lease fields in verified queue; preserved existing ownership",
-  "current_source_commit_verification": "UNKNOWN: no new source/test commit verified from exact SHA metadata",
-  "current_lease_verification": "UNKNOWN: no live lease claim verified",
+  "active_leases_current": "UNKNOWN (no active lease fields in five current queue entries)",
+  "current_source_commit_verification": "UNKNOWN: automation runs inaccessible; no new source/test commit asserted",
+  "current_lease_verification": "UNKNOWN: no live lease claim verified from current queue entries",
   "last_queue_delta": {
-    "head_changes": [
-      1077
+    "removed": [
+      1116
     ],
     "added": [],
-    "removed": []
+    "head_changed": [],
+    "verified_at_utc": "2026-11-23T02:04:00Z"
   },
   "current_ci": {
     "1064": {
