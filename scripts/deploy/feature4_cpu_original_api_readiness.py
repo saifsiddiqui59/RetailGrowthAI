@@ -146,8 +146,24 @@ def main() -> int:
         values["f4_jobs_empty"] = values["f4_jobs_empty"].get("empty") is True
         verify(values, os.environ["AZURE_SUBSCRIPTION_ID"],
                os.environ["RETAIL_SUPABASE_SERVICE_ROLE_KEY"])
-    except (NotReady, OSError, ValueError, KeyError, TypeError):
-        print("BLOCKED: exact protected DEV F4 API readiness could not be proved")
+    except NotReady as exc:
+        # Only emit a fixed validation-category token, never live setting
+        # names/values, function URLs, customer IDs or secret-bearing JSON.
+        allowed = {
+            "subscription", "protected-service-identity", "site-identity",
+            "site-tags", "private-worker-purpose", "worker-capacity",
+            "settings-shape", "duplicate-setting", "backend-connection-parity",
+            "dev-project", "service-role-parity", "api-publishable-key",
+            "storage-host-config", "customer-flags-not-off",
+            "private-worker-flags", "worker-service-role",
+            "function-shape", "function-duplicate", "private-trigger-index",
+            "original-api-f4-index", "private-queues", "inflight-jobs",
+        }
+        category = str(exc) if str(exc) in allowed else "unknown"
+        print("BLOCKED: F4 API readiness category=" + category)
+        return 3
+    except (OSError, ValueError, KeyError, TypeError):
+        print("BLOCKED: F4 API readiness category=unreadable-input")
         return 3
     print("PASS: DEV F4 original package, three private triggers, DB parity and flags verified")
     return 0

@@ -17,3 +17,6 @@
 
 ## Further actions
 After a genuinely successful protected original API stage, provision two **nonprivileged actual Supabase Auth Admin test users** with separate shops and approved synthetic owned media; never insert directly into `auth.users`, invent JWTs, or self-approve protected GitHub deployments. Recheck exact source/retailer approval, rights, lease, idempotency, quota and worker health; turn CPU_RENDER on **last** under separately guarded activation. Run the existing opt-in browser `frontend/e2e/feature4-cpu.hosted.mjs` with real signed test identities and FFprobe. Keep Issue #249/Y1, PROD, GPU and WineShopPOS unchanged.
+
+## 2026-11-23 protected API-stage diagnosis follow-up
+Protected main run [#45104337519](https://github.com/saifsiddiqui59/RetailGrowthAI/actions/runs/45104337519) passed actual DEV F4 service-only schema/zero-job checks and Azure OIDC, then **failed closed before setting original API flags** at the package/connection readiness stage. Existing generic denial hid the exact failing predicate, not a secret. Next source patch emits one fixed validator category token only; unknown/malformed data still logs no values. Re-run is allowed only under the same exact DEV checks, original flags OFF and protected environment. No customer activation, test account, video or two-shop E2E is claimed.
