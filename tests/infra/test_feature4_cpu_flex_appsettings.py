@@ -23,13 +23,15 @@ class F4FlexRuntimeConfigTests(unittest.TestCase):
 
     def test_failing_partial_deployment_must_not_be_adopted_without_proof(self):
         workflow=WORKFLOW.read_text()
-        self.assertIn("Reject existing or partial worker resources",workflow)
-        self.assertIn("worker plan already exists; no mutation",workflow)
-        self.assertIn("worker app already exists; no mutation",workflow)
-        self.assertIn("deployment container already exists or state ambiguous",workflow)
+        self.assertIn("Reject any existing app and verify only tagged partial DEV plan/container",workflow)
+        self.assertIn("F4 app already exists; no mutation",workflow)
+        self.assertIn("verify_tagged_partial_plan",workflow)
+        self.assertIn("verify_private_existing_container",workflow)
+        self.assertIn("f4cpu-partial-safe-state.json",workflow)
+        self.assertIn("required_reuse_action(action,previously_present)",workflow)
         self.assertIn("environment: dev",workflow)
         self.assertIn("if rid not in allowed:",workflow)
-        self.assertIn("if allowed[0] not in created or allowed[1] not in created",workflow)
+        self.assertIn("if allowed[0] not in created or allowed[1] not in observed or allowed[2] not in observed",workflow)
         self.assertIn("az deployment group what-if",workflow)
         self.assertNotIn("az role assignment create",workflow)
 
