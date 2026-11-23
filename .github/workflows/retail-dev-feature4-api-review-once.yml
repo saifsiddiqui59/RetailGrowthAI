@@ -23,7 +23,6 @@ jobs:
     env:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       RETAIL_SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
-      F4_READINESS_DIR: ${{ runner.temp }}/f4-api-readiness
       RG: rg-retailgrowth-dev
       API: rgai-dev-functions-d4e5ddbd
       WORKER: rgai-dev-f4cpu-d4e5ddbd
@@ -32,6 +31,14 @@ jobs:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: Create isolated private runner evidence directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          dir="$RUNNER_TEMP/f4-api-readiness"
+          mkdir -p "$dir"
+          echo "F4_READINESS_DIR=$dir" >> "$GITHUB_ENV"
       - name: Verify actual DEV F4 schema and zero outstanding jobs, read only
         shell: bash
         run: |
