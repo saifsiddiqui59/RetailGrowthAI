@@ -62,6 +62,8 @@ jobs:
               raise SystemExit('BLOCKED: unsafe CPU worker scale')
           if str(settings.get('RETAIL_FEATURE4_CPU_WORKER_ENABLED','')).lower()!='false' or str(settings.get('RETAIL_FEATURE4_CPU_RENDER_ENABLED','')).lower()!='false':
               raise SystemExit('BLOCKED: existing worker is already enabled')
+          if 'RETAIL_SUPABASE_SERVICE_ROLE_KEY' in settings:
+              raise SystemExit('BLOCKED: protected worker credential remains after failed trigger rollback')
           runtime=config.get('runtime') or {}
           if runtime.get('name')!='python' or runtime.get('version')!='3.11':
               raise SystemExit('BLOCKED: unexpected F4 Flex runtime')
@@ -168,6 +170,8 @@ jobs:
               or str(settings.get('RETAIL_FEATURE4_CPU_WORKER_ENABLED','')).lower()!='false'
               or str(settings.get('RETAIL_FEATURE4_CPU_RENDER_ENABLED','')).lower()!='false'):
               raise SystemExit('BLOCKED: post-package F4 worker identity or OFF flags mismatch')
+          if 'RETAIL_SUPABASE_SERVICE_ROLE_KEY' in settings:
+              raise SystemExit('BLOCKED: unexpected privileged worker secret after ZIP stage')
           print('PASS: isolated CPU artifact staged with F4 triggers and customer render still OFF')
           PY
           rm -f "$RUNNER_TEMP/rgai-f4cpu-sealed-private-worker.zip"

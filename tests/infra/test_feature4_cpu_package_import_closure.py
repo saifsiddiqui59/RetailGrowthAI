@@ -32,3 +32,5 @@ class F4WorkerCompleteImportTests(TestCase):
                         workflow.index("uses: Azure/functions-action@"))
         self.assertIn("RETAIL_FEATURE4_CPU_WORKER_ENABLED",workflow)
         self.assertIn("RETAIL_FEATURE4_CPU_RENDER_ENABLED",workflow)
+        self.assertIn("protected worker credential remains after failed trigger rollback",workflow)
+        self.assertIn("unexpected privileged worker secret after ZIP stage",workflow)
