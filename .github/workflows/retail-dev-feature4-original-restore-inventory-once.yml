@@ -1,0 +1,67 @@
+name: RetailGrowthAI F4 original DEV package rollback discovery (read only)
+# Never publishes ZIP, sets runtime flags, creates shops or modifies Azure.
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/retail-dev-feature4-original-restore-inventory-once.yml']
+permissions:
+  contents: read
+concurrency:
+  group: rgai-f4-dev-original-package-inventory
+  cancel-in-progress: false
+jobs:
+  inspect-original:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RG: rg-retailgrowth-dev
+      ORIGINAL: rgai-dev-functions-d4e5ddbd
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Read only original DEV identity, current host settings and named handlers
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          test -n "$AZURE_SUBSCRIPTION_ID"
+          test "$(az account show --query id -o tsv)" = "$AZURE_SUBSCRIPTION_ID"
+          dir="$RUNNER_TEMP/f4-original-package-inventory"
+          mkdir -p "$dir"
+          echo "F4_INVENTORY_DIR=$dir" >> "$GITHUB_ENV"
+          az group show -g "$RG" --subscription "$AZURE_SUBSCRIPTION_ID" \
+            --query '{id:id,name:name,tags:tags}' -o json > "$dir/rg.json"
+          az resource show -g "$RG" --resource-type Microsoft.Web/sites --name "$ORIGINAL" \
+            --api-version 2024-11-01 -o json > "$dir/original.json"
+          az functionapp config appsettings list -g "$RG" -n "$ORIGINAL" \
+            -o json > "$dir/settings.json"
+          az functionapp function list -g "$RG" -n "$ORIGINAL" \
+            -o json > "$dir/functions.json"
+          python3 - <<'PY'
+          import json,os,pathlib
+          base=pathlib.Path(os.environ['RUNNER_TEMP'])/'f4-original-package-inventory'
+          rg=json.loads((base/'rg.json').read_text())
+          expected='/subscriptions/'+os.environ['AZURE_SUBSCRIPTION_ID'].lower()+'/resourcegroups/rg-retailgrowth-dev'
+          tags={str(k).lower():str(v).lower() for k,v in (rg.get('tags') or {}).items()}
+          if (str(rg.get('id') or '').lower()!=expected or rg.get('name')!='rg-retailgrowth-dev'
+              or tags.get('app')!='retailgrowthai' or tags.get('environment')!='dev'):
+              raise SystemExit('BLOCKED: foreign original DEV resource group')
+          print('PASS: exact tagged original DEV resource-group identity')
+          PY
+      - name: Classify safe original-package rollback inventory without exposing values
+        run: python3 scripts/deploy/feature4_original_package_inventory.py
+      - name: Attest no deployment performed
+        run: |
+          echo 'Read-only original DEV package classification only: active immutable ZIP and same-run independent restore NOT proven; CPU_RENDER OFF; no Azure or customer writes.' >> "$GITHUB_STEP_SUMMARY"
