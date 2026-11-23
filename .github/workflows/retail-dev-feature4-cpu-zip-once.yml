@@ -144,6 +144,19 @@ jobs:
           "$py" scripts/deploy/verify_feature4_cpu_release.py \
             --zip "$RUNNER_TEMP/rgai-f4cpu-sealed-private-worker.zip" \
             > "$RUNNER_TEMP/f4cpu-zip-verification.json"
+          # Import the actual ZIP's top-level Python modules in an isolated
+          # interpreter, with the same pinned deps. No queue/service secret,
+          # model invocation or Azure call. This would catch a missing
+          # tenant_store -> security module before a protected deployment.
+          "$py" - "$RUNNER_TEMP/rgai-f4cpu-sealed-private-worker.zip" <<'PY'
+          import os,sys
+          os.environ['RETAIL_FEATURE4_CPU_WORKER_ENABLED']='false'
+          sys.path.insert(0,sys.argv[1])
+          import function_app
+          if function_app.app.get_functions():
+              raise SystemExit('BLOCKED: worker functions indexed during OFF import test')
+          print('PASS: sealed CPU ZIP FunctionApp imports when OFF')
+          PY
           # No archive artifact uploads or public/private source copying.
           echo 'PASS: private F4 CPU ZIP sealed and validated on exact runner' >> "$GITHUB_STEP_SUMMARY"
       - name: Publish only to already-disabled isolated F4 DEV app
