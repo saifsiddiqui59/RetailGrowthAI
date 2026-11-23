@@ -54,3 +54,30 @@ Microsoft documents the Container Apps Job `replicaTimeout`, `triggerType`, Even
 ## Protected Event scaler CANDIDATE (not deployed)
 
 The disabled-by-default Container Apps Job still has a Manual trigger and no activation marker. A separate source file `infra/azure/p0249-y1-cpu-render-event-guarded.bicep` describes the *future update of the same job*, only after an independently verified Flex long-render consumer shutdown and private queue/claim/rights/rollback acceptance. The event scaler watches the EXISTING `retail-reel-render` queue, `minExecutions=0`, `maxExecutions=1`, 60-second polling and parallelism 1. It requires exact named storage credentials through secrets, a verified immutable image and the protected single-owner activation value, and does not create any queue or environment. The CPU adapter's 2100s message invisibility exceeds its 1380s replica budget; recovered attempts may be delayed after a crash. A source file or handoff string is never independently sufficient proof to change running Azure worker ownership. Protected compilation, exact Azure scope, cost estimate, image/media SHA, true job start/ACK, duplicate safety, queue poison tests and rollback are still pending.
+
+
+## Protected Y1 DEV core-connection staging (PR #1113; NOT deployed)
+
+Before the already-merged five-to-38 HTTP release, `stage_core_connections.py`
+checks the **actual existing** five-GET Y1 and original Flex app in the exact
+OIDC-scoped RetailGrowthAI DEV subscription. Default invocation is a read-only
+plan: it prints **only names** of absent server settings, not keys or values.
+It must reject a foreign subscription/RG/app, existing Y1 setting drift,
+non-five Y1 indexes, wildcard/foreign CORS, unresolved cross-identity KeyVault
+references and any missing/malformed original service/storage credentials.
+
+An optional separate manual-only GitHub protected `dev` workflow,
+`.github/workflows/p0249-dev-y1-core-connections-protected.yml`, may copy
+**only previously absent** `RETAIL_SUPABASE_URL`,
+`RETAIL_SUPABASE_PUBLISHABLE_KEY`, `RETAIL_SUPABASE_SERVICE_ROLE_KEY` and
+`RETAIL_STORAGE` from the **same already authorized original DEV Flex** app
+to Y1; it verifies resulting values by protected in-memory readback and
+captures no raw credentials in logs. Existing target values are never replaced
+and the host-specific `AzureWebJobsStorage` is never copied. The workflow has
+no push/PR trigger, cannot create identities or grant roles, and leaves all
+workers, customer API flags, served frontend routing and original Flex
+untouched. Source-only CI never attempts it; a protected release/security gate
+is still required. A stage can restart the isolated Y1 host, so revalidate
+five-GET indexes/health before the later 38-HTTP release. Do not interpret
+staging or source tests as signed two-shop, queue, private media or cutover
+acceptance; issue #249 must stay open.
