@@ -72,7 +72,7 @@ class FakeAzure:
                 data = [{"name": stage.Y1 + "/" + n} for n in sorted(self.routes)]
             elif self_args[:3] == ("functionapp", "cors", "show"):
                 data = {"supportCredentials": False,
-                        "allowedOrigins": [self.origin]}
+                        "allowedOrigins": [self.origin] if self.origin else []}
             elif self_args[:3] == ("functionapp", "config", "appsettings"):
                 obj = self.original if app == stage.FLEX else self.target
                 data = [{"name": n, "value": v} for n, v in obj.items()]
@@ -82,6 +82,13 @@ class FakeAzure:
                                stderr="sensitive-must-not-show")
 
     def write(self, args, **kwargs):
+        if args[:4] == ["az", "functionapp", "cors", "add"]:
+            assert args[4:9] == ["-g", stage.RG, "-n", stage.Y1, "--allowed-origins"]
+            assert args[9] == stage.FRONTEND
+            assert args[-3:] == ["-o", "none", "--only-show-errors"]
+            self.writes.append(("CORS",))
+            self.origin = stage.FRONTEND
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
         assert args[:7] == ["az", "functionapp", "config", "appsettings",
                             "set", "-g", stage.RG]
         assert args[7:10] == ["-n", stage.Y1, "--settings"]
@@ -102,16 +109,18 @@ class ConnectionStageTests(unittest.TestCase):
         self.az = FakeAzure()
 
     def test_plan_is_read_only_and_only_allowlisted_missing_names(self):
-        missing, values = stage.plan(env=ENV, runner=self.az.read)
+        missing, values, missing_cors = stage.plan(env=ENV, runner=self.az.read)
         self.assertEqual(set(missing), set(stage.CORE))
         self.assertEqual(set(values), set(stage.CORE))
+        self.assertFalse(missing_cors)
         self.assertEqual(self.az.writes, [])
         self.assertNotEqual(self.az.original["AzureWebJobsStorage"],
                             self.az.target["AzureWebJobsStorage"])
 
     def test_existing_matching_value_is_not_rewritten(self):
         self.az.target["RETAIL_SUPABASE_URL"] = stage.SUPABASE
-        missing, _ = stage.plan(env=ENV, runner=self.az.read)
+        missing, _, missing_cors = stage.plan(env=ENV, runner=self.az.read)
+        self.assertFalse(missing_cors)
         self.assertEqual(set(missing), set(stage.CORE) - {"RETAIL_SUPABASE_URL"})
 
     def test_existing_drift_never_overwritten(self):
@@ -150,6 +159,18 @@ class ConnectionStageTests(unittest.TestCase):
             with self.subTest(origin=origin), self.assertRaisesRegex(RuntimeError, "CORS"):
                 stage.plan(env=ENV, runner=az.read)
             self.assertEqual(az.writes, [])
+
+    def test_missing_exact_frontend_cors_is_staged_without_wildcard(self):
+        self.az.origin = None
+        names, _, add_cors = stage.plan(env=ENV, runner=self.az.read)
+        self.assertEqual(len(names), 4)
+        self.assertTrue(add_cors)
+        approved = {**ENV, "RGAI_Y1_CORE_CONNECTION_STAGE": stage.STAGE_CONFIRM}
+        self.assertEqual(stage.run(apply=True, env=approved, reader=self.az.read,
+                                   writer=self.az.write), ())
+        self.assertEqual(self.az.writes[0], ("CORS",))
+        self.assertEqual(self.az.origin, stage.FRONTEND)
+        self.assertEqual(len(self.az.writes), 2)
 
     def test_missing_original_value_denied(self):
         self.az.original.pop("RETAIL_STORAGE")
