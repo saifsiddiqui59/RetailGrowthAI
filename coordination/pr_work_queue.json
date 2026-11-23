@@ -45,13 +45,13 @@
       "base_branch": "main",
       "work_owner": "manual-issue249-flex-20261121",
       "priority": "P1",
-      "phase": "test",
+      "phase": "review",
       "checkpoint": {
         "owner": "manual-issue249-flex-20261121",
         "commits": 1,
-        "ci": "New exact-head Part1 #45098982207 and offline artifact #45098982202 running; earlier 4/4 applied to previous SHA",
-        "tests": "Security regression: secrets absent from argv; 0600 payload, 0700 parent, success/error cleanup (CI pending)",
-        "next_action": "Verify exact-head tests and independent security review before merge; no Azure dispatch",
+        "tests": "Python regression and full CI including argv exclusion, temporary 0600 file/0700 dir, success/failure cleanup passed on fresh head",
+        "ci": "Part1 #45098982207 exact-head 4/4 SUCCESS (all jobs independently checked); offline Y1 artifact #45098982202 SUCCESS",
+        "next_action": "Independent release/security approval; merge source only after review; no Azure dispatch, 38-route release or Flex retirement",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1113"
