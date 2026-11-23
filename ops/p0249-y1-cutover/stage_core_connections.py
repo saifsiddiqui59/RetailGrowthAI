@@ -83,7 +83,9 @@ def plan(*, env=None, runner=subprocess.run):
     if (not isinstance(cors, dict)
         or cors.get("supportCredentials") is not False
         or not isinstance(cors.get("allowedOrigins"), list)
-        or FRONTEND not in cors["allowedOrigins"]):
+        or FRONTEND not in cors["allowedOrigins"]
+        or any(origin not in (FRONTEND, "https://portal.azure.com")
+               for origin in cors["allowedOrigins"])):
         raise RuntimeError("Y1_FRONTEND_CORS_UNVERIFIED")
 
     source = safe_setting_map(az("functionapp", "config", "appsettings",
