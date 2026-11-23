@@ -1479,3 +1479,9 @@ When an initial ARM create fails after provisioning F4 plan/container, never del
 
 ## 2026-11-23 — No Y1 connection-parity bypass during staged HTTP release
 - HTTP indexing alone is not authenticated tenant parity: keep exact DEV Y1/Flex server-side Supabase and Storage value equality, allowed frontend CORS, and no duplicate consumers as prewrite gates. Historical five-route canary configuration intentionally lacked/forbade select shared Supabase settings; treat those as a connection-staging prerequisite, not permission to synthesize keys, weaken checks or route users to incomplete Y1. Do not disclose values in logs or source. Cloud state must be independently read in a protected environment.
+
+## 2026-11-23 IST — Azure REST metadata normalization is not a weaker resource boundary
+The Azure plan REST API may omit `properties.reserved` or render location with whitespace/case variation. A missing optional field must never become the sole acceptance proof: require independently exact DEV full plan ID/name, FC1/FlexConsumption SKU, strict purpose tags and normalized Central India region. Deny explicit `reserved=false`. Failure logs report only fixed validation category names; do not emit plan IDs or user secrets. Do not create any app until all checks, container privacy and strict what-if pass.
+
+## 2026-11-23 IST — Check F4 package container privacy from exact ARM child identity
+Azure storage container data-plane `show` may omit the `publicAccess` property. Do not infer public/private from omission. Independently read the exact ARM `Microsoft.Storage/storageAccounts/blobServices/containers` resource under the already verified DEV subscription/RG/storage and require its full ID and non-public `properties.publicAccess` before creating the worker app. Treat missing ARM properties, foreign ID, or any public-access setting as denial; never change storage ACLs to make a check pass.
