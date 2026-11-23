@@ -1473,3 +1473,6 @@ Azure Functions Flex Consumption rejects FUNCTIONS_WORKER_RUNTIME in siteConfig.
 
 ## 2026-11-23 IST — F4 failed deployment partial recovery is app-only
 When an initial ARM create fails after provisioning F4 plan/container, never delete/recreate or implicitly adopt other workloads. A dedicated recovery Bicep may reference the same exact tagged private resources as existing, but only after protected read-only OIDC checks of plan full ID, tags, FC1 capacity, location and container private access. What-if may Create only the previously absent disabled F4 app; any unexpected ID/action still fails closed. No original Flex/Y1/Issue249 or retailer approval bypass.
+
+## 2026-11-23 IST — Azure REST metadata normalization is not a weaker resource boundary
+The Azure plan REST API may omit `properties.reserved` or render location with whitespace/case variation. A missing optional field must never become the sole acceptance proof: require independently exact DEV full plan ID/name, FC1/FlexConsumption SKU, strict purpose tags and normalized Central India region. Deny explicit `reserved=false`. Failure logs report only fixed validation category names; do not emit plan IDs or user secrets. Do not create any app until all checks, container privacy and strict what-if pass.

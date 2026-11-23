@@ -21,6 +21,18 @@ class F4PartialResumeTests(unittest.TestCase):
         self.assertIn("RETAIL_FEATURE4_CPU_WORKER_ENABLED', value: 'false'",x)
         self.assertIn("RETAIL_FEATURE4_CPU_RENDER_ENABLED', value: 'false'",x)
 
+    def test_safe_plan_metadata_variants_and_diagnostic(self):
+        x=W.read_text()
+        self.assertIn("loc=''.join(str(plan.get('location') or '').lower().split())",x)
+        self.assertIn("'region':loc=='centralindia'",x)
+        self.assertIn("'linux':reserved is not False",x)
+        self.assertIn("'scope':str(plan.get('id') or '').lower()==scope+",x)
+        self.assertIn("'sku':str(sku.get('name') or '').upper()=='FC1'",x)
+        self.assertIn("failed=sorted(k for k,passed in tests.items() if not passed)",x)
+        self.assertIn("F4 FC1 preflight mismatch categories:",x)
+        self.assertNotIn("print(plan)",x)
+        self.assertNotIn("print(container)",x)
+
     def test_readonly_proofs_and_strict_whatif_precede_any_create(self):
         x=W.read_text()
         for key in ("environment: dev","branches: [main]",

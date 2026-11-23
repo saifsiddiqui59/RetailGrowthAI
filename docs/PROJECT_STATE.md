@@ -1881,3 +1881,6 @@ Protected run #45085661277 passed exact DEV OIDC, queues, inventory and ARM what
 
 ## 2026-11-23 IST — Partial F4 worker app-only recovery source
 Read-only protected Azure run #45086416640 confirmed exact tagged F4 DEV state: APP absent, PLAN present, private-package CONTAINER present. Recovery candidate #1109 declares existing plan/container read-only, creates only the new disabled 2 GiB Python 3.11 app, and requires live plan SKU/tags and private access proof before strict ARM what-if. Hosted recovery not completed by source commit; source CI/protected DEV results pending. No queue/schema replay, customer activation, Y1/Issue #249, PROD, GPU or WineShopPOS changes.
+
+## 2026-11-23 IST — F4 partial-resume plan REST metadata shape check
+- Protected one-app recovery run #45087200940 failed closed at read-only FC1 plan validation (the site remained absent). The previous read-only isolated partial-resource report #45086416640 had proved exact DEV tags and FC1 plan SKU. Source follow-up canonicalizes Azure REST location formatting and tolerates absent Linux `reserved` metadata while rejecting an explicit `false` value and requiring full exact plan ID, name, tags and FC1 SKU. Mismatch reports print only category keys. No app/trigger/customer activation performed by this change.

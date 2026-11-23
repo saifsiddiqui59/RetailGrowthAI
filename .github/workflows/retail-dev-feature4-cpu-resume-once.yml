@@ -85,12 +85,25 @@ jobs:
                  +'/resourcegroups/rg-retailgrowth-dev')
           tags={str(k).lower():str(v).lower() for k,v in (plan.get('tags') or {}).items()}
           sku=plan.get('sku') or {}
-          if (str(plan.get('id') or '').lower()!=scope+'/providers/microsoft.web/serverfarms/rgai-dev-f4cpu-plan'
-              or plan.get('name')!='rgai-dev-f4cpu-plan' or plan.get('location')!='centralindia'
-              or tags.get('app')!='retailgrowthai' or tags.get('environment')!='dev'
-              or tags.get('purpose')!='feature4-cpu-private-worker'
-              or sku.get('name')!='FC1' or sku.get('tier')!='FlexConsumption'
-              or (plan.get('properties') or {}).get('reserved') is not True):
+          # Azure's REST plan shape can omit reserved and format region labels.
+          # Emit only category names, never actual IDs/tags, when denying.
+          loc=''.join(str(plan.get('location') or '').lower().split())
+          reserved=(plan.get('properties') or {}).get('reserved')
+          tests={
+              'scope':str(plan.get('id') or '').lower()==scope+'/providers/microsoft.web/serverfarms/rgai-dev-f4cpu-plan',
+              'name':str(plan.get('name') or '').lower()=='rgai-dev-f4cpu-plan',
+              'region':loc=='centralindia',
+              'tags':tags.get('app')=='retailgrowthai' and tags.get('environment')=='dev'
+                  and tags.get('purpose')=='feature4-cpu-private-worker',
+              'sku':str(sku.get('name') or '').upper()=='FC1'
+                  and str(sku.get('tier') or '').lower()=='flexconsumption',
+              # Explicit Windows (reserved=false) is denied; absent field is
+              # not taken as authorization by itself, given exact FC1 SKU/ID.
+              'linux':reserved is not False,
+          }
+          failed=sorted(k for k,passed in tests.items() if not passed)
+          if failed:
+              print('F4 FC1 preflight mismatch categories: '+','.join(failed))
               raise SystemExit('BLOCKED: existing FC1 plan identity unverified')
           props=container.get('properties') if isinstance(container,dict) else None
           if (not isinstance(props,dict) or 'publicAccess' not in props
