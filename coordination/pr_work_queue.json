@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 4,
+    "open_prs": 5,
     "by_feature": {
-      "issue249": 1,
+      "issue249": 2,
       "unclassified": 3
     }
   },
@@ -87,6 +87,23 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
+    },
+    {
+      "pr": 1130,
+      "title": "fix(#249): prevent reviewed SHA shell injection in protected Y1 stage",
+      "feature": "issue249",
+      "head_sha": "6066ff813c1e894793712acb3da4cce58adeb21d",
+      "base_branch": "main",
+      "work_owner": "manual-issue249-security-20261124",
+      "priority": "P0",
+      "phase": "test",
+      "checkpoint": {
+        "owner": "manual-issue249-security-20261124",
+        "ci": "Exact-head Part 1 #45336689159 in progress",
+        "next_action": "Review exact two-file security diff, require 4/4 and main compatibility then merge source-only; no cloud dispatch",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1130"
     }
   ],
   "last_inventory_checked_at": "2026-11-23T05:57:59Z"
