@@ -39,6 +39,7 @@ jobs:
     env:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       RGAI_Y1_CORE_CONNECTION_STAGE: ${{ inputs.confirm }}
+      REVIEWED_MAIN_SHA: ${{ inputs.reviewed_main_sha }}
       GITHUB_ENVIRONMENT: dev
     steps:
       - uses: actions/checkout@v7
@@ -51,8 +52,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          [[ "${{ inputs.reviewed_main_sha }}" =~ ^[0-9a-f]{40}$ ]]
-          test "${{ inputs.reviewed_main_sha }}" = "$GITHUB_SHA"
+          # Do not inject workflow_dispatch text into Bash source. An env
+          # value is data, so shell metacharacters cannot execute preflight.
+          [[ "$REVIEWED_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$REVIEWED_MAIN_SHA" = "$GITHUB_SHA" || {
+            echo "::error::Unreviewed main SHA"; exit 2;
+          }
           python3 -m unittest discover -s tests/infra -p 'test_p0249_y1_connection_stage.py' -v
       - name: Scoped RetailGrowthAI DEV OIDC only
         uses: azure/login@v3
