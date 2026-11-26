@@ -13,9 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 4,
+    "open_prs": 5,
     "by_feature": {
-      "issue249": 1,
+      "issue249": 2,
       "unclassified": 3
     }
   },
@@ -87,6 +87,23 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
+    },
+    {
+      "pr": 1132,
+      "title": "fix(#249): reconcile reliable Flex transport evidence with current main",
+      "feature": "issue249",
+      "head_sha": "6a93d4a22942adf0c3bb8f1fcfb8bffd85968d49",
+      "base_branch": "main",
+      "work_owner": "manual-issue249-flex-20261126",
+      "priority": "P1",
+      "phase": "test",
+      "checkpoint": {
+        "owner": "manual-issue249-flex-20261126",
+        "ci": "Exact-head 45784924541 in_progress",
+        "next_action": "Verify current-main reconciliation of #1065, negative timing tests and 4/4; source only; retain old PR until accepted; do not deploy",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1132"
     }
   ],
   "last_inventory_checked_at": "2026-11-23T05:57:59Z"
