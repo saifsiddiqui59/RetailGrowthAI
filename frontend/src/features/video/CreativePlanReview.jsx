@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '../../components/ui/button.jsx'
 import { Card } from '../../components/ui/card.jsx'
@@ -26,6 +26,11 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
   const [cpuJob, setCpuJob] = useState(null)
   const [cpuPreview, setCpuPreview] = useState(null)
   const [cpuError, setCpuError] = useState('')
+  // Per mounted authenticated actor/shop/role: synchronous guard for double clicks
+  // and per-plan lock after any attempted POST, even if its ACK is lost.
+  const cpuSubmitBusy = useRef(false)
+  const attemptedPlans = useRef(new Set())
+  const [lockedPlans, setLockedPlans] = useState([])
   const cpuApi = useMemo(() => {
     if (!CPU_RENDER_ENABLED || !REVIEW_ENABLED || !user || !shopId) return null
     try {
@@ -139,11 +144,30 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
 
   async function submitCpuRender() {
     if (!cpuApi || !canReview || !plan || plan.state !== 'APPROVED' ||
-        working || typeof plan.review_sha256 !== 'string') return
+        working || cpuSubmitBusy.current || attemptedPlans.current.has(plan.id) ||
+        typeof plan.review_sha256 !== 'string') return
+    cpuSubmitBusy.current = true
     setWorking(true)
     setCpuError('')
     setCpuPreview(null)
     try {
+      // A fresh, signed exact-revision lookup is mandatory even after reload.
+      // An unavailable/ambiguous history is not permission to submit.
+      const existing = await findFeature4CpuRenderJob({
+        shopId, planId: plan.id, reviewHash: plan.review_sha256,
+        supabaseOrigin: import.meta.env?.VITE_SUPABASE_URL,
+        publishableKey: import.meta.env?.VITE_SUPABASE_PUBLISHABLE_KEY,
+        tokenProvider: () => client.getAccessToken(),
+      })
+      if (existing && existing.campaign_id !== plan.campaign_id) {
+        throw Error('Existing job does not match approved campaign')
+      }
+      attemptedPlans.current.add(plan.id)
+      setLockedPlans(previous => [...previous, plan.id])
+      if (existing) {
+        setNotice('A private render already exists. Check existing render (read only).')
+        return
+      }
       const response = await cpuApi.createReviewedCpu({
         shopId, campaignId: plan.campaign_id, planId: plan.id,
         reviewHash: plan.review_sha256,
@@ -152,8 +176,9 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
       setNotice('CPU render request confirmed by the server; status is private.')
     } catch (cause) {
       // Do NOT POST again automatically after an uncertain network response.
-      setCpuError(cause?.message || 'Render submission unconfirmed. Check your job status.')
+      setCpuError('Render not confirmed. Check existing render history before another request.')
     } finally {
+      cpuSubmitBusy.current = false
       setWorking(false)
     }
   }
@@ -275,7 +300,7 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
     </p>}
     {plan && <>
       <label>Review saved plan
-        <select aria-label="Saved creative plan" value={plan.id}
+        <select aria-label="Saved creative plan" value={plan.id} disabled={working}
           onChange={event => { setSelectedId(event.target.value); setError(''); setNotice(''); setCpuJob(null); setCpuPreview(null); setCpuError('') }}>
           {plans.map(item => <option key={item.id} value={item.id}>
             {item.campaign_id.slice(0, 8)} · {item.state}
@@ -301,9 +326,10 @@ export default function CreativePlanReview({ client, user, shopId, role }) {
         {!cpuApi && <p role="status">
           The verified CPU renderer is not configured; no job or credits were used.
         </p>}
-        {cpuApi && <Button type="button" disabled={working} onClick={submitCpuRender}>
+        {cpuApi && <Button type="button" disabled={working || lockedPlans.includes(plan.id) || cpuJob?.planId === plan.id} onClick={submitCpuRender}>
           Render approved Reel using owned media
         </Button>}
+        {lockedPlans.includes(plan.id) && <p role="status">A render was found or requested. Use read-only recovery instead of submitting again.</p>}
         {cpuApi && <Button type="button" variant="outline" disabled={working}
           onClick={recoverCpuRender}>Check existing render (read only)</Button>}
         {cpuJob && cpuJob.planId === plan.id && <p role="status">
