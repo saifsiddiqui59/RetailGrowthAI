@@ -25,13 +25,13 @@
       "feature": "unclassified",
       "head_sha": "b4b9f3f0396a27186f229dc8fe289f28e1e5708b",
       "base_branch": "main",
-      "work_owner": "manual-integration",
+      "work_owner": "manual-issue249-auth-only-20261128",
       "priority": "P1",
-      "phase": "review",
+      "phase": "in-progress",
       "checkpoint": {
-        "owner": "manual-integration",
+        "owner": "manual-issue249-auth-only-20261128",
         "ci": "Exact-head Part1 #45048648868 SUCCESS 4/4, all four jobs individually verified",
-        "next_action": "Independent security/integration review; no unattended DEV or main writes",
+        "next_action": "Extract distinct protected Auth-only login mode against current main; no synthetic approval SQL, no grants, no hosted dispatch. Preserve original PR for full canary work.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1076"
