@@ -13,9 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 2,
+    "open_prs": 3,
     "by_feature": {
-      "unclassified": 2
+      "unclassified": 2,
+      "issue249": 1
     }
   },
   "entries": [
@@ -27,11 +28,11 @@
       "base_branch": "main",
       "work_owner": "manual-issue249-auth-only-20261128",
       "priority": "P1",
-      "phase": "in-progress",
+      "phase": "blocked",
       "checkpoint": {
         "owner": "manual-issue249-auth-only-20261128",
         "ci": "Exact-head Part1 #45048648868 SUCCESS 4/4, all four jobs individually verified",
-        "next_action": "Extract distinct protected Auth-only login mode against current main; no synthetic approval SQL, no grants, no hosted dispatch. Preserve original PR for full canary work.",
+        "next_action": "Auth-only source extracted to #1135; separately review remaining tenant fixture work; no live activation.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1076"
@@ -52,6 +53,23 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
+    },
+    {
+      "pr": 1135,
+      "title": "test(#249): reconcile protected two-user auth-only browser canary",
+      "feature": "issue249",
+      "head_sha": "52fdd4306853e7b21f882483080bf004cb45d8f9",
+      "base_branch": "main",
+      "work_owner": "manual-issue249-auth-only-20261128",
+      "priority": "P1",
+      "phase": "test",
+      "checkpoint": {
+        "owner": "manual-issue249-auth-only-20261128",
+        "ci": "46063148098:in_progress",
+        "next_action": "Exact-head 4/4 and source-only security review; no hosted dispatch, no tenant approval SQL.",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1135"
     }
   ],
   "last_inventory_checked_at": "2026-11-27T09:04:54Z"
