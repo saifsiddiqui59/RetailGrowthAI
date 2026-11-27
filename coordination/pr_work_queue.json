@@ -13,36 +13,12 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 3,
+    "open_prs": 2,
     "by_feature": {
-      "unclassified": 3
+      "unclassified": 2
     }
   },
   "entries": [
-    {
-      "pr": 1119,
-      "title": "fix(F2→F4): resume existing private CPU render after reload without duplicate POST",
-      "feature": "unclassified",
-      "head_sha": "b8e6977babd51297cff74988ccfac63526be7ae9",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P1",
-      "phase": "in-progress",
-      "checkpoint": {
-        "owner": "manual-integration-chat-f2f4",
-        "head_sha": "b8e6977babd51297cff74988ccfac63526be7ae9",
-        "ci": "Old head green; conflicts with latest main",
-        "next_action": "Reconciled #1134 merged c688e920; pending postmerge #45948375839 and equivalent source verification before closing #1119.",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1119",
-      "claim": {
-        "owner": "manual-integration-chat-f2f4",
-        "head_sha": "b8e6977babd51297cff74988ccfac63526be7ae9",
-        "claimed_at": "2026-11-27T20:18:22.979Z",
-        "expires_at": "2026-11-27T21:48:22.979Z"
-      }
-    },
     {
       "pr": 1076,
       "title": "test(#249): isolated DEV synthetic shop approval and real Playwright campaign canary",
