@@ -75,6 +75,13 @@ jobs:
         run: |
           set -euo pipefail
           python3 ops/p0249-y1-cutover/stage_core_connections.py --apply
+      - name: Require live Y1 HTTP health after settings and CORS readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A settings write can restart Y1; ARM index/readback is not HTTP proof.
+          python3 ops/p0249_y1_canary_guard.py probe
+          echo "P0249_Y1_POST_STAGE_HTTP=PASS"
           echo "P0249_Y1_ORIGINAL_FLEX_STOP=FORBIDDEN"
           echo "P0249_Y1_SWA_ROUTE_CUTOVER=NOT_PERFORMED"
           echo "P0249_Y1_38_HTTP_DEPLOYMENT=NOT_PERFORMED"
