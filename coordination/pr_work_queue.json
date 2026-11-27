@@ -99,14 +99,20 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P1",
-      "phase": "review",
+      "phase": "in-progress",
       "checkpoint": {
         "owner": "manual-integration-chat-f2f4",
         "ci": "Exact-head Part1 CI #45947943091 in progress",
         "next_action": "Verify all four jobs, diff and merge compatibility; then postmerge CI and #1119 equivalence.",
         "feature_done": false
       },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1134"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1134",
+      "claim": {
+        "owner": "manual-integration-chat-f2f4",
+        "head_sha": "52e99c29c65c77c1e7a115695711361444c653ff",
+        "claimed_at": "2026-11-27T05:51:21.484Z",
+        "expires_at": "2026-11-27T07:21:21.484Z"
+      }
     }
   ],
   "last_inventory_checked_at": "2026-11-23T05:57:59Z"
