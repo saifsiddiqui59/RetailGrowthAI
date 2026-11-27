@@ -2,7 +2,7 @@
   "schema_version": 1,
   "repository": "saifsiddiqui59/RetailGrowthAI",
   "ledger_branch": "coordination/pr-execution-ledger",
-  "snapshot_date": "2026-11-23",
+  "snapshot_date": "2026-11-27",
   "data_kind": "Live GitHub open PR inventory; acceptance separate from closure",
   "main_merge_owner": "manual-integration",
   "lease_policy": {
@@ -13,10 +13,9 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 4,
+    "open_prs": 3,
     "by_feature": {
-      "unclassified": 3,
-      "F4": 1
+      "unclassified": 3
     }
   },
   "entries": [
@@ -72,26 +71,7 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
-    },
-    {
-      "pr": 1134,
-      "title": "fix(F2→F4): reconcile #1119 duplicate-submit and actor isolation guards",
-      "feature": "F4",
-      "head_sha": "52e99c29c65c77c1e7a115695711361444c653ff",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P1",
-      "phase": "review",
-      "checkpoint": {
-        "owner": "manual-integration-chat-f2f4",
-        "head_sha": "52e99c29c65c77c1e7a115695711361444c653ff",
-        "ci": "PR #45947943091 4/4 PASS; merged c688e920fa1df1ee39231807a2ab72d0a7bb6e65; fresh main #45948375839 running",
-        "next_action": "Verify fresh main 4/4 then remove merged entry and close #1119 after source-equivalence review. Original Flex historical source 5e3f1e37 run #40344626026 24 indexes and 401 verified; no retained ZIP or live rollback proof. DEV aggregate 2 shops, 2 memberships, 0 marked test identities/plans/jobs.",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1134",
-      "claim": null
     }
   ],
-  "last_inventory_checked_at": "2026-11-23T05:57:59Z"
+  "last_inventory_checked_at": "2026-11-27T09:04:54Z"
 }
