@@ -118,3 +118,27 @@ test('UI recovery requires explicit click, verified status and renewed signed li
   assert.doesNotMatch(ui.slice(ui.indexOf('async function recoverCpuRender()'),
     ui.indexOf('async function submitCpuRender()')), /createReviewedCpu|feature4_submit_cpu_render/)
 })
+
+
+test('new render requires a fresh signed revision lookup and a synchronous once-per-plan guard', async () => {
+  const ui = await readFile(new URL(
+    '../../frontend/src/features/video/CreativePlanReview.jsx', import.meta.url), 'utf8')
+  const submit = ui.slice(ui.indexOf('async function submitCpuRender()'),
+    ui.indexOf('  useEffect(() => {', ui.indexOf('async function submitCpuRender()')))
+  const lookup = submit.indexOf('await findFeature4CpuRenderJob(')
+  const post = submit.indexOf('await cpuApi.createReviewedCpu(')
+  assert.ok(lookup >= 0 && post > lookup)
+  assert.ok(submit.indexOf('cpuSubmitBusy.current = true') < lookup)
+  assert.ok(submit.indexOf('attemptedPlans.current.add(plan.id)') < post)
+  assert.match(submit, /if \(existing\) \{[\s\S]*?return\s*\}/)
+  assert.match(submit, /existing.campaign_id !== plan.campaign_id/)
+  assert.match(submit, /attemptedPlans.current.has\(plan.id\)/)
+  assert.doesNotMatch(submit, /attemptedPlans.current.delete/)
+  assert.match(ui, /disabled=\{working \|\| lockedPlans.includes\(plan.id\)/)
+})
+
+test('private review state remounts on authenticated actor, business or role change', async () => {
+  const launchpad = await readFile(new URL(
+    '../../frontend/src/features/dashboard/CreativeLaunchpad.jsx', import.meta.url), 'utf8')
+  assert.match(launchpad, /<CreativePlanReview key=\{JSON.stringify\(\[user.id, shopId, shops.find\(item => item.id === shopId\)\?\.membership\?\.role \|\| null\]\)\}/)
+})

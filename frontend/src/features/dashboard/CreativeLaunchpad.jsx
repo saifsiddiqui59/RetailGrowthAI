@@ -104,7 +104,7 @@ export default function CreativeLaunchpad() {
         </ol>
       </Card>
     </div>
-    {configured && user && <CreativePlanReview key={shopId || 'none'}
+    {configured && user && <CreativePlanReview key={JSON.stringify([user.id, shopId, shops.find(item => item.id === shopId)?.membership?.role || null])}
       client={client} user={user} shopId={shopId}
       role={shops.find(item => item.id === shopId)?.membership?.role || null} />}
     {configured && user && Boolean(shopId) && <Card className="panel rg-local-video-access">
