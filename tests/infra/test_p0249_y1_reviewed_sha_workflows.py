@@ -30,6 +30,18 @@ class ReviewedMainShaInputSafety(unittest.TestCase):
                 self.assertIn('test "$REVIEWED_MAIN_SHA" = "$GITHUB_SHA"', text)
                 self.assertIn("id-token: write", text)
 
+    def test_connection_stage_requires_live_health_before_success(self):
+        text = WORKFLOWS[0].read_text(encoding="utf-8")
+        before, after = text.split("      - name: Require live Y1 HTTP health after settings and CORS readback", 1)
+        self.assertIn("python3 ops/p0249-y1-cutover/stage_core_connections.py --apply", before)
+        self.assertNotIn("P0249_Y1_POST_STAGE_HTTP=PASS", before)
+        self.assertIn("set -euo pipefail", after)
+        self.assertIn("python3 ops/p0249_y1_canary_guard.py probe", after)
+        self.assertLess(after.index("python3 ops/p0249_y1_canary_guard.py probe"),
+                        after.index("P0249_Y1_POST_STAGE_HTTP=PASS"))
+        self.assertNotIn("continue-on-error", after)
+        self.assertNotIn("|| true", after)
+
     def test_staging_still_explicit_and_never_push_deployed(self):
         text = WORKFLOWS[0].read_text(encoding="utf-8")
         self.assertIn("inputs.confirm == 'YES-P0249-RETAILGROWTHAI-DEV-Y1-MISSING-ONLY'", text)

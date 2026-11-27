@@ -91,3 +91,7 @@ exceptional exit. Synthetic tests check argv exclusion, file permissions,
 correct missing-only settings and cleanup after success/failure; no real
 credentials are used in CI. This reduces exposure but does not imply Azure
 deployment, live health acceptance or independent release approval.
+
+## 2026-11-27 — Post-stage live health gate
+
+Protected manual staging now requires the existing bounded 20/20 Y1 HTTP health probe after missing-only settings/CORS readback. A restart or failed probe blocks a successful workflow receipt. If failure occurs, retain original Flex and staged values, diagnose and rerun protected readback; never overwrite existing settings. This is health evidence, not signed five/38-route acceptance. PR #1132 diagnostics merged at d5903179e95ebc42106098f1aa768cff09bd4004 with postmerge CI #45945139607 4/4; superseded #1065 closed after source/test equivalence verified. Hosted #249 remains 0/7; no Azure dispatch or Flex shutdown.
