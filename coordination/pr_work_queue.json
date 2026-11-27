@@ -28,14 +28,18 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P1",
-      "phase": "review",
+      "phase": "in-progress",
       "checkpoint": {
-        "owner": "manual-integration",
-        "ci": "Exact-head mandatory CI #45099777260 PASS 4/4 independently verified",
-        "next_action": "Independent security/integration review; no automatic merge",
-        "feature_done": false
+        "next_action": "Reconcile #1119 against main #1121; preserve stronger review SHA, scope and polling behavior.",
+        "head_sha": "b8e6977babd51297cff74988ccfac63526be7ae9"
       },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1119"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1119",
+      "claim": {
+        "owner": "manual-integration-chat-f2f4",
+        "head_sha": "b8e6977babd51297cff74988ccfac63526be7ae9",
+        "claimed_at": "2026-11-27T05:44:00Z",
+        "expires_at": "2026-11-27T07:14:00Z"
+      }
     },
     {
       "pr": 1076,
