@@ -38,3 +38,7 @@ Use **zero paid AI/GPU calls by default**. No Wan, FLUX, A100, cloud model downl
 
 ## 2026-11-23 — Opaque DEV Auth Admin key transport hardening (source only)
 The local GoTrue Admin-only provisioning script now sends new `sb_secret_` keys on `apikey` **without** a JWT Bearer header; legacy JWT service-role credentials still use both headers. It rejects unknown key formats and all HTTP redirects before forwarding secrets. Synthetic no-network tests cover these boundaries. These changes do **not** create either test account, set OWNER/EDITOR membership, bypass ROOT/onboarding, approve creative content or authorize running hosted E2E from CI. Distinct real DEV Auth Admin test identities and signed shop-owned synthetic media remain separate preconditions.
+
+## 2026-11-28 — Isolated Auth-only browser canary (source candidate)
+
+Reconciles the login-only portion of #1076 on current main; the existing protected `dev` manual workflow adds `auth-login-only`. Two disposable GoTrue Admin-created accounts use distinct Chromium contexts and prove sign-in/sign-out only. The service-role key is scoped to the acceptance step, never browser/setup; the helper checks exact synthetic email/UUID and cleans up attempted creations in finally. No shop creation, synthetic onboarding approval SQL, ROOT impersonation, media, queues, inference or cloud deployment. This is not two-shop Y1 E2E. Existing full canary modes are unchanged; #1076 remains open for separately reviewed tenant fixture work. No live run yet. #249 remains 0/7.
