@@ -13,9 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 3,
+    "open_prs": 4,
     "by_feature": {
-      "unclassified": 3
+      "unclassified": 3,
+      "issue249": 1
     }
   },
   "entries": [
@@ -69,6 +70,23 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
+    },
+    {
+      "pr": 1133,
+      "title": "fix(#249): require live HTTP health after protected Y1 stage",
+      "feature": "issue249",
+      "head_sha": "fc68b667e40acd54db469cfd9142985d762da7f5",
+      "base_branch": "main",
+      "work_owner": "manual-issue249-flex-20261127",
+      "priority": "P0",
+      "phase": "test",
+      "checkpoint": {
+        "owner": "manual-issue249-flex-20261127",
+        "ci": "Exact head run 45947738021: in_progress",
+        "next_action": "Check exact-head 4/4, source-only review and integrate; no Azure dispatch or hosted completion",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1133"
     }
   ],
   "last_inventory_checked_at": "2026-11-23T05:57:59Z"
