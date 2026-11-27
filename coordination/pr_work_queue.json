@@ -13,9 +13,8 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 4,
+    "open_prs": 3,
     "by_feature": {
-      "issue249": 1,
       "unclassified": 3
     }
   },
@@ -53,23 +52,6 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1076"
-    },
-    {
-      "pr": 1065,
-      "title": "fix(#249): prevent false healthy Flex probes and cross-app telemetry",
-      "feature": "issue249",
-      "head_sha": "d8c2c12a87ffd0c43a15d21897aace549efa5e65",
-      "base_branch": "main",
-      "work_owner": "manual-issue249-flex-20261121",
-      "priority": "P1",
-      "phase": "review",
-      "checkpoint": {
-        "owner": "manual-issue249-flex-20261121",
-        "ci": "Exact-head Part1 #44808654931 4/4 SUCCESS at d8c2c12a87ffd0c43a15d21897aace549efa5e65; all source/negative checks passed",
-        "next_action": "Independent review of original Flex diagnostic scope and data-minimization; manual integration owner to verify unchanged main and exact-head before merge; no Azure deployment or role grant",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1065"
     },
     {
       "pr": 1064,
