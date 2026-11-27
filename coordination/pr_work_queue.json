@@ -13,10 +13,11 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 4,
+    "open_prs": 5,
     "by_feature": {
       "unclassified": 3,
-      "issue249": 1
+      "issue249": 1,
+      "F4": 1
     }
   },
   "entries": [
@@ -28,18 +29,16 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P1",
-      "phase": "in-progress",
+      "phase": "blocked",
       "checkpoint": {
-        "next_action": "Reconcile #1119 against main #1121; preserve stronger review SHA, scope and polling behavior.",
-        "head_sha": "b8e6977babd51297cff74988ccfac63526be7ae9"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1119",
-      "claim": {
         "owner": "manual-integration-chat-f2f4",
         "head_sha": "b8e6977babd51297cff74988ccfac63526be7ae9",
-        "claimed_at": "2026-11-27T05:44:00Z",
-        "expires_at": "2026-11-27T07:14:00Z"
-      }
+        "ci": "Old head green; conflicts with latest main",
+        "next_action": "Remaining distinct protections extracted into #1134. Keep #1119 open until #1134 merged and equivalence verified; do not merge stale docs/code.",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1119",
+      "claim": null
     },
     {
       "pr": 1076,
@@ -91,6 +90,23 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1133"
+    },
+    {
+      "pr": 1134,
+      "title": "fix(F2→F4): reconcile #1119 duplicate-submit and actor isolation guards",
+      "feature": "F4",
+      "head_sha": "52e99c29c65c77c1e7a115695711361444c653ff",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P1",
+      "phase": "review",
+      "checkpoint": {
+        "owner": "manual-integration-chat-f2f4",
+        "ci": "Exact-head Part1 CI #45947943091 in progress",
+        "next_action": "Verify all four jobs, diff and merge compatibility; then postmerge CI and #1119 equivalence.",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1134"
     }
   ],
   "last_inventory_checked_at": "2026-11-23T05:57:59Z"
