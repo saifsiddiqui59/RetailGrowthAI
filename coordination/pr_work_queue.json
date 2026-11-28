@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 4,
+    "open_prs": 6,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 2
+      "issue249": 4
     }
   },
   "entries": [
@@ -62,11 +62,11 @@
       "base_branch": "main",
       "work_owner": "manual-issue249-auth-only-20261128",
       "priority": "P1",
-      "phase": "test",
+      "phase": "review",
       "checkpoint": {
         "owner": "manual-issue249-auth-only-20261128",
-        "ci": "Prior head 3/4; static existing F2 prompt receipt assertion failed, corrected receipt at cabc933b586d7b7921279dcea2747a3181478c32; exact-head CI pending",
-        "next_action": "Do not merge while core-stage launcher holds main; verify fresh CI and reconcile with current main",
+        "ci": "Exact-head #46120238701 all four jobs success",
+        "next_action": "Source CI green; no merge during core launcher. Review actual protected Auth-only dispatch, then genuine signed shop tests.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1135"
@@ -86,6 +86,40 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1140"
+    },
+    {
+      "pr": 1142,
+      "title": "fix(#249): require exact CPU replica budget in retirement diagnostics",
+      "head_sha": "f67e52b459254f12556beacfbc6167b1dd7c3c7d",
+      "work_owner": "manual-issue249-retirement-20261128",
+      "feature": "issue249",
+      "base_branch": "main",
+      "priority": "P1",
+      "phase": "test",
+      "checkpoint": {
+        "owner": "manual-issue249-retirement-20261128",
+        "ci": "Pending exact-head verification",
+        "next_action": "Verify CI, retain draft until core/38 deployment and re-pin retirement source.",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1142"
+    },
+    {
+      "pr": 1143,
+      "title": "fix(#249): fail closed on missing CPU dequeue metadata",
+      "head_sha": "084cd2ade55f93766cef75fc9a1cef9438c1980a",
+      "work_owner": "manual-issue249-worker-handoff-20261128",
+      "feature": "issue249",
+      "base_branch": "main",
+      "priority": "P1",
+      "phase": "test",
+      "checkpoint": {
+        "owner": "manual-issue249-worker-handoff-20261128",
+        "ci": "Pending exact-head verification",
+        "next_action": "Verify CI; preserve active core deployment main SHA; then review worker handoff package.",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1143"
     }
   ],
   "last_inventory_checked_at": "2026-11-27T09:04:54Z"
