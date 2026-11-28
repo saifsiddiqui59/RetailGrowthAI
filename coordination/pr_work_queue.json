@@ -132,14 +132,20 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P0",
-      "phase": "test",
+      "phase": "review",
       "checkpoint": {
         "owner": "manual-integration-chat-f2f4",
-        "ci": "Original mobile source 4/4 #46128372328, 129 Chromium passed. Guarded release head CI pending.",
+        "ci": "Exact head #46131713976 4/4 passed, 129 Chromium tests; Y1 protected #46131245955 failed and same-run restore passed.",
         "next_action": "After Y1 protected release completes, verify exact-head 4/4 and pinned frontend tree, review source, merge with explicit title release(dev): mobile retailer approval Free SWA. Protected upload only after postmerge 4/4 and existing API origin check. Verify served bytes; no hosted success yet.",
         "feature_done": false
       },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1152"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1152",
+      "claim": {
+        "owner": "manual-integration-chat-f2f4",
+        "head_sha": "a77784d408ffc8459533e50a34591f528c358419",
+        "claimed_at": "2026-11-28T09:50:08.165Z",
+        "expires_at": "2026-11-28T11:20:08.165Z"
+      }
     },
     {
       "pr": 1153,
