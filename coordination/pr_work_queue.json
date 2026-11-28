@@ -147,14 +147,20 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P1",
-      "phase": "test",
+      "phase": "review",
       "checkpoint": {
         "owner": "manual-integration-chat-f2f4",
-        "ci": "Fresh PR CI pending",
+        "ci": "Exact-head #46123103522 4/4 passed",
         "next_action": "Verify exact four mandatory CI, coordinate single main writer and no active Y1 exact-SHA launcher before merge. User explicitly authorized one protected auth-login-only dispatch; actual environment gate and cleanup retained. No shop provisioning or hosted pass claim.",
         "feature_done": false
       },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1148"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1148",
+      "claim": {
+        "owner": "manual-integration-chat-f2f4",
+        "head_sha": "eccc0000f744acb421d76e2576f59b394d6be329",
+        "claimed_at": "2026-11-28T08:12:09.892Z",
+        "expires_at": "2026-11-28T09:42:09.892Z"
+      }
     }
   ],
   "last_inventory_checked_at": "2026-11-27T09:04:54Z"
