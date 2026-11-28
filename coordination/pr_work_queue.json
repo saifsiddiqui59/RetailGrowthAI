@@ -59,7 +59,7 @@
     {
       "pr": 1142,
       "title": "fix(#249): require exact CPU replica budget in retirement diagnostics",
-      "head_sha": "a0768472361c728175b2d5ca433d57815858ab7a",
+      "head_sha": "213334c53f2605a2dc8ccfb4215e68efd2f72a69",
       "work_owner": "manual-issue249-retirement-20261128",
       "feature": "issue249",
       "base_branch": "main",
@@ -76,7 +76,7 @@
     {
       "pr": 1143,
       "title": "fix(#249): fail closed on missing CPU dequeue metadata",
-      "head_sha": "01a331c6cc23eb717351ed80b35e718019c5bff1",
+      "head_sha": "da73a1e61c2a372af48cf4459b62f665f1310c53",
       "work_owner": "manual-issue249-worker-handoff-20261128",
       "feature": "issue249",
       "base_branch": "main",
@@ -156,8 +156,8 @@
         "next_action": "Require real SDK 38 HTTP index and wheel provenance. Prior release #46131245955 failed indexing; both rollback jobs passed. No blind redeploy."
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1154",
-      "head_sha": "ea7d71b04550aa7926149433d8d573d9377ab730"
+      "head_sha": "85f487797645797ebdece3a14bf3a7fa0c572f59"
     }
   ],
-  "last_inventory_checked_at": "2026-11-27T09:04:54Z"
+  "last_inventory_checked_at": "2026-11-28T17:02:31Z"
 }
