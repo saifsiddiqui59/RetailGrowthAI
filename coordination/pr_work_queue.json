@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 8,
+    "open_prs": 7,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 4,
+      "issue249": 3,
       "F4": 1,
       "F1": 1
     }
@@ -55,23 +55,6 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
-    },
-    {
-      "pr": 1140,
-      "title": "ops(#249): owner-delegated Y1 38 HTTP dispatch",
-      "feature": "issue249",
-      "head_sha": "369bf6d7c6d07f5318110f5d2e8ed4b1bff424e2",
-      "base_branch": "main",
-      "work_owner": "manual-issue249-core-stage-20261128",
-      "priority": "P0",
-      "phase": "review",
-      "checkpoint": {
-        "owner": "manual-issue249-core-stage-20261128",
-        "next_action": "Actual Task 1 #46128345060 passed; all 12 pins verified. Ready for bounded existing protected 38 HTTP-only dispatch after exact main check.",
-        "feature_done": false,
-        "ci": "Exact head #46129123378 all four success"
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1140"
     },
     {
       "pr": 1142,
