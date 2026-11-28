@@ -101,7 +101,7 @@
       "checkpoint": {
         "owner": "manual-integration-chat-f2f4",
         "ci": "Exact-head CI #46119693022 running",
-        "next_action": "Verify four-job CI and source review; coordinate with active Y1 core stage #46119656466 before advancing main. Existing Y1 38-route protected release includes seven F4 routes; do not duplicate Azure publication. F4 anonymous 7/7 and signed testing not accepted yet.",
+        "next_action": "Y1 bot launcher #46119354820 SUCCESS; protected connection stage #46119656466 failed at read-only inventory (P0249_Y1_CORE_CONNECTION_STAGE=BLOCKED, apply and health skipped). Existing Y1 38 route deployment remains gated. Leave Y1 remediation to its owner; F4 probe PR pending exact-head CI and review. Original Flex no competing publication, no rollback work.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1138"
