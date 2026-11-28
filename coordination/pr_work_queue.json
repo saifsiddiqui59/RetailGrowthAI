@@ -13,10 +13,11 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 4,
+    "open_prs": 5,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 2
+      "issue249": 2,
+      "feature4": 1
     }
   },
   "entries": [
@@ -87,6 +88,23 @@
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1159",
       "head_sha": "36f225ab4403341e3a7f22bd11155be09a44b49c"
+    },
+    {
+      "pr": 1161,
+      "title": "ops(F4): owner-delegated DEV retained media dispatch",
+      "feature": "feature4",
+      "head_sha": "d5ce5ba2dcd03b7b584edd4103d43239af18e7c9",
+      "base_branch": "main",
+      "work_owner": "manual-f2-f4-retained-media-20261129",
+      "priority": "P0",
+      "phase": "test",
+      "checkpoint": {
+        "owner": "manual-f2-f4-retained-media-20261129",
+        "ci": "Pending exact-head 4/4",
+        "next_action": "Owner-requested one-time dispatch; review normal CI, retain target protected dev gate, no Y1 changes",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1161"
     }
   ],
   "last_inventory_checked_at": "2026-11-28T19:00:00Z"
