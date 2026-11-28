@@ -56,3 +56,61 @@
     flex:1 1 100%;width:100%;max-width:100%;justify-content:center;min-width:0
   }
 }
+
+/* Keep the expanded form independent of a long account email's intrinsic width. */
+.platform-page .platform-approvals .platform-review-item {
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  align-items:start;
+}
+.platform-page .platform-approvals .platform-review-item > * {
+  min-width:0;max-width:100%;box-sizing:border-box;
+}
+.platform-page .platform-review-item strong,.platform-page .platform-review-item small {
+  white-space:normal;overflow-wrap:anywhere;
+}
+.platform-page .platform-review-item > .subtle-button {
+  justify-self:end;min-height:44px;
+}
+.platform-page .platform-review-item .platform-review-action {
+  min-width:0;width:100%;grid-template-columns:minmax(0,1fr);
+}
+.platform-page .platform-review-action label,.platform-page .platform-review-action textarea {
+  min-width:0;max-width:100%;box-sizing:border-box;word-break:normal;overflow-wrap:break-word;
+}
+.platform-page .platform-review-action textarea {
+  width:100%;min-height:96px;font-size:16px;resize:vertical;
+}
+.platform-page .platform-review-action .platform-review-confirm {
+  display:grid!important;grid-template-columns:24px minmax(0,1fr);
+  align-items:center;min-height:44px;gap:12px;cursor:pointer;
+}
+.platform-page .platform-review-confirm input[type="checkbox"] {
+  appearance:auto;width:22px;height:22px;min-width:22px;margin:0;accent-color:#19765d;
+}
+.platform-page .platform-review-buttons button {
+  min-height:44px;font-weight:700;white-space:normal;
+}
+.platform-page .platform-review-hint {margin:0;font-size:12px}
+@media(max-width:760px){
+  .platform-page .platform-approvals .platform-review-item {
+    grid-template-columns:minmax(0,1fr);gap:12px;
+  }
+  .platform-page .platform-review-item > .subtle-button {
+    justify-self:stretch;width:100%;
+  }
+  .platform-page .platform-review-buttons {
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .platform-page .platform-review-buttons button:last-child {grid-column:1/-1}
+  .platform-page .subscription-health .panel-heading {flex-wrap:wrap;gap:12px}
+  .platform-page .subscription-health .panel-heading > * {
+    min-width:0;max-width:100%;flex:1 1 100%;
+  }
+  .platform-page .subscription-health .panel-heading > button {min-height:44px}
+  .platform-page .subscription-health .subscription-health-controls form {
+    display:grid;gap:8px;min-width:0;
+  }
+  .platform-page .subscription-health .platform-pager {justify-content:space-between}
+  .platform-page .subscription-health .platform-pager span {flex:1 1 100%;order:-1}
+}
