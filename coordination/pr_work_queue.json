@@ -150,11 +150,11 @@
       "checkpoint": {
         "owner": "manual-issue249-core-stage-20261128",
         "feature_done": false,
-        "ci": "New head CI pending; previous source artifact passed",
-        "next_action": "Verify exact-head CI and read-only diagnostic; no blind stage retry. Check existing protected Auth dispatch terminal before main changes. Obtain actual sanitized ARM/REST CORS shapes and connection classification."
+        "ci": "Exact head #46125140591; offline artifact #46125140582",
+        "next_action": "Complete exact CI and source review, then merge only the read-only diagnostic launcher with explicit title, observe existing protected diagnostic; no new mutation attempt until actual CORS and connection prerequisites verified."
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1149",
-      "head_sha": "753cce0871b1c456ae345ee508ec13905488b54a"
+      "head_sha": "e14eba0733fff46b084c84b5c309690a9c3d2c01"
     }
   ],
   "last_inventory_checked_at": "2026-11-27T09:04:54Z"
