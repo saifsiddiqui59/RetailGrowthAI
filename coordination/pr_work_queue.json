@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 9,
+    "open_prs": 8,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 5,
+      "issue249": 4,
       "F4": 2
     }
   },
@@ -59,22 +59,23 @@
       "pr": 1140,
       "title": "ops(#249): owner-delegated Y1 38 HTTP dispatch",
       "feature": "issue249",
-      "head_sha": "5f8875e4193d400f0e4fece2e7b5bf1fee4310a0",
+      "head_sha": "70f6604c5410ddea23241389b636ea3337a98eef",
       "base_branch": "main",
       "work_owner": "manual-issue249-core-stage-20261128",
       "priority": "P0",
-      "phase": "blocked",
+      "phase": "test",
       "checkpoint": {
         "owner": "manual-issue249-core-stage-20261128",
-        "next_action": "Wait for actual protected Task 1 success after #1147 merge af35a2d85f7e1237c8c03d2da27e1fed75a8ba4d; repin exact successful stage and current inspector/source, reconcile with latest main before review.",
-        "feature_done": false
+        "next_action": "Source blobs repinned; actual successful protected core stage SHA still required; keep draft and no merge.",
+        "feature_done": false,
+        "ci": "Fresh CI after exact latest-main reconciliation"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1140"
     },
     {
       "pr": 1142,
       "title": "fix(#249): require exact CPU replica budget in retirement diagnostics",
-      "head_sha": "f67e52b459254f12556beacfbc6167b1dd7c3c7d",
+      "head_sha": "520e98c87bff88ffd38d9e7cc99913df8c263777",
       "work_owner": "manual-issue249-retirement-20261128",
       "feature": "issue249",
       "base_branch": "main",
@@ -82,8 +83,8 @@
       "phase": "test",
       "checkpoint": {
         "owner": "manual-issue249-retirement-20261128",
-        "ci": "Exact-head #46121974699 all four jobs success; artifact run cancelled by subsequent source run",
-        "next_action": "Source green; await independent release pin review, no Flex retirement.",
+        "ci": "Fresh CI after exact latest-main reconciliation",
+        "next_action": "Verify fresh exact-head mandatory 4/4, preserve active protected read-only diagnostic main SHA; no hosted claim.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1142"
@@ -91,16 +92,16 @@
     {
       "pr": 1143,
       "title": "fix(#249): fail closed on missing CPU dequeue metadata",
-      "head_sha": "8977b0b34390fbafcf7f97bdc1250c148a09f39a",
+      "head_sha": "98f384f917de13498504a01fc50b3905dfb84e02",
       "work_owner": "manual-issue249-worker-handoff-20261128",
       "feature": "issue249",
       "base_branch": "main",
       "priority": "P1",
-      "phase": "review",
+      "phase": "test",
       "checkpoint": {
         "owner": "manual-issue249-worker-handoff-20261128",
-        "ci": "Exact-head #46122436960 4/4, offline artifact #46122437000 PASS",
-        "next_action": "Source tests green; defer merge/worker activation while core release pins are active.",
+        "ci": "Fresh CI after exact latest-main reconciliation",
+        "next_action": "Verify fresh exact-head mandatory 4/4, preserve active protected read-only diagnostic main SHA; no hosted claim.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1143"
@@ -126,35 +127,18 @@
       "pr": 1146,
       "title": "test(#249): verify actual served DEV frontend API origin and rollback",
       "feature": "issue249",
-      "head_sha": "b2bbb0883cb18e666d8a0c6afe74c212ddd0ff59",
+      "head_sha": "f3cd0b3853df29832a69604ac7c4ad494e5437a8",
       "base_branch": "main",
       "work_owner": "manual-issue249-retirement-20261128",
       "priority": "P1",
       "phase": "test",
       "checkpoint": {
         "owner": "manual-issue249-retirement-20261128",
-        "ci": "Initial head #46122609507 4/4; actual App route drift corrected, new CI pending",
-        "next_action": "Verify all 16 actual SPA routes and exact-head CI; hosted proof remains separate.",
+        "ci": "Fresh CI after exact latest-main reconciliation",
+        "next_action": "Verify fresh exact-head mandatory 4/4, preserve active protected read-only diagnostic main SHA; no hosted claim.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1146"
-    },
-    {
-      "pr": 1149,
-      "title": "fix(#249): validate explicit ARM CORS shape and redacted failure evidence",
-      "feature": "issue249",
-      "base_branch": "main",
-      "work_owner": "manual-issue249-core-stage-20261128",
-      "priority": "P0",
-      "phase": "test",
-      "checkpoint": {
-        "owner": "manual-issue249-core-stage-20261128",
-        "feature_done": false,
-        "ci": "Exact head #46125140591; offline artifact #46125140582",
-        "next_action": "Complete exact CI and source review, then merge only the read-only diagnostic launcher with explicit title, observe existing protected diagnostic; no new mutation attempt until actual CORS and connection prerequisites verified."
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1149",
-      "head_sha": "e14eba0733fff46b084c84b5c309690a9c3d2c01"
     },
     {
       "pr": 1150,
