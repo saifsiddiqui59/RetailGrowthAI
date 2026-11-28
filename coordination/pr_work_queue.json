@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 7,
+    "open_prs": 8,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 4,
+      "issue249": 5,
       "F4": 1
     }
   },
@@ -63,12 +63,12 @@
       "base_branch": "main",
       "work_owner": "manual-issue249-core-stage-20261128",
       "priority": "P0",
-      "phase": "test",
+      "phase": "review",
       "checkpoint": {
         "owner": "manual-issue249-core-stage-20261128",
         "next_action": "Source blobs repinned; actual successful protected core stage SHA still required; keep draft and no merge.",
         "feature_done": false,
-        "ci": "Fresh CI after exact latest-main reconciliation"
+        "ci": "Reconciled exact-head mandatory CI 4/4 passed"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1140"
     },
@@ -80,10 +80,10 @@
       "feature": "issue249",
       "base_branch": "main",
       "priority": "P1",
-      "phase": "test",
+      "phase": "review",
       "checkpoint": {
         "owner": "manual-issue249-retirement-20261128",
-        "ci": "Fresh CI after exact latest-main reconciliation",
+        "ci": "Reconciled exact-head mandatory CI 4/4 passed",
         "next_action": "Verify fresh exact-head mandatory 4/4, preserve active protected read-only diagnostic main SHA; no hosted claim.",
         "feature_done": false
       },
@@ -97,10 +97,10 @@
       "feature": "issue249",
       "base_branch": "main",
       "priority": "P1",
-      "phase": "test",
+      "phase": "review",
       "checkpoint": {
         "owner": "manual-issue249-worker-handoff-20261128",
-        "ci": "Fresh CI after exact latest-main reconciliation",
+        "ci": "Reconciled exact-head mandatory CI 4/4 passed",
         "next_action": "Verify fresh exact-head mandatory 4/4, preserve active protected read-only diagnostic main SHA; no hosted claim.",
         "feature_done": false
       },
@@ -131,14 +131,31 @@
       "base_branch": "main",
       "work_owner": "manual-issue249-retirement-20261128",
       "priority": "P1",
-      "phase": "test",
+      "phase": "review",
       "checkpoint": {
         "owner": "manual-issue249-retirement-20261128",
-        "ci": "Fresh CI after exact latest-main reconciliation",
+        "ci": "Reconciled exact-head mandatory CI 4/4 passed",
         "next_action": "Verify fresh exact-head mandatory 4/4, preserve active protected read-only diagnostic main SHA; no hosted claim.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1146"
+    },
+    {
+      "pr": 1151,
+      "title": "fix(#249): initialize confirmed null DEV Y1 CORS and stage missing connections",
+      "feature": "issue249",
+      "work_owner": "manual-issue249-core-stage-20261128",
+      "base_branch": "main",
+      "priority": "P0",
+      "phase": "test",
+      "checkpoint": {
+        "owner": "manual-issue249-core-stage-20261128",
+        "feature_done": false,
+        "ci": "Exact head #46127190510 and offline artifact #46127190543",
+        "next_action": "Review exact CI then merge one-shot protected stage with explicit title after reusable fixture launcher/target terminal. Actual live null diagnostic #46126609842; all four prior mutation attempts prewrite. No further blind retries."
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1151",
+      "head_sha": "6bc79965ced8f7c57a5476590970e2fa6c6118ab"
     }
   ],
   "last_inventory_checked_at": "2026-11-27T09:04:54Z"
