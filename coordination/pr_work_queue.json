@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 7,
+    "open_prs": 8,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 4,
+      "issue249": 5,
       "F4": 1
     }
   },
@@ -138,6 +138,23 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1144"
+    },
+    {
+      "pr": 1145,
+      "title": "fix(#249): read exact ARM site configuration for CORS inventory",
+      "feature": "issue249",
+      "head_sha": "d8d5007cbf536381d56523cef56cf19ecf4ffe72",
+      "base_branch": "main",
+      "work_owner": "manual-issue249-core-stage-20261128",
+      "priority": "P0",
+      "phase": "test",
+      "checkpoint": {
+        "owner": "manual-issue249-core-stage-20261128",
+        "ci": "Pending",
+        "next_action": "Verify exact ARM CORS source/CI; previous bounded deployment retry exhausted; no automatic fourth attempt.",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1145"
     }
   ],
   "last_inventory_checked_at": "2026-11-27T09:04:54Z"
