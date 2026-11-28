@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 5,
+    "open_prs": 4,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 3
+      "issue249": 2
     }
   },
   "entries": [
@@ -57,16 +57,16 @@
     {
       "pr": 1143,
       "title": "fix(#249): fail closed on missing CPU dequeue metadata",
-      "head_sha": "da73a1e61c2a372af48cf4459b62f665f1310c53",
+      "head_sha": "28c55de57e1e28cd16dfc8bfd87a332e8089be8a",
       "work_owner": "manual-issue249-worker-handoff-20261128",
       "feature": "issue249",
       "base_branch": "main",
       "priority": "P1",
-      "phase": "review",
+      "phase": "test",
       "checkpoint": {
         "owner": "manual-issue249-worker-handoff-20261128",
-        "ci": "Exact #46163994904 4/4; source artifact #46163994887 success.",
-        "next_action": "Recheck base after retirement source merge; no worker activation before hosted ownership and release evidence.",
+        "ci": "Reconciled to c748b0b4; exact #46179275500 and #46179275427",
+        "next_action": "Complete exact CI review and manual source integration handoff; no cloud activation.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1143"
@@ -75,35 +75,18 @@
       "pr": 1146,
       "title": "test(#249): verify actual served DEV frontend API origin and rollback",
       "feature": "issue249",
-      "head_sha": "0bd15a3dd461608167eba4b434b82e9d71fff1b8",
+      "head_sha": "e7d0faa7dcdadcc74b761af3a4daecdc4dc66570",
       "base_branch": "main",
       "work_owner": "manual-issue249-retirement-20261128",
       "priority": "P1",
       "phase": "test",
       "checkpoint": {
         "owner": "manual-issue249-retirement-20261128",
-        "ci": "Refreshed to mobile-release main; CI pending.",
-        "next_action": "Verify exact head; read-only served origin only, no cutover.",
+        "ci": "Prior exact CI #46177739060 4/4; fresh checks on reconciled source",
+        "next_action": "Review current head and source handoff; public baseline read only.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1146"
-    },
-    {
-      "pr": 1154,
-      "title": "fix(#249): self-contained Y1 HTTP package and isolated real SDK indexing",
-      "feature": "issue249",
-      "work_owner": "manual-issue249-core-stage-20261128",
-      "base_branch": "main",
-      "priority": "P0",
-      "phase": "test",
-      "checkpoint": {
-        "owner": "manual-issue249-core-stage-20261128",
-        "feature_done": false,
-        "ci": "Previous exact 4/4 #46163919483; offline artifact canceled by concurrent workstream; per-PR artifact concurrency fixed; fresh checks pending.",
-        "next_action": "Verify exact 17-version vendored package and real SDK index; protected release remains separately gated."
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1154",
-      "head_sha": "33179021d35bb166b6f98cc5169dd715ee113429"
     }
   ],
   "last_inventory_checked_at": "2026-11-28T19:00:00Z"
