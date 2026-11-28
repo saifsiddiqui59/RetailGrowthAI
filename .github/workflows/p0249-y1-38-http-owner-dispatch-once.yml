@@ -82,7 +82,7 @@ jobs:
         run: |
           set -euo pipefail
           stage_runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/p0249-dev-y1-core-connections-protected.yml/runs?event=workflow_dispatch&per_page=100")"
-          stage_id="$(jq -er '[.workflow_runs[] | select(.head_sha=="77e678355c8e4a0ba20a8bbf88084f6d2814edd6" and .event=="workflow_dispatch" and .status=="completed" and .conclusion=="success")] | if length==1 then .[0].id else error("Verified protected core stage absent or ambiguous") end' <<< "$stage_runs")"
+          stage_id="$(jq -er '[.workflow_runs[] | select(.head_sha=="cff4b0d4cf016e3d5950d1d8fdfadbd99b10c112" and .event=="workflow_dispatch" and .status=="completed" and .conclusion=="success")] | if length==1 then .[0].id else error("Verified protected core stage absent or ambiguous") end' <<< "$stage_runs")"
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$stage_id/jobs?per_page=100" | jq -e '
             [.jobs[] | select(.name=="stage" and .conclusion=="success")] |
             length == 1 and

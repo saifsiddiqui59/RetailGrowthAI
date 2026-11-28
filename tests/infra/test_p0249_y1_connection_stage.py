@@ -52,6 +52,10 @@ class FakeAzure:
         self.payload_paths = []
         self.fail_settings = False
         self.fail_cors = False
+        self.null_cors = False
+        self.rest_cors_override = None
+        self.null_reads = 0
+        self.drift_after_settings = False
 
     def _resource(self, name):
         return {
@@ -75,6 +79,16 @@ class FakeAzure:
             data = {"id": self_args[3], "properties": {"cors": {
                 "supportCredentials": False,
                 "allowedOrigins": [self.origin] if self.origin else []}}}
+            if self.null_cors:
+                data["properties"]["cors"] = None
+        elif self_args[:3] == ("rest", "--method", "get"):
+            rid = stage.cors_resource_id(stage.Y1, self.subscription)
+            assert self_args == ("rest", "--method", "get", "--uri",
+                                 "https://management.azure.com" + rid + "?api-version=2024-11-01")
+            self.null_reads += 1
+            data = {"id": rid, "properties": {"cors": None}}
+            if self.rest_cors_override is not None:
+                data = self.rest_cors_override
         else:
             app = self_args[self_args.index("-n")+1]
             if self_args[:2] == ("resource", "show"):
@@ -91,6 +105,18 @@ class FakeAzure:
                                stderr="sensitive-must-not-show")
 
     def write(self, args, **kwargs):
+        if args[:4] == ["az", "rest", "--method", "patch"]:
+            rid = stage.cors_resource_id(stage.Y1, self.subscription)
+            assert self.null_cors
+            assert args[4:7] == ["--uri", "https://management.azure.com" + rid + "?api-version=2024-11-01", "--body"]
+            assert json.loads(args[7]) == {"properties": {"cors": {"allowedOrigins": [stage.FRONTEND], "supportCredentials": False}}}
+            assert args[-3:] == ["-o", "none", "--only-show-errors"]
+            self.writes.append(("CORS_INITIALIZE",))
+            if self.fail_cors:
+                return SimpleNamespace(returncode=1, stdout="", stderr="redacted")
+            self.null_cors = False
+            self.origin = stage.FRONTEND
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
         if args[:4] == ["az", "functionapp", "cors", "add"]:
             assert args[4:9] == ["-g", stage.RG, "-n", stage.Y1, "--allowed-origins"]
             assert args[9] == stage.FRONTEND
@@ -126,6 +152,9 @@ class FakeAzure:
             assert name in stage.CORE
             assert value == self.original[name]
             self.target[name] = value
+        if self.drift_after_settings:
+            self.null_cors = False
+            self.origin = "https://foreign.invalid"
         return SimpleNamespace(returncode=0, stdout="sensitive-must-not-show",
                                stderr="sensitive-must-not-show")
 
@@ -243,6 +272,39 @@ class ConnectionStageTests(unittest.TestCase):
                 stage.run(apply=True, env={**ENV, "RGAI_Y1_CORE_CONNECTION_STAGE": stage.STAGE_CONFIRM},
                           reader=malformed, writer=az.write)
             self.assertEqual(az.writes, [])
+
+    def test_explicit_null_requires_two_exact_arm_reads_and_initializes_only_cors(self):
+        self.az.null_cors = True
+        approved = {**ENV, "RGAI_Y1_CORE_CONNECTION_STAGE": stage.STAGE_CONFIRM}
+        self.assertEqual(stage.run(apply=True, env=approved, reader=self.az.read, writer=self.az.write), ())
+        self.assertEqual(set(self.az.writes[0]), set(stage.CORE))
+        self.assertEqual(self.az.writes[1], ("CORS_INITIALIZE",))
+        self.assertGreaterEqual(self.az.null_reads, 2)
+        self.assertFalse(self.az.null_cors)
+        self.assertEqual(stage.run(apply=True, env=approved, reader=self.az.read, writer=self.az.write), ())
+        self.assertEqual(len(self.az.writes), 2)
+
+    def test_null_conflict_or_foreign_rest_never_writes(self):
+        approved = {**ENV, "RGAI_Y1_CORE_CONNECTION_STAGE": stage.STAGE_CONFIRM}
+        for config in ({"id": "/foreign", "properties": {"cors": None}},
+                       {"id": stage.cors_resource_id(stage.Y1, ENV["AZURE_SUBSCRIPTION_ID"]), "properties": {}},
+                       {"id": stage.cors_resource_id(stage.Y1, ENV["AZURE_SUBSCRIPTION_ID"]),
+                        "properties": {"cors": {"allowedOrigins": ["*"], "supportCredentials": True}}}):
+            az = FakeAzure()
+            az.null_cors = True
+            az.rest_cors_override = config
+            with self.assertRaisesRegex(RuntimeError, "NULL_CORS_NOT_CORROBORATED"):
+                stage.run(apply=True, env=approved, reader=az.read, writer=az.write)
+            self.assertEqual(az.writes, [])
+
+    def test_null_changed_after_settings_never_initializes_cors(self):
+        self.az.null_cors = True
+        self.az.drift_after_settings = True
+        approved = {**ENV, "RGAI_Y1_CORE_CONNECTION_STAGE": stage.STAGE_CONFIRM}
+        with self.assertRaisesRegex(RuntimeError, "CORS"):
+            stage.run(apply=True, env=approved, reader=self.az.read, writer=self.az.write)
+        self.assertEqual(len(self.az.writes), 1)
+        self.assertNotIn(("CORS_INITIALIZE",), self.az.writes)
 
     def test_missing_exact_frontend_cors_is_staged_without_wildcard(self):
         self.az.origin = None

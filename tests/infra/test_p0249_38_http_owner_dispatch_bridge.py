@@ -12,7 +12,7 @@ class Protected38LauncherTests(unittest.TestCase):
         text = BRIDGE.read_text()
         self.assertIn("branches: [main]", text)
         self.assertIn("ops(#249): owner-delegated Y1 38 HTTP dispatch", text)
-        self.assertIn("77e678355c8e4a0ba20a8bbf88084f6d2814edd6", text)
+        self.assertIn("cff4b0d4cf016e3d5950d1d8fdfadbd99b10c112", text)
         self.assertIn("P0249_OWNER_PINNED_ACTION_MAIN_CI_4OF4=PASS", text)
         self.assertIn("P0249_PRIOR_PROTECTED_CORE_STAGE=VERIFIED", text)
         self.assertLess(text.index("P0249_PRIOR_PROTECTED_CORE_STAGE=VERIFIED"), text.index("gh api -X POST"))
