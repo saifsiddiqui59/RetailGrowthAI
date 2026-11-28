@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 4,
+    "open_prs": 6,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 1,
+      "issue249": 3,
       "F4": 1
     }
   },
@@ -90,21 +90,37 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1138"
     },
     {
-      "pr": 1139,
-      "title": "fix(#249): diagnose blocked core stage and retry protected five-GET readback",
+      "pr": 1141,
+      "title": "fix(#249): verify exact ARM site identity and running state before staging",
       "feature": "issue249",
-      "head_sha": "4bfbc6b24884b3cdfecca9e04290cae06599698f",
+      "head_sha": "1c9bd3ee152dcb7d5b420633c79c7fa26c07f790",
       "base_branch": "main",
       "work_owner": "manual-issue249-core-stage-20261128",
       "priority": "P0",
-      "phase": "in-progress",
+      "phase": "test",
       "checkpoint": {
         "owner": "manual-issue249-core-stage-20261128",
-        "ci": "Exact head 4/4, artifact pass; merged 77e678355c8e4a0ba20a8bbf88084f6d2814edd6",
-        "next_action": "Keep main unchanged through launcher exact CI and protected retry; verify live stage/readback; retire launcher after outcome",
+        "ci": "[{\"id\":46121033509,\"name\":\"RetailGrowthAI #249 Y1 38-route HTTP source artifact (NO Azure release)\",\"status\":\"in_progress\",\"conclusion\":null},{\"id\":46121033512,\"name\":\"RetailGrowthAI Part 1 CI\",\"status\":\"in_progress\",\"conclusion\":null}]",
+        "next_action": "Final bounded retry, both exact prior failed run IDs, 4/4 and protected target; do not start/stop either app",
         "feature_done": false
       },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1139"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1141"
+    },
+    {
+      "pr": 1140,
+      "title": "ops(#249): owner-delegated Y1 38 HTTP dispatch",
+      "feature": "issue249",
+      "head_sha": "5f8875e4193d400f0e4fece2e7b5bf1fee4310a0",
+      "base_branch": "main",
+      "work_owner": "manual-issue249-core-stage-20261128",
+      "priority": "P0",
+      "phase": "blocked",
+      "checkpoint": {
+        "owner": "manual-issue249-core-stage-20261128",
+        "next_action": "Draft; do not merge until live Task 1 success; repin stage proof and inspector SHA",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1140"
     }
   ],
   "last_inventory_checked_at": "2026-11-27T09:04:54Z"
