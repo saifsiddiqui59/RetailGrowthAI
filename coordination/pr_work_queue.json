@@ -60,16 +60,16 @@
       "pr": 1140,
       "title": "ops(#249): owner-delegated Y1 38 HTTP dispatch",
       "feature": "issue249",
-      "head_sha": "70f6604c5410ddea23241389b636ea3337a98eef",
+      "head_sha": "369bf6d7c6d07f5318110f5d2e8ed4b1bff424e2",
       "base_branch": "main",
       "work_owner": "manual-issue249-core-stage-20261128",
       "priority": "P0",
       "phase": "review",
       "checkpoint": {
         "owner": "manual-issue249-core-stage-20261128",
-        "next_action": "Await actual protected core stage success; pin accepted stage SHA and current reviewed blobs before merge.",
+        "next_action": "Actual Task 1 #46128345060 passed; all 12 pins verified. Ready for bounded existing protected 38 HTTP-only dispatch after exact main check.",
         "feature_done": false,
-        "ci": "Fresh reconciled source CI 4/4 passed"
+        "ci": "Exact head #46129123378 all four success"
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1140"
     },
