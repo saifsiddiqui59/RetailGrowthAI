@@ -13,12 +13,12 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 8,
+    "open_prs": 7,
     "by_feature": {
       "unclassified": 2,
       "issue249": 3,
       "F4": 1,
-      "F1": 2
+      "F1": 1
     }
   },
   "entries": [
@@ -123,29 +123,6 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1146"
-    },
-    {
-      "pr": 1152,
-      "title": "fix(platform): usable mobile retailer approval cards and confirmation",
-      "feature": "F1",
-      "head_sha": "a77784d408ffc8459533e50a34591f528c358419",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P0",
-      "phase": "review",
-      "checkpoint": {
-        "owner": "manual-integration-chat-f2f4",
-        "ci": "Exact head #46131713976 4/4 passed, 129 Chromium tests; Y1 protected #46131245955 failed and same-run restore passed.",
-        "next_action": "After Y1 protected release completes, verify exact-head 4/4 and pinned frontend tree, review source, merge with explicit title release(dev): mobile retailer approval Free SWA. Protected upload only after postmerge 4/4 and existing API origin check. Verify served bytes; no hosted success yet.",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1152",
-      "claim": {
-        "owner": "manual-integration-chat-f2f4",
-        "head_sha": "a77784d408ffc8459533e50a34591f528c358419",
-        "claimed_at": "2026-11-28T09:50:08.165Z",
-        "expires_at": "2026-11-28T11:20:08.165Z"
-      }
     },
     {
       "pr": 1153,
