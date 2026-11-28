@@ -103,8 +103,8 @@
         "next_action": "Verify exact 17-version vendored package and real SDK index; protected release remains separately gated."
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1154",
-      "head_sha": "37a614973220f8477bb94aa5737b1626183a48ee"
+      "head_sha": "33179021d35bb166b6f98cc5169dd715ee113429"
     }
   ],
-  "last_inventory_checked_at": "2026-11-28T17:02:31Z"
+  "last_inventory_checked_at": "2026-11-28T19:00:00Z"
 }
