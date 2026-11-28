@@ -6,14 +6,42 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/retail-dev-mobile-approval-swa-once.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-mobile-approval-swa-once.yml'
+      - 'scripts/deploy/scan_public_frontend_credentials.py'
+      - 'scripts/deploy/verify_mobile_approval_swa.py'
+      - 'tests/infra/test_public_frontend_credentials.py'
 permissions:
   contents: read
 concurrency:
   group: rgai-dev-free-swa-ui-release
   cancel-in-progress: false
 jobs:
+  offline_release_artifact:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Build actual public frontend and verify release safety offline
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD:frontend)" = 9241dff57b1c95d895be735e39a774284c9c065d
+          if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          npm run build
+          python3 ../scripts/deploy/scan_public_frontend_credentials.py dist
+          python3 ../scripts/deploy/verify_mobile_approval_swa.py --local --dist dist
   existing_swa_only:
-    if: "github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release(dev): mobile retailer approval Free SWA')"
+    if: "github.event_name == 'push' && github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release(dev): mobile retailer approval Free SWA')"
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     environment: dev
@@ -77,9 +105,8 @@ jobs:
           grep -FRq '.platform-review-confirm' dist/assets/
           grep -FRq 'https://rgai-dev-functions-d4e5ddbd.azurewebsites.net' dist/assets/
           if grep -FRq 'https://rgai-dev-y1-p0249-d4e5ddbd.azurewebsites.net' dist/assets/; then exit 4; fi
-          if grep -REq 'sb_secret_|RETAIL_SUPABASE_SERVICE_ROLE_KEY|RETAIL_FOUNDRY_API_KEY' dist; then
-            echo '::error::Unexpected privileged key marker in public artifact'; exit 3
-          fi
+          python3 ../scripts/deploy/scan_public_frontend_credentials.py dist
+          python3 ../scripts/deploy/verify_mobile_approval_swa.py --local --dist dist
           echo 'PASS: mobile approval present in reviewed public-only build'
       - uses: azure/login@v3
         with:

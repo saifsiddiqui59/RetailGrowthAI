@@ -3,6 +3,8 @@
 from __future__ import annotations
 import argparse
 import hashlib
+import importlib.metadata
+import re
 import os
 from pathlib import Path, PurePosixPath
 import stat
@@ -20,6 +22,31 @@ def safe_name(name):
     path = PurePosixPath(name)
     return (bool(name) and not path.is_absolute() and not any(p in ("", ".", "..")
             for p in name.split("/")) and "\\" not in name and ":" not in name)
+
+def checked_versions(deps, constraints):
+    """Require exact reviewed distribution set and versions in the target only."""
+    def normalize(name):
+        return re.sub(r"[-_.]+", "-", name).lower()
+    expected = {}
+    for line in constraints.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        name, sep, version = line.partition("==")
+        if (not sep or not re.fullmatch(r"[A-Za-z0-9_.-]+", name)
+                or not re.fullmatch(r"[A-Za-z0-9_.+-]+", version)
+                or normalize(name) in expected):
+            raise ValueError("INVALID_RUNTIME_CONSTRAINT")
+        expected[normalize(name)] = version
+    observed = {}
+    for dist in importlib.metadata.distributions(path=[str(deps)]):
+        name = dist.metadata.get("Name")
+        if not isinstance(name, str) or not name or normalize(name) in observed:
+            raise ValueError("INVALID_DEPENDENCY_METADATA")
+        observed[normalize(name)] = dist.version
+    if not expected or observed != expected:
+        raise ValueError("RUNTIME_DEPENDENCY_SET_OR_VERSION_DRIFT")
+    return len(observed)
 
 def build(source, deps, output):
     if output.exists() or not deps.is_dir() or deps.is_symlink():
@@ -114,6 +141,8 @@ def main():
     p.add_argument("--deps", required=True, type=Path)
     p.add_argument("--output", required=True, type=Path)
     a=p.parse_args()
+    count = checked_versions(a.deps, Path(__file__).with_name("http-runtime-constraints.txt"))
+    print("P0249_EXACT_DEPENDENCY_VERSIONS=" + str(count))
     build(a.source,a.deps,a.output)
     smoke(a.output)
     with a.output.open("rb") as f:

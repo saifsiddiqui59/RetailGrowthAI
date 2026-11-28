@@ -107,6 +107,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: --no-compile \
+            --constraint ops/p0249-y1-cutover/http-runtime-constraints.txt \
             -r azure-functions/campaign-api/requirements.txt \
             --target "$RUNNER_TEMP/y1-deps" --report "$RUNNER_TEMP/release/y1-dependency-report.json"
           python3 ops/p0249-y1-cutover/vendor_http_package.py \

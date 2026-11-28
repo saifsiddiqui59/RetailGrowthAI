@@ -33,3 +33,21 @@ class VendorTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"SYMLINK"):
                 v.build(p/"s.zip",deps,p/"o.zip")
             self.assertFalse((p/"o.zip").exists())
+
+    def test_exact_dependency_inventory(self):
+        with tempfile.TemporaryDirectory() as d:
+            p=Path(d); deps=p/"deps"; deps.mkdir()
+            constraint=p/"constraints.txt"
+            constraint.write_text("Demo_Package==1.2.3\n")
+            metadata=deps/"demo_package-1.2.3.dist-info"; metadata.mkdir()
+            (metadata/"METADATA").write_text("Name: demo-package\nVersion: 1.2.3\n")
+            self.assertEqual(v.checked_versions(deps,constraint),1)
+            constraint.write_text("demo-package==1.2.4\n")
+            with self.assertRaisesRegex(ValueError,"DRIFT"):
+                v.checked_versions(deps,constraint)
+            constraint.write_text("demo-package==1.2.3\nother==1.0\n")
+            with self.assertRaisesRegex(ValueError,"DRIFT"):
+                v.checked_versions(deps,constraint)
+            constraint.write_text("Demo_Package==1.2.3\ndemo-package==1.2.3\n")
+            with self.assertRaisesRegex(ValueError,"INVALID_RUNTIME_CONSTRAINT"):
+                v.checked_versions(deps,constraint)
