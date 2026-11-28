@@ -102,6 +102,25 @@ class ReadonlyY1ConnectionInspection(unittest.TestCase):
             tool.read_azure("resource","show","--ids",rid+"/foreign",
                             "--api-version","2024-11-01",runner=fake_runner()[0])
 
+    def test_explicit_flat_cors_and_nested_cors_conflict_denial(self):
+        rid = tool.cors_resource_id(tool.Y1, "trusted-subscription")
+        cors = {"allowedOrigins": [tool.FRONTEND], "supportCredentials": False}
+        for shape in ({"cors": cors}, {"properties": {"cors": cors}},
+                      {"cors": cors, "properties": {"cors": cors}}):
+            self.assertEqual(tool.exact_cors({"id": rid, **shape}, tool.Y1,
+                                             "trusted-subscription"), cors)
+        for shape, category in (
+            ({}, "DECLARATION_ABSENT"),
+            ({"properties": []}, "PROPERTIES_NOT_OBJECT"),
+            ({"cors": None}, "VALUE_NOT_OBJECT"),
+            ({"cors": {"allowedOrigins": None, "supportCredentials": False}}, "ORIGINS_INVALID"),
+            ({"cors": {"allowedOrigins": []}}, "CREDENTIALS_UNVERIFIED"),
+            ({"cors": cors, "properties": {"cors": {**cors, "supportCredentials": True}}},
+             "DECLARATIONS_CONFLICT"),
+        ):
+            with self.subTest(category=category), self.assertRaisesRegex(RuntimeError, category):
+                tool.exact_cors({"id": rid, **shape}, tool.Y1, "trusted-subscription")
+
     def test_correct_development_connections_never_leave_process(self):
         run,calls=fake_runner()
         report=tool.inspect(run)

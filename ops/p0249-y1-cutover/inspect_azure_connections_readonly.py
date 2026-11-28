@@ -68,16 +68,32 @@ def exact_cors(config, name, subscription):
     if (not isinstance(config, dict) or not isinstance(config.get("id"), str)
         or config["id"].lower() != expected.lower()):
         raise RuntimeError("AZURE_CORS_RESOURCE_IDENTITY_MISMATCH")
+    # Azure CLI resource representations may flatten ARM properties. Accept
+    # explicit complete declarations only; never infer missing/null as safe.
     properties = config.get("properties")
-    cors = properties.get("cors") if isinstance(properties, dict) else None
-    if (not isinstance(cors, dict)
-        or not isinstance(cors.get("allowedOrigins"), list)
-        or any(type(v) is not str for v in cors["allowedOrigins"])
-        or len(set(cors["allowedOrigins"])) != len(cors["allowedOrigins"])
-        or type(cors.get("supportCredentials")) is not bool):
-        raise RuntimeError("AZURE_CORS_SHAPE_INVALID")
-    return {"allowedOrigins": cors["allowedOrigins"],
-            "supportCredentials": cors["supportCredentials"]}
+    if properties is not None and not isinstance(properties, dict):
+        raise RuntimeError("AZURE_CORS_PROPERTIES_NOT_OBJECT")
+    declarations = []
+    for parent in (config, properties or {}):
+        if "cors" not in parent:
+            continue
+        cors = parent["cors"]
+        if not isinstance(cors, dict):
+            raise RuntimeError("AZURE_CORS_VALUE_NOT_OBJECT")
+        origins = cors.get("allowedOrigins")
+        if (not isinstance(origins, list)
+            or any(type(v) is not str for v in origins)
+            or len(set(origins)) != len(origins)):
+            raise RuntimeError("AZURE_CORS_ORIGINS_INVALID")
+        if type(cors.get("supportCredentials")) is not bool:
+            raise RuntimeError("AZURE_CORS_CREDENTIALS_UNVERIFIED")
+        declarations.append({"allowedOrigins": sorted(origins),
+                             "supportCredentials": cors["supportCredentials"]})
+    if not declarations:
+        raise RuntimeError("AZURE_CORS_DECLARATION_ABSENT")
+    if any(item != declarations[0] for item in declarations[1:]):
+        raise RuntimeError("AZURE_CORS_DECLARATIONS_CONFLICT")
+    return declarations[0]
 
 
 def read_azure(*argv, runner=subprocess.run):
