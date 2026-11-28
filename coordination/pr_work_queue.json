@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 8,
+    "open_prs": 7,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 5,
+      "issue249": 4,
       "F4": 1
     }
   },
@@ -56,23 +56,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
     },
     {
-      "pr": 1135,
-      "title": "test(#249): reconcile protected two-user auth-only browser canary",
-      "feature": "issue249",
-      "head_sha": "cabc933b586d7b7921279dcea2747a3181478c32",
-      "base_branch": "main",
-      "work_owner": "manual-issue249-auth-only-20261128",
-      "priority": "P1",
-      "phase": "review",
-      "checkpoint": {
-        "owner": "manual-issue249-auth-only-20261128",
-        "ci": "Exact-head #46120238701 all four jobs success",
-        "next_action": "Source CI green; no merge during core launcher. Review actual protected Auth-only dispatch, then genuine signed shop tests.",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1135"
-    },
-    {
       "pr": 1140,
       "title": "ops(#249): owner-delegated Y1 38 HTTP dispatch",
       "feature": "issue249",
@@ -99,8 +82,8 @@
       "phase": "test",
       "checkpoint": {
         "owner": "manual-issue249-retirement-20261128",
-        "ci": "Pending exact-head verification",
-        "next_action": "Verify CI, retain draft until core/38 deployment and re-pin retirement source.",
+        "ci": "Exact-head #46121974699 all four jobs success; artifact run cancelled by subsequent source run",
+        "next_action": "Source green; await independent release pin review, no Flex retirement.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1142"
@@ -108,7 +91,7 @@
     {
       "pr": 1143,
       "title": "fix(#249): fail closed on missing CPU dequeue metadata",
-      "head_sha": "084cd2ade55f93766cef75fc9a1cef9438c1980a",
+      "head_sha": "8977b0b34390fbafcf7f97bdc1250c148a09f39a",
       "work_owner": "manual-issue249-worker-handoff-20261128",
       "feature": "issue249",
       "base_branch": "main",
@@ -116,8 +99,8 @@
       "phase": "test",
       "checkpoint": {
         "owner": "manual-issue249-worker-handoff-20261128",
-        "ci": "Pending exact-head verification",
-        "next_action": "Verify CI; preserve active core deployment main SHA; then review worker handoff package.",
+        "ci": "Previous head #46121979376 3/4: static worker lease guard regression; retained both old replica guard and stricter DB lease guard, new head CI pending",
+        "next_action": "Verify new exact-head CI, no worker activation before full HTTP/index and exclusive ownership.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1143"
