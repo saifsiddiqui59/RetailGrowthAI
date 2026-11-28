@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 9,
+    "open_prs": 8,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 5,
+      "issue249": 4,
       "F4": 2
     }
   },
@@ -66,7 +66,7 @@
       "phase": "blocked",
       "checkpoint": {
         "owner": "manual-issue249-core-stage-20261128",
-        "next_action": "Task 1 attempt #46121975540 denied prewrite at CORS; #1145 source merged 8382d06964da99cd7383cc115b9c8a92a86f087d. Await protected successful Task 1 live evidence; repin all exact source and baseline before 38 release.",
+        "next_action": "Wait for actual protected Task 1 success after #1147 merge af35a2d85f7e1237c8c03d2da27e1fed75a8ba4d; repin exact successful stage and current inspector/source, reconcile with latest main before review.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1140"
@@ -138,23 +138,6 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1146"
-    },
-    {
-      "pr": 1147,
-      "title": "ops(#249): bounded protected core dispatch after exact CORS fix",
-      "feature": "issue249",
-      "head_sha": "741be007d1871b3bc37abde800eb77c00761a017",
-      "base_branch": "main",
-      "work_owner": "manual-issue249-core-stage-20261128",
-      "priority": "P0",
-      "phase": "test",
-      "checkpoint": {
-        "owner": "manual-issue249-core-stage-20261128",
-        "ci": "Pending exact-head CI",
-        "next_action": "Review pins, prior terminal prewrite proof, latest main 4/4; merge with exact launcher title only then observe protected target.",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1147"
     },
     {
       "pr": 1148,
