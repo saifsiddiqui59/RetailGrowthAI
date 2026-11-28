@@ -92,10 +92,21 @@ def main():
     group = p.add_mutually_exclusive_group(required=True)
     group.add_argument("--before", action="store_true")
     group.add_argument("--after", action="store_true")
+    group.add_argument("--local", action="store_true")
     p.add_argument("--dist", type=Path)
     args = p.parse_args()
-    if args.after != bool(args.dist):
-        p.error("--after requires --dist; --before forbids it")
+    if (args.after or args.local) != bool(args.dist):
+        p.error("--after/--local require --dist; --before forbids it")
+    if args.local:
+        def read_local(path):
+            if path in ROUTES:
+                return (args.dist / "index.html").read_bytes()
+            if not ASSET.fullmatch(path):
+                raise ValueError("UNAPPROVED_PATH")
+            return (args.dist / path.lstrip("/")).read_bytes()
+        count = verify(fetch=read_local, dist=args.dist)
+        print(f"MOBILE_APPROVAL_LOCAL_ASSET_GRAPH=PASS count={count}")
+        return
     for attempt in range(3 if args.after else 1):
         try:
             count = verify(dist=args.dist)
