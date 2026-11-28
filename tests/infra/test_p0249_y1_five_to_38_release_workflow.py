@@ -30,13 +30,30 @@ class ProtectedReleaseSourceTests(unittest.TestCase):
         self.assertNotIn("az functionapp config appsettings set", FLOW)
         self.assertNotIn("AzureWebJobs.render_campaign_reel.Disabled=true", FLOW)
         self.assertIn("rgai-dev-y1-p0249-d4e5ddbd", FLOW)
-        # The source ZIP has requirements.txt but no vendored .python_packages;
-        # disabling both build flags would make Azure unable to import Python deps.
+        # Keep existing build-mode rollback contract. Published ZIP is self-contained.
+        self.assertIn('package: ${{ runner.temp }}/release/y1-38-http-vendored.zip', FLOW)
         self.assertIn("scm-do-build-during-deployment: 'true'", FLOW)
         self.assertIn("enable-oryx-build: 'true'", FLOW)
         self.assertNotIn("scm-do-build-during-deployment: 'false'", FLOW)
         self.assertNotIn("enable-oryx-build: 'false'", FLOW)
         self.assertNotIn("app-name: rgai-dev-functions-d4e5ddbd", FLOW)
+
+    def test_build_without_cloud_identity_and_same_run_digest(self):
+        build = FLOW.split("  build-package:", 1)[1].split("  release:", 1)[0]
+        release = FLOW.split("  release:", 1)[1].split("  independent-restore:", 1)[0]
+        self.assertNotIn("environment: dev", build)
+        self.assertNotIn("id-token:", build)
+        self.assertNotIn("secrets.", build)
+        self.assertNotIn("azure/login", build)
+        self.assertIn("http-runtime-constraints.txt", build)
+        self.assertIn("vendor_http_package.py", build)
+        self.assertIn("needs: build-package", release)
+        self.assertIn("environment: dev", release)
+        self.assertIn("needs.build-package.outputs.sha256", release)
+        self.assertIn("sha256sum --check --status", release)
+        self.assertLess(release.index("P0249_Y1_SAME_RUN_PACKAGE_DIGEST=PASS"), release.index("azure/login"))
+        self.assertNotIn("run-id:", release)
+        self.assertNotIn("actions: write", FLOW)
 
     def test_prewrite_guard_and_two_real_windows(self):
         self.assertLess(
