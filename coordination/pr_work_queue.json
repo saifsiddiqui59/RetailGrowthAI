@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 8,
+    "open_prs": 7,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 4,
+      "issue249": 3,
       "F4": 1,
       "F1": 1
     }
@@ -57,23 +57,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
     },
     {
-      "pr": 1142,
-      "title": "fix(#249): require exact CPU replica budget in retirement diagnostics",
-      "head_sha": "213334c53f2605a2dc8ccfb4215e68efd2f72a69",
-      "work_owner": "manual-issue249-retirement-20261128",
-      "feature": "issue249",
-      "base_branch": "main",
-      "priority": "P1",
-      "phase": "test",
-      "checkpoint": {
-        "owner": "manual-issue249-retirement-20261128",
-        "ci": "Fresh CI after latest-main reconciliation",
-        "next_action": "Verify exact 4/4; no shutdown until all live gates.",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1142"
-    },
-    {
       "pr": 1143,
       "title": "fix(#249): fail closed on missing CPU dequeue metadata",
       "head_sha": "da73a1e61c2a372af48cf4459b62f665f1310c53",
@@ -81,11 +64,11 @@
       "feature": "issue249",
       "base_branch": "main",
       "priority": "P1",
-      "phase": "test",
+      "phase": "review",
       "checkpoint": {
         "owner": "manual-issue249-worker-handoff-20261128",
-        "ci": "Worker inventory and receipt guard 4/4 #46131335882; new protected manual workflow CI pending",
-        "next_action": "Review fresh CI; protected live inventory only after accepted HTTP stage; no queue activation.",
+        "ci": "Exact #46163994904 4/4; source artifact #46163994887 success.",
+        "next_action": "Recheck base after retirement source merge; no worker activation before hosted ownership and release evidence.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1143"
@@ -111,15 +94,15 @@
       "pr": 1146,
       "title": "test(#249): verify actual served DEV frontend API origin and rollback",
       "feature": "issue249",
-      "head_sha": "3a7954a2587e96d6d4f645b26010a8c01fe5c636",
+      "head_sha": "0bd15a3dd461608167eba4b434b82e9d71fff1b8",
       "base_branch": "main",
       "work_owner": "manual-issue249-retirement-20261128",
       "priority": "P1",
-      "phase": "review",
+      "phase": "test",
       "checkpoint": {
         "owner": "manual-issue249-retirement-20261128",
-        "ci": "Exact head #46131372048 4/4",
-        "next_action": "Review and merge after main pin released; verify actual served Flex baseline before Y1 switch.",
+        "ci": "Refreshed to mobile-release main; CI pending.",
+        "next_action": "Verify exact head; read-only served origin only, no cutover.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1146"
@@ -152,11 +135,11 @@
       "checkpoint": {
         "owner": "manual-issue249-core-stage-20261128",
         "feature_done": false,
-        "ci": "Fresh exact-head CI and offline vendored artifact",
-        "next_action": "Require real SDK 38 HTTP index and wheel provenance. Prior release #46131245955 failed indexing; both rollback jobs passed. No blind redeploy."
+        "ci": "Previous exact 4/4 #46163919483; offline artifact canceled by concurrent workstream; per-PR artifact concurrency fixed; fresh checks pending.",
+        "next_action": "Verify exact 17-version vendored package and real SDK index; protected release remains separately gated."
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1154",
-      "head_sha": "85f487797645797ebdece3a14bf3a7fa0c572f59"
+      "head_sha": "37a614973220f8477bb94aa5737b1626183a48ee"
     }
   ],
   "last_inventory_checked_at": "2026-11-28T17:02:31Z"
