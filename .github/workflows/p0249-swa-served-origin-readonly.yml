@@ -1,0 +1,33 @@
+name: "RetailGrowthAI #249 read-only served DEV frontend origin"
+on:
+  workflow_dispatch:
+    inputs:
+      expected:
+        description: Expected served API origin (no deployment)
+        required: true
+        type: choice
+        options: [flex, y1]
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0249-swa-served-origin-readonly
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      EXPECTED: ${{ inputs.expected }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Synthetic origin scanner regressions
+        run: python3 -m unittest discover -s tests/infra -p 'test_p0249_swa_served_origin.py' -v
+      - name: Read actual public DEV served HTML and JS graph, no cloud mutation
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$EXPECTED" in flex|y1) ;; *) exit 2 ;; esac
+          python3 scripts/deploy/verify_p0249_swa_origin.py --expected "$EXPECTED"

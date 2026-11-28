@@ -32,13 +32,13 @@ jobs:
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           verify_blob() { test "$(git rev-parse "HEAD:$1")" = "$2"; }
           verify_blob .github/workflows/p0249-dev-y1-core-connections-protected.yml a5b495760d7970e098900035c901ff806f9ff81f
-          verify_blob ops/p0249-y1-cutover/stage_core_connections.py 3ea05ac62f30f0714cbe652680a2bd748ae3f178
-          verify_blob ops/p0249-y1-cutover/inspect_azure_connections_readonly.py c1bf78f3570a7f957a7bd3f6c30d5a7a9ad72095
+          verify_blob ops/p0249-y1-cutover/stage_core_connections.py 6339a67a3d337b22c3bb1d4282b59293cb6eee5e
+          verify_blob ops/p0249-y1-cutover/inspect_azure_connections_readonly.py 73a6a51f429f37a92c3ef01d81de0bd22393bfe2
           verify_blob ops/p0249-y1-cutover/retirement_gate.py 81bfea93e2d67bde18f783e7f7232b3e43b985f6
           verify_blob ops/p0249_y1_canary_guard.py c01d2f6f2d4ff72f0e4fec6d4ea0ddceb35f882d
-          verify_blob tests/infra/test_p0249_y1_connection_stage.py 6c811679a8a98303d4e5509b89f490ca927432ca
+          verify_blob tests/infra/test_p0249_y1_connection_stage.py c04c968af9fed827e94b81b9d86606b666e6e8a7
           verify_blob tests/infra/test_p0249_y1_reviewed_sha_workflows.py c15767d0e12b4ae26302341a91ac019393bbab20
-          verify_blob tests/infra/test_p0249_y1_connection_inspector.py d29917a093688b8cac989712627e9e0b34a0cf98
+          verify_blob tests/infra/test_p0249_y1_connection_inspector.py dad2fab9ec9db2691aa803acee2312fb5d540f0f
           echo "P0249_OWNER_PINNED_ACTION_SOURCE_BYTES=PASS"
       - name: Require all four Part1 CI jobs on this exact main SHA
         shell: bash
@@ -82,10 +82,10 @@ jobs:
           # Use target-specific history: refuse any prior stage attempt on this
           # exact revision, any successful stage, or any active stage.
           prior="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/p0249-dev-y1-core-connections-protected.yml/runs?event=workflow_dispatch&per_page=100")"
-          # New, distinct CORS inventory correction (#1145), one attempt only.
-          # The three previous runs all failed before any settings/CORS write.
-          jq -e '.total_count == 3 and (.workflow_runs | length == 3) and ([.workflow_runs[].id] | sort) == [46119656466,46120635977,46121975540] and all(.workflow_runs[]; .conclusion == "failure" and .status == "completed")' <<< "$prior" >/dev/null
-          for failed_id in 46119656466 46120635977 46121975540; do
+          # Fifth and final bounded attempt after exact live null-CORS diagnosis.
+          # The four previous runs all failed before any settings/CORS write.
+          jq -e '.total_count == 4 and (.workflow_runs | length == 4) and ([.workflow_runs[].id] | sort) == [46119656466,46120635977,46121975540,46123450728] and all(.workflow_runs[]; .conclusion == "failure" and .status == "completed")' <<< "$prior" >/dev/null
+          for failed_id in 46119656466 46120635977 46121975540 46123450728; do
             gh api "repos/$GITHUB_REPOSITORY/actions/runs/$failed_id/jobs?per_page=100" | jq -e '
               [.jobs[] | select(.name=="stage" and .conclusion=="failure")] |
               length==1 and
@@ -94,6 +94,17 @@ jobs:
             ' >/dev/null
           done
           echo "P0249_ALL_PRIOR_FAILURES_PREWRITE=VERIFIED"
+          # Exact read-only live evidence, not a synthetic or unrelated run.
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/46126609842" | jq -e '
+            .head_sha=="e5132f91ae24292cfb8972fa38cec7af8ecb3567" and
+            .event=="workflow_dispatch" and .status=="completed" and .conclusion=="success"
+          ' >/dev/null
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/46126609842/jobs?per_page=100" | jq -e '
+            [.jobs[] | select(.name=="diagnose" and .conclusion=="success")] |
+            length==1 and
+            (.[0].steps | [.[] | select(.name=="Inspect original FC1 and exact isolated Y1 without changing resources" and .conclusion=="success")] | length==1)
+          ' >/dev/null
+          echo "P0249_ACTUAL_READONLY_DIAGNOSTIC=VERIFIED"
           blocked="$(jq -r --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha==$sha or .conclusion=="success" or .status!="completed")] | length' <<< "$prior")"
           test "$blocked" = "0" || { echo "::error::Stage already attempted, successful or active; refuse duplicate"; exit 2; }
           jq -nc --arg sha "$GITHUB_SHA" '{ref:"main",inputs:{confirm:"YES-P0249-RETAILGROWTHAI-DEV-Y1-MISSING-ONLY",reviewed_main_sha:$sha}}' |
