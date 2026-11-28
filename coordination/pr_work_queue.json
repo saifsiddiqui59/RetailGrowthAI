@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 5,
+    "open_prs": 4,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 2,
+      "issue249": 1,
       "feature4": 1
     }
   },
@@ -71,23 +71,6 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1146"
-    },
-    {
-      "pr": 1159,
-      "title": "fix(#249): prepare manual-only protected vendored Y1 release",
-      "feature": "issue249",
-      "work_owner": "manual-issue249-core-stage-20261128",
-      "base_branch": "main",
-      "priority": "P0",
-      "phase": "test",
-      "checkpoint": {
-        "owner": "manual-issue249-core-stage-20261128",
-        "ci": "36f225ab Part 1 #46182681401 4/4; offline #46182681396 SUCCESS, 17 pinned distributions, 38 real SDK HTTP / zero workers, artifact 15278123958 ZIP SHA256 dc8724e556a5fb7d179a992820aa7e0a0a831a95a6bd5d38c6b59c374538ee5b. Latest main 70c66faa CI #46182896332 4/4. Reconciled 5aa1ee9d, fresh #46183809258 and #46183809269 running.",
-        "next_action": "Verify final candidate CI and source review; normal protected release approval/dispatch remains separate. No automatic launcher changes.",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1159",
-      "head_sha": "5aa1ee9d7399207a1851c1836670d829c557488c"
     },
     {
       "pr": 1161,
