@@ -1,0 +1,89 @@
+name: "RetailGrowthAI #249 one-shot owner-authorized core stage dispatch"
+# Reuse the historical #45020984146 GitHub-only bridge. No Azure credentials or OIDC here.
+# The target remains the unchanged, environment-protected DEV manual workflow.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/p0249-y1-core-stage-owner-dispatch-once.yml"
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: rgai-p0249-owner-delegated-core-stage-once
+  cancel-in-progress: false
+jobs:
+  dispatch:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'ops(#249): owner-delegated Y1 core stage dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify approved secure source and release code are unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          verify_blob() { test "$(git rev-parse "HEAD:$1")" = "$2"; }
+          verify_blob .github/workflows/p0249-dev-y1-core-connections-protected.yml 71e0ad94d14d0cb6739feac550c7d16709e478d7
+          verify_blob ops/p0249-y1-cutover/stage_core_connections.py 96f97d52c4a4b8fe004e5f9862f3f61ca0fa7a5a
+          verify_blob ops/p0249-y1-cutover/inspect_azure_connections_readonly.py 219fc28e11b2c699a2db86f94d6d8b1f31054398
+          verify_blob ops/p0249-y1-cutover/retirement_gate.py 81bfea93e2d67bde18f783e7f7232b3e43b985f6
+          verify_blob ops/p0249_y1_canary_guard.py c01d2f6f2d4ff72f0e4fec6d4ea0ddceb35f882d
+          verify_blob tests/infra/test_p0249_y1_connection_stage.py c55efcc2037c9d23b1223bef3b8ff3bf82e70e73
+          verify_blob tests/infra/test_p0249_y1_reviewed_sha_workflows.py c15767d0e12b4ae26302341a91ac019393bbab20
+          echo "P0249_OWNER_PINNED_ACTION_SOURCE_BYTES=PASS"
+      - name: Require all four Part1 CI jobs on this exact main SHA
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          accepted=false
+          for attempt in $(seq 1 78); do
+            runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&event=push&per_page=40")"
+            run_id="$(jq -r --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha==$sha and .name=="RetailGrowthAI Part 1 CI")] | sort_by(.created_at) | last | .id // empty' <<< "$runs")"
+            if [ -n "$run_id" ]; then
+              state="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .status)"
+              if [ "$state" = "completed" ]; then
+                outcome="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .conclusion)"
+                test "$outcome" = "success" || { echo "::error::Exact main CI failed"; exit 2; }
+                gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" | jq -e '
+                  [.jobs[] | select(
+                    .name == "Python / uv + campaign contract tests" or
+                    .name == "Supabase isolation + authentication client tests" or
+                    .name == "Frontend build + contract tests" or
+                    .name == "FFmpeg codecs + renderer tests"
+                  ) | .conclusion] | length == 4 and all(.[]; . == "success")
+                ' >/dev/null
+                accepted=true
+                echo "P0249_OWNER_PINNED_ACTION_MAIN_CI_4OF4=PASS"
+                break
+              fi
+            fi
+            sleep 15
+          done
+          test "$accepted" = "true" || { echo "::error::Exact-main CI timed out"; exit 2; }
+      - name: Dispatch only the existing protected DEV missing-only core stage
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)"
+          test "$current" = "$GITHUB_SHA" || { echo "::error::Main advanced; refuse dispatch"; exit 2; }
+          # Use target-specific history: refuse any prior stage attempt on this
+          # exact revision, any successful stage, or any active stage.
+          prior="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/p0249-dev-y1-core-connections-protected.yml/runs?event=workflow_dispatch&per_page=100")"
+          blocked="$(jq -r --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha==$sha or .conclusion=="success" or .status!="completed")] | length' <<< "$prior")"
+          test "$blocked" = "0" || { echo "::error::Stage already attempted, successful or active; refuse duplicate"; exit 2; }
+          jq -nc --arg sha "$GITHUB_SHA" '{ref:"main",inputs:{confirm:"YES-P0249-RETAILGROWTHAI-DEV-Y1-MISSING-ONLY",reviewed_main_sha:$sha}}' |
+            gh api -X POST "repos/$GITHUB_REPOSITORY/actions/workflows/p0249-dev-y1-core-connections-protected.yml/dispatches" --input -
+          echo "P0249_PROTECTED_CORE_STAGE=DISPATCH_REQUESTED"
+          echo "Protected dev environment, OIDC, exact identity, missing-only settings and HTTP health gates remain enforced."
