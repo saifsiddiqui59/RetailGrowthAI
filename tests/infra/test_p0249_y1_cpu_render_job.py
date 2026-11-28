@@ -28,7 +28,7 @@ class FakeQueue:
 
 
 def msg(content=GOOD_ID):
-    return SimpleNamespace(content=content, id="private-mid", pop_receipt="private-receipt")
+    return SimpleNamespace(content=content, id="private-mid", pop_receipt="private-receipt", dequeue_count=1)
 
 
 class Y1CpuQueueSafety(unittest.TestCase):
@@ -125,7 +125,7 @@ class Y1CpuQueueSafety(unittest.TestCase):
         self.assertEqual(queue.acks,[("private-mid","private-receipt")])
 
     def test_invalid_attempt_counter_never_processes_or_acks(self):
-        for count in (-1,0,1.5,"3",True,1001):
+        for count in (None,-1,0,1.5,"3",True,1001):
             pending=msg()
             pending.dequeue_count=count
             queue=FakeQueue([pending])
@@ -133,6 +133,25 @@ class Y1CpuQueueSafety(unittest.TestCase):
                 job.process_one(queue,None,None,
                                 lambda *_:self.fail("bad count rendered"))
             self.assertEqual(queue.acks,[])
+
+    def test_missing_delivery_metadata_never_renders_or_acks(self):
+        for field in ("dequeue_count", "id", "pop_receipt"):
+            pending = msg()
+            delattr(pending, field)
+            queue = FakeQueue([pending])
+            with self.subTest(field=field), self.assertRaises(RuntimeError):
+                job.process_one(queue, None, None,
+                                lambda *_: self.fail("untrusted delivery rendered"))
+            self.assertEqual(queue.acks, [])
+        for field in ("id", "pop_receipt"):
+            for value in ("", " ", None, 123):
+                pending = msg()
+                setattr(pending, field, value)
+                queue = FakeQueue([pending])
+                with self.subTest(field=field, value=value), self.assertRaises(RuntimeError):
+                    job.process_one(queue, None, None,
+                                    lambda *_: self.fail("invalid receipt rendered"))
+                self.assertEqual(queue.acks, [])
 
     def test_explicit_dev_handoff_and_longer_than_780s_budget_required(self):
         env = {
@@ -153,7 +172,7 @@ class Y1CpuQueueSafety(unittest.TestCase):
                         job.DB_RENDER_CLAIM_LEASE_SECONDS)
         self.assertEqual(job.VISIBILITY_SECONDS, 2100)
         self.assertGreater(job.VISIBILITY_SECONDS,
-                           job.CONTAINER_REPLICA_TIMEOUT_SECONDS)
+                           job.DB_RENDER_CLAIM_LEASE_SECONDS)
         self.assertGreater(job.VISIBILITY_SECONDS, 780)
         for name, wrong in (
             ("RGAI_CPU_RENDER_SINGLE_OWNER_ACTIVATED", "false"),

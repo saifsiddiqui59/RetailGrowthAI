@@ -1,0 +1,46 @@
+name: "RetailGrowthAI #249 DEV worker ownership read-only inventory"
+on:
+  workflow_dispatch:
+    inputs:
+      reviewed_main_sha:
+        description: Exact reviewed main SHA
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: rgai-p0249-y1-five-get-release
+  cancel-in-progress: false
+jobs:
+  inventory:
+    if: github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      REVIEWED_MAIN_SHA: ${{ inputs.reviewed_main_sha }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Exact reviewed SHA and synthetic no-write tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$REVIEWED_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$REVIEWED_MAIN_SHA" = "$GITHUB_SHA"
+          python3 -m unittest discover -s tests/infra -p 'test_p0249_worker_ownership_inventory.py' -v
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Inspect exact DEV sites and nine worker registrations (read only)
+        run: python3 ops/p0249-y1-cutover/inspect_worker_ownership.py
+      - name: End Azure session
+        if: always()
+        run: az logout
