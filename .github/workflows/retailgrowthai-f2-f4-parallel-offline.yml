@@ -16,7 +16,7 @@ permissions:
   contents: read
 concurrency:
   group: f2f4-parallel-offline-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   synthetic-native-render:
     name: F2 plan to F4 real 30s H264 AAC native CPU evidence
@@ -263,10 +263,24 @@ jobs:
         with:
           node-version: '22'
           package-manager-cache: false
-      - name: Install existing frontend and browser test dependencies
+      - name: Install frontend dependencies using the existing Part 1 CI policy
+        working-directory: frontend
+        shell: bash
         run: |
-          npm --prefix frontend ci --no-audit --no-fund
-          npm --prefix frontend/e2e install --no-audit --no-fund
+          set -euo pipefail
+          if [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund
+          else
+            echo "::warning::No committed frontend lockfile; using the existing Part 1 CI npm install policy"
+            npm install --no-audit --no-fund
+          fi
+      - name: Install browser test dependencies and verify Chromium exists
+        working-directory: frontend/e2e
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund
+          node --input-type=module -e 'import { chromium } from "playwright"; import { existsSync } from "node:fs"; const path=chromium.executablePath(); if (!path.startsWith("/ms-playwright/") || !existsSync(path)) throw Error("Version-matched Chromium executable absent");'
       - name: Run isolated F4 review browser cases
         working-directory: frontend/e2e
         run: ./node_modules/.bin/playwright test --config feature4-offline.playwright.config.mjs
