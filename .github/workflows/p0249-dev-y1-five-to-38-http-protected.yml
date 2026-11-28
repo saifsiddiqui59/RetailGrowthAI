@@ -23,24 +23,20 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
+  build-package:
     if: >-
       github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
       github.ref == 'refs/heads/main' &&
       github.event_name == 'workflow_dispatch' &&
       inputs.confirm == 'YES-P0249-DEV-Y1-FIVE-TO-38-WITH-FIVE-ROLLBACK'
-    environment: dev
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 25
     permissions:
       contents: read
-      id-token: write
     outputs:
-      attempted: ${{ steps.release_marker.outputs.attempted }}
+      sha256: ${{ steps.package_hash.outputs.sha256 }}
     env:
       REVIEWED_MAIN_SHA: ${{ inputs.reviewed_main_sha }}
-      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -101,13 +97,83 @@ jobs:
               assert not (set(methods) & mod.WORKERS)
           print("P0249_Y1_RELEASE_PACKAGE=38_HTTP_ZERO_WORKERS_VERIFIED",flush=True)
           PY
-      - name: Retain one-day immutable HTTP-only artifact for independent review
+      - name: Vendor exact runtime and verify 38 actual SDK registrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: --no-compile \
+            --constraint ops/p0249-y1-cutover/http-runtime-constraints.txt \
+            -r azure-functions/campaign-api/requirements.txt \
+            --target "$RUNNER_TEMP/y1-deps" --report "$RUNNER_TEMP/release/y1-dependency-report.json"
+          python3 ops/p0249-y1-cutover/vendor_http_package.py \
+            --source "$RUNNER_TEMP/release/y1-38-http-only.zip" \
+            --deps "$RUNNER_TEMP/y1-deps" \
+            --output "$RUNNER_TEMP/release/y1-38-http-vendored.zip"
+      - name: Record exact built package hash and source SHA
+        id: package_hash
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/release"
+          sha256sum y1-38-http-vendored.zip > package.sha256
+          echo "sha256=$(cut -d ' ' -f1 package.sha256)" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$GITHUB_SHA" > source.sha
+      - name: Retain reviewed HTTP-only package and wheel provenance
         uses: actions/upload-artifact@v4
         with:
-          name: p0249-y1-38-http-protected-source-${{ github.run_id }}
-          path: ${{ runner.temp }}/release/y1-38-http-only.zip
+          name: p0249-y1-38-http-protected-vendored-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/release/y1-38-http-vendored.zip
+            ${{ runner.temp }}/release/y1-dependency-report.json
+            ${{ runner.temp }}/release/package.sha256
+            ${{ runner.temp }}/release/source.sha
           if-no-files-found: error
           retention-days: 1
+
+  release:
+    needs: build-package
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'workflow_dispatch' &&
+      inputs.confirm == 'YES-P0249-DEV-Y1-FIVE-TO-38-WITH-FIVE-ROLLBACK'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      attempted: ${{ steps.release_marker.outputs.attempted }}
+    env:
+      REVIEWED_MAIN_SHA: ${{ inputs.reviewed_main_sha }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      RGAI_DEV_EXPECTED_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Download exact same-run verified package
+        uses: actions/download-artifact@v4
+        with:
+          name: p0249-y1-38-http-protected-vendored-${{ github.run_id }}
+          path: ${{ runner.temp }}/release
+      - name: Validate same-run SHA and package digest before Azure login
+        env:
+          VERIFIED_PACKAGE_SHA256: ${{ needs.build-package.outputs.sha256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$REVIEWED_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$REVIEWED_MAIN_SHA" = "$GITHUB_SHA"
+          [[ "$VERIFIED_PACKAGE_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          cd "$RUNNER_TEMP/release"
+          test "$(cat source.sha)" = "$GITHUB_SHA"
+          printf '%s  y1-38-http-vendored.zip\n' "$VERIFIED_PACKAGE_SHA256" | sha256sum --check --status
+          echo "P0249_Y1_SAME_RUN_PACKAGE_DIGEST=PASS"
       - name: Scoped DEV Azure OIDC (no role-grant)
         uses: azure/login@v3
         with:
@@ -159,10 +225,9 @@ jobs:
         uses: Azure/functions-action@c5060b3b8bb1ebbcb531abd00c822ecbaa8ea656
         with:
           app-name: rgai-dev-y1-p0249-d4e5ddbd
-          package: ${{ runner.temp }}/release/y1-38-http-only.zip
-          # The sealed source ZIP includes requirements.txt but intentionally
-          # does NOT vendor .python_packages. Linux Y1 must let Oryx install
-          # pinned Python dependencies before host indexing.
+          package: ${{ runner.temp }}/release/y1-38-http-vendored.zip
+          # The same-run reviewed artifact contains all verified dependencies.
+          # Retain existing guarded build-mode/rollback settings.
           scm-do-build-during-deployment: 'true'
           enable-oryx-build: 'true'
       - name: Require exact hosted 38 HTTP-only index and five-route rollback URI
