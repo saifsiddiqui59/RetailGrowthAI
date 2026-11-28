@@ -102,6 +102,26 @@ jobs:
           PY
           sha256sum "$RUNNER_TEMP/release/y1-38-http-only.zip"
           sha256sum "$RUNNER_TEMP/release/y1-46-short-worker-stage.zip"
+      - name: Vendor pinned Python dependencies and execute real SDK index from ZIP
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: --no-compile \
+            -r azure-functions/campaign-api/requirements.txt \
+            --target "$RUNNER_TEMP/y1-deps" --report "$RUNNER_TEMP/release/y1-dependency-report.json"
+          python3 ops/p0249-y1-cutover/vendor_http_package.py \
+            --source "$RUNNER_TEMP/release/y1-38-http-only.zip" \
+            --deps "$RUNNER_TEMP/y1-deps" \
+            --output "$RUNNER_TEMP/release/y1-38-http-vendored.zip"
+      - name: Retain vendored candidate and dependency provenance (offline only)
+        uses: actions/upload-artifact@v4
+        with:
+          name: p0249-y1-http-38-vendored-candidate
+          path: |
+            ${{ runner.temp }}/release/y1-38-http-vendored.zip
+            ${{ runner.temp }}/release/y1-dependency-report.json
+          if-no-files-found: error
+          retention-days: 1
       - name: Retain only the zero-consumer 38-route source ZIP
         uses: actions/upload-artifact@v4
         with:
