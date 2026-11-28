@@ -2011,3 +2011,8 @@ Verify source PR exact-head four CI and protected DEV retry after removing forbi
 ## 2026-11-28 — Next after recovered five-route baseline
 1. DONE Task 1, actual #46128345060; keep the connection settings and CORS. Task 2 remains pending after #46131245955 indexing failure and verified rollback. Validate fresh #1154 version-constrained offline vendored ZIP and record exact source/SDK index/versions/hash. Do not deploy source-only ZIP again; protected deployment requires separately accepted review and same-run rollback. Prior redeployment preparation was blocked: do not evade that check.
 2. In parallel reconcile #1143 exact nine-worker read-only inventory, #1146 served frontend verifier, #1142 retirement safeguards against latest main; verify new source CI and preserve distinct ownership. Run protected live inventories through authorized gates only. Do not activate workers, switch frontend, or stop Flex before relevant hosted acceptance; other chat owns test shops. Task 3 real signed API/media, Task 4 worker handoff, Task 5 SWA, Task 6 two-shop E2E, Task 7 retire remain pending.
+
+
+## 2026-11-29 IST — After retained two-shop acceptance
+1. DONE: two marked approved DEV owners and two isolated persistent shops, protected run #46127198046 attempt 2; no reprovisioning or password rotation unless needed.
+2. Remaining: saved rights-cleared synthetic F2 campaign/day, actual seven F4 HTTP route availability and flags, current private worker readiness, signed campaign→review→CPU render→private MP4 preview/download with foreign/revoked/idempotency negatives. #1154 merged source-only; Y1 release is separately owned, still requires hosted acceptance. Do not duplicate deployment or count offline MP4/mocked Chromium as hosted success.
