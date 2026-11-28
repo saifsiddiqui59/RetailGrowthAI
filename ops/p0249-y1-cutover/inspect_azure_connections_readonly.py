@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -49,6 +50,36 @@ def exact_site_state(site, name, subscription):
     return states[0]
 
 
+def cors_resource_id(name, subscription):
+    if name not in (Y1, FLEX) or not isinstance(subscription, str) or not re.fullmatch(r"[A-Za-z0-9-]{1,80}", subscription):
+        raise ValueError("UNAPPROVED_AZURE_CORS_RESOURCE_READ")
+    return ("/subscriptions/" + subscription + "/resourceGroups/" + RG
+            + "/providers/Microsoft.Web/sites/" + name + "/config/web")
+
+
+def cors_read_args(name, subscription):
+    # ARM Web Apps Get Configuration: properties.cors, API 2024-11-01.
+    return ("resource", "show", "--ids", cors_resource_id(name, subscription),
+            "--api-version", "2024-11-01")
+
+
+def exact_cors(config, name, subscription):
+    expected = cors_resource_id(name, subscription)
+    if (not isinstance(config, dict) or not isinstance(config.get("id"), str)
+        or config["id"].lower() != expected.lower()):
+        raise RuntimeError("AZURE_CORS_RESOURCE_IDENTITY_MISMATCH")
+    properties = config.get("properties")
+    cors = properties.get("cors") if isinstance(properties, dict) else None
+    if (not isinstance(cors, dict)
+        or not isinstance(cors.get("allowedOrigins"), list)
+        or any(type(v) is not str for v in cors["allowedOrigins"])
+        or len(set(cors["allowedOrigins"])) != len(cors["allowedOrigins"])
+        or type(cors.get("supportCredentials")) is not bool):
+        raise RuntimeError("AZURE_CORS_SHAPE_INVALID")
+    return {"allowedOrigins": cors["allowedOrigins"],
+            "supportCredentials": cors["supportCredentials"]}
+
+
 def read_azure(*argv, runner=subprocess.run):
     if argv[0:2] not in (
             ("account", "show"), ("group", "show"),
@@ -57,7 +88,17 @@ def read_azure(*argv, runner=subprocess.run):
         raise ValueError("UNAPPROVED_AZURE_READ_COMMAND")
     if argv[0:2] == ("resource", "show"):
         if argv not in (site_read_args(Y1), site_read_args(FLEX)):
-            raise ValueError("UNAPPROVED_AZURE_SITE_READ")
+            # Permit only exact scoped /config/web reads, never arbitrary ARM resources.
+            valid = False
+            if len(argv) == 6 and argv[2] == "--ids":
+                parts = argv[3].split("/")
+                if len(parts) == 11 and parts[1].lower() == "subscriptions":
+                    try:
+                        valid = any(argv == cors_read_args(app, parts[2]) for app in (Y1, FLEX))
+                    except ValueError:
+                        pass
+            if not valid:
+                raise ValueError("UNAPPROVED_AZURE_SITE_READ")
     if argv[0:2] == ("functionapp", "function"):
         if argv[2:3] != ("list",):
             raise ValueError("UNAPPROVED_AZURE_FUNCTION_COMMAND")
@@ -137,12 +178,8 @@ def inspect(runner=subprocess.run):
                                        "list", "-g", RG, "-n", app))
         names = function_names(az("functionapp", "function", "list",
                                    "-g", RG, "-n", app), app)
-        cors = az("functionapp", "cors", "show", "-g", RG, "-n", app)
-        if (not isinstance(cors, dict)
-            or not isinstance(cors.get("allowedOrigins"), list)
-            or any(not isinstance(v,str) for v in cors["allowedOrigins"])
-            or type(cors.get("supportCredentials")) is not bool):
-            raise RuntimeError("AZURE_CORS_SHAPE_INVALID")
+        cors = exact_cors(az(*cors_read_args(app, requested_subscription)),
+                          app, requested_subscription)
         result[app] = {"state":state,"settings":settings,
                        "functions":names,"cors":cors}
     original = result[FLEX]
