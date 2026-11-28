@@ -76,16 +76,16 @@
     {
       "pr": 1143,
       "title": "fix(#249): fail closed on missing CPU dequeue metadata",
-      "head_sha": "98f384f917de13498504a01fc50b3905dfb84e02",
+      "head_sha": "015bebba304d6113b3d1e849c6c9c3a2852d9a73",
       "work_owner": "manual-issue249-worker-handoff-20261128",
       "feature": "issue249",
       "base_branch": "main",
       "priority": "P1",
-      "phase": "review",
+      "phase": "test",
       "checkpoint": {
         "owner": "manual-issue249-worker-handoff-20261128",
-        "ci": "Fresh reconciled source CI 4/4 passed",
-        "next_action": "Source green; do not merge while exact-main core stage launcher pending; hosted activation separate.",
+        "ci": "New worker ownership inventory + negative tests, fresh CI",
+        "next_action": "Verify exact CI; live worker inventory still requires protected DEV read-only execution; no queue activation.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1143"
@@ -111,15 +111,15 @@
       "pr": 1146,
       "title": "test(#249): verify actual served DEV frontend API origin and rollback",
       "feature": "issue249",
-      "head_sha": "f3cd0b3853df29832a69604ac7c4ad494e5437a8",
+      "head_sha": "3a7954a2587e96d6d4f645b26010a8c01fe5c636",
       "base_branch": "main",
       "work_owner": "manual-issue249-retirement-20261128",
       "priority": "P1",
-      "phase": "review",
+      "phase": "test",
       "checkpoint": {
         "owner": "manual-issue249-retirement-20261128",
-        "ci": "Fresh reconciled source CI 4/4 passed",
-        "next_action": "Source green; do not merge while exact-main core stage launcher pending; hosted activation separate.",
+        "ci": "New manual public SWA asset graph verifier workflow; fresh CI",
+        "next_action": "Verify exact CI and baseline actual served Flex origin before eventual Y1 switch.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1146"
