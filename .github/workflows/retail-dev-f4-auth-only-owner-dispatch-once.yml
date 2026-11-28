@@ -1,0 +1,89 @@
+name: RetailGrowthAI one-shot owner-delegated DEV Auth-only dispatch
+# Explicit owner-requested dispatch bridge only; never access Auth Admin or
+# Azure credentials here. The existing manually dispatched target retains
+# its protected dev environment and exact Auth-only mode/cleanup guards.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/retail-dev-f4-auth-only-owner-dispatch-once.yml"
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: rgai-dev-auth-only-owner-delegated-once
+  cancel-in-progress: false
+jobs:
+  dispatch:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'ops(F4): owner-delegated DEV Auth-only dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify exact reviewed login-only target and cleanup code
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          verify_blob() { test "$(git rev-parse "HEAD:$1")" = "$2"; }
+          verify_blob .github/workflows/retail-dev-test-accounts-canary-once.yml 8e64ad3e9409e37864992165ce89325118b7b59a
+          verify_blob frontend/e2e/dev-canary-auth-login-only.mjs eaf55fdb416d322542919f8f703597c8acfae82e
+          verify_blob frontend/e2e/package.json 4bdf3e56a88f8a41fe28a1fcd6756beb29c4c2ac
+          verify_blob tests/e2e/p0249_dev_playwright_login_only_once.py 37f2c98c46860e834ab20b673d9b9180517eb574
+          verify_blob tests/e2e/p0249_dev_signed_jwt_read_once.py 331d4d814b4073345668c415bf2459c89e333d0c
+          verify_blob tests/infra/test_p0249_playwright_auth_only_source.py cf171c26704717e31920fbd0933c5870b4b38330
+          python3 -m unittest discover -s tests/infra -p test_p0249_playwright_auth_only_source.py
+          echo "RGAI_F4_AUTH_DISPATCH_SOURCE_PIN=PASS"
+      - name: Require exact main four-job CI
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          accepted=false
+          for attempt in $(seq 1 78); do
+            runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&event=push&per_page=40")"
+            run_id="$(jq -r --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha==$sha and .name=="RetailGrowthAI Part 1 CI")] | sort_by(.created_at) | last | .id // empty' <<< "$runs")"
+            if [ -n "$run_id" ]; then
+              state="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .status)"
+              if [ "$state" = completed ]; then
+                test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .conclusion)" = success
+                gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" | jq -e '
+                  [.jobs[] | select(
+                    .name == "Python / uv + campaign contract tests" or
+                    .name == "Supabase isolation + authentication client tests" or
+                    .name == "Frontend build + contract tests" or
+                    .name == "FFmpeg codecs + renderer tests"
+                  ) | .conclusion] | length == 4 and all(.[]; . == "success")
+                ' >/dev/null
+                accepted=true
+                echo "RGAI_F4_AUTH_DISPATCH_MAIN_CI=4_OF_4"
+                break
+              fi
+            fi
+            sleep 15
+          done
+          test "$accepted" = true
+      - name: Dispatch only protected two-user login-only canary
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)"
+          test "$current" = "$GITHUB_SHA" || { echo "::error::Main advanced; refuse dispatch"; exit 2; }
+          # Refuse replay on the same SHA, including after failure or cancellation.
+          # Refuse any active invocation of this existing protected canary.
+          prior="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/retail-dev-test-accounts-canary-once.yml/runs?event=workflow_dispatch&per_page=100")"
+          blocked="$(jq -r --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha==$sha or .status!="completed")] | length' <<< "$prior")"
+          test "$blocked" = 0 || { echo "::error::Canary already attempted or active"; exit 2; }
+          jq -nc '{ref:"main",inputs:{approval_code:"AUTHORIZED_RETAILGROWTHAI_DEV_ONLY",mode:"auth-login-only"}}' |
+            gh api -X POST "repos/$GITHUB_REPOSITORY/actions/workflows/retail-dev-test-accounts-canary-once.yml/dispatches" --input -
+          echo "RGAI_F4_AUTH_ONLY=DISPATCH_REQUESTED"
+          echo "Protected dev workflow owns actual login, cleanup and all cloud access."
