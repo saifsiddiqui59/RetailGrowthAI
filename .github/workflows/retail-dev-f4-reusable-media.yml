@@ -1,0 +1,35 @@
+name: RetailGrowthAI protected retained F4 DEV synthetic media
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        required: true
+        type: choice
+        options: [NO, OWNER-AUTHORIZED-DEV-F4-MEDIA-FIXTURES]
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-live-canary
+  cancel-in-progress: false
+jobs:
+  media:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'workflow_dispatch' &&
+      inputs.confirm == 'OWNER-AUTHORIZED-DEV-F4-MEDIA-FIXTURES'
+    environment: dev
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Offline fixture checks
+        run: python3 -m unittest discover -s tests/infra -p test_f4_reusable_dev_media.py -v
+      - name: Prepare exact marked DEV shop-owned synthetic PNGs
+        env:
+          RGAI_F4_MEDIA_CONFIRM: ${{ inputs.confirm }}
+          RGAI_DEV_SERVICE_KEY: ${{ secrets.RETAIL_SUPABASE_SERVICE_ROLE_KEY }}
+          RGAI_DEV_PUBLISHABLE_KEY: sb_publishable_tEqNinZfiLzrAyF4E1pAeQ_vZRvJYjq
+        run: python3 -u tests/e2e/f4_reusable_dev_media.py
