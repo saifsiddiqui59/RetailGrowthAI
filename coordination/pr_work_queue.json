@@ -58,15 +58,15 @@
       "pr": 1146,
       "title": "test(#249): verify actual served DEV frontend API origin and rollback",
       "feature": "issue249",
-      "head_sha": "e7d0faa7dcdadcc74b761af3a4daecdc4dc66570",
+      "head_sha": "99d1682930b2cff79621ac4795bbe5840a392647",
       "base_branch": "main",
       "work_owner": "manual-issue249-retirement-20261128",
       "priority": "P1",
       "phase": "test",
       "checkpoint": {
         "owner": "manual-issue249-retirement-20261128",
-        "ci": "Prior exact CI #46177739060 4/4; fresh checks on reconciled source",
-        "next_action": "Review current head and source handoff; public baseline read only.",
+        "ci": "Prior #46179472931 4/4; latest reconciled exact-origin/HTML-bound negative regressions pending",
+        "next_action": "Fresh CI and source-only review; verify served origin through normal read-only workflow; no traffic cutover.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1146"
