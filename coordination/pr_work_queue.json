@@ -59,16 +59,16 @@
     {
       "pr": 1142,
       "title": "fix(#249): require exact CPU replica budget in retirement diagnostics",
-      "head_sha": "520e98c87bff88ffd38d9e7cc99913df8c263777",
+      "head_sha": "a0768472361c728175b2d5ca433d57815858ab7a",
       "work_owner": "manual-issue249-retirement-20261128",
       "feature": "issue249",
       "base_branch": "main",
       "priority": "P1",
-      "phase": "review",
+      "phase": "test",
       "checkpoint": {
         "owner": "manual-issue249-retirement-20261128",
-        "ci": "Fresh reconciled source CI 4/4 passed",
-        "next_action": "Source green; do not merge while exact-main core stage launcher pending; hosted activation separate.",
+        "ci": "Fresh CI after latest-main reconciliation",
+        "next_action": "Verify exact 4/4; no shutdown until all live gates.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1142"
@@ -76,7 +76,7 @@
     {
       "pr": 1143,
       "title": "fix(#249): fail closed on missing CPU dequeue metadata",
-      "head_sha": "015bebba304d6113b3d1e849c6c9c3a2852d9a73",
+      "head_sha": "01a331c6cc23eb717351ed80b35e718019c5bff1",
       "work_owner": "manual-issue249-worker-handoff-20261128",
       "feature": "issue249",
       "base_branch": "main",
@@ -84,8 +84,8 @@
       "phase": "test",
       "checkpoint": {
         "owner": "manual-issue249-worker-handoff-20261128",
-        "ci": "New worker ownership inventory + negative tests, fresh CI",
-        "next_action": "Verify exact CI; live worker inventory still requires protected DEV read-only execution; no queue activation.",
+        "ci": "Worker inventory and receipt guard 4/4 #46131335882; new protected manual workflow CI pending",
+        "next_action": "Review fresh CI; protected live inventory only after accepted HTTP stage; no queue activation.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1143"
@@ -115,11 +115,11 @@
       "base_branch": "main",
       "work_owner": "manual-issue249-retirement-20261128",
       "priority": "P1",
-      "phase": "test",
+      "phase": "review",
       "checkpoint": {
         "owner": "manual-issue249-retirement-20261128",
-        "ci": "New manual public SWA asset graph verifier workflow; fresh CI",
-        "next_action": "Verify exact CI and baseline actual served Flex origin before eventual Y1 switch.",
+        "ci": "Exact head #46131372048 4/4",
+        "next_action": "Review and merge after main pin released; verify actual served Flex baseline before Y1 switch.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1146"
