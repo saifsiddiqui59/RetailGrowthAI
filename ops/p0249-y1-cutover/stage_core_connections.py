@@ -16,7 +16,8 @@ import subprocess
 import sys
 import tempfile
 
-from inspect_azure_connections_readonly import read_azure, safe_setting_map, function_names
+from inspect_azure_connections_readonly import (read_azure, safe_setting_map, function_names,
+                                                site_read_args, exact_site_state)
 from retirement_gate import RG, Y1, FLEX, FRONTEND, SUPABASE
 
 REPO = "saifsiddiqui59/RetailGrowthAI"
@@ -35,6 +36,11 @@ FIVE = frozenset({
 
 FAILURE_CATEGORIES = frozenset({
     "AZURE_APPSETTINGS_SHAPE_INVALID",
+    "AZURE_SITE_IDENTITY_MISMATCH",
+    "AZURE_SITE_STATE_UNVERIFIED",
+    "UNAPPROVED_AZURE_SITE_READ",
+    "ORIGINAL_FLEX_STOPPED",
+    "TARGET_Y1_STOPPED",
     "AZURE_INDEX_DUPLICATE_FUNCTION",
     "AZURE_INDEX_FOREIGN_FUNCTION",
     "AZURE_INDEX_SHAPE_INVALID",
@@ -122,16 +128,6 @@ def _required_scope(env):
     return env["AZURE_SUBSCRIPTION_ID"]
 
 
-def _site_ok(site, name, subscription):
-    if not isinstance(site, dict):
-        return False
-    expected = ("/subscriptions/" + subscription + "/resourcegroups/"
-                + RG + "/providers/microsoft.web/sites/" + name).lower()
-    return (site.get("name") == name
-            and str(site.get("id", "")).lower() == expected
-            and site.get("state") == "Running")
-
-
 def plan(*, env=None, runner=subprocess.run):
     env = os.environ if env is None else env
     subscription = _required_scope(env)
@@ -153,10 +149,16 @@ def plan(*, env=None, runner=subprocess.run):
         or tags.get("environment") != "dev"):
         raise RuntimeError("FOREIGN_DEV_RESOURCE_GROUP")
 
-    old = az("ORIGINAL_FLEX_SITE", "functionapp", "show", "-g", RG, "-n", FLEX)
-    target = az("TARGET_Y1_SITE", "functionapp", "show", "-g", RG, "-n", Y1)
-    if not _site_ok(old, FLEX, subscription) or not _site_ok(target, Y1, subscription):
-        raise RuntimeError("FOREIGN_OR_STOPPED_APP")
+    old = az("ORIGINAL_FLEX_ARM_SITE", *site_read_args(FLEX))
+    old_state = exact_site_state(old, FLEX, subscription)
+    print("P0249_Y1_ORIGINAL_FLEX_RUNNING=" + str(old_state == "Running").lower(), flush=True)
+    if old_state != "Running":
+        raise RuntimeError("ORIGINAL_FLEX_STOPPED")
+    target = az("TARGET_Y1_ARM_SITE", *site_read_args(Y1))
+    target_state = exact_site_state(target, Y1, subscription)
+    print("P0249_Y1_TARGET_RUNNING=" + str(target_state == "Running").lower(), flush=True)
+    if target_state != "Running":
+        raise RuntimeError("TARGET_Y1_STOPPED")
     names = function_names(
         az("TARGET_Y1_INDEX", "functionapp", "function", "list", "-g", RG, "-n", Y1), Y1)
     if set(names) != FIVE:

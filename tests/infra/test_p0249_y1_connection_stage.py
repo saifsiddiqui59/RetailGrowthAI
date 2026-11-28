@@ -55,10 +55,10 @@ class FakeAzure:
 
     def _resource(self, name):
         return {
-            "name": name, "state": "Running",
+            "name": name,
             "id": ("/subscriptions/" + self.subscription + "/resourceGroups/"
                    + stage.RG + "/providers/Microsoft.Web/sites/" + name),
-            "properties": {"functionAppConfig": {"runtime": {"name": "python"}}},
+            "properties": {"state": "Running", "functionAppConfig": {"runtime": {"name": "python"}}},
         }
 
     def read(self, args, **kwargs):
@@ -71,8 +71,9 @@ class FakeAzure:
             data = {"name": stage.RG, "location": self.location,
                     "tags": {"app": "RetailGrowthAI", "environment": "dev"}}
         else:
-            app = self_args[-1]
-            if self_args[:2] == ("functionapp", "show"):
+            app = self_args[self_args.index("-n")+1]
+            if self_args[:2] == ("resource", "show"):
+                assert self_args == stage.site_read_args(app)
                 data = self._resource(app)
             elif self_args[:3] == ("functionapp", "function", "list"):
                 data = [{"name": stage.Y1 + "/" + n} for n in sorted(self.routes)]
@@ -130,6 +131,22 @@ class FakeAzure:
 class ConnectionStageTests(unittest.TestCase):
     def setUp(self):
         self.az = FakeAzure()
+
+    def test_stopped_exact_arm_app_never_writes_or_restarts(self):
+        for name, category in ((stage.FLEX, "ORIGINAL_FLEX_STOPPED"),
+                               (stage.Y1, "TARGET_Y1_STOPPED")):
+            az = FakeAzure()
+            resource = az._resource
+            def stopped(app):
+                row = resource(app)
+                if app == name:
+                    row["properties"]["state"] = "Stopped"
+                return row
+            with patch.object(az, "_resource", side_effect=stopped), \
+                    self.assertRaisesRegex(RuntimeError, category):
+                stage.run(apply=True, env={**ENV, "RGAI_Y1_CORE_CONNECTION_STAGE": stage.STAGE_CONFIRM},
+                          reader=az.read, writer=az.write)
+            self.assertEqual(az.writes, [])
 
     def test_flex_runtime_accepts_exact_nested_or_flattened_python_only(self):
         flat = {"functionAppConfig": {"runtime": {"name": "python"}}}

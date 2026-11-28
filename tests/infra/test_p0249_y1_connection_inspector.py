@@ -28,9 +28,10 @@ def fake_runner(overrides=None):
             payload={"name":tool.RG,"location":"centralindia",
                      "tags":{"app":"RetailGrowthAI","environment":"dev"}}
         else:
-            app=op[-1]
-            if op[:2]==("functionapp","show"):
-                payload={"name":app,"state":"Running",
+            app=op[op.index("-n")+1]
+            if op[:2]==("resource","show"):
+                assert op == tool.site_read_args(app)
+                payload={"name":app,"properties":{"state":"Running"},
                          "id":"/subscriptions/trusted-subscription/resourceGroups/"
                                +tool.RG+"/providers/Microsoft.Web/sites/"+app}
             elif op[:3]==("functionapp","config","appsettings"):
@@ -60,6 +61,26 @@ class ReadonlyY1ConnectionInspection(unittest.TestCase):
                   "AZURE_SUBSCRIPTION_ID":"trusted-subscription"})
         self.env.start()
         self.addCleanup(self.env.stop)
+
+    def test_exact_arm_state_nested_flattened_conflict_and_foreign_identity(self):
+        def site(state):
+            return {"name": tool.Y1,
+                    "id": "/subscriptions/trusted-subscription/resourceGroups/" + tool.RG
+                          + "/providers/Microsoft.Web/sites/" + tool.Y1,
+                    "properties": {"state": state}}
+        self.assertEqual(tool.exact_site_state(site("Running"), tool.Y1, "trusted-subscription"), "Running")
+        self.assertEqual(tool.exact_site_state(site("Stopped"), tool.Y1, "trusted-subscription"), "Stopped")
+        for candidate in ({**site("Running"), "state": "Stopped"},
+                          {**site("Running"), "properties": {}},
+                          {**site("Running"), "properties": {"state": "Unknown"}}):
+            with self.assertRaisesRegex(RuntimeError, "STATE_UNVERIFIED"):
+                tool.exact_site_state(candidate, tool.Y1, "trusted-subscription")
+        with self.assertRaisesRegex(RuntimeError, "IDENTITY_MISMATCH"):
+            tool.exact_site_state(site("Running"), tool.Y1, "foreign-subscription")
+        with self.assertRaises(ValueError):
+            tool.read_azure("resource", "show", "-g", tool.RG, "-n", "foreign",
+                            "--resource-type", "Microsoft.Web/sites", "--api-version", "2024-11-01",
+                            runner=fake_runner()[0])
 
     def test_correct_development_connections_never_leave_process(self):
         run,calls=fake_runner()
