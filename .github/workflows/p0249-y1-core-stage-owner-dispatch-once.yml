@@ -31,12 +31,12 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           verify_blob() { test "$(git rev-parse "HEAD:$1")" = "$2"; }
-          verify_blob .github/workflows/p0249-dev-y1-core-connections-protected.yml 71e0ad94d14d0cb6739feac550c7d16709e478d7
-          verify_blob ops/p0249-y1-cutover/stage_core_connections.py 96f97d52c4a4b8fe004e5f9862f3f61ca0fa7a5a
+          verify_blob .github/workflows/p0249-dev-y1-core-connections-protected.yml a5b495760d7970e098900035c901ff806f9ff81f
+          verify_blob ops/p0249-y1-cutover/stage_core_connections.py 92359f6f345eff2377adfab67f0caa7ef20a1900
           verify_blob ops/p0249-y1-cutover/inspect_azure_connections_readonly.py 219fc28e11b2c699a2db86f94d6d8b1f31054398
           verify_blob ops/p0249-y1-cutover/retirement_gate.py 81bfea93e2d67bde18f783e7f7232b3e43b985f6
           verify_blob ops/p0249_y1_canary_guard.py c01d2f6f2d4ff72f0e4fec6d4ea0ddceb35f882d
-          verify_blob tests/infra/test_p0249_y1_connection_stage.py c55efcc2037c9d23b1223bef3b8ff3bf82e70e73
+          verify_blob tests/infra/test_p0249_y1_connection_stage.py fce95706e3525e6a6ae2581ef1d382fb8a95501f
           verify_blob tests/infra/test_p0249_y1_reviewed_sha_workflows.py c15767d0e12b4ae26302341a91ac019393bbab20
           echo "P0249_OWNER_PINNED_ACTION_SOURCE_BYTES=PASS"
       - name: Require all four Part1 CI jobs on this exact main SHA
@@ -81,6 +81,8 @@ jobs:
           # Use target-specific history: refuse any prior stage attempt on this
           # exact revision, any successful stage, or any active stage.
           prior="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/p0249-dev-y1-core-connections-protected.yml/runs?event=workflow_dispatch&per_page=100")"
+          # Only one bounded retry after the exact previous read-only failure.
+          jq -e '.total_count == 1 and (.workflow_runs | length == 1) and .workflow_runs[0].id == 46119656466 and .workflow_runs[0].conclusion == "failure" and .workflow_runs[0].status == "completed"' <<< "$prior" >/dev/null
           blocked="$(jq -r --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha==$sha or .conclusion=="success" or .status!="completed")] | length' <<< "$prior")"
           test "$blocked" = "0" || { echo "::error::Stage already attempted, successful or active; refuse duplicate"; exit 2; }
           jq -nc --arg sha "$GITHUB_SHA" '{ref:"main",inputs:{confirm:"YES-P0249-RETAILGROWTHAI-DEV-Y1-MISSING-ONLY",reviewed_main_sha:$sha}}' |

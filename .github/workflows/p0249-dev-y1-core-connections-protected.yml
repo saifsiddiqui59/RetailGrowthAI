@@ -81,6 +81,20 @@ jobs:
           set -euo pipefail
           # A settings write can restart Y1; ARM index/readback is not HTTP proof.
           python3 ops/p0249_y1_canary_guard.py probe
+          # Fresh readback of every remaining GET handler after staging.
+          # Anonymous synthetic UUID only; no user JWT or customer content.
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0, "ops")
+          from p0249_y1_canary_guard import get
+          uid = "00000000-0000-4000-8000-000000000001"
+          paths = ("/api/campaigns/", "/api/render-jobs/", "/api/poster-jobs/", "/api/poster-drafts/")
+          for path in paths:
+              status, marked, seconds = get(path + uid, 18)
+              if status != 401 or not marked or seconds >= 18:
+                  raise SystemExit("P0249_Y1_POST_STAGE_FOUR_AUTH_GETS=BLOCKED")
+          print("P0249_Y1_POST_STAGE_FOUR_AUTH_GETS=4_OF_4_MARKED_401")
+          PY
           echo "P0249_Y1_POST_STAGE_HTTP=PASS"
           echo "P0249_Y1_ORIGINAL_FLEX_STOP=FORBIDDEN"
           echo "P0249_Y1_SWA_ROUTE_CUTOVER=NOT_PERFORMED"

@@ -3,11 +3,14 @@
 No Azure network, real credentials, user data, app configuration or cloud writes.
 """
 import importlib.util
+import contextlib
+import io
 import json
 import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 DIR = ROOT / "ops/p0249-y1-cutover"
@@ -127,6 +130,35 @@ class FakeAzure:
 class ConnectionStageTests(unittest.TestCase):
     def setUp(self):
         self.az = FakeAzure()
+
+    def test_flex_runtime_accepts_exact_nested_or_flattened_python_only(self):
+        flat = {"functionAppConfig": {"runtime": {"name": "python"}}}
+        nested = {"properties": flat}
+        self.assertTrue(stage._original_python(flat, {}))
+        self.assertTrue(stage._original_python(nested, {}))
+        self.assertFalse(stage._original_python(flat, {"FUNCTIONS_WORKER_RUNTIME": "node"}))
+        self.assertFalse(stage._original_python({}, {}))
+        self.assertFalse(stage._original_python({**flat, "properties": {"functionAppConfig":
+            {"runtime": {"name": "node"}}}}, {}))
+        with self.assertRaisesRegex(RuntimeError, "MALFORMED"):
+            stage._original_python({"functionAppConfig": "SENSITIVE"}, {})
+
+    def test_cli_failure_category_never_reflects_arbitrary_errors(self):
+        for error, label in (
+            (RuntimeError("FOREIGN_DEV_RESOURCE_GROUP"), "FOREIGN_DEV_RESOURCE_GROUP"),
+            (RuntimeError("AZURE_APPSETTINGS_SHAPE_INVALID"), "AZURE_APPSETTINGS_SHAPE_INVALID"),
+            (RuntimeError("SECRET?sig=PRIVATE"), "UNKNOWN_REDACTED"),
+            (ValueError("SECRET"), "UNKNOWN_REDACTED"),
+        ):
+            with self.subTest(label=label), patch.object(stage, "run", side_effect=error), \
+                    patch.object(sys, "argv", ["stage_core_connections.py"]), \
+                    contextlib.redirect_stderr(io.StringIO()) as output:
+                with self.assertRaises(SystemExit) as failure:
+                    stage.main()
+                self.assertEqual(failure.exception.code, 2)
+                self.assertIn("P0249_Y1_STAGE_FAILURE_CATEGORY=" + label, output.getvalue())
+                self.assertNotIn("SECRET", output.getvalue())
+                self.assertNotIn("PRIVATE", output.getvalue())
 
     def test_plan_is_read_only_and_only_allowlisted_missing_names(self):
         missing, values, missing_cors = stage.plan(env=ENV, runner=self.az.read)

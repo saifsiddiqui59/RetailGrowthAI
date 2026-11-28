@@ -33,6 +33,86 @@ FIVE = frozenset({
 })
 
 
+FAILURE_CATEGORIES = frozenset({
+    "AZURE_APPSETTINGS_SHAPE_INVALID",
+    "AZURE_INDEX_DUPLICATE_FUNCTION",
+    "AZURE_INDEX_FOREIGN_FUNCTION",
+    "AZURE_INDEX_SHAPE_INVALID",
+    "AZURE_INDEX_UNEXPECTED_FUNCTION_NAME",
+    "AZURE_INVENTORY_SHAPE_INVALID",
+    "AZURE_READ_ONLY_INVENTORY_FAILED",
+    "DEV_RESOURCE_GROUP_UNVERIFIED",
+    "EXISTING_Y1_CORE_SETTING_DRIFT",
+    "FOREIGN_DEV_RESOURCE_GROUP",
+    "FOREIGN_DEV_SUBSCRIPTION",
+    "FOREIGN_OR_STOPPED_APP",
+    "ORIGINAL_CORE_SETTING_ABSENT_OR_MALFORMED",
+    "ORIGINAL_FLEX_RUNTIME_UNVERIFIED",
+    "ORIGINAL_OR_TARGET_RUNTIME_UNVERIFIED",
+    "ORIGINAL_RUNTIME_CONFIG_MALFORMED",
+    "ORIGINAL_SUPABASE_URL_MISMATCH",
+    "PROTECTED_DEV_CORS_WRITE_FAILED",
+    "PROTECTED_DEV_STAGE_CONFIRMATION_REQUIRED",
+    "PROTECTED_DEV_STAGE_WRITE_FAILED",
+    "STAGED_CORE_CONNECTION_READBACK_MISMATCH",
+    "TARGET_Y1_HOST_STORAGE_ABSENT",
+    "TARGET_Y1_RUNTIME_UNVERIFIED",
+    "TRUSTED_DEV_MAIN_OIDC_REQUIRED",
+    "UNAPPROVED_AZURE_APPSETTING_COMMAND",
+    "UNAPPROVED_AZURE_CORS_COMMAND",
+    "UNAPPROVED_AZURE_FUNCTION_COMMAND",
+    "UNAPPROVED_AZURE_READ_COMMAND",
+    "UNAPPROVED_STAGED_SETTING",
+    "UNVERIFIED_CROSS_IDENTITY_SECRET_REFERENCE",
+    "Y1_FRONTEND_CORS_UNVERIFIED",
+    "Y1_NOT_EXACT_FIVE_GET_BASELINE",
+})
+
+
+def _failure_category(error):
+    """Reflect only known constant categories, never CLI output or exception text."""
+    if type(error) in (RuntimeError, ValueError) and len(error.args) == 1:
+        code = error.args[0]
+        if type(code) is str and code in FAILURE_CATEGORIES:
+            return code
+    if isinstance(error, subprocess.TimeoutExpired):
+        return "AZURE_COMMAND_TIMEOUT"
+    if isinstance(error, OSError):
+        return "AZURE_COMMAND_UNAVAILABLE"
+    return "UNKNOWN_REDACTED"
+
+
+def _checkpoint(name):
+    # Caller passes only source-defined labels, never Azure response values.
+    print("P0249_Y1_STAGE_CHECKPOINT=" + name, flush=True)
+
+
+def _original_python(site, settings):
+    """Read either ARM properties or the Azure CLI flattened resource shape.
+
+    Flex runtime is defined by functionAppConfig.runtime.name; the historical
+    FUNCTIONS_WORKER_RUNTIME setting may be absent. Conflicting nonempty
+    runtime declarations or malformed explicit config fail closed.
+    """
+    names = []
+    if "FUNCTIONS_WORKER_RUNTIME" in settings:
+        names.append(settings["FUNCTIONS_WORKER_RUNTIME"])
+    props = site.get("properties")
+    if props is not None and not isinstance(props, dict):
+        raise RuntimeError("ORIGINAL_RUNTIME_CONFIG_MALFORMED")
+    for parent in (site, props or {}):
+        config = parent.get("functionAppConfig")
+        if config is None:
+            continue
+        if not isinstance(config, dict):
+            raise RuntimeError("ORIGINAL_RUNTIME_CONFIG_MALFORMED")
+        runtime = config.get("runtime")
+        if not isinstance(runtime, dict) or not isinstance(runtime.get("name"), str):
+            raise RuntimeError("ORIGINAL_RUNTIME_CONFIG_MALFORMED")
+        names.append(runtime["name"])
+    return bool(names) and all(type(name) is str and name.lower() == "python" for name in names)
+
+
 def _required_scope(env):
     if (env.get("GITHUB_ACTIONS") != "true"
         or env.get("GITHUB_REPOSITORY") != REPO
@@ -56,13 +136,14 @@ def plan(*, env=None, runner=subprocess.run):
     env = os.environ if env is None else env
     subscription = _required_scope(env)
 
-    def az(*args):
+    def az(checkpoint, *args):
+        _checkpoint(checkpoint)
         return read_azure(*args, runner=runner)
 
-    account = az("account", "show")
+    account = az("ACCOUNT", "account", "show")
     if not isinstance(account, dict) or str(account.get("id", "")).lower() != subscription.lower():
         raise RuntimeError("FOREIGN_DEV_SUBSCRIPTION")
-    group = az("group", "show", "-g", RG)
+    group = az("RESOURCE_GROUP", "group", "show", "-g", RG)
     if not isinstance(group, dict):
         raise RuntimeError("DEV_RESOURCE_GROUP_UNVERIFIED")
     tags = {str(k).lower(): str(v).lower() for k,v in (group.get("tags") or {}).items()}
@@ -72,16 +153,16 @@ def plan(*, env=None, runner=subprocess.run):
         or tags.get("environment") != "dev"):
         raise RuntimeError("FOREIGN_DEV_RESOURCE_GROUP")
 
-    old = az("functionapp", "show", "-g", RG, "-n", FLEX)
-    target = az("functionapp", "show", "-g", RG, "-n", Y1)
+    old = az("ORIGINAL_FLEX_SITE", "functionapp", "show", "-g", RG, "-n", FLEX)
+    target = az("TARGET_Y1_SITE", "functionapp", "show", "-g", RG, "-n", Y1)
     if not _site_ok(old, FLEX, subscription) or not _site_ok(target, Y1, subscription):
         raise RuntimeError("FOREIGN_OR_STOPPED_APP")
     names = function_names(
-        az("functionapp", "function", "list", "-g", RG, "-n", Y1), Y1)
+        az("TARGET_Y1_INDEX", "functionapp", "function", "list", "-g", RG, "-n", Y1), Y1)
     if set(names) != FIVE:
         raise RuntimeError("Y1_NOT_EXACT_FIVE_GET_BASELINE")
 
-    cors = az("functionapp", "cors", "show", "-g", RG, "-n", Y1)
+    cors = az("TARGET_Y1_CORS", "functionapp", "cors", "show", "-g", RG, "-n", Y1)
     if (not isinstance(cors, dict)
         or cors.get("supportCredentials") is not False
         or not isinstance(cors.get("allowedOrigins"), list)
@@ -89,18 +170,20 @@ def plan(*, env=None, runner=subprocess.run):
                for origin in cors["allowedOrigins"])):
         raise RuntimeError("Y1_FRONTEND_CORS_UNVERIFIED")
 
-    source = safe_setting_map(az("functionapp", "config", "appsettings",
+    source = safe_setting_map(az("ORIGINAL_FLEX_SETTINGS", "functionapp", "config", "appsettings",
                                  "list", "-g", RG, "-n", FLEX))
-    existing = safe_setting_map(az("functionapp", "config", "appsettings",
+    existing = safe_setting_map(az("TARGET_Y1_SETTINGS", "functionapp", "config", "appsettings",
                                    "list", "-g", RG, "-n", Y1))
-    original_runtime = ((old.get("properties") or {}).get("functionAppConfig") or {}).get("runtime") or {}
-    original_is_python = (source.get("FUNCTIONS_WORKER_RUNTIME") == "python"
-                          or str(original_runtime.get("name", "")).lower() == "python")
-    if (source.get("RETAIL_SUPABASE_URL") != SUPABASE
-        or not original_is_python
-        or existing.get("FUNCTIONS_WORKER_RUNTIME") != "python"
-        or not existing.get("AzureWebJobsStorage")):
-        raise RuntimeError("ORIGINAL_OR_TARGET_RUNTIME_UNVERIFIED")
+    _checkpoint("CORE_RUNTIME_VALIDATION")
+    if source.get("RETAIL_SUPABASE_URL") != SUPABASE:
+        raise RuntimeError("ORIGINAL_SUPABASE_URL_MISMATCH")
+    if not _original_python(old, source):
+        raise RuntimeError("ORIGINAL_FLEX_RUNTIME_UNVERIFIED")
+    if existing.get("FUNCTIONS_WORKER_RUNTIME") != "python":
+        raise RuntimeError("TARGET_Y1_RUNTIME_UNVERIFIED")
+    if not existing.get("AzureWebJobsStorage"):
+        raise RuntimeError("TARGET_Y1_HOST_STORAGE_ABSENT")
+    _checkpoint("CORE_SETTING_VALIDATION")
     missing = []
     for key in CORE:
         value = source.get(key)
@@ -197,7 +280,8 @@ def main():
     opts = args.parse_args()
     try:
         run(apply=opts.apply)
-    except Exception:
+    except Exception as error:
+        print("P0249_Y1_STAGE_FAILURE_CATEGORY=" + _failure_category(error), file=sys.stderr)
         print("P0249_Y1_CORE_CONNECTION_STAGE=BLOCKED", file=sys.stderr)
         raise SystemExit(2)
 
