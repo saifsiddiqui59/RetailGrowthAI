@@ -34,7 +34,7 @@ ROUTES = (
 )
 ASSET = re.compile(r"/assets/[A-Za-z0-9_-]+-[A-Za-z0-9_-]+\.js")
 REFERENCES = re.compile(r"""['"](?:\./|/assets/|assets/)([A-Za-z0-9_-]+-[A-Za-z0-9_-]+\.js)['"]""")
-AZURE_ORIGIN = re.compile(r"https?://[A-Za-z0-9.-]+\.azurewebsites\.net(?=[/:?#'\x22\s]|$)", re.I)
+AZURE_ORIGIN = re.compile(r"(?<![A-Za-z0-9+.-])(?:https?:)?//[A-Za-z0-9.-]+\.azurewebsites\.net(?::[0-9]+)?(?=[/:?#'\x22\s]|$)", re.I)
 MAX_ASSETS = 128
 MAX_ASSET_BYTES = 8_000_000
 MAX_TOTAL_BYTES = 64_000_000
@@ -88,7 +88,10 @@ def verify(expected, read=fetch):
         html = read(route)
         if not isinstance(html, str):
             raise RuntimeError("SWA_INVALID_HTML")
-        total += len(html.encode("utf-8"))
+        html_bytes = len(html.encode("utf-8"))
+        total += html_bytes
+        if html_bytes > MAX_ASSET_BYTES or total > MAX_TOTAL_BYTES:
+            raise RuntimeError("SWA_ASSET_GRAPH_SIZE_LIMIT")
         parser = Scripts()
         parser.feed(html)
         entries = {p for p in parser.assets if ASSET.fullmatch(p)}

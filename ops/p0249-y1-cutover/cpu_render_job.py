@@ -127,7 +127,10 @@ def process_one(queue, admin, media, process, poison=None):
     if item is None:
         return "EMPTY"
     jid = canonical_job_id(item.content)
-    attempts = getattr(item, "dequeue_count", 1)
+    attempts = getattr(item, "dequeue_count", None)
+    if any(type(getattr(item, field, None)) is not str or not getattr(item, field).strip()
+           for field in ("id", "pop_receipt")):
+        raise RuntimeError("Untrusted queue delivery receipt")
     if type(attempts) is not int or not 1 <= attempts <= 1000:
         raise RuntimeError("Untrusted queue attempt counter")
     if attempts > MAX_DEQUEUE_COUNT:
@@ -166,6 +169,8 @@ def preflight(env):
         raise RuntimeError("Protected Y1 CPU worker handoff incomplete")
     if VISIBILITY_SECONDS <= CONTAINER_REPLICA_TIMEOUT_SECONDS:
         raise RuntimeError("Queue visibility must exceed complete CPU job lifetime")
+    if VISIBILITY_SECONDS <= DB_RENDER_CLAIM_LEASE_SECONDS:
+        raise RuntimeError("Queue visibility must exceed complete DB claim lifetime")
     if not 780 < CONTAINER_REPLICA_TIMEOUT_SECONDS < DB_RENDER_CLAIM_LEASE_SECONDS:
         raise RuntimeError("CPU replica must end before 25-minute DB claim expires")
     for key in ("RETAIL_STORAGE", "RETAIL_SUPABASE_SERVICE_ROLE_KEY"):

@@ -38,11 +38,18 @@ class ServedOriginProof(unittest.TestCase):
 
     def test_old_origin_in_lazy_chunk_or_foreign_origin_fails(self):
         for origin in (tool.FLEX, "https://other-app.azurewebsites.net",
-                       tool.Y1.replace("https://", "http://")):
+                       tool.Y1.replace("https://", "http://"), tool.Y1 + ":444",
+                       tool.FLEX.replace("https:", "")):
             graph = self.fixtures()
             graph["/assets/Video-efgh.js"] += 'const second="' + origin + '";'
             with self.subTest(origin=origin), self.assertRaisesRegex(RuntimeError, "ABSENT_MIXED_OR_FOREIGN"):
                 tool.verify(tool.Y1, graph.__getitem__)
+
+    def test_oversized_html_rejected_before_asset_reads(self):
+        graph = self.fixtures()
+        graph[tool.ROUTES[0]] += " " * tool.MAX_ASSET_BYTES
+        with self.assertRaisesRegex(RuntimeError, "SIZE_LIMIT"):
+            tool.verify(tool.Y1, graph.__getitem__)
 
     def test_missing_expected_origin_fails(self):
         graph = self.fixtures()
