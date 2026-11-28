@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 7,
+    "open_prs": 8,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 4,
+      "issue249": 5,
       "F4": 1
     }
   },
@@ -138,6 +138,23 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1146"
+    },
+    {
+      "pr": 1149,
+      "title": "fix(#249): validate explicit ARM CORS shape and redacted failure evidence",
+      "feature": "issue249",
+      "base_branch": "main",
+      "work_owner": "manual-issue249-core-stage-20261128",
+      "priority": "P0",
+      "phase": "test",
+      "checkpoint": {
+        "owner": "manual-issue249-core-stage-20261128",
+        "feature_done": false,
+        "ci": "New head CI pending; previous source artifact passed",
+        "next_action": "Verify exact-head CI and read-only diagnostic; no blind stage retry. Check existing protected Auth dispatch terminal before main changes. Obtain actual sanitized ARM/REST CORS shapes and connection classification."
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1149",
+      "head_sha": "753cce0871b1c456ae345ee508ec13905488b54a"
     }
   ],
   "last_inventory_checked_at": "2026-11-27T09:04:54Z"
