@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 3,
+    "open_prs": 4,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 1
+      "issue249": 2
     }
   },
   "entries": [
@@ -70,6 +70,23 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1135"
+    },
+    {
+      "pr": 1137,
+      "title": "ops(#249): owner-delegated Y1 core stage dispatch",
+      "feature": "issue249",
+      "head_sha": "9c355d06a994013e62622a8ac3b0175f0b319525",
+      "base_branch": "main",
+      "work_owner": "manual-issue249-core-stage-20261128",
+      "priority": "P0",
+      "phase": "test",
+      "checkpoint": {
+        "owner": "manual-issue249-core-stage-20261128",
+        "ci": "Exact-head CI #46119054395",
+        "next_action": "Review one-shot protected dispatch source pins, exact CI and actual target environment gates; verify run and retire bridge",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1137"
     }
   ],
   "last_inventory_checked_at": "2026-11-27T09:04:54Z"
