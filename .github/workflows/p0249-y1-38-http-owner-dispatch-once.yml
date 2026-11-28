@@ -34,7 +34,7 @@ jobs:
           verify_blob .github/workflows/p0249-dev-y1-five-to-38-http-protected.yml 5dba26d980bac2030353911be5f87af2a988003c
           verify_blob ops/p0249-y1-cutover/five_to_38_release.py 5314ca03a12a3febd053affb25ecb610863ef6f5
           verify_blob ops/p0249-y1-cutover/prepare_http_only.py 4305700f971a7dc86fd1322df5d46e5f732dfde8
-          verify_blob ops/p0249-y1-cutover/inspect_azure_connections_readonly.py 219fc28e11b2c699a2db86f94d6d8b1f31054398
+          verify_blob ops/p0249-y1-cutover/inspect_azure_connections_readonly.py 73a6a51f429f37a92c3ef01d81de0bd22393bfe2
           verify_blob ops/p0249-y1-cutover/retirement_gate.py 81bfea93e2d67bde18f783e7f7232b3e43b985f6
           verify_blob ops/p0249_y1_canary_guard.py c01d2f6f2d4ff72f0e4fec6d4ea0ddceb35f882d
           verify_blob ops/p0249_y1_remote_build_mode.py fc67d27105dedd2f06f39162f901fb39831246c5

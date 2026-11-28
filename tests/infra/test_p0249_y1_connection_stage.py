@@ -55,10 +55,10 @@ class FakeAzure:
 
     def _resource(self, name):
         return {
-            "name": name, "state": "Running",
+            "name": name,
             "id": ("/subscriptions/" + self.subscription + "/resourceGroups/"
                    + stage.RG + "/providers/Microsoft.Web/sites/" + name),
-            "properties": {"functionAppConfig": {"runtime": {"name": "python"}}},
+            "properties": {"state": "Running", "functionAppConfig": {"runtime": {"name": "python"}}},
         }
 
     def read(self, args, **kwargs):
@@ -70,15 +70,18 @@ class FakeAzure:
         elif self_args[:2] == ("group", "show"):
             data = {"name": stage.RG, "location": self.location,
                     "tags": {"app": "RetailGrowthAI", "environment": "dev"}}
+        elif self_args[:3] == ("resource", "show", "--ids"):
+            assert self_args == stage.cors_read_args(stage.Y1, self.subscription)
+            data = {"id": self_args[3], "properties": {"cors": {
+                "supportCredentials": False,
+                "allowedOrigins": [self.origin] if self.origin else []}}}
         else:
-            app = self_args[-1]
-            if self_args[:2] == ("functionapp", "show"):
+            app = self_args[self_args.index("-n")+1]
+            if self_args[:2] == ("resource", "show"):
+                assert self_args == stage.site_read_args(app)
                 data = self._resource(app)
             elif self_args[:3] == ("functionapp", "function", "list"):
                 data = [{"name": stage.Y1 + "/" + n} for n in sorted(self.routes)]
-            elif self_args[:3] == ("functionapp", "cors", "show"):
-                data = {"supportCredentials": False,
-                        "allowedOrigins": [self.origin] if self.origin else []}
             elif self_args[:3] == ("functionapp", "config", "appsettings"):
                 obj = self.original if app == stage.FLEX else self.target
                 data = [{"name": n, "value": v} for n, v in obj.items()]
@@ -130,6 +133,22 @@ class FakeAzure:
 class ConnectionStageTests(unittest.TestCase):
     def setUp(self):
         self.az = FakeAzure()
+
+    def test_stopped_exact_arm_app_never_writes_or_restarts(self):
+        for name, category in ((stage.FLEX, "ORIGINAL_FLEX_STOPPED"),
+                               (stage.Y1, "TARGET_Y1_STOPPED")):
+            az = FakeAzure()
+            resource = az._resource
+            def stopped(app):
+                row = resource(app)
+                if app == name:
+                    row["properties"]["state"] = "Stopped"
+                return row
+            with patch.object(az, "_resource", side_effect=stopped), \
+                    self.assertRaisesRegex(RuntimeError, category):
+                stage.run(apply=True, env={**ENV, "RGAI_Y1_CORE_CONNECTION_STAGE": stage.STAGE_CONFIRM},
+                          reader=az.read, writer=az.write)
+            self.assertEqual(az.writes, [])
 
     def test_flex_runtime_accepts_exact_nested_or_flattened_python_only(self):
         flat = {"functionAppConfig": {"runtime": {"name": "python"}}}
@@ -210,6 +229,19 @@ class ConnectionStageTests(unittest.TestCase):
             az.origin = origin
             with self.subTest(origin=origin), self.assertRaisesRegex(RuntimeError, "CORS"):
                 stage.plan(env=ENV, runner=az.read)
+            self.assertEqual(az.writes, [])
+
+    def test_arm_cors_unknown_or_foreign_is_never_treated_as_empty(self):
+        for bad in (None, {}, {"id": "/foreign", "properties": {"cors": {
+                "supportCredentials": False, "allowedOrigins": []}}}):
+            az = FakeAzure()
+            def malformed(args, **kwargs):
+                if tuple(args[1:4]) == ("resource", "show", "--ids"):
+                    return SimpleNamespace(returncode=0, stdout=json.dumps(bad), stderr="")
+                return az.read(args, **kwargs)
+            with self.subTest(bad=bad), self.assertRaises(RuntimeError):
+                stage.run(apply=True, env={**ENV, "RGAI_Y1_CORE_CONNECTION_STAGE": stage.STAGE_CONFIRM},
+                          reader=malformed, writer=az.write)
             self.assertEqual(az.writes, [])
 
     def test_missing_exact_frontend_cors_is_staged_without_wildcard(self):
