@@ -1,0 +1,147 @@
+name: RetailGrowthAI DEV mobile retailer approval frontend release
+# One-shot existing-resource upload only when merged on main with explicit
+# reviewed squash title. No manual dispatch and no PR credentials.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/retail-dev-mobile-approval-swa-once.yml'
+permissions:
+  contents: read
+concurrency:
+  group: rgai-dev-free-swa-ui-release
+  cancel-in-progress: false
+jobs:
+  existing_swa_only:
+    if: "github.repository == 'saifsiddiqui59/RetailGrowthAI' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release(dev): mobile retailer approval Free SWA')"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RG: rg-retailgrowth-dev
+      SWA: retailgrowthai-dev-preview
+      AZ_SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Require reviewed exact frontend tree and main CI
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD:frontend)" = 9241dff57b1c95d895be735e39a774284c9c065d
+          accepted=false
+          for attempt in $(seq 1 100); do
+            runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&event=push&per_page=40")"
+            run_id="$(jq -r --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha==$sha and .name=="RetailGrowthAI Part 1 CI")] | sort_by(.created_at) | last | .id // empty' <<< "$runs")"
+            if [ -n "$run_id" ] && [ "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .status)" = completed ]; then
+              test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .conclusion)" = success
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" | jq -e '
+                [.jobs[] | select(.name=="Python / uv + campaign contract tests" or
+                  .name=="Supabase isolation + authentication client tests" or
+                  .name=="Frontend build + contract tests" or
+                  .name=="FFmpeg codecs + renderer tests") | .conclusion]
+                | length==4 and all(.[]; .=="success")' >/dev/null
+              accepted=true
+              break
+            fi
+            sleep 15
+          done
+          test "$accepted" = true
+          test "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)" = "$GITHUB_SHA"
+          echo 'MOBILE_APPROVAL_REVIEWED_MAIN_CI=4_OF_4'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Compile and contract-test original frontend without privileged keys
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq 'grid-template-columns:minmax(0,1fr);gap:12px' src/features/platform/platform-operations.css
+          grep -Fq 'Tick the confirmation above to enable Approve and Reject.' src/features/platform/PlatformAdmin.jsx
+          grep -Fxq 'VITE_SUPABASE_URL=https://jeearzffnjbvghwjjjrf.supabase.co' .env.production
+          grep -Fxq 'VITE_CAMPAIGN_API_BASE_URL=https://rgai-dev-functions-d4e5ddbd.azurewebsites.net' .env.production
+          if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+          npm test
+          npm run build
+          test -s dist/index.html
+          test -s dist/staticwebapp.config.json
+          grep -FRq 'Tick the confirmation above to enable Approve and Reject.' dist/assets/
+          grep -FRq '.platform-review-confirm' dist/assets/
+          grep -FRq 'https://rgai-dev-functions-d4e5ddbd.azurewebsites.net' dist/assets/
+          if grep -FRq 'https://rgai-dev-y1-p0249-d4e5ddbd.azurewebsites.net' dist/assets/; then exit 4; fi
+          if grep -REq 'sb_secret_|RETAIL_SUPABASE_SERVICE_ROLE_KEY|RETAIL_FOUNDRY_API_KEY' dist; then
+            echo '::error::Unexpected privileged key marker in public artifact'; exit 3
+          fi
+          echo 'PASS: mobile approval present in reviewed public-only build'
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Check dedicated pre-existing Central India tagged resource group and Free SWA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AZ_SUB"
+          test "$(az account show --query id -o tsv)" = "$AZ_SUB"
+          az group show -g "$RG" -o json > "$RUNNER_TEMP/rg.json"
+          python3 - "$RUNNER_TEMP/rg.json" <<'PY'
+          import json,sys
+          g=json.load(open(sys.argv[1]))
+          tags={k.lower():str(v).lower() for k,v in (g.get('tags') or {}).items()}
+          assert g['name']=='rg-retailgrowth-dev'
+          assert g['location'].replace(' ','').lower()=='centralindia'
+          assert tags.get('app')=='retailgrowthai' and tags.get('environment')=='dev'
+          PY
+          az staticwebapp show -g "$RG" -n "$SWA" -o json > "$RUNNER_TEMP/swa.json"
+          python3 - "$RUNNER_TEMP/swa.json" <<'PY'
+          import json,sys
+          s=json.load(open(sys.argv[1]))
+          assert s['name']=='retailgrowthai-dev-preview'
+          assert s['defaultHostname']=='purple-dune-06b5da200.2.azurestaticapps.net'
+          assert s['sku']['name'].lower()=='free'
+          PY
+          echo 'PASS: same exact existing Free SWA only; no resource creates or tier changes'
+      - name: Check current main and live frontend API before upload
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)" = "$GITHUB_SHA"
+          python3 scripts/deploy/verify_mobile_approval_swa.py --before
+      - name: Obtain existing SWA upload credential transiently and mask it
+        id: token
+        shell: bash
+        run: |
+          set -euo pipefail
+          key="$(az staticwebapp secrets list -g "$RG" -n "$SWA" --query 'properties.apiKey' -o tsv)"
+          test -n "$key"
+          echo "::add-mask::$key"
+          echo "value=$key" >> "$GITHUB_OUTPUT"
+      - uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9
+        with:
+          azure_static_web_apps_api_token: ${{ steps.token.outputs.value }}
+          action: upload
+          app_location: frontend/dist
+          api_location: ''
+          output_location: ''
+          skip_app_build: true
+          production_branch: main
+      - name: Verify actual served hashed mobile approval assets and unchanged API origin
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/deploy/verify_mobile_approval_swa.py --after --dist frontend/dist
+          echo "MOBILE_APPROVAL_LIVE_ASSETS=PASS source_sha=$GITHUB_SHA"
+      - name: Clear Azure session
+        if: always()
+        run: az logout >/dev/null 2>&1 || true
