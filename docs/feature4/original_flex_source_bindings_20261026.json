@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "historical_source_sha": "5e3f1e3723635dd030051a9ff90e635633030dcf",
+  "historical_function_app_blob": "ef48d0156971530a58a1aa7eed82d14f0ccb5480",
+  "historical_deploy_run": 40344626026,
+  "legacy_bindings": {
+    "create_campaign": "app.route(route=\"campaigns\", methods=[\"POST\"])",
+    "read_campaign": "app.route(route=\"campaigns/{campaign_id}\", methods=[\"GET\"])",
+    "create_poster_draft": "app.route(route=\"campaigns/{campaign_id}/posters\", methods=[\"POST\"])",
+    "list_saved_posters": "app.route(route=\"campaigns/{campaign_id}/days/{day_id}/posters\", methods=[\"GET\"])",
+    "get_poster_draft": "app.route(route=\"poster-drafts/{draft_id}\", methods=[\"GET\"])",
+    "select_poster_banner": "app.route(route=\"poster-drafts/{draft_id}/select\", methods=[\"POST\"])",
+    "request_poster_render": "app.route(route=\"poster-drafts/{draft_id}/renders\", methods=[\"POST\"])",
+    "read_poster_render": "app.route(route=\"poster-jobs/{job_id}\", methods=[\"GET\"])",
+    "download_poster_render": "app.route(route=\"poster-jobs/{job_id}/download\", methods=[\"GET\"])",
+    "plan_campaign": "app.queue_trigger(arg_name=\"message\", queue_name=\"retail-campaign-planning\", connection=\"RETAIL_STORAGE\")",
+    "save_campaign_day": "app.route(route=\"campaigns/{campaign_id}/days/{day_id}\", methods=[\"PATCH\"])",
+    "create_render": "app.route(route=\"campaigns/{campaign_id}/renders\", methods=[\"POST\"])",
+    "get_render": "app.route(route=\"render-jobs/{job_id}\", methods=[\"GET\"])",
+    "get_render_download": "app.route(route=\"render-jobs/{job_id}/download\", methods=[\"GET\"])",
+    "render_campaign_reel": "app.queue_trigger(arg_name=\"message\", queue_name=\"retail-reel-render\", connection=\"RETAIL_STORAGE\")",
+    "recover_stale_jobs": "app.timer_trigger(schedule=\"0 */2 * * * *\", arg_name=\"timer\", run_on_startup=False, use_monitor=True)",
+    "planning_poison": "app.queue_trigger(arg_name=\"message\", queue_name=\"retail-campaign-planning-poison\", connection=\"RETAIL_STORAGE\")",
+    "render_poison": "app.queue_trigger(arg_name=\"message\", queue_name=\"retail-reel-render-poison\", connection=\"RETAIL_STORAGE\")",
+    "dispatch_onboarding_emails": "app.timer_trigger(schedule=\"0 */10 * * * *\", arg_name=\"timer\", run_on_startup=False, use_monitor=True)",
+    "dispatch_pending_posters": "app.timer_trigger(schedule=\"0 */2 * * * *\", arg_name=\"timer\", run_on_startup=False, use_monitor=True)",
+    "render_campaign_poster": "app.queue_trigger(arg_name=\"message\", queue_name=\"retail-poster-render\", connection=\"RETAIL_STORAGE\")",
+    "get_retailer_trends": "app.route(route=\"shops/{shop_id}/trend-recommendations\", methods=[\"GET\"])",
+    "create_retailer_trend_draft": "app.route(route=\"shops/{shop_id}/content-drafts\", methods=[\"GET\", \"POST\"])",
+    "feature2_collect_india_trends": "app.timer_trigger(schedule=\"0 15 5 * * *\", arg_name=\"timer\", run_on_startup=False, use_monitor=True)"
+  },
+  "required_feature4_http_bindings": {
+    "create_feature4_render": "app.route(route=\"campaigns/{campaign_id}/feature4-renders\", methods=[\"POST\"])",
+    "get_feature4_render": "app.route(route=\"feature4-render-jobs/{job_id}\", methods=[\"GET\"])",
+    "download_feature4_render": "app.route(route=\"feature4-render-jobs/{job_id}/download\", methods=[\"GET\"])",
+    "issue_feature4_creative_plan": "app.route(route=\"campaigns/{campaign_id}/feature4-plans\", methods=[\"POST\"])",
+    "read_feature4_creative_plan": "app.route(route=\"feature4-creative-plans/{plan_id}\", methods=[\"GET\"])",
+    "review_feature4_creative_plan": "app.route(route=\"feature4-creative-plans/{plan_id}/review\", methods=[\"POST\"])",
+    "revoke_feature4_creative_plan": "app.route(route=\"feature4-creative-plans/{plan_id}/revoke\", methods=[\"POST\"])"
+  },
+  "scope": "Static direct app decorators only; no live index, rollback, settings, deployment or worker-ownership proof."
+}
