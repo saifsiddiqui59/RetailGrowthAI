@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 7,
+    "open_prs": 8,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 4,
+      "issue249": 5,
       "F4": 1
     }
   },
@@ -96,11 +96,11 @@
       "feature": "issue249",
       "base_branch": "main",
       "priority": "P1",
-      "phase": "test",
+      "phase": "review",
       "checkpoint": {
         "owner": "manual-issue249-worker-handoff-20261128",
-        "ci": "Previous head #46121979376 3/4: static worker lease guard regression; retained both old replica guard and stricter DB lease guard, new head CI pending",
-        "next_action": "Verify new exact-head CI, no worker activation before full HTTP/index and exclusive ownership.",
+        "ci": "Exact-head #46122436960 4/4, offline artifact #46122437000 PASS",
+        "next_action": "Source tests green; defer merge/worker activation while core release pins are active.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1143"
@@ -138,6 +138,23 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1146"
+    },
+    {
+      "pr": 1147,
+      "title": "ops(#249): bounded protected core dispatch after exact CORS fix",
+      "feature": "issue249",
+      "head_sha": "741be007d1871b3bc37abde800eb77c00761a017",
+      "base_branch": "main",
+      "work_owner": "manual-issue249-core-stage-20261128",
+      "priority": "P0",
+      "phase": "test",
+      "checkpoint": {
+        "owner": "manual-issue249-core-stage-20261128",
+        "ci": "Pending exact-head CI",
+        "next_action": "Review pins, prior terminal prewrite proof, latest main 4/4; merge with exact launcher title only then observe protected target.",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1147"
     }
   ],
   "last_inventory_checked_at": "2026-11-27T09:04:54Z"
