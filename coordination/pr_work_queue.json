@@ -13,12 +13,12 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 9,
+    "open_prs": 8,
     "by_feature": {
       "unclassified": 2,
       "issue249": 4,
       "F4": 1,
-      "F1": 2
+      "F1": 1
     }
   },
   "entries": [
@@ -136,7 +136,7 @@
       "checkpoint": {
         "owner": "manual-integration-chat-f2f4",
         "ci": "Candidate CI pending",
-        "next_action": "Wait for #1152 and #1146 accepted main, active Y1 dispatcher/release complete; verify exact frontend tree and original live origin then protected DEV release. If Y1 cutover has happened, abort and reconcile with cutover owner rather than republish old origin.",
+        "next_action": "Do not dispatch competing mobile release: #1155 merged 87643059; inspect actual protected release first, reconcile/close duplicate only after proven hosted result.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1153"
@@ -157,29 +157,6 @@
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1154",
       "head_sha": "ea7d71b04550aa7926149433d8d573d9377ab730"
-    },
-    {
-      "pr": 1155,
-      "title": "fix(dev): distinguish defensive secret-prefix checks from leaked credentials",
-      "feature": "F1",
-      "head_sha": "49e58c891fc42082132218897d0a7a1257958f18",
-      "base_branch": "main",
-      "work_owner": "manual-integration",
-      "priority": "P0",
-      "phase": "review",
-      "checkpoint": {
-        "owner": "manual-integration-chat-f2f4",
-        "ci": "Exact-head #46134543617 4/4 plus #46134543701 actual offline artifact PASS",
-        "next_action": "Merge after source review, guarded protected DEV release and actual served-byte proof",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1155",
-      "claim": {
-        "owner": "manual-integration-chat-f2f4",
-        "head_sha": "49e58c891fc42082132218897d0a7a1257958f18",
-        "claimed_at": "2026-11-28T11:52:59.577Z",
-        "expires_at": "2026-11-28T13:22:59.577Z"
-      }
     }
   ],
   "last_inventory_checked_at": "2026-11-27T09:04:54Z"
