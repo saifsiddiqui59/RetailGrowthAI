@@ -13,11 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 5,
+    "open_prs": 4,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 2,
-      "feature4": 1
+      "issue249": 2
     }
   },
   "entries": [
@@ -88,23 +87,6 @@
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1159",
       "head_sha": "36f225ab4403341e3a7f22bd11155be09a44b49c"
-    },
-    {
-      "pr": 1160,
-      "title": "fix(F4): unblock exact deployed DEV hostname in hosted test harness",
-      "feature": "feature4",
-      "head_sha": "3ec9f919a5c09463b69fa66be529bdfe19218da3",
-      "base_branch": "main",
-      "work_owner": "manual-f2-f4-retained-media-20261129",
-      "priority": "P0",
-      "phase": "review",
-      "checkpoint": {
-        "owner": "manual-f2-f4-retained-media-20261129",
-        "ci": "Exact head #46182441812 4/4 verified",
-        "next_action": "Review and serialized merge; no hosted actions",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1160"
     }
   ],
   "last_inventory_checked_at": "2026-11-28T19:00:00Z"
