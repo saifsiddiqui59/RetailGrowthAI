@@ -18,7 +18,7 @@ import tempfile
 
 from inspect_azure_connections_readonly import (read_azure, safe_setting_map, function_names,
                                                 site_read_args, exact_site_state,
-                                                cors_read_args, exact_cors)
+                                                cors_read_args, cors_resource_id, exact_cors)
 from retirement_gate import RG, Y1, FLEX, FRONTEND, SUPABASE
 
 REPO = "saifsiddiqui59/RetailGrowthAI"
@@ -39,6 +39,8 @@ FAILURE_CATEGORIES = frozenset({
     "AZURE_APPSETTINGS_SHAPE_INVALID",
     "AZURE_CORS_RESOURCE_IDENTITY_MISMATCH",
     "AZURE_CORS_SHAPE_INVALID",
+    "Y1_NULL_CORS_NOT_CORROBORATED",
+    "Y1_CORS_CHANGED_BEFORE_WRITE",
     "AZURE_CORS_PROPERTIES_NOT_OBJECT",
     "AZURE_CORS_VALUE_NOT_OBJECT",
     "AZURE_CORS_ORIGINS_INVALID",
@@ -138,6 +140,44 @@ def _required_scope(env):
     return env["AZURE_SUBSCRIPTION_ID"]
 
 
+def _exact_null_cors(config, subscription):
+    # Explicit null at the exact ARM resource is not an empty allowlist.
+    # Only this observed, corroborated state permits scoped initialization.
+    rid = cors_resource_id(Y1, subscription)
+    return (isinstance(config, dict) and isinstance(config.get("id"), str)
+            and config["id"].lower() == rid.lower()
+            and "cors" not in config and isinstance(config.get("properties"), dict)
+            and "cors" in config["properties"] and config["properties"]["cors"] is None)
+
+
+def _null_cors_rest(subscription, runner):
+    # Fixed GET URL, derived only from the already verified DEV subscription.
+    url = "https://management.azure.com" + cors_resource_id(Y1, subscription) + "?api-version=2024-11-01"
+    response = runner(("az", "rest", "--method", "get", "--uri", url, "--output", "json"),
+                      text=True, capture_output=True, timeout=35, check=False)
+    if response.returncode != 0 or len(response.stdout) > 2_000_000:
+        raise RuntimeError("Y1_NULL_CORS_NOT_CORROBORATED")
+    try:
+        return json.loads(response.stdout)
+    except ValueError:
+        raise RuntimeError("Y1_NULL_CORS_NOT_CORROBORATED") from None
+
+
+def _stage_cors_state(subscription, runner):
+    config = read_azure(*cors_read_args(Y1, subscription), runner=runner)
+    if _exact_null_cors(config, subscription):
+        if not _exact_null_cors(_null_cors_rest(subscription, runner), subscription):
+            raise RuntimeError("Y1_NULL_CORS_NOT_CORROBORATED")
+        # Distinct sentinel; do not represent null as an empty allowedOrigins list.
+        return "INITIALIZE"
+    cors = exact_cors(config, Y1, subscription)
+    if (cors["supportCredentials"] is not False
+        or any(origin not in (FRONTEND, "https://portal.azure.com")
+               for origin in cors["allowedOrigins"])):
+        raise RuntimeError("Y1_FRONTEND_CORS_UNVERIFIED")
+    return "ADD" if FRONTEND not in cors["allowedOrigins"] else None
+
+
 def plan(*, env=None, runner=subprocess.run):
     env = os.environ if env is None else env
     subscription = _required_scope(env)
@@ -174,14 +214,8 @@ def plan(*, env=None, runner=subprocess.run):
     if set(names) != FIVE:
         raise RuntimeError("Y1_NOT_EXACT_FIVE_GET_BASELINE")
 
-    cors = exact_cors(az("TARGET_Y1_ARM_CORS", *cors_read_args(Y1, subscription)),
-                      Y1, subscription)
-    if (not isinstance(cors, dict)
-        or cors.get("supportCredentials") is not False
-        or not isinstance(cors.get("allowedOrigins"), list)
-        or any(origin not in (FRONTEND, "https://portal.azure.com")
-               for origin in cors["allowedOrigins"])):
-        raise RuntimeError("Y1_FRONTEND_CORS_UNVERIFIED")
+    _checkpoint("TARGET_Y1_ARM_CORS")
+    cors_mode = _stage_cors_state(subscription, runner)
 
     source = safe_setting_map(az("ORIGINAL_FLEX_SETTINGS", "functionapp", "config", "appsettings",
                                  "list", "-g", RG, "-n", FLEX))
@@ -211,7 +245,7 @@ def plan(*, env=None, runner=subprocess.run):
             raise RuntimeError("EXISTING_Y1_CORE_SETTING_DRIFT")
     # No mutation or source credentials are returned to an ordinary caller.
     return (tuple(missing), {name: source[name] for name in missing},
-            FRONTEND not in cors["allowedOrigins"])
+            cors_mode)
 
 
 def _write_cors(*, runner=subprocess.run):
@@ -219,6 +253,19 @@ def _write_cors(*, runner=subprocess.run):
     argv = ["az", "functionapp", "cors", "add", "-g", RG, "-n", Y1,
             "--allowed-origins", FRONTEND, "-o", "none", "--only-show-errors"]
     outcome = runner(argv, capture_output=True, text=True, timeout=90, check=False)
+    if outcome.returncode != 0:
+        raise RuntimeError("PROTECTED_DEV_CORS_WRITE_FAILED")
+
+
+def _initialize_null_cors(subscription, *, runner=subprocess.run):
+    # PATCH just the CORS property, never replace the whole site config.
+    # Microsoft.Web/sites/config Update Configuration API. No secret values.
+    url = "https://management.azure.com" + cors_resource_id(Y1, subscription) + "?api-version=2024-11-01"
+    body = json.dumps({"properties": {"cors": {"allowedOrigins": [FRONTEND],
+                                               "supportCredentials": False}}})
+    outcome = runner(["az", "rest", "--method", "patch", "--uri", url,
+                      "--body", body, "-o", "none", "--only-show-errors"],
+                     capture_output=True, text=True, timeout=90, check=False)
     if outcome.returncode != 0:
         raise RuntimeError("PROTECTED_DEV_CORS_WRITE_FAILED")
 
@@ -264,7 +311,8 @@ def run(*, apply=False, env=None, reader=subprocess.run, writer=subprocess.run):
         print("P0249_Y1_MISSING_CORE_SETTING=" + name)
     print("P0249_Y1_CONNECTION_STAGE_PLAN=" +
           ("MISSING_" + str(len(missing)) if missing else "ALREADY_MATCHING"))
-    print("P0249_Y1_MISSING_FRONTEND_CORS=" + str(missing_cors).lower())
+    print("P0249_Y1_MISSING_FRONTEND_CORS=" + str(bool(missing_cors)).lower())
+    print("P0249_Y1_CORS_ACTION=" + (missing_cors or "NONE"))
     if not apply:
         print("P0249_Y1_CORE_CONNECTION_STAGE=READ_ONLY")
         return missing
@@ -276,7 +324,14 @@ def run(*, apply=False, env=None, reader=subprocess.run, writer=subprocess.run):
     # the next protected run can safely read back and resume without overwrite.
     _write_missing(values, runner=writer)
     if missing_cors:
-        _write_cors(runner=writer)
+        # Re-read immediately before the scoped CORS mutation. Refuse drift.
+        subscription = _required_scope(env)
+        if _stage_cors_state(subscription, reader) != missing_cors:
+            raise RuntimeError("Y1_CORS_CHANGED_BEFORE_WRITE")
+        if missing_cors == "INITIALIZE":
+            _initialize_null_cors(subscription, runner=writer)
+        else:
+            _write_cors(runner=writer)
     after, _, after_cors = plan(env=env, runner=reader)
     if after or after_cors:
         raise RuntimeError("STAGED_CORE_CONNECTION_READBACK_MISMATCH")
