@@ -66,7 +66,7 @@
       "phase": "blocked",
       "checkpoint": {
         "owner": "manual-issue249-core-stage-20261128",
-        "next_action": "Draft; await actual Task 1 protected stage success on #1141 merge 80ae3e1b3df3795b9983661db4612c6568480f0f; repin inspector and exact successful stage baseline before review.",
+        "next_action": "Task 1 attempt #46121975540 denied prewrite at CORS; #1145 source merged 8382d06964da99cd7383cc115b9c8a92a86f087d. Await protected successful Task 1 live evidence; repin all exact source and baseline before 38 release.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1140"
@@ -123,21 +123,21 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1144"
     },
     {
-      "pr": 1145,
-      "title": "fix(#249): read exact ARM site configuration for CORS inventory",
+      "pr": 1146,
+      "title": "test(#249): verify actual served DEV frontend API origin and rollback",
       "feature": "issue249",
-      "head_sha": "d8d5007cbf536381d56523cef56cf19ecf4ffe72",
+      "head_sha": "6162bef60e9f74583eaba947faa1d9ffa156c78a",
       "base_branch": "main",
-      "work_owner": "manual-issue249-core-stage-20261128",
-      "priority": "P0",
+      "work_owner": "manual-issue249-retirement-20261128",
+      "priority": "P1",
       "phase": "test",
       "checkpoint": {
-        "owner": "manual-issue249-core-stage-20261128",
-        "ci": "Pending",
-        "next_action": "Verify exact ARM CORS source/CI; previous bounded deployment retry exhausted; no automatic fourth attempt.",
+        "owner": "manual-issue249-retirement-20261128",
+        "ci": "Exact-head #46122609507 queued at checkpoint",
+        "next_action": "Verify source CI and actual public route graph only after protected cutover readiness; no deployment or signed runtime claim.",
         "feature_done": false
       },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1145"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1146"
     }
   ],
   "last_inventory_checked_at": "2026-11-27T09:04:54Z"
