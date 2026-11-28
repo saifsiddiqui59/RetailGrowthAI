@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 7,
+    "open_prs": 8,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 3,
+      "issue249": 4,
       "F4": 1,
       "F1": 1
     }
@@ -140,6 +140,23 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1153"
+    },
+    {
+      "pr": 1154,
+      "title": "fix(#249): self-contained Y1 HTTP package and isolated real SDK indexing",
+      "feature": "issue249",
+      "work_owner": "manual-issue249-core-stage-20261128",
+      "base_branch": "main",
+      "priority": "P0",
+      "phase": "test",
+      "checkpoint": {
+        "owner": "manual-issue249-core-stage-20261128",
+        "feature_done": false,
+        "ci": "Fresh exact-head CI and offline vendored artifact",
+        "next_action": "Require real SDK 38 HTTP index and wheel provenance. Prior release #46131245955 failed indexing; both rollback jobs passed. No blind redeploy."
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1154",
+      "head_sha": "ea7d71b04550aa7926149433d8d573d9377ab730"
     }
   ],
   "last_inventory_checked_at": "2026-11-27T09:04:54Z"
