@@ -1,0 +1,48 @@
+name: RetailGrowthAI F4 seven hosted HTTP routes (anonymous acceptance only)
+# No Azure login, secrets, deployment, environment changes, or signed requests.
+# Automatically verify F4 route availability after the already-owned Y1
+# 38-route protected release succeeds. Manual read-only probes are also allowed.
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Fixed RetailGrowthAI DEV host
+        required: true
+        type: choice
+        options: [original-flex, isolated-y1]
+  workflow_run:
+    workflows: ["RetailGrowthAI #249 Y1 five-to-38 HTTP DEV release (protected + rollback)"]
+    types: [completed]
+permissions:
+  contents: read
+concurrency:
+  group: rgai-f4-seven-http-acceptance
+  cancel-in-progress: false
+jobs:
+  probe:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'workflow_dispatch' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      PROBE_TARGET: ${{ github.event_name == 'workflow_run' && 'isolated-y1' || inputs.target }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify F4 probe contract offline before touching host
+        run: python3 -m unittest discover -s tests/infra -p test_feature4_hosted_route_probe.py -v
+      - name: Require seven real handler-marked 401 responses
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$PROBE_TARGET" in original-flex|isolated-y1) ;; *) exit 2;; esac
+          python3 scripts/deploy/probe_feature4_hosted_routes.py --target "$PROBE_TARGET"
+          echo 'F4 hosted route anonymous boundary 7/7; signed campaign/render and MP4 acceptance are separate.' >> "$GITHUB_STEP_SUMMARY"
