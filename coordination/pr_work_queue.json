@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 5,
+    "open_prs": 4,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 3
+      "issue249": 2
     }
   },
   "entries": [
@@ -72,23 +72,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1135"
     },
     {
-      "pr": 1141,
-      "title": "fix(#249): verify exact ARM site identity and running state before staging",
-      "feature": "issue249",
-      "head_sha": "1c9bd3ee152dcb7d5b420633c79c7fa26c07f790",
-      "base_branch": "main",
-      "work_owner": "manual-issue249-core-stage-20261128",
-      "priority": "P0",
-      "phase": "test",
-      "checkpoint": {
-        "owner": "manual-issue249-core-stage-20261128",
-        "ci": "[{\"id\":46121033509,\"name\":\"RetailGrowthAI #249 Y1 38-route HTTP source artifact (NO Azure release)\",\"status\":\"in_progress\",\"conclusion\":null},{\"id\":46121033512,\"name\":\"RetailGrowthAI Part 1 CI\",\"status\":\"in_progress\",\"conclusion\":null}]",
-        "next_action": "Final bounded retry, both exact prior failed run IDs, 4/4 and protected target; do not start/stop either app",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1141"
-    },
-    {
       "pr": 1140,
       "title": "ops(#249): owner-delegated Y1 38 HTTP dispatch",
       "feature": "issue249",
@@ -99,7 +82,7 @@
       "phase": "blocked",
       "checkpoint": {
         "owner": "manual-issue249-core-stage-20261128",
-        "next_action": "Draft; do not merge until live Task 1 success; repin stage proof and inspector SHA",
+        "next_action": "Draft; await actual Task 1 protected stage success on #1141 merge 80ae3e1b3df3795b9983661db4612c6568480f0f; repin inspector and exact successful stage baseline before review.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1140"
