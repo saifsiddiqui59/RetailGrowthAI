@@ -1,0 +1,87 @@
+name: RetailGrowthAI one-shot owner-delegated DEV reusable fixture dispatch
+# Explicit owner-requested dispatch bridge only; never access Auth Admin or
+# Azure credentials here. The existing manually dispatched target retains
+# its protected dev environment and exact reusable fixture mode/cleanup guards.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/retail-dev-f4-reusable-owner-dispatch-once.yml"
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: rgai-dev-reusable-fixture-owner-delegated-once
+  cancel-in-progress: false
+jobs:
+  dispatch:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'ops(F4): owner-delegated DEV reusable fixture dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify exact reviewed reusable fixture target and isolation code
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          verify_blob() { test "$(git rev-parse "HEAD:$1")" = "$2"; }
+          verify_blob .github/workflows/retail-dev-f4-reusable-fixtures.yml b79931792c60df6789ad283856fa7cba2643b576
+          verify_blob tests/e2e/f4_reusable_dev_fixtures.py 608d161a33ef04bb989126ca3dccbf77ba8c5e5f
+          verify_blob tests/e2e/p0249_dev_signed_jwt_read_once.py 331d4d814b4073345668c415bf2459c89e333d0c
+          verify_blob tests/infra/test_f4_reusable_dev_fixtures.py 9a85661988c9939cc169ee6c707cf8b60647aea9
+          python3 -m unittest discover -s tests/infra -p test_f4_reusable_dev_fixtures.py
+          echo "RGAI_F4_REUSABLE_DISPATCH_SOURCE_PIN=PASS"
+      - name: Require exact main four-job CI
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          accepted=false
+          for attempt in $(seq 1 78); do
+            runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&event=push&per_page=40")"
+            run_id="$(jq -r --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha==$sha and .name=="RetailGrowthAI Part 1 CI")] | sort_by(.created_at) | last | .id // empty' <<< "$runs")"
+            if [ -n "$run_id" ]; then
+              state="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .status)"
+              if [ "$state" = completed ]; then
+                test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .conclusion)" = success
+                gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" | jq -e '
+                  [.jobs[] | select(
+                    .name == "Python / uv + campaign contract tests" or
+                    .name == "Supabase isolation + authentication client tests" or
+                    .name == "Frontend build + contract tests" or
+                    .name == "FFmpeg codecs + renderer tests"
+                  ) | .conclusion] | length == 4 and all(.[]; . == "success")
+                ' >/dev/null
+                accepted=true
+                echo "RGAI_F4_REUSABLE_DISPATCH_MAIN_CI=4_OF_4"
+                break
+              fi
+            fi
+            sleep 15
+          done
+          test "$accepted" = true
+      - name: Dispatch only protected two-user reusable fixture canary
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)"
+          test "$current" = "$GITHUB_SHA" || { echo "::error::Main advanced; refuse dispatch"; exit 2; }
+          # Refuse replay on the same SHA, including after failure or cancellation.
+          # Refuse any active invocation of this existing protected canary.
+          prior="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/retail-dev-f4-reusable-fixtures.yml/runs?event=workflow_dispatch&per_page=100")"
+          blocked="$(jq -r --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha==$sha or .status!="completed")] | length' <<< "$prior")"
+          test "$blocked" = 0 || { echo "::error::Canary already attempted or active"; exit 2; }
+          jq -nc '{ref:"main",inputs:{confirm:"OWNER-AUTHORIZED-REUSABLE-DEV-F4-FIXTURES"}}' |
+            gh api -X POST "repos/$GITHUB_REPOSITORY/actions/workflows/retail-dev-f4-reusable-fixtures.yml/dispatches" --input -
+          echo "RGAI_F4_REUSABLE_FIXTURES=DISPATCH_REQUESTED"
+          echo "Protected dev workflow owns actual marked fixture provisioning and normal onboarding."
