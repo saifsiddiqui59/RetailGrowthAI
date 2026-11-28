@@ -54,3 +54,6 @@ Owner reported the expanded approval form collapsed into a narrow column on a ph
 
 ### Mobile DEV frontend release gate
 PR #1152 original head passed all four CI jobs and 129 browser tests (#46128372328). Prepared a guarded existing Free SWA frontend-only release with exact reviewed frontend tree, exact-main 4/4 CI, protected DEV OIDC, original live API-origin check, upload of the reviewed prebuilt artifact, and live served asset byte verification. No onboarding approval, Y1 cutover, backend/tenant changes or new resources. Do not merge during an active pinned Y1 release; hosted mobile fix remains unverified until release passes.
+
+### Mobile release retry — credential-scan false positive
+Protected run #46132357560 stopped at public artifact scan before Azure login/upload; exact main #46132357553 passed 4/4. Existing Feature3 token rejection code in feature3-model-workflow-api.mjs and feature3-private-png-client.mjs deliberately uses the literal prefix `sb_secret_`. New scanner exempts only exact standalone JavaScript startsWith checks, rejects other occurrences and privileged env markers plus service-role JWTs; never logs bytes. New no-cloud PR artifact job executes the real build, scan and local asset graph before integration. Protected existing SWA/unchanged API origin/served-byte checks retained. No live mobile fix yet.
