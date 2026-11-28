@@ -12,7 +12,7 @@ const cfg = hostedConfig(process.env)
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const SHA = /^[0-9a-f]{64}$/
 const API = cfg.api + '/api'
-const noRetry = { failOnStatusCode: false, timeout: 30000, maxRetries: 0 }
+const noRetry = { failOnStatusCode: false, timeout: 30000, maxRetries: 0, maxRedirects: 0 }
 const state = { planId: '', sourceHash: '', reviewHash: '', jobId: '', actorJwt: '' }
 const expectedConsent = 'I_APPROVE_SYNTHETIC_FEATURE4_DEV_RENDER_TEST'
 const campaignId = String(process.env.RG_F4_E2E_CAMPAIGN_ID || '').trim()
@@ -88,6 +88,7 @@ function privateMp4(bytes, seconds) {
 test.describe.serial('RetailGrowthAI F2 -> F4: real signed two-shop private CPU DEV acceptance', () => {
   test('test shop A: browser login -> saved plan -> signed review -> CPU render -> private MP4', async ({ page, request }) => {
     await page.goto(cfg.frontend + '/account')
+    expect(new URL(page.url()).origin, 'Never enter credentials after a foreign redirect').toBe(cfg.frontend)
     await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
     await page.getByLabel('Email').fill(cfg.a.email)
     await page.getByLabel('Password').fill(cfg.a.password)

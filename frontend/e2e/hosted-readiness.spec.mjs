@@ -123,3 +123,21 @@ test('temporary DEV Playwright upload helper uses setInputFiles and never receiv
   expect(check.status, check.stderr).toBe(0)
   expect('dev-canary-upload.mjs'.endsWith('.spec.mjs')).toBe(false)
 })
+
+
+test('verified generated DEV SWA host is accepted only with an exact known DEV API pair', () => {
+  const { dir, env, supabase } = fixture()
+  try {
+    const frontend = 'https://purple-dune-06b5da200.2.azurestaticapps.net'
+    const apis = ['https://rgai-dev-functions-d4e5ddbd.azurewebsites.net',
+      'https://rgai-dev-y1-p0249-d4e5ddbd.azurewebsites.net']
+    const pair = (f, a) => ({ ...env, RG_E2E_FRONTEND_URL: f, RG_E2E_API_URL: a,
+      RG_E2E_ALLOWED_ORIGINS: [f, a, supabase].join(',') })
+    for (const api of apis) expect(hostedConfig(pair(frontend, api)).frontend).toBe(frontend)
+    for (const api of ['https://api-dev.example.test', 'https://rgai-prod.azurewebsites.net',
+      apis[0] + '.example.test']) expect(() => hostedConfig(pair(frontend, api))).toThrow()
+    expect(() => hostedConfig(pair('https://purple-dune-06b5da200.2.azurestaticapps.net.example.test', apis[0]))).toThrow()
+    expect(() => hostedConfig({ ...pair(frontend, apis[0]), CI: 'true' })).toThrow()
+    expect(() => hostedConfig({ ...pair(frontend, apis[0]), RG_E2E_APPROVAL: '' })).toThrow()
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
