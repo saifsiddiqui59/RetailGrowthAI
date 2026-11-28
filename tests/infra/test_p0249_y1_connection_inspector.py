@@ -27,6 +27,11 @@ def fake_runner(overrides=None):
         elif op[:2]==("group","show"):
             payload={"name":tool.RG,"location":"centralindia",
                      "tags":{"app":"RetailGrowthAI","environment":"dev"}}
+        elif op[:3]==("resource","show","--ids"):
+            app=op[3].split("/")[-3]
+            assert op == tool.cors_read_args(app, "trusted-subscription")
+            payload={"id":op[3],"properties":{"cors":{"allowedOrigins":[tool.FRONTEND],
+                "supportCredentials":False}}}
         else:
             app=op[op.index("-n")+1]
             if op[:2]==("resource","show"):
@@ -43,8 +48,6 @@ def fake_runner(overrides=None):
             elif op[:3]==("functionapp","function","list"):
                 names=tool.CORE_FUNCTIONS if app==tool.Y1 else {"plan_campaign"}
                 payload=[{"name":app+"/"+name} for name in sorted(names)]
-            elif op[:3]==("functionapp","cors","show"):
-                payload={"allowedOrigins":[tool.FRONTEND],"supportCredentials":False}
             else:
                 raise AssertionError("Unexpected Azure command")
         if overrides:
@@ -81,6 +84,42 @@ class ReadonlyY1ConnectionInspection(unittest.TestCase):
             tool.read_azure("resource", "show", "-g", tool.RG, "-n", "foreign",
                             "--resource-type", "Microsoft.Web/sites", "--api-version", "2024-11-01",
                             runner=fake_runner()[0])
+
+    def test_exact_arm_cors_requires_id_and_explicit_valid_shape(self):
+        rid=tool.cors_resource_id(tool.Y1, "trusted-subscription")
+        self.assertEqual(tool.exact_cors({"id":rid,"properties":{"cors":{
+            "allowedOrigins":[],"supportCredentials":False}}},tool.Y1,"trusted-subscription"),
+            {"allowedOrigins":[],"supportCredentials":False})
+        for bad in (None, {}, {"cors":None}, {"cors":{"allowedOrigins":[]}},
+                    {"cors":{"allowedOrigins":None,"supportCredentials":False}},
+                    {"cors":{"allowedOrigins":["*","*"],"supportCredentials":False}}):
+            with self.subTest(bad=bad), self.assertRaises(RuntimeError):
+                tool.exact_cors({"id":rid,"properties":bad},tool.Y1,"trusted-subscription")
+        with self.assertRaisesRegex(RuntimeError,"IDENTITY_MISMATCH"):
+            tool.exact_cors({"id":rid.replace(tool.Y1,tool.FLEX),"properties":{}},
+                            tool.Y1,"trusted-subscription")
+        with self.assertRaises(ValueError):
+            tool.read_azure("resource","show","--ids",rid+"/foreign",
+                            "--api-version","2024-11-01",runner=fake_runner()[0])
+
+    def test_explicit_flat_cors_and_nested_cors_conflict_denial(self):
+        rid = tool.cors_resource_id(tool.Y1, "trusted-subscription")
+        cors = {"allowedOrigins": [tool.FRONTEND], "supportCredentials": False}
+        for shape in ({"cors": cors}, {"properties": {"cors": cors}},
+                      {"cors": cors, "properties": {"cors": cors}}):
+            self.assertEqual(tool.exact_cors({"id": rid, **shape}, tool.Y1,
+                                             "trusted-subscription"), cors)
+        for shape, category in (
+            ({}, "DECLARATION_ABSENT"),
+            ({"properties": []}, "PROPERTIES_NOT_OBJECT"),
+            ({"cors": None}, "VALUE_NOT_OBJECT"),
+            ({"cors": {"allowedOrigins": None, "supportCredentials": False}}, "ORIGINS_INVALID"),
+            ({"cors": {"allowedOrigins": []}}, "CREDENTIALS_UNVERIFIED"),
+            ({"cors": cors, "properties": {"cors": {**cors, "supportCredentials": True}}},
+             "DECLARATIONS_CONFLICT"),
+        ):
+            with self.subTest(category=category), self.assertRaisesRegex(RuntimeError, category):
+                tool.exact_cors({"id": rid, **shape}, tool.Y1, "trusted-subscription")
 
     def test_correct_development_connections_never_leave_process(self):
         run,calls=fake_runner()
@@ -173,13 +212,13 @@ class ReadonlyY1ConnectionInspection(unittest.TestCase):
 
     def test_wrong_frontend_cors_or_credentials_denied(self):
         def changed(op,payload):
-            if op[:3]==("functionapp","cors","show") and op[-1]==tool.Y1:
-                payload["allowedOrigins"]=["https://evil.example"]
+            if op[:3]==("resource","show","--ids") and op[3].split("/")[-3]==tool.Y1:
+                payload["properties"]["cors"]["allowedOrigins"]=["https://evil.example"]
             return payload
         self.assertFalse(tool.inspect(fake_runner(changed)[0])["y1_frontend_cors_allowed"])
         def unsafe_credentials(op,payload):
-            if op[:3]==("functionapp","cors","show") and op[-1]==tool.Y1:
-                payload["supportCredentials"]=True
+            if op[:3]==("resource","show","--ids") and op[3].split("/")[-3]==tool.Y1:
+                payload["properties"]["cors"]["supportCredentials"]=True
             return payload
         self.assertFalse(tool.inspect(fake_runner(unsafe_credentials)[0])["y1_frontend_cors_allowed"])
 

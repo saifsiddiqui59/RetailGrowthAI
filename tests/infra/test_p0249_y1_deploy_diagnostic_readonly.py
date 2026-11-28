@@ -10,6 +10,23 @@ import p0249_y1_deploy_diagnostic_readonly as diagnostic
 
 
 class Y1DiagnosticSafetyTests(unittest.TestCase):
+    def test_cors_diagnostic_reports_only_fixed_shape_categories(self):
+        rid = "/synthetic/config/web"
+        for value, origins, creds in (
+            ({"allowedOrigins": [], "supportCredentials": False}, "EMPTY", "FALSE"),
+            ({"allowedOrigins": ["https://private.invalid/?secret=DO_NOT_PRINT"],
+              "supportCredentials": True}, "FOREIGN_OR_WILDCARD", "TRUE"),
+            ({"allowedOrigins": None}, "NULL", "ABSENT"),
+            ({}, "ABSENT", "ABSENT"),
+        ):
+            summary = diagnostic._cors_summary({"id": rid, "properties": {"cors": value}}, rid)
+            self.assertEqual(summary["nested"]["origins"], origins)
+            self.assertEqual(summary["nested"]["credentials"], creds)
+            self.assertNotIn("DO_NOT_PRINT", str(summary))
+            self.assertNotIn("private.invalid", str(summary))
+        self.assertEqual(diagnostic._cors_summary({"id": rid, "cors": None}, rid)["top"], {"shape": "NULL"})
+        self.assertEqual(diagnostic._cors_summary({"id": "foreign"}, rid), {"shape": "IDENTITY_MISMATCH"})
+
     def test_app_settings_never_emit_values_or_unknown_keys(self):
         settings = [
             {"name": "ENABLE_ORYX_BUILD", "value": "true"},
