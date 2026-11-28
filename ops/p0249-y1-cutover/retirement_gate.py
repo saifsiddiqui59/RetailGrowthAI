@@ -23,6 +23,9 @@ FLEX_ORIGIN = "https://" + FLEX + ".azurewebsites.net"
 # Flex worker host is configured for 1200s; cannot silently copy to Y1.
 CLASSIC_CONSUMPTION_MAX_SECONDS = 600
 ORIGINAL_RENDER_HARD_CAP_SECONDS = 780
+REVIEWED_CPU_REPLICA_SECONDS = 1380
+DB_RENDER_CLAIM_LEASE_SECONDS = 1500
+QUEUE_VISIBILITY_SECONDS = 2100
 
 # Host App Settings are checked by *name* only in sanitized diagnostics.
 # Comparing real values must happen inside an authorized protected Azure
@@ -33,7 +36,7 @@ CONNECTIONS = frozenset({
     "AzureWebJobsStorage", "FUNCTIONS_WORKER_RUNTIME",
 })
 # All bounded queue triggers live on Y1; the 780s video renderer
-# MUST be hosted only by the separate 1800s CPU job.
+# MUST be hosted only by the separate 1380s CPU job.
 QUEUE_FUNCTIONS = frozenset({
     "plan_campaign", "planning_poison",
     "render_poison", "render_campaign_poster",
@@ -162,10 +165,12 @@ def evaluate(observed: dict) -> tuple[str, ...]:
         render = {}
     # An unmodified classic Y1 Consumption queue worker can time out before
     # the current 780s FFmpeg hard cap. Require an independently verified
-    # >=780s CPU execution backend; raw assertions do NOT authorize a stop.
+    # exact reviewed CPU execution budget; raw assertions do NOT authorize a stop.
     if (render.get("hosting_mode") != "isolated_on_demand_cpu_worker"
         or type(render.get("max_execution_seconds")) is not int
-        or render["max_execution_seconds"] < ORIGINAL_RENDER_HARD_CAP_SECONDS
+        or render["max_execution_seconds"] != REVIEWED_CPU_REPLICA_SECONDS
+        or not (ORIGINAL_RENDER_HARD_CAP_SECONDS < REVIEWED_CPU_REPLICA_SECONDS
+                < DB_RENDER_CLAIM_LEASE_SECONDS < QUEUE_VISIBILITY_SECONDS)
         or render.get("same_approved_shop_queue_and_lease") is not True
         or render.get("private_media_and_ffmpeg_verified") is not True):
         missing.append("long_render_worker_incompatible_with_classic_y1_600s_limit")

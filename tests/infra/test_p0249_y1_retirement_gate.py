@@ -34,7 +34,7 @@ def observation():
         "frontend": {"served_api_origin": m.Y1_ORIGIN},
         "render_worker": {
             "hosting_mode": "isolated_on_demand_cpu_worker",
-            "max_execution_seconds": 1200,
+            "max_execution_seconds": 1380,
             "same_approved_shop_queue_and_lease": True,
             "private_media_and_ffmpeg_verified": True,
         },
@@ -115,6 +115,18 @@ class Y1NoPrematureFlexStop(unittest.TestCase):
         state["render_worker"]["private_media_and_ffmpeg_verified"] = False
         self.assertIn("long_render_worker_incompatible_with_classic_y1_600s_limit",
                       m.evaluate(state))
+
+    def test_exact_reviewed_cpu_budget_required(self):
+        self.assertEqual(m.REVIEWED_CPU_REPLICA_SECONDS, 1380)
+        self.assertEqual(m.DB_RENDER_CLAIM_LEASE_SECONDS, 1500)
+        self.assertEqual(m.QUEUE_VISIBILITY_SECONDS, 2100)
+        for value in (780, 781, 1200, 1379, 1381, 1500, 1800, 2100, True, "1380"):
+            state = observation()
+            state["render_worker"]["max_execution_seconds"] = value
+            with self.subTest(value=value):
+                self.assertIn("long_render_worker_incompatible_with_classic_y1_600s_limit",
+                              m.evaluate(state))
+        self.assertEqual(m.evaluate(observation()), ())
 
     def test_all_38_original_http_routes_required_not_just_core(self):
         import importlib.util

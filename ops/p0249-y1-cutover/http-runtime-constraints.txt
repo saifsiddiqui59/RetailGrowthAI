@@ -1,0 +1,19 @@
+# Linux x86_64 Python 3.12 versions observed in successful offline run 46134397603.
+# Version constraints, not cryptographic wheel hashes; pip report retained per build.
+azure-core==1.41.0
+azure-functions==1.24.0
+azure-storage-queue==12.12.0
+certifi==2026.11.20
+cffi==2.1.1
+charset-normalizer==3.5.3
+cryptography==50.0.2
+idna==3.20
+isodate==0.7.2
+markupsafe==3.0.4
+Pillow==13.0.0
+pycparser==3.12
+PyJWT==2.10.1
+requests==2.34.2
+typing-extensions==4.16.0
+urllib3==2.8.0
+werkzeug==3.1.9
