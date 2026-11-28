@@ -1,0 +1,90 @@
+name: RetailGrowthAI one-shot owner-delegated DEV retained media dispatch
+# Explicit owner-requested dispatch bridge only; never access Auth Admin or
+# Azure credentials here. The existing manually dispatched target retains
+# its protected dev environment and exact retained-media mode and signed tenant checks.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/retail-dev-f4-reusable-media-owner-dispatch-once.yml"
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: rgai-dev-retained-media-owner-delegated-once
+  cancel-in-progress: false
+jobs:
+  dispatch:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'ops(F4): owner-delegated DEV retained media dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Verify exact reviewed media target and isolation code
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          verify_blob() { test "$(git rev-parse "HEAD:$1")" = "$2"; }
+          verify_blob .github/workflows/retail-dev-f4-reusable-media.yml fe72c4571902c39951592ed66b58c44a16a86a3a
+          verify_blob tests/e2e/f4_reusable_dev_media.py 8958045f2f392b43b0ab2ad1271852b00956853d
+          verify_blob tests/infra/test_f4_reusable_dev_media.py 6d900ca86c825c826182ae83805ed0364c923322
+          verify_blob tests/e2e/f4_reusable_dev_fixtures.py 608d161a33ef04bb989126ca3dccbf77ba8c5e5f
+          verify_blob tests/e2e/p0249_dev_signed_jwt_read_once.py 331d4d814b4073345668c415bf2459c89e333d0c
+          verify_blob tests/infra/test_f4_reusable_dev_fixtures.py 9a85661988c9939cc169ee6c707cf8b60647aea9
+          python3 -m unittest discover -s tests/infra -p test_f4_reusable_dev_fixtures.py
+          python3 -m unittest discover -s tests/infra -p test_f4_reusable_dev_media.py
+          echo "RGAI_F4_MEDIA_DISPATCH_SOURCE_PIN=PASS"
+      - name: Require exact main four-job CI
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          accepted=false
+          for attempt in $(seq 1 78); do
+            runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&event=push&per_page=40")"
+            run_id="$(jq -r --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha==$sha and .name=="RetailGrowthAI Part 1 CI")] | sort_by(.created_at) | last | .id // empty' <<< "$runs")"
+            if [ -n "$run_id" ]; then
+              state="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .status)"
+              if [ "$state" = completed ]; then
+                test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .conclusion)" = success
+                gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" | jq -e '
+                  [.jobs[] | select(
+                    .name == "Python / uv + campaign contract tests" or
+                    .name == "Supabase isolation + authentication client tests" or
+                    .name == "Frontend build + contract tests" or
+                    .name == "FFmpeg codecs + renderer tests"
+                  ) | .conclusion] | length == 4 and all(.[]; . == "success")
+                ' >/dev/null
+                accepted=true
+                echo "RGAI_F4_MEDIA_DISPATCH_MAIN_CI=4_OF_4"
+                break
+              fi
+            fi
+            sleep 15
+          done
+          test "$accepted" = true
+      - name: Dispatch only the existing protected retained-media canary
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)"
+          test "$current" = "$GITHUB_SHA" || { echo "::error::Main advanced; refuse dispatch"; exit 2; }
+          # This delegation permits exactly the first target dispatch, never a retry.
+          # Refuse any previous or active invocation regardless of revision.
+          prior="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/retail-dev-f4-reusable-media.yml/runs?event=workflow_dispatch&per_page=100")"
+          blocked="$(jq -er '.total_count | select(type == "number")' <<< "$prior")"
+          test "$blocked" = 0 || { echo "::error::Canary already attempted or active"; exit 2; }
+          jq -nc '{ref:"main",inputs:{confirm:"OWNER-AUTHORIZED-DEV-F4-MEDIA-FIXTURES"}}' |
+            gh api -X POST "repos/$GITHUB_REPOSITORY/actions/workflows/retail-dev-f4-reusable-media.yml/dispatches" --input -
+          echo "RGAI_F4_RETAINED_MEDIA=DISPATCH_REQUESTED"
+          echo "Protected dev workflow owns the actual signed private media preparation; all approvals remain in force."
