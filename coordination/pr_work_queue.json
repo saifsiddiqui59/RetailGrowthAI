@@ -82,12 +82,12 @@
       "phase": "test",
       "checkpoint": {
         "owner": "manual-issue249-core-stage-20261128",
-        "ci": "Fresh source CI pending",
-        "next_action": "Normal protected workflow review; no automated dispatch or approval bypass. Build credential-free, same-run artifact digest, preserve current DEV release and rollback.",
+        "ci": "Prior #46180321391 3/4; Python false positive consumed next job env as prior run body. Commit 36f225ab bounds run scalar by indentation and adds inline/folded/multijob regression tests. Fresh #46182681401 and offline #46182681396 in progress.",
+        "next_action": "Inspect exact-head CI, reconcile current main, then normal protected release source review. No dispatch or deployment approval bypass.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1159",
-      "head_sha": "db0e12b6567e5bd81f6931e6740b0f0b430900ac"
+      "head_sha": "36f225ab4403341e3a7f22bd11155be09a44b49c"
     },
     {
       "pr": 1158,
