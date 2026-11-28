@@ -13,10 +13,11 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 6,
+    "open_prs": 7,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 4
+      "issue249": 4,
+      "F4": 1
     }
   },
   "entries": [
@@ -120,6 +121,23 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1143"
+    },
+    {
+      "pr": 1144,
+      "title": "test(F2→F4): parallel native render, disposable SQL and browser acceptance",
+      "feature": "F4",
+      "head_sha": "ea6e1c1cf5f662b1c8ff49f223b7fb6de369e2c0",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P1",
+      "phase": "test",
+      "checkpoint": {
+        "owner": "manual-integration-chat-f2f4",
+        "ci": "Focused #46122023881; mandatory #46122023806 in progress",
+        "next_action": "Verify exact-head native/SQL/Chromium and four mandatory jobs; fix actual failures only. Auth owner #1135/#1076; no live deployment or signed E2E claims.",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1144"
     }
   ],
   "last_inventory_checked_at": "2026-11-27T09:04:54Z"
