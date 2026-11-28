@@ -167,6 +167,8 @@ def preflight(env):
         or env.get("RGAI_CPU_RENDER_REPLICA_TIMEOUT_SECONDS") !=
             str(CONTAINER_REPLICA_TIMEOUT_SECONDS)):
         raise RuntimeError("Protected Y1 CPU worker handoff incomplete")
+    if VISIBILITY_SECONDS <= CONTAINER_REPLICA_TIMEOUT_SECONDS:
+        raise RuntimeError("Queue visibility must exceed complete CPU job lifetime")
     if VISIBILITY_SECONDS <= DB_RENDER_CLAIM_LEASE_SECONDS:
         raise RuntimeError("Queue visibility must exceed complete DB claim lifetime")
     if not 780 < CONTAINER_REPLICA_TIMEOUT_SECONDS < DB_RENDER_CLAIM_LEASE_SECONDS:
