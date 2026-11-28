@@ -13,11 +13,11 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 8,
+    "open_prs": 9,
     "by_feature": {
       "unclassified": 2,
       "issue249": 5,
-      "F4": 1
+      "F4": 2
     }
   },
   "entries": [
@@ -155,6 +155,23 @@
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1149",
       "head_sha": "e14eba0733fff46b084c84b5c309690a9c3d2c01"
+    },
+    {
+      "pr": 1150,
+      "title": "ops(F4): owner-delegated DEV reusable fixture dispatch",
+      "feature": "F4",
+      "head_sha": "f8fb2d8948e6485f550536681b812ef5e6bb76ac",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P1",
+      "phase": "test",
+      "checkpoint": {
+        "owner": "manual-integration-chat-f2f4",
+        "ci": "Fresh CI pending",
+        "next_action": "Verify all 4 jobs and review; preserve exact protected onboarding and no-delete behavior, coordinate main merges before one-shot dispatch. #46125021687 temporary login success, not retained identities; no persistent fixture or shop proof yet.",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1150"
     }
   ],
   "last_inventory_checked_at": "2026-11-27T09:04:54Z"
