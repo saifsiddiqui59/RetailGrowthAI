@@ -1,0 +1,93 @@
+name: "RetailGrowthAI #249 one-shot owner-authorized read-only core diagnostic dispatch"
+# GitHub-only dispatch of the existing manual protected read-only diagnostic.
+# The target remains the unchanged, environment-protected DEV manual workflow.
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/p0249-y1-core-diagnostic-owner-dispatch-once.yml"
+permissions:
+  contents: read
+  actions: write
+concurrency:
+  group: rgai-p0249-owner-delegated-core-diagnostic-once
+  cancel-in-progress: false
+jobs:
+  dispatch:
+    if: >-
+      github.repository == 'saifsiddiqui59/RetailGrowthAI' &&
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main' &&
+      startsWith(github.event.head_commit.message, 'ops(#249): owner-delegated Y1 read-only core diagnostic')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify approved secure source and release code are unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          verify_blob() { test "$(git rev-parse "HEAD:$1")" = "$2"; }
+          verify_blob .github/workflows/p0249-y1-deploy-diagnostic-readonly-once.yml 6aea8239fd3e61babbe6048a0fb2a488d984354e
+          verify_blob ops/p0249_y1_deploy_diagnostic_readonly.py 807033f5244f67d825b5a2089ab17bd0b725528c
+          verify_blob tests/infra/test_p0249_y1_deploy_diagnostic_readonly.py ecf51e56e668c9946473fb7c0faab8fde56cff51
+          verify_blob ops/p0249-y1-cutover/inspect_azure_connections_readonly.py 73a6a51f429f37a92c3ef01d81de0bd22393bfe2
+          verify_blob ops/p0249-y1-cutover/stage_core_connections.py 08304778015fb248911014273a3b801fce7c52ef
+          verify_blob ops/p0249-y1-cutover/retirement_gate.py 81bfea93e2d67bde18f783e7f7232b3e43b985f6
+          verify_blob ops/p0249_y1_canary_guard.py c01d2f6f2d4ff72f0e4fec6d4ea0ddceb35f882d
+          echo "P0249_OWNER_PINNED_ACTION_SOURCE_BYTES=PASS"
+      - name: Require all four Part1 CI jobs on this exact main SHA
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          accepted=false
+          for attempt in $(seq 1 78); do
+            runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&event=push&per_page=40")"
+            run_id="$(jq -r --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha==$sha and .name=="RetailGrowthAI Part 1 CI")] | sort_by(.created_at) | last | .id // empty' <<< "$runs")"
+            if [ -n "$run_id" ]; then
+              state="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .status)"
+              if [ "$state" = "completed" ]; then
+                outcome="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq .conclusion)"
+                test "$outcome" = "success" || { echo "::error::Exact main CI failed"; exit 2; }
+                gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100" | jq -e '
+                  [.jobs[] | select(
+                    .name == "Python / uv + campaign contract tests" or
+                    .name == "Supabase isolation + authentication client tests" or
+                    .name == "Frontend build + contract tests" or
+                    .name == "FFmpeg codecs + renderer tests"
+                  ) | .conclusion] | length == 4 and all(.[]; . == "success")
+                ' >/dev/null
+                accepted=true
+                echo "P0249_OWNER_PINNED_ACTION_MAIN_CI_4OF4=PASS"
+                break
+              fi
+            fi
+            sleep 15
+          done
+          test "$accepted" = "true" || { echo "::error::Exact-main CI timed out"; exit 2; }
+      - name: Dispatch only the existing protected read-only diagnostic
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)"
+          test "$current" = "$GITHUB_SHA" || { echo "::error::Main advanced; refuse dispatch"; exit 2; }
+          # The latest real mutation attempt failed before settings were written.
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/46123450728/jobs?per_page=100" | jq -e '
+            [.jobs[] | select(.name=="stage" and .conclusion=="failure")] |
+            length==1 and
+            (.[0].steps | [.[] | select(.name=="Redacted read-only original/Y1 connection and CORS inventory" and .conclusion=="failure")] | length==1) and
+            (.[0].steps | [.[] | select(.name=="Stage and read back missing DEV settings and exact CORS, no feature enable" and .conclusion=="skipped")] | length==1)
+          ' >/dev/null
+          prior="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/p0249-y1-deploy-diagnostic-readonly-once.yml/runs?event=workflow_dispatch&per_page=100")"
+          jq -e --arg sha "$GITHUB_SHA" '[.workflow_runs[] | select(.head_sha==$sha or .status!="completed")] | length==0' <<< "$prior" >/dev/null
+          jq -nc '{ref:"main",inputs:{confirm:"YES-Y1-READONLY-BUILD"}}' |
+            gh api -X POST "repos/$GITHUB_REPOSITORY/actions/workflows/p0249-y1-deploy-diagnostic-readonly-once.yml/dispatches" --input -
+          echo "P0249_PROTECTED_CORE_DIAGNOSTIC=DISPATCH_REQUESTED"
+          echo "Existing protected DEV read-only workflow; no settings, CORS, deploy or worker mutation."

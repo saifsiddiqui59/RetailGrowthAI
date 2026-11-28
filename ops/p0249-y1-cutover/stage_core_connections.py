@@ -17,7 +17,8 @@ import sys
 import tempfile
 
 from inspect_azure_connections_readonly import (read_azure, safe_setting_map, function_names,
-                                                site_read_args, exact_site_state)
+                                                site_read_args, exact_site_state,
+                                                cors_read_args, exact_cors)
 from retirement_gate import RG, Y1, FLEX, FRONTEND, SUPABASE
 
 REPO = "saifsiddiqui59/RetailGrowthAI"
@@ -36,6 +37,15 @@ FIVE = frozenset({
 
 FAILURE_CATEGORIES = frozenset({
     "AZURE_APPSETTINGS_SHAPE_INVALID",
+    "AZURE_CORS_RESOURCE_IDENTITY_MISMATCH",
+    "AZURE_CORS_SHAPE_INVALID",
+    "AZURE_CORS_PROPERTIES_NOT_OBJECT",
+    "AZURE_CORS_VALUE_NOT_OBJECT",
+    "AZURE_CORS_ORIGINS_INVALID",
+    "AZURE_CORS_CREDENTIALS_UNVERIFIED",
+    "AZURE_CORS_DECLARATION_ABSENT",
+    "AZURE_CORS_DECLARATIONS_CONFLICT",
+    "UNAPPROVED_AZURE_CORS_RESOURCE_READ",
     "AZURE_SITE_IDENTITY_MISMATCH",
     "AZURE_SITE_STATE_UNVERIFIED",
     "UNAPPROVED_AZURE_SITE_READ",
@@ -164,7 +174,8 @@ def plan(*, env=None, runner=subprocess.run):
     if set(names) != FIVE:
         raise RuntimeError("Y1_NOT_EXACT_FIVE_GET_BASELINE")
 
-    cors = az("TARGET_Y1_CORS", "functionapp", "cors", "show", "-g", RG, "-n", Y1)
+    cors = exact_cors(az("TARGET_Y1_ARM_CORS", *cors_read_args(Y1, subscription)),
+                      Y1, subscription)
     if (not isinstance(cors, dict)
         or cors.get("supportCredentials") is not False
         or not isinstance(cors.get("allowedOrigins"), list)
