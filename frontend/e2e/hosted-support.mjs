@@ -67,8 +67,13 @@ export function hostedConfig(env = process.env) {
       allowlist.some(x => ![frontend, api, supabase].includes(x))) {
     throw new Error('All three DEV HTTPS origins must match the pinned allowlist exactly')
   }
-  // Require DEV environment naming even when an operator incorrectly pins a PROD host.
-  if (![frontend, api].every(value => new URL(value).hostname.toLowerCase().includes('dev'))) {
+  // Azure assigns the verified Free DEV SWA a generated hostname without "dev".
+  // Permit only this exact origin with either of the two known RetailGrowthAI DEV API hosts.
+  const knownDevSwa = frontend === 'https://purple-dune-06b5da200.2.azurestaticapps.net'
+    && ['https://rgai-dev-functions-d4e5ddbd.azurewebsites.net',
+      'https://rgai-dev-y1-p0249-d4e5ddbd.azurewebsites.net'].includes(api)
+  // Existing explicitly DEV-named hosts still require the exact operator allowlist.
+  if (!knownDevSwa && ![frontend, api].every(value => new URL(value).hostname.toLowerCase().includes('dev'))) {
     throw new Error('Both frontend and API hosts must be explicitly DEV-named')
   }
   if (frontend === api || api === supabase || frontend === supabase) {
