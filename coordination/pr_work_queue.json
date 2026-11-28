@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 4,
+    "open_prs": 3,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 2
+      "issue249": 1
     }
   },
   "entries": [
@@ -53,23 +53,6 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1064"
-    },
-    {
-      "pr": 1143,
-      "title": "fix(#249): fail closed on missing CPU dequeue metadata",
-      "head_sha": "28c55de57e1e28cd16dfc8bfd87a332e8089be8a",
-      "work_owner": "manual-issue249-worker-handoff-20261128",
-      "feature": "issue249",
-      "base_branch": "main",
-      "priority": "P1",
-      "phase": "test",
-      "checkpoint": {
-        "owner": "manual-issue249-worker-handoff-20261128",
-        "ci": "Reconciled to c748b0b4; exact #46179275500 and #46179275427",
-        "next_action": "Complete exact CI review and manual source integration handoff; no cloud activation.",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1143"
     },
     {
       "pr": 1146,
