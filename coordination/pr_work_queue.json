@@ -84,7 +84,7 @@
       "checkpoint": {
         "owner": "manual-issue249-core-stage-20261128",
         "ci": "Exact-head 46119054395 4/4; merged 9d89de3bd9d7a5d03308d8a77e2ffc0f722f607a; main CI and launch pending",
-        "next_action": "Verify exact protected core stage dispatch/run, retain dev approval gates; retire bridge after actual result",
+        "next_action": "Launcher succeeded and dispatched #46119656466; protected read-only failed before writes. #1139 is bounded retry; retire launcher after acceptance.",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1137"
@@ -105,6 +105,23 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1138"
+    },
+    {
+      "pr": 1139,
+      "title": "fix(#249): diagnose blocked core stage and retry protected five-GET readback",
+      "feature": "issue249",
+      "head_sha": "4bfbc6b24884b3cdfecca9e04290cae06599698f",
+      "base_branch": "main",
+      "work_owner": "manual-issue249-core-stage-20261128",
+      "priority": "P0",
+      "phase": "test",
+      "checkpoint": {
+        "owner": "manual-issue249-core-stage-20261128",
+        "ci": "[{\"id\":46120068935,\"name\":\"RetailGrowthAI Part 1 CI\",\"status\":\"in_progress\",\"conclusion\":null},{\"id\":46120068890,\"name\":\"RetailGrowthAI #249 Y1 38-route HTTP source artifact (NO Azure release)\",\"status\":\"in_progress\",\"conclusion\":null}]",
+        "next_action": "Exact-head 4/4 and reviewed merge triggers single bounded protected retry after #46119656466; no weakening",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1139"
     }
   ],
   "last_inventory_checked_at": "2026-11-27T09:04:54Z"
