@@ -79,11 +79,11 @@
       "base_branch": "main",
       "work_owner": "manual-issue249-core-stage-20261128",
       "priority": "P0",
-      "phase": "test",
+      "phase": "in-progress",
       "checkpoint": {
         "owner": "manual-issue249-core-stage-20261128",
-        "ci": "Exact-head CI #46119054395",
-        "next_action": "Review one-shot protected dispatch source pins, exact CI and actual target environment gates; verify run and retire bridge",
+        "ci": "Exact-head 46119054395 4/4; merged 9d89de3bd9d7a5d03308d8a77e2ffc0f722f607a; main CI and launch pending",
+        "next_action": "Verify exact protected core stage dispatch/run, retain dev approval gates; retire bridge after actual result",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1137"
