@@ -90,21 +90,21 @@
       "head_sha": "36f225ab4403341e3a7f22bd11155be09a44b49c"
     },
     {
-      "pr": 1158,
-      "title": "test(F4): prepare owned synthetic media for retained DEV shops",
+      "pr": 1160,
+      "title": "fix(F4): unblock exact deployed DEV hostname in hosted test harness",
       "feature": "feature4",
-      "head_sha": "02a74a188ef1c4abdfa924e70a523a912e21a095",
+      "head_sha": "3ec9f919a5c09463b69fa66be529bdfe19218da3",
       "base_branch": "main",
       "work_owner": "manual-f2-f4-retained-media-20261129",
       "priority": "P0",
       "phase": "review",
       "checkpoint": {
         "owner": "manual-f2-f4-retained-media-20261129",
-        "ci": "Exact-head #46180255073 4/4 individually verified",
-        "next_action": "Source-only review and serialized merge; preserve manual protected dev media dispatch",
+        "ci": "Exact head #46182441812 4/4 verified",
+        "next_action": "Review and serialized merge; no hosted actions",
         "feature_done": false
       },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1158"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1160"
     }
   ],
   "last_inventory_checked_at": "2026-11-28T19:00:00Z"
