@@ -76,7 +76,7 @@ def smoke(package):
                 raise ValueError("UNSAFE_SMOKE_ZIP")
             z.extractall(root)
         program = r'''
-import sys, os, socket
+import sys, os, socket, json
 from pathlib import Path
 root = Path(sys.argv[1])
 expected = set(sys.argv[2:])
@@ -92,9 +92,9 @@ functions = function_app.app.get_functions()
 names = {f.get_function_name() for f in functions}
 assert len(functions) == 38 and names == expected
 for f in functions:
-    bindings = f.get_bindings()
-    assert sum(b.type == "httpTrigger" for b in bindings) == 1
-    assert all(b.type in ("httpTrigger", "http") for b in bindings)
+    bindings = json.loads(f.get_function_json())["bindings"]
+    assert sum(b["type"] == "httpTrigger" for b in bindings) == 1
+    assert all(b["type"] in ("httpTrigger", "http") for b in bindings)
 print("P0249_VENDORED_REAL_SDK_INDEX=38_HTTP_ZERO_WORKERS")
 '''
         result = subprocess.run([sys.executable, "-I", "-S", "-B", "-c", program, str(root),
