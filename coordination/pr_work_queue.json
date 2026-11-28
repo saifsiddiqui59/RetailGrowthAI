@@ -59,15 +59,15 @@
       "pr": 1135,
       "title": "test(#249): reconcile protected two-user auth-only browser canary",
       "feature": "issue249",
-      "head_sha": "52fdd4306853e7b21f882483080bf004cb45d8f9",
+      "head_sha": "cabc933b586d7b7921279dcea2747a3181478c32",
       "base_branch": "main",
       "work_owner": "manual-issue249-auth-only-20261128",
       "priority": "P1",
       "phase": "test",
       "checkpoint": {
         "owner": "manual-issue249-auth-only-20261128",
-        "ci": "46063148098:in_progress",
-        "next_action": "Exact-head 4/4 and source-only security review; no hosted dispatch, no tenant approval SQL.",
+        "ci": "Prior head 3/4; static existing F2 prompt receipt assertion failed, corrected receipt at cabc933b586d7b7921279dcea2747a3181478c32; exact-head CI pending",
+        "next_action": "Do not merge while core-stage launcher holds main; verify fresh CI and reconcile with current main",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1135"
