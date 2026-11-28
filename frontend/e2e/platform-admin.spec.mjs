@@ -385,3 +385,72 @@ test('non-root cannot open persistent inbox or reach privileged API',async ({ pa
     expect(calls.filter(c=>c.path.endsWith('/rpc/'+forbidden))).toHaveLength(0)
   }
 })
+
+for (const width of [320, 390, 768]) {
+  test('expanded retailer approval remains usable at '+width+'px', async ({page}) => {
+    const calls = await loginAs(page, 'ROOT')
+    const requested = 'f1000000-0000-4000-8000-000000000005'
+    let approved = false
+    const email = 'rgai-owner-test@retailgrowth.test'
+    await page.route(SUPABASE+'/rest/v1/rpc/retail_platform_onboarding_requests', route =>
+      fulfill(route, approved ? [] : [
+        {user_id:requested,email,status:'PENDING',requested_at:'2026-11-28T08:44:32Z'},
+        {user_id:'f1000000-0000-4000-8000-000000000006',email:'rgai-editor-test@retailgrowth.test',status:'PENDING',requested_at:'2026-11-28T08:44:34Z'},
+      ]))
+    await page.route(SUPABASE+'/rest/v1/rpc/retail_platform_review_onboarding', route => {
+      const body = route.request().postDataJSON()
+      calls.push({path:'/rest/v1/rpc/retail_platform_review_onboarding',body})
+      approved = true
+      return fulfill(route,{user_id:requested,status:'APPROVED'})
+    })
+    await page.setViewportSize({width,height:844})
+    await page.goto('/platform-admin')
+    const queue = page.getByRole('region',{name:'Retailer approval center'})
+    await queue.getByRole('button',{name:'Review requests'}).click()
+    const row = queue.locator('.platform-review-item').filter({hasText:email})
+    await row.getByRole('button',{name:'Review account'}).click()
+    const reason = row.getByLabel('Decision reason')
+    const confirm = row.getByRole('checkbox',{name:/I verified this account request/})
+    const approve = row.getByRole('button',{name:'Approve',exact:true})
+    const reject = row.getByRole('button',{name:'Reject',exact:true})
+    await expect(approve).toBeDisabled()
+    await reason.fill('short')
+    await confirm.check()
+    await expect(approve).toBeDisabled()
+    await expect(reject).toBeDisabled()
+    await confirm.uncheck()
+    await reason.fill('Authorized isolated DEV retailer fixture')
+    await expect(approve).toBeDisabled()
+    await expect(row.getByText('Tick the confirmation above to enable Approve and Reject.')).toBeVisible()
+    const geometry = await row.evaluate(node => {
+      const bounds = el => {const r=el.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height}}
+      return {row:bounds(node), identity:bounds(node.firstElementChild),
+        action:bounds(node.querySelector('.platform-review-action')),
+        reason:bounds(node.querySelector('textarea')),
+        confirm:bounds(node.querySelector('input[type=checkbox]')),
+        buttons:Array.from(node.querySelectorAll('.platform-review-buttons button')).map(bounds),
+        scroll:document.documentElement.scrollWidth,client:document.documentElement.clientWidth}
+    })
+    expect(geometry.scroll,JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.client)
+    expect(geometry.reason.width,JSON.stringify(geometry)).toBeGreaterThanOrEqual(100)
+    expect(geometry.reason.width).toBeGreaterThanOrEqual(geometry.action.width-2)
+    expect(geometry.confirm.width).toBeGreaterThanOrEqual(20)
+    for (const bounds of [geometry.action,geometry.reason,geometry.confirm,...geometry.buttons]) {
+      expect(bounds.left).toBeGreaterThanOrEqual(geometry.row.left-1)
+      expect(bounds.right).toBeLessThanOrEqual(geometry.row.right+1)
+    }
+    if(width<=760) {
+      expect(geometry.action.top).toBeGreaterThanOrEqual(geometry.identity.bottom)
+      expect(geometry.action.width).toBeGreaterThanOrEqual(geometry.row.width-2)
+    }
+    for (const bounds of geometry.buttons) expect(bounds.height).toBeGreaterThanOrEqual(44)
+    expect(calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_review_onboarding')).toHaveLength(0)
+    await confirm.check()
+    await expect(approve).toBeEnabled()
+    await approve.click()
+    await expect(page.getByRole('status').filter({hasText:'Retailer onboarding approved.'})).toBeVisible()
+    expect(calls.filter(c=>c.path==='/rest/v1/rpc/retail_platform_review_onboarding')).toEqual([
+      {path:'/rest/v1/rpc/retail_platform_review_onboarding',body:{p_user_id:requested,p_approve:true,p_reason:'Authorized isolated DEV retailer fixture'}}
+    ])
+  })
+}
