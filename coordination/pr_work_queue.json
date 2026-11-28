@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 3,
+    "open_prs": 4,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 1
+      "issue249": 2
     }
   },
   "entries": [
@@ -70,6 +70,23 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1146"
+    },
+    {
+      "pr": 1159,
+      "title": "fix(#249): prepare manual-only protected vendored Y1 release",
+      "feature": "issue249",
+      "work_owner": "manual-issue249-core-stage-20261128",
+      "base_branch": "main",
+      "priority": "P0",
+      "phase": "test",
+      "checkpoint": {
+        "owner": "manual-issue249-core-stage-20261128",
+        "ci": "Fresh source CI pending",
+        "next_action": "Normal protected workflow review; no automated dispatch or approval bypass. Build credential-free, same-run artifact digest, preserve current DEV release and rollback.",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1159",
+      "head_sha": "db0e12b6567e5bd81f6931e6740b0f0b430900ac"
     }
   ],
   "last_inventory_checked_at": "2026-11-28T19:00:00Z"
