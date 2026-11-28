@@ -51,3 +51,6 @@ Live temporary canary #46125021687 passed both real Chromium logins/logout and e
 
 ## 2026-11-28 — Mobile retailer approval usability
 Owner reported the expanded approval form collapsed into a narrow column on a phone. Explicit minmax(0,1fr) grid columns stack account/form below 760px; preserve wrapping, full-width textarea, native checkbox, 44px touch targets and visible reason/confirmation guidance. Subscription watch heading also wraps. Existing authenticated ROOT RPC and required audit reason/confirmation remain unchanged; no bypass or automatic approval. Browser regression tests cover expanded long-email rows at 320/390/768px, disabled-before-confirm, layout geometry and exact single mocked approval. Source candidate; hosted deployment and actual approvals remain separate.
+
+### Mobile DEV frontend release gate
+PR #1152 original head passed all four CI jobs and 129 browser tests (#46128372328). Prepared a guarded existing Free SWA frontend-only release with exact reviewed frontend tree, exact-main 4/4 CI, protected DEV OIDC, original live API-origin check, upload of the reviewed prebuilt artifact, and live served asset byte verification. No onboarding approval, Y1 cutover, backend/tenant changes or new resources. Do not merge during an active pinned Y1 release; hosted mobile fix remains unverified until release passes.
