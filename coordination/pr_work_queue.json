@@ -81,14 +81,20 @@
       "base_branch": "main",
       "work_owner": "manual-integration",
       "priority": "P1",
-      "phase": "test",
+      "phase": "review",
       "checkpoint": {
         "owner": "manual-integration-chat-f2f4",
-        "ci": "Original mandatory #46122023806 4/4, focused SQL PASS, Chromium npm EUSAGE before browser tests; new head uses proven lockfile-aware install",
+        "ci": "Exact head #46122379679 4/4 and #46122379781 3/3 passed; main diff no overlaps",
         "next_action": "Check fresh focused and mandatory CI; preserve previous native render run; repair actual test failures if any. No hosted acceptance.",
         "feature_done": false
       },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1144"
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1144",
+      "claim": {
+        "owner": "manual-integration-chat-f2f4",
+        "head_sha": "17b418e5050e37b4c9b77920810f83b510ebf5cd",
+        "claimed_at": "2026-11-28T18:56:10.434Z",
+        "expires_at": "2026-11-28T20:26:10.434Z"
+      }
     },
     {
       "pr": 1146,
