@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 5,
+    "open_prs": 4,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 2,
+      "issue249": 1,
       "F4": 1
     }
   },
@@ -73,23 +73,6 @@
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1135"
     },
     {
-      "pr": 1137,
-      "title": "ops(#249): owner-delegated Y1 core stage dispatch",
-      "feature": "issue249",
-      "head_sha": "9c355d06a994013e62622a8ac3b0175f0b319525",
-      "base_branch": "main",
-      "work_owner": "manual-issue249-core-stage-20261128",
-      "priority": "P0",
-      "phase": "in-progress",
-      "checkpoint": {
-        "owner": "manual-issue249-core-stage-20261128",
-        "ci": "Exact-head 46119054395 4/4; merged 9d89de3bd9d7a5d03308d8a77e2ffc0f722f607a; main CI and launch pending",
-        "next_action": "Launcher succeeded and dispatched #46119656466; protected read-only failed before writes. #1139 is bounded retry; retire launcher after acceptance.",
-        "feature_done": false
-      },
-      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1137"
-    },
-    {
       "pr": 1138,
       "title": "test(F4): verify seven hosted API routes after protected 38-route release",
       "feature": "F4",
@@ -114,11 +97,11 @@
       "base_branch": "main",
       "work_owner": "manual-issue249-core-stage-20261128",
       "priority": "P0",
-      "phase": "test",
+      "phase": "in-progress",
       "checkpoint": {
         "owner": "manual-issue249-core-stage-20261128",
-        "ci": "[{\"id\":46120068935,\"name\":\"RetailGrowthAI Part 1 CI\",\"status\":\"in_progress\",\"conclusion\":null},{\"id\":46120068890,\"name\":\"RetailGrowthAI #249 Y1 38-route HTTP source artifact (NO Azure release)\",\"status\":\"in_progress\",\"conclusion\":null}]",
-        "next_action": "Exact-head 4/4 and reviewed merge triggers single bounded protected retry after #46119656466; no weakening",
+        "ci": "Exact head 4/4, artifact pass; merged 77e678355c8e4a0ba20a8bbf88084f6d2814edd6",
+        "next_action": "Keep main unchanged through launcher exact CI and protected retry; verify live stage/readback; retire launcher after outcome",
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1139"
