@@ -6,6 +6,7 @@ credentials, resource IDs or signed URLs. This prints only fixed allowlisted
 status booleans/enums and request outcome counts, not raw logs.
 """
 import json
+import os
 import subprocess
 import sys
 from urllib.parse import urlsplit
@@ -164,8 +165,114 @@ def index_shape(names):
     return "OTHER_UNVERIFIED"
 
 
+def _cors_fields(value):
+    # Fixed categories only; arbitrary provider values never enter logs.
+    if value is None:
+        return {"shape": "NULL"}
+    if not isinstance(value, dict):
+        return {"shape": "NOT_OBJECT"}
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent / "p0249-y1-cutover"))
+    from retirement_gate import FRONTEND
+    origins = value.get("allowedOrigins")
+    if "allowedOrigins" not in value:
+        origin_state = "ABSENT"
+    elif origins is None:
+        origin_state = "NULL"
+    elif not isinstance(origins, list) or any(type(v) is not str for v in origins):
+        origin_state = "INVALID"
+    elif len(set(origins)) != len(origins):
+        origin_state = "DUPLICATE"
+    elif not origins:
+        origin_state = "EMPTY"
+    elif any(v not in (FRONTEND, "https://portal.azure.com") for v in origins):
+        origin_state = "FOREIGN_OR_WILDCARD"
+    elif FRONTEND in origins:
+        origin_state = "APPROVED_WITH_FRONTEND"
+    else:
+        origin_state = "PORTAL_ONLY"
+    credentials = value.get("supportCredentials")
+    flag = ("ABSENT" if "supportCredentials" not in value else
+            "NULL" if credentials is None else
+            "TRUE" if credentials is True else "FALSE" if credentials is False else "INVALID")
+    return {"shape": "OBJECT", "origins": origin_state, "credentials": flag}
+
+
+def _cors_summary(config, resource_id):
+    if not isinstance(config, dict):
+        return {"shape": "UNAVAILABLE_OR_INVALID"}
+    if not isinstance(config.get("id"), str) or config["id"].lower() != resource_id.lower():
+        return {"shape": "IDENTITY_MISMATCH"}
+    properties = config.get("properties")
+    return {
+        "shape": "EXACT_RESOURCE",
+        "top": _cors_fields(config["cors"]) if "cors" in config else {"shape": "ABSENT"},
+        "nested": _cors_fields(properties["cors"]) if isinstance(properties, dict)
+                  and "cors" in properties else {"shape": "ABSENT"},
+    }
+
+
+def core_stage_diagnostics():
+    # This function is called only after existing exact DEV verify() succeeds.
+    # Re-verify both site IDs, the subscription and exact five-route baseline
+    # before reading only the two known DEV sites' setting maps.
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent / "p0249-y1-cutover"))
+    from inspect_azure_connections_readonly import (
+        cors_resource_id, cors_read_args, site_read_args, exact_site_state,
+        function_names, safe_setting_map,
+    )
+    from stage_core_connections import CORE, FIVE, _original_python
+    from retirement_gate import Y1, FLEX, SUPABASE
+    subscription = os.environ.get("RGAI_DEV_EXPECTED_SUBSCRIPTION", "")
+    account = az_read("account", "show")
+    if not subscription or not isinstance(account, dict) or str(account.get("id", "")).lower() != subscription.lower():
+        raise RuntimeError("CORE_DIAGNOSTIC_SCOPE_INVALID")
+    old = az_read(*site_read_args(FLEX))
+    target = az_read(*site_read_args(Y1))
+    if (exact_site_state(old, FLEX, subscription) != "Running"
+        or exact_site_state(target, Y1, subscription) != "Running"):
+        raise RuntimeError("CORE_DIAGNOSTIC_SITE_NOT_RUNNING")
+    names = function_names(az_read("functionapp", "function", "list", "-g", RG, "-n", Y1), Y1)
+    if set(names) != FIVE:
+        raise RuntimeError("CORE_DIAGNOSTIC_FIVE_INDEX_REQUIRED")
+    rid = cors_resource_id(Y1, subscription)
+    resource = az_read(*cors_read_args(Y1, subscription))
+    direct = az_read("rest", "--method", "get", "--uri",
+                     "https://management.azure.com" + rid + "?api-version=2024-11-01")
+    print("P0249_CORE_CORS_ARM_CLI=" + json.dumps(_cors_summary(resource, rid), sort_keys=True), flush=True)
+    print("P0249_CORE_CORS_ARM_REST=" + json.dumps(_cors_summary(direct, rid), sort_keys=True), flush=True)
+    # Independently inspect the CLI projection; null output remains unknown.
+    projected = az_read("functionapp", "cors", "show", "-g", RG, "-n", Y1)
+    print("P0249_CORE_CORS_PROJECTION=" + json.dumps(_cors_fields(projected), sort_keys=True), flush=True)
+    # Only fixed named categories; never output appsetting values or arbitrary names.
+    source = safe_setting_map(az_read("functionapp", "config", "appsettings", "list", "-g", RG, "-n", FLEX))
+    existing = safe_setting_map(az_read("functionapp", "config", "appsettings", "list", "-g", RG, "-n", Y1))
+    statuses = {}
+    for key in CORE:
+        v = source.get(key)
+        if not isinstance(v, str) or len(v) < (1 if key == "RETAIL_SUPABASE_URL" else 35):
+            statuses[key] = "SOURCE_ABSENT_OR_MALFORMED"
+        elif v.startswith("@Microsoft.KeyVault("):
+            statuses[key] = "SOURCE_KEY_VAULT_REFERENCE"
+        elif key == "RETAIL_SUPABASE_URL" and v != SUPABASE:
+            statuses[key] = "SOURCE_FOREIGN_PROJECT"
+        elif key not in existing:
+            statuses[key] = "TARGET_MISSING"
+        elif existing[key] != v:
+            statuses[key] = "TARGET_DRIFT"
+        else:
+            statuses[key] = "MATCH"
+    print("P0249_CORE_CONNECTION_CLASSIFICATIONS=" + json.dumps(statuses, sort_keys=True), flush=True)
+    print("P0249_CORE_ORIGINAL_PYTHON=" + str(_original_python(old, source)).lower(), flush=True)
+    print("P0249_CORE_TARGET_PYTHON=" + str(existing.get("FUNCTIONS_WORKER_RUNTIME") == "python").lower(), flush=True)
+    print("P0249_CORE_TARGET_HOST_STORAGE_PRESENT=" + str(bool(existing.get("AzureWebJobsStorage"))).lower(), flush=True)
+    print("P0249_CORE_DIAGNOSTIC_READ_ONLY=true", flush=True)
+
+
 def main():
     verify()  # Exact DEV RG, app tag/region/Linux Y1 SKU and original FC1.
+    core_stage_diagnostics()
     rows = az_read("functionapp", "config", "appsettings", "list",
                    "-g", RG, "-n", SITE)
     if rows is None:
