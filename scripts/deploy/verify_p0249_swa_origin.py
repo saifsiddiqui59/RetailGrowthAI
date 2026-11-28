@@ -14,7 +14,24 @@ from html.parser import HTMLParser
 FRONTEND = "https://purple-dune-06b5da200.2.azurestaticapps.net"
 Y1 = "https://rgai-dev-y1-p0249-d4e5ddbd.azurewebsites.net"
 FLEX = "https://rgai-dev-functions-d4e5ddbd.azurewebsites.net"
-ROUTES = ("/account", "/campaigns", "/trends", "/creative", "/video")
+ROUTES = (
+    "/",
+    "/business",
+    "/campaigns",
+    "/trends",
+    "/testing-chat",
+    "/subscription",
+    "/calendar",
+    "/creative-studio",
+    "/media-library",
+    "/connections",
+    "/publishing",
+    "/notifications",
+    "/settings",
+    "/platform-admin",
+    "/platform-alerts",
+    "/account",
+)
 ASSET = re.compile(r"/assets/[A-Za-z0-9_-]+-[A-Za-z0-9_-]+\.js")
 REFERENCES = re.compile(r"""['"](?:\./|/assets/|assets/)([A-Za-z0-9_-]+-[A-Za-z0-9_-]+\.js)['"]""")
 AZURE_ORIGIN = re.compile(r"https?://[A-Za-z0-9.-]+\.azurewebsites\.net(?=[/:?#'\x22\s]|$)", re.I)

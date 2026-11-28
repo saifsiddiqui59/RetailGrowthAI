@@ -1,5 +1,6 @@
 """Offline proof of served Vite graph cutover/rollback verifier."""
 import importlib.util
+import re
 from pathlib import Path
 import unittest
 
@@ -10,6 +11,15 @@ spec.loader.exec_module(tool)
 
 
 class ServedOriginProof(unittest.TestCase):
+    def test_all_actual_spa_routes_are_probed(self):
+        app = (ROOT / "frontend/src/App.jsx").read_text(encoding="utf-8")
+        actual = {path for path in re.findall(r'<Route path="([^"]+)"', app)
+                  if path != "*"}
+        self.assertTrue(actual)
+        self.assertEqual(set(tool.ROUTES), actual)
+        self.assertEqual(len(tool.ROUTES), len(actual))
+        self.assertIn("/creative-studio", tool.ROUTES)
+
     def fixtures(self, origin=tool.Y1):
         html = '<div id="root"></div><script type="module" src="/assets/index-abc123.js"></script>'
         graph = {route: html for route in tool.ROUTES}
