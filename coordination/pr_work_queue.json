@@ -13,11 +13,12 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 7,
+    "open_prs": 8,
     "by_feature": {
       "unclassified": 2,
       "issue249": 4,
-      "F4": 1
+      "F4": 1,
+      "F1": 1
     }
   },
   "entries": [
@@ -139,6 +140,23 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1146"
+    },
+    {
+      "pr": 1152,
+      "title": "fix(platform): usable mobile retailer approval cards and confirmation",
+      "feature": "F1",
+      "head_sha": "f3e9c4a9f3d34912c85a09af2de991372d407583",
+      "base_branch": "main",
+      "work_owner": "manual-integration",
+      "priority": "P0",
+      "phase": "test",
+      "checkpoint": {
+        "owner": "manual-integration-chat-f2f4",
+        "ci": "Fresh CI pending",
+        "next_action": "Verify real mobile Chromium 320/390/768 and all exact-head four jobs. Source-only integration, then existing protected SWA release only with existing API origin unchanged. Owner approval remains required; #1150 retained users; shops pending normal onboarding.",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1152"
     }
   ],
   "last_inventory_checked_at": "2026-11-27T09:04:54Z"
