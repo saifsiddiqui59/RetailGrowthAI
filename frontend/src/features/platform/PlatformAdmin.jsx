@@ -95,11 +95,11 @@ export default function PlatformAdmin() {
   }, [client, reviewOpen, reviewVersion])
 
   async function reviewRequest(accountId, approve) {
-    if (!reviewConfirm || reviewSaving || reviewUser !== accountId) return
+    if (!reviewConfirm || reviewSaving || reviewUser !== accountId || reviewReason.trim().length < 10 || reviewReason.trim().length > 300) return
     setReviewSaving(true)
     setReviewError('')
     try {
-      await client.reviewPlatformOnboarding(accountId, approve, reviewReason)
+      await client.reviewPlatformOnboarding(accountId, approve, reviewReason.trim())
       setReviewUser('')
       setReviewConfirm(false)
       setReviewReason('')
@@ -273,12 +273,15 @@ export default function PlatformAdmin() {
               <label className="platform-review-confirm">
                 <input type="checkbox" checked={reviewConfirm}
                   onChange={e => setReviewConfirm(e.target.checked)}/>
-                I verified this account request and authorize the decision.
+                <span>I verified this account request and authorize the decision.</span>
               </label>
+              <p className="platform-review-hint" role="status">
+                {reviewReason.trim().length < 10 ? 'Enter at least 10 characters for the audit reason.' : !reviewConfirm ? 'Tick the confirmation above to enable Approve and Reject.' : 'Ready to submit the decision.'}
+              </p>
               <div className="platform-review-buttons">
-                <button type="button" disabled={reviewSaving || !reviewConfirm || reviewReason.trim().length < 10}
+                <button type="button" disabled={reviewSaving || !reviewConfirm || reviewReason.trim().length < 10 || reviewReason.trim().length > 300}
                   onClick={() => reviewRequest(entry.user_id,true)}>Approve</button>
-                <button type="button" disabled={reviewSaving || !reviewConfirm || reviewReason.trim().length < 10}
+                <button type="button" disabled={reviewSaving || !reviewConfirm || reviewReason.trim().length < 10 || reviewReason.trim().length > 300}
                   onClick={() => reviewRequest(entry.user_id,false)}>Reject</button>
                 <button type="button" disabled={reviewSaving} onClick={() => setReviewUser('')}>Cancel</button>
               </div>
