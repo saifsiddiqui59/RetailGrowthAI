@@ -13,10 +13,10 @@
     "main_merge": "manual-integration only"
   },
   "summary": {
-    "open_prs": 4,
+    "open_prs": 5,
     "by_feature": {
       "unclassified": 2,
-      "issue249": 1,
+      "issue249": 2,
       "feature4": 1
     }
   },
@@ -88,6 +88,23 @@
         "feature_done": false
       },
       "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1161"
+    },
+    {
+      "pr": 1162,
+      "title": "docs(#249): record vendored Y1 release handoff",
+      "feature": "issue249",
+      "head_sha": "334aaaf7ffbd9078de391b130706fbeae1ed477f",
+      "base_branch": "main",
+      "work_owner": "manual-issue249-core-stage-20261128",
+      "priority": "P1",
+      "phase": "test",
+      "checkpoint": {
+        "owner": "manual-issue249-core-stage-20261128",
+        "ci": "Docs-only PR #46184335940 in progress; #1159 postmerge main #46184145316 pending.",
+        "next_action": "Review append-only handoff, verify exact CI and current main, integrate without racing active protected release. Hosted remains 1/7.",
+        "feature_done": false
+      },
+      "url": "https://github.com/saifsiddiqui59/RetailGrowthAI/pull/1162"
     }
   ],
   "last_inventory_checked_at": "2026-11-28T19:00:00Z"
